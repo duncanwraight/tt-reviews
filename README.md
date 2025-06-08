@@ -8,3 +8,4 @@ A trusted table tennis equipment review platform featuring player profiles and c
 - **Tech Stack & Architecture**: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - **Table Tennis Terminology**: [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
 - **UI/UX Style Guide**: [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md)
+- **Layout Guide**: [`docs/LAYOUT.md`](docs/LAYOUT.md)

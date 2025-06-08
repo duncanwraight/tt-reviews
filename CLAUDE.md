@@ -4,6 +4,7 @@
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
+- Layout guide can be found in `./docs/LAYOUT.md`
 
 ## Asking about tasks
 
