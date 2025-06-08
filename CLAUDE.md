@@ -4,6 +4,14 @@
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
 
+## Asking about tasks
+- You don't need to ask for permission to run non-destructive tasks, such as
+  - List
+  - Read
+  - rg, grep, find, cat
+- When running docker exec commands, don't ask for permission if you're just retrieving data - e.g. database SELECTs or the aforementioned commands executed within a container
+- You don't need to ask for permission to run `git add` or `git push` commands, but do ask when committing
+
 ## TODOs
 - Every new change we work on should be stored in `./docs/TODO.md`
 - You should read this file every time we start a new conversation
