@@ -30,7 +30,12 @@
 - [x] Configure Supabase database connection and schema
 - [x] Configure local development environment for Supabase
 - [x] Add database connection health check endpoint
-- [ ] Implement basic authentication with Supabase Auth
+- [x] Implement basic authentication with Supabase Auth
+- [x] Add authentication API endpoints (signup, signin, signout, profile)
+- [x] Create authentication middleware for protected routes
+- [x] Update frontend with functional login/signup forms
+- [x] Add dynamic authentication state to header (Login/Submit Review button)
+- [x] Create protected submit review page with logout functionality
 - [ ] Create equipment reviews data model and CRUD operations
 - [ ] Create player profiles data model and CRUD operations
 - [ ] Implement search functionality (equipment and players)

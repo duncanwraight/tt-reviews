@@ -1,7 +1,43 @@
-import { Hono } from 'hono'
-import { createSupabaseClient, EquipmentService, PlayerService } from './lib/supabase'
+import { Hono, Context } from 'hono'
+import { createSupabaseClient, EquipmentService, PlayerService, AuthService } from './lib/supabase'
+import { User } from '@supabase/supabase-js'
 
-const app = new Hono()
+type Variables = {
+  user: User
+}
+
+const app = new Hono<{ Variables: Variables }>()
+
+// Authentication middleware
+const requireAuth = async (c: Context<{ Variables: Variables }>, next: () => Promise<void>) => {
+  try {
+    const authHeader = c.req.header('Authorization')
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    const supabase = createSupabaseClient(c.env)
+
+    // Verify the JWT token
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token)
+
+    if (error || !user) {
+      return c.json({ error: 'Invalid or expired token' }, 401)
+    }
+
+    // Add user to context for use in protected routes
+    c.set('user', user)
+    await next()
+  } catch (error) {
+    console.error('Auth middleware error:', error)
+    return c.json({ error: 'Authentication failed' }, 401)
+  }
+}
 
 // API routes
 app.get('/api/health', async c => {
@@ -44,6 +80,129 @@ app.get('/api/health', async c => {
 
 app.get('/api/hello', c => {
   return c.json({ message: 'Hello from Hono + Cloudflare Workers!' })
+})
+
+// Authentication API
+app.post('/api/auth/signup', async c => {
+  try {
+    const { email, password } = await c.req.json()
+
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400)
+    }
+
+    const supabase = createSupabaseClient(c.env)
+    const authService = new AuthService(supabase)
+
+    const { user, error } = await authService.signUp(email, password)
+
+    if (error) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ user, message: 'User created successfully' })
+  } catch (error) {
+    console.error('Signup error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+app.post('/api/auth/signin', async c => {
+  try {
+    const { email, password } = await c.req.json()
+
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400)
+    }
+
+    const supabase = createSupabaseClient(c.env)
+    const authService = new AuthService(supabase)
+
+    const { user, session, error } = await authService.signIn(email, password)
+
+    if (error) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ user, session, message: 'Signed in successfully' })
+  } catch (error) {
+    console.error('Signin error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+app.post('/api/auth/signout', async c => {
+  try {
+    const supabase = createSupabaseClient(c.env)
+    const authService = new AuthService(supabase)
+
+    const { error } = await authService.signOut()
+
+    if (error) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ message: 'Signed out successfully' })
+  } catch (error) {
+    console.error('Signout error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+app.get('/api/auth/user', async c => {
+  try {
+    const supabase = createSupabaseClient(c.env)
+    const authService = new AuthService(supabase)
+
+    const { user, error } = await authService.getUser()
+
+    if (error) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ user })
+  } catch (error) {
+    console.error('Get user error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+app.post('/api/auth/reset-password', async c => {
+  try {
+    const { email } = await c.req.json()
+
+    if (!email) {
+      return c.json({ error: 'Email is required' }, 400)
+    }
+
+    const supabase = createSupabaseClient(c.env)
+    const authService = new AuthService(supabase)
+
+    const { error } = await authService.resetPassword(email)
+
+    if (error) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ message: 'Password reset email sent' })
+  } catch (error) {
+    console.error('Reset password error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// Protected routes (require authentication)
+app.get('/api/auth/profile', requireAuth, async c => {
+  try {
+    const user = c.get('user')
+    return c.json({
+      user,
+      message: 'This is a protected route - you are authenticated!',
+    })
+  } catch (error) {
+    console.error('Profile error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
 })
 
 // Equipment API
@@ -1003,7 +1162,7 @@ app.get('*', c => {
               </svg>
               <span class="discord-text">OOAK</span>
             </a>
-            <a href="/login" class="login-btn" onclick="navigate('/login')">Login</a>
+            <a href="/login" class="login-btn" id="authButton" onclick="window.handleAuthButton()">Login</a>
           </nav>
           
           <button class="mobile-menu-toggle">☰</button>
@@ -1421,7 +1580,111 @@ app.get('*', c => {
                       <p>Sign in to submit reviews and access personalized features</p>
                     </div>
                     <div class="card" style="max-width: 400px; margin: 0 auto;">
-                      <p>Authentication system coming soon!</p>
+                      <form id="loginForm" onsubmit="window.handleLogin(event); return false;">
+                        <div style="margin-bottom: 1rem;">
+                          <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Email</label>
+                          <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            required 
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                            placeholder="Enter your email"
+                          >
+                        </div>
+                        <div style="margin-bottom: 1.5rem;">
+                          <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
+                          <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                            placeholder="Enter your password"
+                          >
+                        </div>
+                        <button 
+                          type="submit" 
+                          style="width: 100%; background: var(--primary); color: white; padding: 0.75rem; border: none; border-radius: 6px; font-size: 1rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;"
+                        >
+                          Sign In
+                        </button>
+                        <div style="text-align: center; margin-bottom: 1rem;">
+                          <a href="#" onclick="window.showSignupForm(); return false;" style="color: var(--primary); text-decoration: none;">
+                            Don't have an account? Sign up
+                          </a>
+                        </div>
+                        <div style="text-align: center;">
+                          <a href="#" onclick="window.showResetForm(); return false;" style="color: var(--secondary); text-decoration: none; font-size: 0.875rem;">
+                            Forgot your password?
+                          </a>
+                        </div>
+                      </form>
+                      
+                      <form id="signupForm" onsubmit="window.handleSignup(event); return false;" style="display: none;">
+                        <div style="margin-bottom: 1rem;">
+                          <label for="signupEmail" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Email</label>
+                          <input 
+                            type="email" 
+                            id="signupEmail" 
+                            name="email" 
+                            required 
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                            placeholder="Enter your email"
+                          >
+                        </div>
+                        <div style="margin-bottom: 1.5rem;">
+                          <label for="signupPassword" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
+                          <input 
+                            type="password" 
+                            id="signupPassword" 
+                            name="password" 
+                            required 
+                            minlength="6"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                            placeholder="Create a password (min 6 characters)"
+                          >
+                        </div>
+                        <button 
+                          type="submit" 
+                          style="width: 100%; background: var(--accent); color: white; padding: 0.75rem; border: none; border-radius: 6px; font-size: 1rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;"
+                        >
+                          Sign Up
+                        </button>
+                        <div style="text-align: center;">
+                          <a href="#" onclick="window.showLoginForm(); return false;" style="color: var(--primary); text-decoration: none;">
+                            Already have an account? Sign in
+                          </a>
+                        </div>
+                      </form>
+                      
+                      <div id="authMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 6px; text-align: center;"></div>
+                    </div>
+                  </div>
+                </section>
+              \`;
+              break;
+              
+            case '/submit-review':
+              const session = checkAuthState();
+              if (!session || !session.access_token) {
+                navigate('/login');
+                return;
+              }
+              
+              content.innerHTML = \`
+                <section class="section">
+                  <div class="main-container">
+                    <div class="section-header">
+                      <h1>Submit Equipment Review</h1>
+                      <p>Share your experience with table tennis equipment</p>
+                    </div>
+                    <div class="card" style="max-width: 600px; margin: 0 auto;">
+                      <p>Review submission form coming soon!</p>
+                      <p>You are logged in as: <strong>\${session.user?.email || 'Unknown'}</strong></p>
+                      <button onclick="window.logout()" style="background: var(--error); color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;">
+                        Logout
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -1685,12 +1948,142 @@ app.get('*', c => {
           }
         }
         
+        // Authentication state management
+        function checkAuthState() {
+          const session = localStorage.getItem('session');
+          return session ? JSON.parse(session) : null;
+        }
+        
+        function updateAuthButton() {
+          const authButton = document.getElementById('authButton');
+          const session = checkAuthState();
+          
+          if (session && session.access_token) {
+            authButton.textContent = 'Submit Review';
+            authButton.style.background = 'var(--accent)';
+            authButton.href = '/submit-review';
+          } else {
+            authButton.textContent = 'Login';
+            authButton.style.background = 'var(--primary)';
+            authButton.href = '/login';
+          }
+        }
+        
+        window.handleAuthButton = function() {
+          const session = checkAuthState();
+          
+          if (session && session.access_token) {
+            // User is logged in, navigate to submit review page
+            navigate('/submit-review');
+          } else {
+            // User is not logged in, navigate to login page
+            navigate('/login');
+          }
+          return false;
+        }
+        
+        window.logout = async function() {
+          try {
+            await fetch('/api/auth/signout', {
+              method: 'POST',
+            });
+            localStorage.removeItem('session');
+            updateAuthButton();
+            navigate('/');
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
+        }
+
+        // Authentication functions
+        window.showSignupForm = function() {
+          document.getElementById('loginForm').style.display = 'none';
+          document.getElementById('signupForm').style.display = 'block';
+          document.querySelector('.section-header h1').textContent = 'Sign Up';
+          document.querySelector('.section-header p').textContent = 'Create an account to submit reviews and access personalized features';
+        }
+        
+        window.showLoginForm = function() {
+          document.getElementById('signupForm').style.display = 'none';
+          document.getElementById('loginForm').style.display = 'block';
+          document.querySelector('.section-header h1').textContent = 'Login';
+          document.querySelector('.section-header p').textContent = 'Sign in to submit reviews and access personalized features';
+        }
+        
+        window.showMessage = function(message, isError = false) {
+          const messageDiv = document.getElementById('authMessage');
+          messageDiv.textContent = message;
+          messageDiv.style.display = 'block';
+          messageDiv.style.backgroundColor = isError ? 'var(--error)' : 'var(--success)';
+          messageDiv.style.color = 'white';
+        }
+        
+        window.handleLogin = async function(event) {
+          event.preventDefault();
+          
+          const email = document.getElementById('email').value;
+          const password = document.getElementById('password').value;
+          
+          try {
+            const response = await fetch('/api/auth/signin', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email, password }),
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+              window.showMessage('Signed in successfully!');
+              // Store session info and update UI
+              localStorage.setItem('session', JSON.stringify(data.session));
+              updateAuthButton();
+              setTimeout(() => navigate('/'), 1500);
+            } else {
+              window.showMessage(data.error || 'Login failed', true);
+            }
+          } catch (error) {
+            window.showMessage('Network error. Please try again.', true);
+          }
+        }
+        
+        window.handleSignup = async function(event) {
+          event.preventDefault();
+          
+          const email = document.getElementById('signupEmail').value;
+          const password = document.getElementById('signupPassword').value;
+          
+          try {
+            const response = await fetch('/api/auth/signup', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email, password }),
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+              window.showMessage('Account created successfully! You can now sign in.');
+              setTimeout(() => window.showLoginForm(), 2000);
+            } else {
+              window.showMessage(data.error || 'Signup failed', true);
+            }
+          } catch (error) {
+            window.showMessage('Network error. Please try again.', true);
+          }
+        }
+
         // Handle browser back/forward
         window.addEventListener('popstate', render);
         
         // Initial render
         render();
         updateActiveNav();
+        updateAuthButton();
       </script>
     </body>
     </html>

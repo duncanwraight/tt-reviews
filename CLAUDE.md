@@ -7,6 +7,11 @@
 - Layout guide can be found in `./docs/LAYOUT.md`
 - Make sure that SEO strategy and optimization guidelines (found in `./docs/SEO.md`) are constantly referenced when designing every relevant part of the application
 
+## Interactions with my device
+
+- All references to localhost should be replaced with "tt-reviews.local" which is set up to point at 127.0.0.1 in my `/etc/hosts` file
+  - This is especially applicable when working locally with Supabase as in the past `localhost` has ended with silent ipv6 failures
+
 ## Asking about tasks
 
 ### Non-destructive tasks (no permission needed):
@@ -44,6 +49,28 @@ When you have completed a change, or a small batch of changes, always follow thi
 - Update the ./docs/TODO.md file to mark changes completed
 - Stage all files in the repo with `git add .`
 - Commit and push
+
+## Code Quality Standards
+
+When writing TypeScript code, follow these strict guidelines to avoid linting errors:
+
+- **No `any` types**: Always use proper TypeScript types. Import `SupabaseClient` type instead of using `any`
+- **No unused variables**: Remove or prefix with underscore if intentionally unused
+- **Proper type assertions**: Use `as Record<string, string>` for environment variables instead of accessing unknown types directly
+- **Import specific types**: Import `{ createClient, SupabaseClient }` instead of just the client
+
+Example of correct typing:
+
+```typescript
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+
+export class EquipmentService {
+  constructor(private supabase: SupabaseClient) {}
+}
+
+// For environment variables
+const envTyped = env as Record<string, string>
+```
 
 ## Important Notes
 
