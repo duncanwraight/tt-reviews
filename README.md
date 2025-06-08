@@ -41,3 +41,4 @@ The development server will automatically reload when you make changes to the co
 - **Table Tennis Terminology**: [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
 - **UI/UX Style Guide**: [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md)
 - **Layout Guide**: [`docs/LAYOUT.md`](docs/LAYOUT.md)
+- **SEO Strategy**: [`docs/SEO.md`](docs/SEO.md)

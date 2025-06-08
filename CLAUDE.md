@@ -5,6 +5,7 @@
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
+- Make sure that SEO strategy and optimization guidelines (found in `./docs/SEO.md`) are constantly referenced when designing every relevant part of the application
 
 ## Asking about tasks
 
