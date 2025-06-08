@@ -27,7 +27,9 @@
 
 ## Core Features
 
-- [ ] Configure Supabase database connection and schema
+- [x] Configure Supabase database connection and schema
+- [x] Configure local development environment for Supabase
+- [x] Add database connection health check endpoint
 - [ ] Implement basic authentication with Supabase Auth
 - [ ] Create equipment reviews data model and CRUD operations
 - [ ] Create player profiles data model and CRUD operations

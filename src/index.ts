@@ -1,14 +1,115 @@
 import { Hono } from 'hono'
+import { createSupabaseClient, EquipmentService, PlayerService } from './lib/supabase'
 
 const app = new Hono()
 
 // API routes
-app.get('/api/health', c => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+app.get('/api/health', async c => {
+  try {
+    const supabase = createSupabaseClient(c.env)
+
+    // Simple database connection test
+    const { error } = await supabase.from('equipment').select('count').limit(1)
+
+    if (error) {
+      return c.json(
+        {
+          status: 'error',
+          timestamp: new Date().toISOString(),
+          database: 'disconnected',
+          error: error.message,
+        },
+        500
+      )
+    }
+
+    return c.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      supabase_url: (c.env as Record<string, string>).SUPABASE_URL || 'not_set',
+    })
+  } catch (error) {
+    return c.json(
+      {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        database: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
+  }
 })
 
 app.get('/api/hello', c => {
   return c.json({ message: 'Hello from Hono + Cloudflare Workers!' })
+})
+
+// Equipment API
+app.get('/api/equipment/:slug', async c => {
+  try {
+    const slug = c.req.param('slug')
+    const supabase = createSupabaseClient(c.env)
+    const equipmentService = new EquipmentService(supabase)
+
+    const equipment = await equipmentService.getEquipment(slug)
+    if (!equipment) {
+      return c.json({ error: 'Equipment not found' }, 404)
+    }
+
+    const reviews = await equipmentService.getEquipmentReviews(equipment.id)
+
+    return c.json({ equipment, reviews })
+  } catch (error) {
+    console.error('Equipment API error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// Players API
+app.get('/api/players/:slug', async c => {
+  try {
+    const slug = c.req.param('slug')
+    const supabase = createSupabaseClient(c.env)
+    const playerService = new PlayerService(supabase)
+
+    const player = await playerService.getPlayer(slug)
+    if (!player) {
+      return c.json({ error: 'Player not found' }, 404)
+    }
+
+    const equipmentSetups = await playerService.getPlayerEquipmentSetups(player.id)
+
+    return c.json({ player, equipmentSetups })
+  } catch (error) {
+    console.error('Player API error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// Search API
+app.get('/api/search', async c => {
+  try {
+    const query = c.req.query('q')
+    if (!query) {
+      return c.json({ error: 'Search query required' }, 400)
+    }
+
+    const supabase = createSupabaseClient(c.env)
+    const equipmentService = new EquipmentService(supabase)
+    const playerService = new PlayerService(supabase)
+
+    const [equipment, players] = await Promise.all([
+      equipmentService.searchEquipment(query),
+      playerService.searchPlayers(query),
+    ])
+
+    return c.json({ equipment, players })
+  } catch (error) {
+    console.error('Search API error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
 })
 
 // SPA fallback - serve index.html for any unmatched routes
@@ -896,7 +997,7 @@ app.get('*', c => {
           <nav class="nav-menu">
             <a href="/equipment" class="nav-link" onclick="navigate('/equipment')">Equipment</a>
             <a href="/players" class="nav-link" onclick="navigate('/players')">Players</a>
-            <a href="https://discord.gg/OOAK" class="discord-link" target="_blank" rel="noopener noreferrer">
+            <a href="https://discord.gg/Ycp7mKA3Yw" class="discord-link" target="_blank" rel="noopener noreferrer">
               <svg width="20" height="20" viewBox="0 0 127.14 96.36" fill="currentColor">
                 <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
               </svg>
