@@ -9,7 +9,11 @@ SUPABASE_URL = "https://rqehpjgumrtiowgxsdyw.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZWhwamd1bXJ0aW93Z3hzZHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDY1MzYsImV4cCI6MjA2NDk4MjUzNn0.yqQDMhV30mu-LLOgEFhH7wm-vpe-zgDX0Ju8MbXmjFk"
 
 # Local dev settings
+[env.dev]
+host = "tt-reviews.local"
+port = 8787
+
 [env.dev.vars]
 ENVIRONMENT = "development"
-SUPABASE_URL = "http://127.0.0.1:54321"
+SUPABASE_URL = "http://tt-reviews.local:54321"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"

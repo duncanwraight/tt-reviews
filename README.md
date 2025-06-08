@@ -30,7 +30,7 @@ A trusted table tennis equipment review platform featuring player profiles and c
    npm run dev
    ```
 
-4. Open your browser and navigate to the URL shown in the terminal (typically `http://localhost:8787`)
+4. Open your browser and navigate to the URL shown in the terminal (typically `http://tt-reviews.local:8787`)
 
 The development server will automatically reload when you make changes to the code.
 

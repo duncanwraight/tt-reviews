@@ -124,7 +124,7 @@ app.post('/api/auth/signin', async c => {
       return c.json({ error: error.message }, 400)
     }
 
-    return c.json({ user, session, message: 'Signed in successfully' })
+    return c.json({ user, session })
   } catch (error) {
     console.error('Signin error:', error)
     return c.json({ error: 'Internal server error' }, 500)
@@ -1403,6 +1403,17 @@ app.get('*', c => {
           const content = document.getElementById('content');
           const breadcrumbHtml = generateBreadcrumb(path);
           
+          // Check for email verification success
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlHash = window.location.hash;
+          
+          if (urlParams.get('type') === 'email' || urlHash.includes('access_token')) {
+            showSuccessOverlay('Email verified successfully! Welcome to TT Reviews.');
+            // Clean up URL parameters
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+          
           switch(path) {
             case '/':
               content.innerHTML = \`
@@ -2018,6 +2029,109 @@ app.get('*', c => {
           messageDiv.style.color = 'white';
         }
         
+        window.showSuccessOverlay = function(message) {
+          // Create overlay
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 
+            'position: fixed;' +
+            'top: 0;' +
+            'left: 0;' +
+            'width: 100%;' +
+            'height: 100%;' +
+            'background: rgba(0, 0, 0, 0.5);' +
+            'display: flex;' +
+            'align-items: center;' +
+            'justify-content: center;' +
+            'z-index: 10000;' +
+            'animation: fadeIn 0.3s ease-out;';
+          
+          // Create success popup
+          const popup = document.createElement('div');
+          popup.style.cssText = 
+            'background: white;' +
+            'padding: 2rem;' +
+            'border-radius: 12px;' +
+            'box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);' +
+            'text-align: center;' +
+            'max-width: 400px;' +
+            'margin: 0 1rem;' +
+            'animation: slideUp 0.3s ease-out;';
+          
+          // Create success icon
+          const icon = document.createElement('div');
+          icon.style.cssText = 
+            'width: 60px;' +
+            'height: 60px;' +
+            'background: var(--success);' +
+            'border-radius: 50%;' +
+            'margin: 0 auto 1rem;' +
+            'display: flex;' +
+            'align-items: center;' +
+            'justify-content: center;' +
+            'color: white;' +
+            'font-size: 24px;' +
+            'font-weight: bold;';
+          icon.innerHTML = '✓';
+          
+          // Create message
+          const messageEl = document.createElement('p');
+          messageEl.style.cssText = 
+            'margin: 0 0 1.5rem;' +
+            'font-size: 1.125rem;' +
+            'font-weight: 500;' +
+            'color: var(--text);';
+          messageEl.textContent = message;
+          
+          // Create continue button
+          const button = document.createElement('button');
+          button.style.cssText = 
+            'background: var(--primary);' +
+            'color: white;' +
+            'border: none;' +
+            'padding: 0.75rem 2rem;' +
+            'border-radius: 6px;' +
+            'font-size: 1rem;' +
+            'font-weight: 500;' +
+            'cursor: pointer;' +
+            'transition: all 0.2s ease;';
+          button.textContent = 'Continue';
+          button.onclick = function() {
+            overlay.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => overlay.remove(), 300);
+          };
+          
+          // Add CSS animations
+          const style = document.createElement('style');
+          style.textContent = 
+            '@keyframes fadeIn {' +
+              'from { opacity: 0; }' +
+              'to { opacity: 1; }' +
+            '}' +
+            '@keyframes fadeOut {' +
+              'from { opacity: 1; }' +
+              'to { opacity: 0; }' +
+            '}' +
+            '@keyframes slideUp {' +
+              'from { opacity: 0; transform: translateY(20px) scale(0.95); }' +
+              'to { opacity: 1; transform: translateY(0) scale(1); }' +
+            '}';
+          
+          // Assemble and add to page
+          popup.appendChild(icon);
+          popup.appendChild(messageEl);
+          popup.appendChild(button);
+          overlay.appendChild(popup);
+          document.head.appendChild(style);
+          document.body.appendChild(overlay);
+          
+          // Auto-close after 5 seconds
+          setTimeout(() => {
+            if (overlay.parentNode) {
+              button.click();
+            }
+          }, 5000);
+        }
+        
         window.handleLogin = async function(event) {
           event.preventDefault();
           
@@ -2036,11 +2150,11 @@ app.get('*', c => {
             const data = await response.json();
             
             if (response.ok) {
-              window.showMessage('Signed in successfully!');
               // Store session info and update UI
               localStorage.setItem('session', JSON.stringify(data.session));
               updateAuthButton();
-              setTimeout(() => navigate('/'), 1500);
+              showSuccessOverlay('Welcome back! You are now signed in.');
+              setTimeout(() => navigate('/'), 2000);
             } else {
               window.showMessage(data.error || 'Login failed', true);
             }
