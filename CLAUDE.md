@@ -3,14 +3,26 @@
 - To find general information about table tennis, and the terminology used by its competitive players across the globe, read `./docs/GLOSSARY.md`
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
+- UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 
 ## Asking about tasks
-- You don't need to ask for permission to run non-destructive tasks, such as
-  - List
-  - Read
-  - rg, grep, find, cat
-- When running docker exec commands, don't ask for permission if you're just retrieving data - e.g. database SELECTs or the aforementioned commands executed within a container
-- You don't need to ask for permission to run `git add` or `git push` commands, but do ask when committing
+
+### Non-destructive tasks (no permission needed):
+- File operations: ls, read, grep, find, cat, rg
+- Git operations: add, push, status, diff, log
+- Package managers: npm install, npm run (build/test/lint)
+- Database reads: SELECT queries
+- When running docker exec commands for data retrieval - e.g. database SELECTs or the aforementioned commands executed within a container
+
+### Tasks that don't require permission:
+- Updating markdown files (*.md) in the docs/ directory or project root
+- Running `git add` or `git push` commands
+
+### Destructive tasks (ask first):
+- File modifications to code files: edit, write, delete
+- Git commits
+- Database writes: INSERT, UPDATE, DELETE
+- System configuration changes
 
 ## TODOs
 - Every new change we work on should be stored in `./docs/TODO.md`
