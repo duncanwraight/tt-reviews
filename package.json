@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A trusted table tennis equipment review platform featuring player profiles and community-moderated reviews.",
   "main": "index.js",
+  "type": "module",
   "directories": {
     "doc": "docs"
   },
@@ -10,7 +11,13 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run format && npm run lint && npm run typecheck"
   },
   "repository": {
     "type": "git",
@@ -29,6 +36,12 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250607.0",
     "@types/node": "^22.15.30",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.1",
+    "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "wrangler": "^4.19.1"
   }

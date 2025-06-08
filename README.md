@@ -5,22 +5,27 @@ A trusted table tennis equipment review platform featuring player profiles and c
 ## Local Development
 
 ### Prerequisites
+
 - Node.js (v18 or later)
 - npm (comes with Node.js)
 
 ### Setup
+
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/duncanwraight/tt-reviews.git
    cd tt-reviews
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Start the development server:
+
    ```bash
    npm run dev
    ```

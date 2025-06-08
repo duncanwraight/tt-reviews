@@ -1,6 +1,7 @@
 # Requirements - Tech stack
 
 ## Hosting
+
 - The accounts and servers we have available are:
   - Supabase
   - Vercel
@@ -11,10 +12,12 @@
     - SSH connectivity
 
 ## Local environment
+
 - We should be able to very closely mimic the "Production" environment locally
-- We should be confident that if the local environment has worked after a change, the Production environment will work in the same way 
+- We should be confident that if the local environment has worked after a change, the Production environment will work in the same way
 
 ## Relevant application requirements
+
 - Application must be accessible by users across the globe
 - A small amount of storage will be required, for users to be able to upload photographs of players and equipment
 - Moderation for this application will primarily be done by Discord, e.g.

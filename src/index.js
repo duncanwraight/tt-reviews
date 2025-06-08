@@ -1,15 +1,15 @@
-import { Hono } from 'hono';
-const app = new Hono();
+import { Hono } from 'hono'
+const app = new Hono()
 // API routes
-app.get('/api/health', (c) => {
-    return c.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-app.get('/api/hello', (c) => {
-    return c.json({ message: 'Hello from Hono + Cloudflare Workers!' });
-});
+app.get('/api/health', c => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+app.get('/api/hello', c => {
+  return c.json({ message: 'Hello from Hono + Cloudflare Workers!' })
+})
 // SPA fallback - serve index.html for any unmatched routes
-app.get('*', (c) => {
-    return c.html(`
+app.get('*', c => {
+  return c.html(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -72,6 +72,6 @@ app.get('*', (c) => {
       </script>
     </body>
     </html>
-  `);
-});
-export default app;
+  `)
+})
+export default app

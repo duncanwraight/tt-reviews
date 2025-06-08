@@ -3,16 +3,16 @@ import { Hono } from 'hono'
 const app = new Hono()
 
 // API routes
-app.get('/api/health', (c) => {
+app.get('/api/health', c => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.get('/api/hello', (c) => {
+app.get('/api/hello', c => {
   return c.json({ message: 'Hello from Hono + Cloudflare Workers!' })
 })
 
 // SPA fallback - serve index.html for any unmatched routes
-app.get('*', (c) => {
+app.get('*', c => {
   return c.html(`
     <!DOCTYPE html>
     <html lang="en">
@@ -688,6 +688,48 @@ app.get('*', (c) => {
           border-radius: 6px;
         }
 
+        /* Breadcrumb navigation */
+        .breadcrumb {
+          background: var(--card-bg);
+          border-bottom: 1px solid var(--border);
+          padding: 0.75rem 0;
+          font-size: 0.875rem;
+        }
+        
+        .breadcrumb-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 1rem;
+        }
+        
+        .breadcrumb-nav {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: var(--secondary);
+        }
+        
+        .breadcrumb-link {
+          color: var(--secondary);
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+        
+        .breadcrumb-link:hover {
+          color: var(--primary);
+          text-decoration: underline;
+        }
+        
+        .breadcrumb-separator {
+          color: var(--border);
+          font-weight: bold;
+        }
+        
+        .breadcrumb-current {
+          color: var(--text);
+          font-weight: 500;
+        }
+
         /* Responsive design */
         @media (max-width: 768px) {
           .header-container {
@@ -853,6 +895,73 @@ app.get('*', (c) => {
           });
         }
         
+        function generateBreadcrumb(path) {
+          const segments = path.split('/').filter(segment => segment);
+          if (segments.length === 0) return '';
+          
+          const breadcrumbs = [{ label: 'Home', path: '/' }];
+          
+          // Equipment breadcrumbs
+          if (segments[0] === 'equipment') {
+            breadcrumbs.push({ label: 'Equipment', path: '/equipment' });
+            
+            if (segments[1]) {
+              const equipmentNames = {
+                'butterfly-tenergy-64': 'Butterfly Tenergy 64',
+                'tsp-curl-p1-r': 'TSP Curl P1-R',
+                'stiga-clipper': 'Stiga Clipper',
+                'blades': 'Blades',
+                'forehand-rubbers': 'Forehand Rubbers',
+                'backhand-rubbers': 'Backhand Rubbers',
+                'long-pips': 'Long Pips',
+                'anti-spin': 'Anti-Spin',
+                'training': 'Training Equipment'
+              };
+              
+              const equipmentName = equipmentNames[segments[1]] || segments[1];
+              breadcrumbs.push({ label: equipmentName, path: path, current: true });
+            }
+          }
+          
+          // Player breadcrumbs
+          if (segments[0] === 'players') {
+            breadcrumbs.push({ label: 'Players', path: '/players' });
+            
+            if (segments[1]) {
+              const playerNames = {
+                'joo-saehyuk': 'Joo Saehyuk',
+                'ma-long': 'Ma Long',
+                'timo-boll': 'Timo Boll'
+              };
+              
+              const playerName = playerNames[segments[1]] || segments[1];
+              breadcrumbs.push({ label: playerName, path: path, current: true });
+            }
+          }
+          
+          // About breadcrumb
+          if (segments[0] === 'about') {
+            breadcrumbs.push({ label: 'About', path: '/about', current: true });
+          }
+          
+          return \`
+            <nav class="breadcrumb">
+              <div class="breadcrumb-container">
+                <div class="breadcrumb-nav">
+                  \${breadcrumbs.map((crumb, index) => {
+                    if (crumb.current) {
+                      return \`<span class="breadcrumb-current">\${crumb.label}</span>\`;
+                    } else {
+                      const separator = index < breadcrumbs.length - 1 ? '<span class="breadcrumb-separator">›</span>' : '';
+                      return \`<a href="\${crumb.path}" class="breadcrumb-link" onclick="navigate('\${crumb.path}')">\${crumb.label}</a>\${separator}\`;
+                    }
+                  }).join('')}
+                </div>
+              </div>
+            </nav>
+          \`;
+        }
+        
         function createRating(rating, count) {
           const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
           return \`
@@ -1000,6 +1109,7 @@ app.get('*', (c) => {
         function render() {
           const path = window.location.pathname;
           const content = document.getElementById('content');
+          const breadcrumbHtml = generateBreadcrumb(path);
           
           switch(path) {
             case '/':
@@ -1114,6 +1224,7 @@ app.get('*', (c) => {
               
             case '/equipment':
               content.innerHTML = \`
+                \${breadcrumbHtml}
                 <section class="section">
                   <div class="main-container">
                     <div class="section-header">
@@ -1141,6 +1252,7 @@ app.get('*', (c) => {
               
             case '/players':
               content.innerHTML = \`
+                \${breadcrumbHtml}
                 <section class="section">
                   <div class="main-container">
                     <div class="section-header">
@@ -1168,6 +1280,7 @@ app.get('*', (c) => {
               
             case '/about':
               content.innerHTML = \`
+                \${breadcrumbHtml}
                 <section class="section">
                   <div class="main-container">
                     <div class="section-header">
@@ -1233,6 +1346,7 @@ app.get('*', (c) => {
                 const player = players[playerId];
                 if (player) {
                   content.innerHTML = \`
+                    \${breadcrumbHtml}
                     <section class="player-header">
                       <div class="main-container">
                         <div class="player-info">
@@ -1269,6 +1383,7 @@ app.get('*', (c) => {
                   break;
                 } else {
                   content.innerHTML = \`
+                    \${breadcrumbHtml}
                     <section class="section">
                       <div class="main-container">
                         <div class="section-header">
@@ -1318,6 +1433,7 @@ app.get('*', (c) => {
                 const item = equipment[equipmentId];
                 if (item) {
                   content.innerHTML = \`
+                    \${breadcrumbHtml}
                     <section class="equipment-header">
                       <div class="main-container">
                         <div class="equipment-info">
@@ -1425,6 +1541,7 @@ app.get('*', (c) => {
                   break;
                 } else {
                   content.innerHTML = \`
+                    \${breadcrumbHtml}
                     <section class="section">
                       <div class="main-container">
                         <div class="section-header">

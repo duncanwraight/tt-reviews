@@ -3,12 +3,14 @@
 ## Overall Site Structure
 
 ### Global Header
-- **Logo/Brand** (left): "TT Reviews" 
+
+- **Logo/Brand** (left): "TT Reviews"
 - **Primary Search Bar** (center): Prominent, always visible with autocomplete
 - **Navigation Menu** (right): Equipment | Players | About | Login/Profile
 - **Mobile**: Hamburger menu with search bar remaining prominent
 
 ### Homepage Layout
+
 ```
 [Hero Section]
 - Search bar (larger version)
@@ -29,6 +31,7 @@
 ## Equipment Review Pages
 
 ### Individual Equipment Page (e.g., "Curl P1-R")
+
 ```
 [Equipment Header]
 - Large product image (left)
@@ -39,7 +42,7 @@
 [Sidebar] (Left, 25% width)
 - Filter reviews by:
   - Playing level
-  - Style of play  
+  - Style of play
   - Thickness (for rubbers)
   - Duration of testing
 - Sort options
@@ -55,6 +58,7 @@
 ```
 
 ## Player Profile Pages
+
 ```
 [Player Header]
 - Professional photo (left)
@@ -82,6 +86,7 @@
 ## Search & Equipment Finder Pages
 
 ### Equipment Finder
+
 ```
 [Search Builder] (Left sidebar, 30%)
 - Playing style selection
@@ -98,10 +103,11 @@
 ```
 
 ### Search Results
+
 ```
 [Filters] (Collapsible left sidebar)
 - Equipment type
-- Price range  
+- Price range
 - Rating minimum
 - Brand
 
@@ -114,13 +120,15 @@
 ## Key Layout Patterns
 
 ### Review Cards
+
 ```
 [Image] [Equipment Name + Rating Stars]
 [Reviewer Level/Style] [Key Metrics Bars]
 [Review Snippet...] [Read More →]
 ```
 
-### Player Cards  
+### Player Cards
+
 ```
 [Photo] [Player Name]
 [Highest Rating] [Active Years]
@@ -128,11 +136,13 @@
 ```
 
 ### Responsive Behavior
+
 - **Desktop**: Full sidebar layouts with 70/30 or 75/25 splits
-- **Tablet**: Collapsible sidebars, stack on narrow screens  
+- **Tablet**: Collapsible sidebars, stack on narrow screens
 - **Mobile**: Single column, prominent search, touch-friendly filters
 
 ### Navigation Patterns
+
 - **Breadcrumbs**: Equipment > Rubbers > Forehand > Curl P1-R
 - **Cross-references**: "Players using this equipment" / "Equipment used by this player"
 - **Related suggestions**: "Similar equipment" / "Players with similar style"
@@ -149,6 +159,7 @@
 ## Design System Integration
 
 This layout implements the principles from STYLE-GUIDE.md:
+
 - **Clean & Minimal**: Generous white space, subtle visual elements
 - **Search-First**: Prominent search functionality always visible
 - **Content-Focused**: Reviews and equipment data as primary focus
