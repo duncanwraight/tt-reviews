@@ -36,3 +36,6 @@ When you have completed a change, or a small batch of changes, always follow thi
 - Update the ./docs/TODO.md file to mark changes completed
 - Stage all files in the repo with `git add .`
 - Commit and push
+
+## Important Notes
+- Don't try to run Bash(npm run dev) commands, I will do those - just ask me to do it and await my feedback
