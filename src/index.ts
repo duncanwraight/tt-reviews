@@ -135,6 +135,37 @@ app.get('*', c => {
           background: #6d28d9;
         }
         
+        .discord-link {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          color: #5865f2;
+          transition: all 0.2s;
+          text-decoration: none;
+        }
+        
+        .discord-link svg {
+          flex-shrink: 0;
+          vertical-align: middle;
+          margin-bottom: 2px;
+        }
+        
+        .discord-link:hover {
+          background: rgba(88, 101, 242, 0.1);
+          transform: scale(1.05);
+        }
+        
+        .discord-text {
+          font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+          font-weight: 700;
+          font-size: 1.125rem;
+          letter-spacing: 0.05em;
+          line-height: 1;
+          transform: translateY(1px);
+        }
+        
         /* Mobile menu */
         .mobile-menu-toggle {
           display: none;
@@ -865,7 +896,12 @@ app.get('*', c => {
           <nav class="nav-menu">
             <a href="/equipment" class="nav-link" onclick="navigate('/equipment')">Equipment</a>
             <a href="/players" class="nav-link" onclick="navigate('/players')">Players</a>
-            <a href="/about" class="nav-link" onclick="navigate('/about')">About</a>
+            <a href="https://discord.gg/OOAK" class="discord-link" target="_blank" rel="noopener noreferrer">
+              <svg width="20" height="20" viewBox="0 0 127.14 96.36" fill="currentColor">
+                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
+              </svg>
+              <span class="discord-text">OOAK</span>
+            </a>
             <a href="/login" class="login-btn" onclick="navigate('/login')">Login</a>
           </nav>
           
@@ -939,10 +975,6 @@ app.get('*', c => {
             }
           }
           
-          // About breadcrumb
-          if (segments[0] === 'about') {
-            breadcrumbs.push({ label: 'About', path: '/about', current: true });
-          }
           
           return \`
             <nav class="breadcrumb">
@@ -1278,23 +1310,6 @@ app.get('*', c => {
               \`;
               break;
               
-            case '/about':
-              content.innerHTML = \`
-                \${breadcrumbHtml}
-                <section class="section">
-                  <div class="main-container">
-                    <div class="section-header">
-                      <h1>About TT Reviews</h1>
-                      <p>Community-moderated table tennis equipment reviews</p>
-                    </div>
-                    <div class="card">
-                      <h3>Our Mission</h3>
-                      <p>We provide trusted equipment reviews through community moderation and transparent reviewer context.</p>
-                    </div>
-                  </div>
-                </section>
-              \`;
-              break;
               
             case '/login':
               content.innerHTML = \`

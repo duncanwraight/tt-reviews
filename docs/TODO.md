@@ -23,6 +23,7 @@
 - [x] Create player profile card components
 - [x] Build filtering and sorting interface components
 - [x] Implement navigation breadcrumbs and cross-references
+- [x] Replace About page with Discord OOAK link in header navigation
 
 ## Core Features
 
