@@ -1,14 +1,14 @@
 # TODO
 
 ## Local Environment Setup
-- [ ] Set up Node.js project with latest versions
-- [ ] Configure local development environment to match production
+- [x] Set up Node.js project with latest versions
+- [x] Configure local development environment to match production
 
 ## Proof of Concept
-- [ ] Set up Hono + Cloudflare Workers project structure
-- [ ] Configure GitHub Actions deployment pipeline with Wrangler
-- [ ] Create basic app with routing (API + SPA frontend)
-- [ ] Test SPA routing works correctly with Cloudflare Workers
+- [x] Set up Hono + Cloudflare Workers project structure
+- [x] Configure GitHub Actions deployment pipeline with Wrangler
+- [x] Create basic app with routing (API + SPA frontend)
+- [x] Test SPA routing works correctly with Cloudflare Workers
 
 ## UI Framework & Layout
 - [x] Create LAYOUT.md documentation with recommended UI structure
