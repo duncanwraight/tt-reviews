@@ -1,0 +1,205 @@
+import { Hono } from 'hono'
+import { jsxRenderer } from 'hono/jsx-renderer'
+import { errorHandler } from './middleware/error'
+import { requestLogger } from './middleware/logger'
+import { corsMiddleware } from './middleware/cors'
+import { Variables } from './middleware/auth'
+
+// Import routes
+import { auth } from './routes/auth'
+import { equipment } from './routes/equipment'
+import { players } from './routes/players'
+import { search } from './routes/search'
+import { health } from './routes/health'
+
+// Import page components
+import { HomePage } from './components/pages/HomePage'
+import { EquipmentPage } from './components/pages/EquipmentPage'
+import { PlayerPage } from './components/pages/PlayerPage'
+import { SearchPage } from './components/pages/SearchPage'
+
+// Import services for data fetching
+import { EquipmentService, PlayerService } from './lib/supabase'
+import { createSupabaseClient } from './config/database'
+import { validateEnvironment } from './config/environment'
+import { NotFoundError } from './utils/errors'
+
+export function createApp() {
+  const app = new Hono<{ Variables: Variables }>()
+
+  // Global middleware
+  app.use('*', corsMiddleware)
+  app.use('*', requestLogger)
+  app.use('*', errorHandler)
+
+  // JSX renderer setup
+  app.use('*', jsxRenderer())
+
+  // API routes
+  app.route('/api', health)
+  app.route('/api/auth', auth)
+  app.route('/api/equipment', equipment)
+  app.route('/api/players', players)
+  app.route('/api/search', search)
+
+  // Frontend routes with JSX rendering
+  app.get('/', async c => {
+    // TODO: Fetch featured equipment and popular players
+    const featuredEquipment: any[] = []
+    const popularPlayers: any[] = []
+
+    return c.render(
+      <HomePage featuredEquipment={featuredEquipment} popularPlayers={popularPlayers} />
+    )
+  })
+
+  app.get('/equipment/:slug', async c => {
+    const slug = c.req.param('slug')
+
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const equipmentService = new EquipmentService(supabase)
+
+      const equipment = await equipmentService.getEquipment(slug)
+      if (!equipment) {
+        throw new NotFoundError('Equipment not found')
+      }
+
+      const reviews = await equipmentService.getEquipmentReviews(equipment.id)
+
+      // TODO: Fetch players who use this equipment
+      const usedByPlayers: any[] = []
+      const similarEquipment: any[] = []
+
+      return c.render(
+        <EquipmentPage
+          equipment={equipment}
+          reviews={reviews}
+          usedByPlayers={usedByPlayers}
+          similarEquipment={similarEquipment}
+        />
+      )
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        c.status(404)
+        return c.render(
+          <div>
+            <h1>Equipment Not Found</h1>
+            <p>The equipment you're looking for doesn't exist.</p>
+          </div>
+        )
+      }
+      throw error
+    }
+  })
+
+  app.get('/players/:slug', async c => {
+    const slug = c.req.param('slug')
+
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const playerService = new PlayerService(supabase)
+
+      const player = await playerService.getPlayer(slug)
+      if (!player) {
+        throw new NotFoundError('Player not found')
+      }
+
+      const equipmentSetups = await playerService.getPlayerEquipmentSetups(player.id)
+
+      // TODO: Fetch videos and career stats
+      const videos: any[] = []
+      const careerStats = null
+
+      return c.render(
+        <PlayerPage
+          player={player}
+          equipmentSetups={equipmentSetups}
+          videos={videos}
+          careerStats={careerStats}
+        />
+      )
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        c.status(404)
+        return c.render(
+          <div>
+            <h1>Player Not Found</h1>
+            <p>The player you're looking for doesn't exist.</p>
+          </div>
+        )
+      }
+      throw error
+    }
+  })
+
+  app.get('/search', async c => {
+    const query = c.req.query('q') || ''
+
+    let results = null
+    if (query) {
+      try {
+        const env = validateEnvironment(c.env)
+        const supabase = createSupabaseClient(env)
+        const equipmentService = new EquipmentService(supabase)
+        const playerService = new PlayerService(supabase)
+
+        const [equipment, players] = await Promise.all([
+          equipmentService.searchEquipment(query),
+          playerService.searchPlayers(query),
+        ])
+
+        results = { equipment, players } as any
+      } catch (error) {
+        console.error('Search error:', error)
+        results = { equipment: [], players: [] }
+      }
+    }
+
+    return c.render(<SearchPage query={query} results={results} />)
+  })
+
+  // Category pages
+  app.get('/equipment', c => {
+    return c.render(
+      <div>
+        <h1>Equipment Categories</h1>
+        <p>Browse our equipment reviews by category.</p>
+      </div>
+    )
+  })
+
+  app.get('/players', c => {
+    return c.render(
+      <div>
+        <h1>Player Profiles</h1>
+        <p>Explore professional player equipment setups.</p>
+      </div>
+    )
+  })
+
+  // Authentication pages
+  app.get('/login', c => {
+    return c.render(
+      <div>
+        <h1>Login</h1>
+        <p>Sign in to submit reviews and access personalized features.</p>
+      </div>
+    )
+  })
+
+  // 404 handler for unmatched routes
+  app.notFound(c => {
+    c.status(404)
+    return c.render(
+      <div>
+        <h1>404 - Page Not Found</h1>
+        <p>The page you're looking for doesn't exist.</p>
+      </div>
+    )
+  })
+
+  return app
+}

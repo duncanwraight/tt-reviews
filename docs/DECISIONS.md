@@ -7,8 +7,9 @@
 ### Frontend & API
 
 - **Framework**: Hono - Full-stack JS framework designed for edge runtimes
-- **Hosting**: Cloudflare Workers - Serves both API endpoints and frontend (SSR/SSG)
-- **Benefits**: Single deployment target, global edge performance, built-in JSX support
+- **Frontend**: Hono JSX - Server-side rendered components within Workers
+- **Hosting**: Cloudflare Workers - Serves both API endpoints and frontend (SSR)
+- **Benefits**: Single deployment target, global edge performance, component-based architecture, perfect SEO
 
 ### Database & Authentication
 
@@ -41,3 +42,18 @@
 - Discord integration for community moderation
 - Robust search capabilities (PostgreSQL full-text search)
 - Local/production environment parity (both services have local development options)
+- SEO-optimized server-side rendering (Hono JSX components)
+- Maintainable component-based architecture (eliminates template strings)
+
+### Frontend Architecture Decision
+
+**Hono JSX over Separate Frontend Framework**
+
+- **Considered**: Astro, Next.js, Vite + SPA
+- **Selected**: Hono JSX components within existing Workers deployment
+- **Rationale**:
+  - Single deployment maintains architectural simplicity
+  - Server-side rendering ensures perfect SEO for content-heavy site
+  - No bundle size constraints from separate framework
+  - Component-based architecture without deployment complexity
+  - Type-safe JSX integrates seamlessly with TypeScript backend
