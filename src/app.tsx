@@ -11,12 +11,14 @@ import { equipment } from './routes/equipment'
 import { players } from './routes/players'
 import { search } from './routes/search'
 import { health } from './routes/health'
+import { createReviewsRoutes } from './routes/reviews'
 
 // Import page components
 import { HomePage } from './components/pages/HomePage'
 import { EquipmentPage } from './components/pages/EquipmentPage'
 import { PlayerPage } from './components/pages/PlayerPage'
 import { SearchPage } from './components/pages/SearchPage'
+import { LoginPage } from './components/pages/LoginPage'
 
 // Import services for data fetching
 import { EquipmentService, PlayerService } from './lib/supabase'
@@ -41,6 +43,7 @@ export function createApp() {
   app.route('/api/equipment', equipment)
   app.route('/api/players', players)
   app.route('/api/search', search)
+  app.route('/api/reviews', createReviewsRoutes())
 
   // Frontend routes with JSX rendering
   app.get('/', async c => {
@@ -182,12 +185,7 @@ export function createApp() {
 
   // Authentication pages
   app.get('/login', c => {
-    return c.render(
-      <div>
-        <h1>Login</h1>
-        <p>Sign in to submit reviews and access personalized features.</p>
-      </div>
-    )
+    return c.render(<LoginPage />)
   })
 
   // 404 handler for unmatched routes

@@ -30,9 +30,21 @@ export interface EquipmentReview {
   overall_rating: number
   category_ratings: Record<string, number>
   review_text?: string
-  reviewer_context: Record<string, unknown>
+  reviewer_context: ReviewerContext
   created_at: string
   updated_at: string
+  equipment?: Equipment
+}
+
+export interface ReviewerContext {
+  playing_level?: string
+  style_of_play?: string
+  testing_duration?: string
+  testing_quantity?: string
+  testing_type?: string
+  other_equipment?: string
+  purchase_location?: string
+  purchase_price?: string
 }
 
 export interface PlayerEquipmentSetup {

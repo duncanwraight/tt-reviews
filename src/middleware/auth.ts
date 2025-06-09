@@ -6,6 +6,8 @@ import { AuthenticationError } from '../utils/errors'
 
 export type Variables = {
   user: User
+  equipmentController: unknown
+  reviewsController: unknown
 }
 
 export async function requireAuth(c: Context<{ Variables: Variables }>, next: Next) {
@@ -33,3 +35,5 @@ export async function requireAuth(c: Context<{ Variables: Variables }>, next: Ne
   c.set('user', user)
   await next()
 }
+
+export const authMiddleware = requireAuth

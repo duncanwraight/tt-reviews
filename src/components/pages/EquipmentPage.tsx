@@ -2,6 +2,7 @@ import { EquipmentPageProps } from '../../types/components'
 import { Layout } from '../Layout'
 import { Breadcrumb, generateBreadcrumbs } from '../ui/Breadcrumb'
 import { RatingStars, RatingBars } from '../ui/RatingStars'
+import { ReviewSection } from '../ui/ReviewSection'
 
 export function EquipmentPage({
   equipment,
@@ -19,7 +20,475 @@ export function EquipmentPage({
     >
       <Breadcrumb items={breadcrumbs} />
       <EquipmentHeader equipment={equipment} usedByPlayers={usedByPlayers} />
-      <ReviewsSection equipment={equipment} reviews={reviews} />
+      <div class="main-container py-8">
+        <div class="space-y-8">
+          {/* Reviews Header & Action Button */}
+          <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-900">Reviews ({reviews.length})</h2>
+
+            <button
+              id="login-to-review-btn"
+              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Login to Review
+            </button>
+          </div>
+
+          {/* Review Form */}
+          <div
+            id="review-form"
+            class="hidden bg-white rounded-lg shadow-md p-6 border border-gray-200"
+          >
+            <h3 class="text-xl font-semibold text-gray-900 mb-4">
+              Write a Review for {equipment.name}
+            </h3>
+
+            <div
+              id="review-error"
+              class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
+            ></div>
+            <div
+              id="review-success"
+              class="hidden mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded"
+            ></div>
+
+            <form id="review-submit-form">
+              {/* Overall Rating */}
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Overall Rating (1-10)
+                </label>
+                <input
+                  type="range"
+                  id="overall-rating"
+                  min="1"
+                  max="10"
+                  step="0.5"
+                  value="5"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>1</span>
+                  <span id="overall-rating-value" class="font-medium text-blue-600">
+                    5
+                  </span>
+                  <span>10</span>
+                </div>
+              </div>
+
+              {/* Category Ratings */}
+              <div class="mb-6">
+                <h4 class="text-lg font-medium text-gray-900 mb-3">Category Ratings</h4>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Spin (1-10)</label>
+                    <input
+                      type="range"
+                      id="spin-rating"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>1</span>
+                      <span id="spin-rating-value" class="font-medium text-blue-600">
+                        5
+                      </span>
+                      <span>10</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Speed (1-10)</label>
+                    <input
+                      type="range"
+                      id="speed-rating"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>1</span>
+                      <span id="speed-rating-value" class="font-medium text-blue-600">
+                        5
+                      </span>
+                      <span>10</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Control (1-10)
+                    </label>
+                    <input
+                      type="range"
+                      id="control-rating"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>1</span>
+                      <span id="control-rating-value" class="font-medium text-blue-600">
+                        5
+                      </span>
+                      <span>10</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Review Text */}
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+                <textarea
+                  id="review-text"
+                  rows={4}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Share your experience with this equipment..."
+                ></textarea>
+              </div>
+
+              {/* Reviewer Context */}
+              <div class="mb-6">
+                <h4 class="text-lg font-medium text-gray-900 mb-3">About You & Your Testing</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Playing Level
+                    </label>
+                    <input
+                      type="text"
+                      id="playing-level"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., 2000 USATT, 1800 TTR"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Style of Play
+                    </label>
+                    <input
+                      type="text"
+                      id="style-of-play"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., Offensive looper, All-round"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Testing Duration
+                    </label>
+                    <input
+                      type="text"
+                      id="testing-duration"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., 3 months, 6 weeks"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Other Equipment Used
+                    </label>
+                    <input
+                      type="text"
+                      id="other-equipment"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., Butterfly Timo Boll ALC blade"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div class="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  id="cancel-review"
+                  class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  id="submit-review"
+                  class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Submit Review
+                </button>
+              </div>
+            </form>
+
+            <div class="mt-4 text-sm text-gray-600">
+              <p>
+                Your review will be submitted for moderation and will appear publicly once approved.
+              </p>
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          {reviews.length === 0 ? (
+            <div class="text-center py-8">
+              <div class="text-gray-500">
+                <svg
+                  class="mx-auto h-12 w-12 text-gray-400 mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 8h10m0 0V6a2 2 0 00-2-2H9a2 2 0 00-2 2v2m0 0v10a2 2 0 002 2h6a2 2 0 002-2V8m0 0V6a2 2 0 00-2-2H9a2 2 0 00-2 2v2m0 0v10a2 2 0 002 2h6a2 2 0 002-2V8"
+                  />
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
+                <p class="text-gray-600">Be the first to review this equipment!</p>
+              </div>
+            </div>
+          ) : (
+            <div class="space-y-6">
+              {reviews.map(review => (
+                <div
+                  key={review.id}
+                  class="bg-white rounded-lg shadow-md p-6 border border-gray-200"
+                >
+                  <div class="flex justify-between items-start mb-4">
+                    <div>
+                      <div class="flex items-center space-x-3">
+                        <RatingStars rating={review.overall_rating / 2} />
+                        <span class="text-lg font-semibold text-gray-900">
+                          {review.overall_rating}/10
+                        </span>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <span
+                        class={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          review.status === 'approved'
+                            ? 'bg-green-100 text-green-800'
+                            : review.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {review.status.charAt(0).toUpperCase() + review.status.slice(1)}
+                      </span>
+                      <p class="text-sm text-gray-500 mt-1">
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {review.review_text && (
+                    <p class="text-gray-700 leading-relaxed mb-4">{review.review_text}</p>
+                  )}
+
+                  {Object.keys(review.category_ratings).length > 0 && (
+                    <div class="border-t border-gray-200 pt-4">
+                      <h5 class="text-sm font-medium text-gray-700 mb-2">Category Ratings</h5>
+                      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {Object.entries(review.category_ratings).map(([category, rating]) => (
+                          <div key={category} class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 capitalize">{category}:</span>
+                            <span class="font-medium text-gray-900">{rating}/10</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+          document.addEventListener('DOMContentLoaded', function() {
+            const loginBtn = document.getElementById('login-to-review-btn');
+            const reviewForm = document.getElementById('review-form');
+            const reviewSubmitForm = document.getElementById('review-submit-form');
+            const cancelReviewBtn = document.getElementById('cancel-review');
+            const submitReviewBtn = document.getElementById('submit-review');
+            const reviewError = document.getElementById('review-error');
+            const reviewSuccess = document.getElementById('review-success');
+            
+            // Rating sliders
+            const overallRating = document.getElementById('overall-rating');
+            const spinRating = document.getElementById('spin-rating');
+            const speedRating = document.getElementById('speed-rating');
+            const controlRating = document.getElementById('control-rating');
+            
+            // Rating value displays
+            const overallRatingValue = document.getElementById('overall-rating-value');
+            const spinRatingValue = document.getElementById('spin-rating-value');
+            const speedRatingValue = document.getElementById('speed-rating-value');
+            const controlRatingValue = document.getElementById('control-rating-value');
+            
+            let showingForm = false;
+            
+            function showError(message) {
+              reviewError.textContent = message;
+              reviewError.classList.remove('hidden');
+              reviewSuccess.classList.add('hidden');
+            }
+            
+            function showSuccess(message) {
+              reviewSuccess.textContent = message;
+              reviewSuccess.classList.remove('hidden');
+              reviewError.classList.add('hidden');
+            }
+            
+            function hideMessages() {
+              reviewError.classList.add('hidden');
+              reviewSuccess.classList.add('hidden');
+            }
+            
+            function updateRatingValues() {
+              overallRatingValue.textContent = overallRating.value;
+              spinRatingValue.textContent = spinRating.value;
+              speedRatingValue.textContent = speedRating.value;
+              controlRatingValue.textContent = controlRating.value;
+            }
+            
+            function updateAuthButton() {
+              const token = localStorage.getItem('access_token');
+              
+              if (token) {
+                loginBtn.textContent = showingForm ? 'Cancel Review' : 'Write Review';
+                loginBtn.onclick = function() {
+                  showingForm = !showingForm;
+                  if (showingForm) {
+                    reviewForm.classList.remove('hidden');
+                    loginBtn.textContent = 'Cancel Review';
+                    hideMessages();
+                  } else {
+                    reviewForm.classList.add('hidden');
+                    loginBtn.textContent = 'Write Review';
+                    hideMessages();
+                  }
+                };
+              } else {
+                loginBtn.textContent = 'Login to Review';
+                loginBtn.onclick = function() {
+                  window.location.href = '/login?return=' + encodeURIComponent(window.location.pathname);
+                };
+              }
+            }
+            
+            // Update rating displays when sliders move
+            overallRating.addEventListener('input', updateRatingValues);
+            spinRating.addEventListener('input', updateRatingValues);
+            speedRating.addEventListener('input', updateRatingValues);
+            controlRating.addEventListener('input', updateRatingValues);
+            
+            // Cancel button
+            cancelReviewBtn.addEventListener('click', function() {
+              showingForm = false;
+              reviewForm.classList.add('hidden');
+              updateAuthButton();
+              hideMessages();
+            });
+            
+            // Form submission
+            reviewSubmitForm.addEventListener('submit', async function(e) {
+              e.preventDefault();
+              
+              const token = localStorage.getItem('access_token');
+              if (!token) {
+                showError('Please log in to submit a review');
+                return;
+              }
+              
+              // Get form data
+              const reviewData = {
+                equipment_id: '${equipment.id}',
+                overall_rating: parseFloat(overallRating.value),
+                category_ratings: {
+                  spin: parseFloat(spinRating.value),
+                  speed: parseFloat(speedRating.value),
+                  control: parseFloat(controlRating.value)
+                },
+                review_text: document.getElementById('review-text').value.trim(),
+                reviewer_context: {
+                  playing_level: document.getElementById('playing-level').value.trim(),
+                  style_of_play: document.getElementById('style-of-play').value.trim(),
+                  testing_duration: document.getElementById('testing-duration').value.trim(),
+                  other_equipment: document.getElementById('other-equipment').value.trim()
+                }
+              };
+              
+              // Basic validation
+              if (!reviewData.review_text) {
+                showError('Please write a review');
+                return;
+              }
+              
+              submitReviewBtn.disabled = true;
+              submitReviewBtn.textContent = 'Submitting...';
+              hideMessages();
+              
+              try {
+                const response = await fetch('/api/reviews', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                  },
+                  body: JSON.stringify(reviewData)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                  throw new Error(result.error || 'Failed to submit review');
+                }
+                
+                showSuccess('Review submitted successfully! It will appear after moderation.');
+                
+                // Reset form
+                reviewSubmitForm.reset();
+                overallRating.value = '5';
+                spinRating.value = '5';
+                speedRating.value = '5';
+                controlRating.value = '5';
+                updateRatingValues();
+                
+                // Hide form after a delay
+                setTimeout(() => {
+                  showingForm = false;
+                  reviewForm.classList.add('hidden');
+                  updateAuthButton();
+                  
+                  // Optionally reload the page to show the new review
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
+                }, 3000);
+                
+              } catch (error) {
+                showError(error.message);
+              } finally {
+                submitReviewBtn.disabled = false;
+                submitReviewBtn.textContent = 'Submit Review';
+              }
+            });
+            
+            // Initialize
+            updateRatingValues();
+            updateAuthButton();
+          });
+        `,
+        }}
+      />
     </Layout>
   )
 }

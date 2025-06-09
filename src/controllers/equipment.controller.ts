@@ -1,16 +1,73 @@
 import { Context } from 'hono'
-import { EquipmentService } from '../services/equipment.service'
-import { createSupabaseClient } from '../config/database'
-import { validateEnvironment } from '../config/environment'
-import { successResponse } from '../utils/response'
-import { NotFoundError } from '../utils/errors'
+import { EquipmentService } from '../services/equipment.service.js'
+import { createSupabaseClient } from '../config/database.js'
+import { validateEnvironment } from '../config/environment.js'
+import { createResponse, createErrorResponse } from '../utils/response.js'
 
 export class EquipmentController {
-  static async getEquipment(c: Context) {
+  constructor(private equipmentService: EquipmentService) {}
+
+  async getEquipment(c: Context) {
+    try {
+      const slug = c.req.param('slug')
+
+      if (!slug) {
+        return createErrorResponse(c, 'Equipment slug is required', 400)
+      }
+
+      const equipment = await this.equipmentService.getEquipment(slug)
+      if (!equipment) {
+        return createErrorResponse(c, 'Equipment not found', 404)
+      }
+
+      const reviews = await this.equipmentService.getEquipmentReviews(equipment.id)
+
+      return createResponse(c, { equipment, reviews })
+    } catch (error) {
+      console.error('Error fetching equipment:', error)
+      return createErrorResponse(c, 'Internal server error', 500)
+    }
+  }
+
+  async getEquipmentReviews(c: Context) {
+    try {
+      const equipmentId = c.req.param('equipmentId')
+
+      if (!equipmentId) {
+        return createErrorResponse(c, 'Equipment ID is required', 400)
+      }
+
+      const page = parseInt(c.req.query('page') || '1')
+      const limit = Math.min(parseInt(c.req.query('limit') || '10'), 50)
+      const status = c.req.query('status') === 'all' ? 'all' : 'approved'
+
+      if (page < 1 || limit < 1) {
+        return createErrorResponse(c, 'Page and limit must be positive integers', 400)
+      }
+
+      const reviews = await this.equipmentService.getEquipmentReviews(equipmentId, status)
+
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const paginatedReviews = reviews.slice(startIndex, endIndex)
+
+      return createResponse(c, {
+        reviews: paginatedReviews,
+        total: reviews.length,
+        page,
+        limit,
+      })
+    } catch (error) {
+      console.error('Error fetching equipment reviews:', error)
+      return createErrorResponse(c, 'Internal server error', 500)
+    }
+  }
+
+  static async getEquipmentLegacy(c: Context) {
     const slug = c.req.param('slug')
 
     if (!slug) {
-      throw new NotFoundError('Equipment slug is required')
+      return createErrorResponse(c, 'Equipment slug is required', 400)
     }
 
     const env = validateEnvironment(c.env)
@@ -19,11 +76,11 @@ export class EquipmentController {
 
     const equipment = await equipmentService.getEquipment(slug)
     if (!equipment) {
-      throw new NotFoundError('Equipment not found')
+      return createErrorResponse(c, 'Equipment not found', 404)
     }
 
     const reviews = await equipmentService.getEquipmentReviews(equipment.id)
 
-    return successResponse(c, { equipment, reviews })
+    return createResponse(c, { equipment, reviews })
   }
 }

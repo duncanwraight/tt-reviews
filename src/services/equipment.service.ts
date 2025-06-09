@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
-import { Equipment, EquipmentReview } from '../types/database'
+import { Equipment, EquipmentReview, ReviewerContext } from '../types/database.js'
 
 export class EquipmentService {
   constructor(private supabase: SupabaseClient) {}
@@ -40,7 +40,18 @@ export class EquipmentService {
   ): Promise<EquipmentReview[]> {
     let query = this.supabase
       .from('equipment_reviews')
-      .select('*')
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
       .eq('equipment_id', equipmentId)
       .order('created_at', { ascending: false })
 
@@ -56,5 +67,178 @@ export class EquipmentService {
     }
 
     return (data as unknown as EquipmentReview[]) || []
+  }
+
+  async createReview(
+    userId: string,
+    equipmentId: string,
+    overallRating: number,
+    categoryRatings: Record<string, number>,
+    reviewText: string | undefined,
+    reviewerContext: ReviewerContext
+  ): Promise<EquipmentReview | null> {
+    const { data, error } = await this.supabase
+      .from('equipment_reviews')
+      .insert({
+        user_id: userId,
+        equipment_id: equipmentId,
+        overall_rating: overallRating,
+        category_ratings: categoryRatings,
+        review_text: reviewText,
+        reviewer_context: reviewerContext,
+        status: 'pending',
+      })
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
+      .single()
+
+    if (error) {
+      console.error('Error creating review:', error)
+      return null
+    }
+
+    return data as unknown as EquipmentReview
+  }
+
+  async getUserReview(userId: string, equipmentId: string): Promise<EquipmentReview | null> {
+    const { data, error } = await this.supabase
+      .from('equipment_reviews')
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
+      .eq('user_id', userId)
+      .eq('equipment_id', equipmentId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null
+      }
+      console.error('Error fetching user review:', error)
+      return null
+    }
+
+    return data as unknown as EquipmentReview
+  }
+
+  async updateReview(
+    reviewId: string,
+    userId: string,
+    overallRating?: number,
+    categoryRatings?: Record<string, number>,
+    reviewText?: string,
+    reviewerContext?: ReviewerContext
+  ): Promise<EquipmentReview | null> {
+    const updateData: Record<string, unknown> = {}
+
+    if (overallRating !== undefined) updateData.overall_rating = overallRating
+    if (categoryRatings !== undefined) updateData.category_ratings = categoryRatings
+    if (reviewText !== undefined) updateData.review_text = reviewText
+    if (reviewerContext !== undefined) updateData.reviewer_context = reviewerContext
+
+    const { data, error } = await this.supabase
+      .from('equipment_reviews')
+      .update(updateData)
+      .eq('id', reviewId)
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
+      .single()
+
+    if (error) {
+      console.error('Error updating review:', error)
+      return null
+    }
+
+    return data as unknown as EquipmentReview
+  }
+
+  async deleteReview(reviewId: string, userId: string): Promise<boolean> {
+    const { error } = await this.supabase
+      .from('equipment_reviews')
+      .delete()
+      .eq('id', reviewId)
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+
+    if (error) {
+      console.error('Error deleting review:', error)
+      return false
+    }
+
+    return true
+  }
+
+  async getUserReviews(
+    userId: string,
+    page = 1,
+    limit = 10
+  ): Promise<{ reviews: EquipmentReview[]; total: number }> {
+    const offset = (page - 1) * limit
+
+    const [reviewsResult, countResult] = await Promise.all([
+      this.supabase
+        .from('equipment_reviews')
+        .select(
+          `
+          *,
+          equipment (
+            id,
+            name,
+            manufacturer,
+            category,
+            subcategory
+          )
+        `
+        )
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1),
+
+      this.supabase
+        .from('equipment_reviews')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    ])
+
+    if (reviewsResult.error) {
+      console.error('Error fetching user reviews:', reviewsResult.error)
+      return { reviews: [], total: 0 }
+    }
+
+    const total = countResult.count || 0
+    const reviews = (reviewsResult.data as unknown as EquipmentReview[]) || []
+
+    return { reviews, total }
   }
 }

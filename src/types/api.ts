@@ -1,4 +1,5 @@
 import { User, Session } from '@supabase/supabase-js'
+import { EquipmentReview, Equipment, ReviewerContext } from './database.js'
 
 // Auth API Types
 export interface SignUpRequest {
@@ -24,8 +25,30 @@ export interface AuthResponse {
 
 // Equipment API Types
 export interface EquipmentResponse {
-  equipment: unknown
-  reviews: unknown[]
+  equipment: Equipment
+  reviews: EquipmentReview[]
+}
+
+export interface CreateReviewRequest {
+  equipment_id: string
+  overall_rating: number
+  category_ratings: Record<string, number>
+  review_text?: string
+  reviewer_context: ReviewerContext
+}
+
+export interface UpdateReviewRequest {
+  overall_rating?: number
+  category_ratings?: Record<string, number>
+  review_text?: string
+  reviewer_context?: ReviewerContext
+}
+
+export interface ReviewsResponse {
+  reviews: EquipmentReview[]
+  total: number
+  page: number
+  limit: number
 }
 
 // Players API Types
