@@ -42,6 +42,7 @@ export default [
       'src/**/*.d.ts',
       '*.js',
       '*.d.ts',
+      'scripts/',
     ],
   },
 ]

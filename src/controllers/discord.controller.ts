@@ -51,6 +51,10 @@ export const discordController = {
       return c.json({ error: 'Unknown interaction type' }, 400)
     } catch (error) {
       console.error('Discord interaction error:', error)
+      // Return more specific error for configuration issues
+      if (error instanceof Error && error.message.includes('DISCORD_PUBLIC_KEY')) {
+        return c.json({ error: `Configuration error: ${error.message}` }, 500)
+      }
       return c.json({ error: 'Internal server error' }, 500)
     }
   },

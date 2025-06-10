@@ -26,6 +26,13 @@ export class DiscordService {
       throw new Error('DISCORD_PUBLIC_KEY not configured')
     }
 
+    // Check for placeholder values that indicate misconfiguration
+    if (PUBLIC_KEY === 'your_discord_application_public_key_here' || PUBLIC_KEY.length < 32) {
+      throw new Error(
+        'DISCORD_PUBLIC_KEY is not properly configured - still contains placeholder or invalid value'
+      )
+    }
+
     try {
       // Use global TextEncoder and crypto available in Cloudflare Workers
       const encoder = new globalThis.TextEncoder()
