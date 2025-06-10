@@ -12,6 +12,7 @@ import { players } from './routes/players'
 import { search } from './routes/search'
 import { health } from './routes/health'
 import { createReviewsRoutes } from './routes/reviews'
+import { moderation } from './routes/moderation'
 
 // Import page components
 import { HomePage } from './components/pages/HomePage'
@@ -22,13 +23,18 @@ import { PlayerSubmitPage } from './components/pages/PlayerSubmitPage'
 import { PlayerEditPage } from './components/pages/PlayerEditPage'
 import { SearchPage } from './components/pages/SearchPage'
 import { LoginPage } from './components/pages/LoginPage'
+import { AdminPage } from './components/pages/AdminPage'
+import { AdminReviewsPage } from './components/pages/AdminReviewsPage'
+import { ProfilePage } from './components/pages/ProfilePage'
 
 // Import services for data fetching
 import { EquipmentService, PlayerService, Equipment, Player } from './lib/supabase'
+import { ModerationService } from './services/moderation.service'
 import { VideoItem, CareerStats } from './types/components'
 import { createSupabaseClient } from './config/database'
 import { validateEnvironment } from './config/environment'
 import { NotFoundError } from './utils/errors'
+import { createClient } from '@supabase/supabase-js'
 
 export function createApp(): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>()
@@ -48,6 +54,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.route('/api/players', players)
   app.route('/api/search', search)
   app.route('/api/reviews', createReviewsRoutes())
+  app.route('/api/admin', moderation)
 
   // Frontend routes with JSX rendering
   app.get('/', async c => {
@@ -229,6 +236,41 @@ export function createApp(): Hono<{ Variables: Variables }> {
   // Authentication pages
   app.get('/login', c => {
     return c.render(<LoginPage />)
+  })
+
+  app.get('/profile', c => {
+    return c.render(<ProfilePage />)
+  })
+
+  // Admin pages
+  app.get('/admin', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const moderationService = new ModerationService(supabase)
+
+      const stats = await moderationService.getModerationStats()
+
+      return c.render(<AdminPage stats={stats} />)
+    } catch (error) {
+      console.error('Error loading admin dashboard:', error)
+      return c.render(<AdminPage stats={{ pending: 0, approved: 0, rejected: 0, total: 0 }} />)
+    }
+  })
+
+  app.get('/admin/reviews', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const moderationService = new ModerationService(supabase)
+
+      const { reviews, total } = await moderationService.getPendingReviews(50, 0)
+
+      return c.render(<AdminReviewsPage reviews={reviews} total={total} />)
+    } catch (error) {
+      console.error('Error loading pending reviews:', error)
+      return c.render(<AdminReviewsPage reviews={[]} total={0} />)
+    }
   })
 
   // 404 handler for unmatched routes

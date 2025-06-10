@@ -23,5 +23,7 @@ export function validateEnvironment(env: unknown): Environment {
     SUPABASE_URL: supabaseUrl,
     SUPABASE_ANON_KEY: supabaseAnonKey,
     SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+    DISCORD_WEBHOOK_URL: envTyped.DISCORD_WEBHOOK_URL,
+    ADMIN_EMAILS: envTyped.ADMIN_EMAILS,
   }
 }

@@ -76,41 +76,99 @@ export function ClientScript() {
           };
           
           // Authentication state management
-          function updateAuthButton() {
+          async function updateAuthButton() {
+            console.log('Updating auth button...');
             const authButton = document.getElementById('authButton');
             const session = localStorage.getItem('session');
+            
+            console.log('Auth button element:', authButton ? 'found' : 'not found');
+            console.log('Session in localStorage:', session ? 'present' : 'missing');
             
             if (authButton) {
               if (session) {
                 try {
                   const sessionData = JSON.parse(session);
+                  console.log('Parsed session data:', sessionData);
+                  
                   if (sessionData.access_token) {
-                    authButton.textContent = 'Submit Review';
-                    authButton.style.background = 'var(--accent, #14b8a6)';
-                    authButton.href = '/submit-review';
+                    console.log('Access token found, checking admin status...');
+                    // Check if user is admin
+                    const isAdmin = await checkAdminStatus(sessionData.access_token);
+                    
+                    console.log('Is admin:', isAdmin);
+                    
+                    if (isAdmin) {
+                      authButton.textContent = 'Admin';
+                      authButton.style.background = 'var(--error, #ef4444)';
+                      authButton.href = '/admin';
+                    } else {
+                      authButton.textContent = 'Profile';
+                      authButton.style.background = 'var(--accent, #14b8a6)';
+                      authButton.href = '/profile';
+                    }
+                    console.log('Auth button updated to:', authButton.textContent);
                     return;
+                  } else {
+                    console.log('No access_token in session data');
                   }
                 } catch (e) {
-                  console.warn('Invalid session data');
+                  console.warn('Invalid session data:', e);
                 }
               }
               
               // Default state
+              console.log('Setting auth button to default login state');
               authButton.textContent = 'Login';
               authButton.style.background = 'var(--primary, #7c3aed)';
               authButton.href = '/login';
             }
           }
           
+          // Check admin status via API
+          async function checkAdminStatus(token) {
+            try {
+              console.log('Checking admin status with token:', token ? 'present' : 'missing');
+              const response = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': \`Bearer \${token}\`
+                }
+              });
+              
+              console.log('Admin check response status:', response.status);
+              
+              if (response.ok) {
+                const userData = await response.json();
+                console.log('User data:', userData);
+                return userData.isAdmin || false;
+              } else {
+                console.warn('Admin check failed with status:', response.status);
+                const errorText = await response.text();
+                console.warn('Error response:', errorText);
+              }
+            } catch (e) {
+              console.warn('Failed to check admin status:', e);
+            }
+            return false;
+          }
+          
           // Handle auth button clicks
           window.handleAuthButton = function() {
+            const authButton = document.getElementById('authButton');
             const session = localStorage.getItem('session');
             
             try {
-              if (session) {
+              if (session && authButton) {
                 const sessionData = JSON.parse(session);
                 if (sessionData.access_token) {
-                  navigate('/submit-review');
+                  // Navigate based on button text
+                  const buttonText = authButton.textContent.trim();
+                  if (buttonText === 'Admin') {
+                    navigate('/admin');
+                  } else if (buttonText === 'Profile') {
+                    navigate('/profile');
+                  } else {
+                    navigate('/login');
+                  }
                   return false;
                 }
               }

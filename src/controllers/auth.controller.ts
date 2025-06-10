@@ -102,4 +102,34 @@ export class AuthController {
       message: 'This is a protected route - you are authenticated!',
     })
   }
+
+  static async getMe(c: Context) {
+    try {
+      const authHeader = c.req.header('Authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return errorResponse(c, 'Authorization header required', 401)
+      }
+
+      const token = authHeader.slice(7)
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const authService = new AuthService(supabase, env)
+
+      const { data, error } = await supabase.auth.getUser(token)
+
+      if (error || !data.user) {
+        return errorResponse(c, 'Invalid authentication token', 401)
+      }
+
+      const isAdmin = authService.isAdmin(data.user)
+
+      return successResponse(c, {
+        user: data.user,
+        isAdmin,
+      })
+    } catch (error) {
+      console.error('Error in getMe:', error)
+      return errorResponse(c, 'Authentication failed', 500)
+    }
+  }
 }

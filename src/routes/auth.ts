@@ -9,6 +9,7 @@ auth.post('/signup', AuthController.signUp)
 auth.post('/signin', AuthController.signIn)
 auth.post('/signout', AuthController.signOut)
 auth.get('/user', AuthController.getUser)
+auth.get('/me', AuthController.getMe)
 auth.post('/reset-password', AuthController.resetPassword)
 
 // Protected routes

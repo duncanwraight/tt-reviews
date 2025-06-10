@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { ReviewsController } from '../controllers/reviews.controller.js'
-import { authMiddleware, Variables } from '../middleware/auth.js'
+import { requireAuth, Variables } from '../middleware/auth.js'
 import { createSupabaseClient } from '../config/database.js'
 import { validateEnvironment } from '../config/environment.js'
 import { EquipmentService } from '../services/equipment.service.js'
@@ -13,7 +13,7 @@ export function createReviewsRoutes() {
     await next()
   })
 
-  app.use('*', authMiddleware)
+  app.use('*', requireAuth)
 
   app.post('/', async c => {
     const env = validateEnvironment(c.env)

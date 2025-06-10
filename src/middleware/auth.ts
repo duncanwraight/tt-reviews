@@ -6,6 +6,7 @@ import { AuthenticationError } from '../utils/errors'
 
 export type Variables = {
   user: User
+  isAdmin?: boolean
   equipmentController: unknown
   reviewsController: unknown
 }

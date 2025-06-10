@@ -215,11 +215,11 @@ export function LoginPage() {
                   
                   if (loginResponse.ok) {
                     const loginResult = await loginResponse.json();
-                    localStorage.setItem('access_token', loginResult.session.access_token);
+                    localStorage.setItem('session', JSON.stringify(loginResult.session));
                     showSuccess('Account created successfully! Redirecting...');
                   }
                 } else {
-                  localStorage.setItem('access_token', result.session.access_token);
+                  localStorage.setItem('session', JSON.stringify(result.session));
                   showSuccess('Login successful! Redirecting...');
                 }
                 
