@@ -45,11 +45,20 @@
 
 When you have completed a change, or a small batch of changes, always follow this process:
 
-- Run `npm run check` (formats, lints, and type checks)
+- **CRITICAL**: Run `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
+- **DO NOT COMMIT** if `npm run check` fails with any TypeScript errors or linting errors
 - Await my input to confirm the change has been tested
 - Update the ./docs/TODO.md file to mark changes completed
 - Stage all files in the repo with `git add .`
 - Commit and push
+
+### Pre-Commit Requirements
+
+NEVER commit code that fails type checking or has build errors. Always ensure:
+
+1. `npm run check` passes completely (zero errors)
+2. All TypeScript errors are resolved
+3. No critical linting errors remain (warnings are acceptable)
 
 ## Code Quality Standards
 

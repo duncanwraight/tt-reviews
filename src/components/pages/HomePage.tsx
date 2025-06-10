@@ -1,6 +1,5 @@
 import { FC } from 'hono/jsx'
-import { HomePageProps } from '../../types/components'
-import { Equipment, Player } from '../../types/database'
+import { HomePageProps, EquipmentDisplay, PlayerDisplay } from '../../types/components'
 import { Layout } from '../Layout'
 import { RatingStars } from '../ui/RatingStars'
 
@@ -40,7 +39,7 @@ const HeroSection: FC = () => {
 }
 
 interface FeaturedReviewsProps {
-  equipment: Equipment[]
+  equipment: EquipmentDisplay[]
 }
 
 const FeaturedReviews: FC<FeaturedReviewsProps> = ({ equipment }) => {
@@ -48,22 +47,40 @@ const FeaturedReviews: FC<FeaturedReviewsProps> = ({ equipment }) => {
     ? equipment
     : [
         {
+          id: '1',
           slug: 'butterfly-tenergy-64',
           name: 'Butterfly Tenergy 64',
+          category: 'rubber' as const,
+          manufacturer: 'Butterfly',
+          specifications: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           rating: 4.5,
           reviewCount: 23,
           description: 'High-performance forehand rubber with excellent spin generation and speed.',
         },
         {
+          id: '2',
           slug: 'tsp-curl-p1-r',
           name: 'TSP Curl P1-R',
+          category: 'rubber' as const,
+          manufacturer: 'TSP',
+          specifications: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           rating: 4.2,
           reviewCount: 18,
           description: 'Classic long pips rubber perfect for defensive play and spin reversal.',
         },
         {
+          id: '3',
           slug: 'stiga-clipper',
           name: 'Stiga Clipper',
+          category: 'blade' as const,
+          manufacturer: 'Stiga',
+          specifications: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           rating: 4.7,
           reviewCount: 31,
           description: 'Legendary blade combining speed and control for all-round players.',
@@ -90,7 +107,7 @@ const FeaturedReviews: FC<FeaturedReviewsProps> = ({ equipment }) => {
 }
 
 interface PopularPlayersProps {
-  players: Player[]
+  players: PlayerDisplay[]
 }
 
 const PopularPlayers: FC<PopularPlayersProps> = ({ players }) => {
@@ -98,22 +115,40 @@ const PopularPlayers: FC<PopularPlayersProps> = ({ players }) => {
     ? players
     : [
         {
+          id: '1',
           slug: 'joo-saehyuk',
           name: 'Joo Saehyuk',
+          highest_rating: 'WR6',
+          active_years: '1992-2016',
+          active: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           highestRating: 'WR6',
           style: 'Defensive chopper',
           currentSetup: 'Butterfly Diode, Tenergy 64 FH',
         },
         {
+          id: '2',
           slug: 'ma-long',
           name: 'Ma Long',
+          highest_rating: 'WR1',
+          active_years: '2007-present',
+          active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           highestRating: 'WR1',
           style: 'Offensive all-round',
           currentSetup: 'Hurricane Long 5, Hurricane 3',
         },
         {
+          id: '3',
           slug: 'timo-boll',
           name: 'Timo Boll',
+          highest_rating: 'WR1',
+          active_years: '1997-present',
+          active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           highestRating: 'WR1',
           style: 'Classic European',
           currentSetup: 'Butterfly Timo Boll ALC',
@@ -195,7 +230,7 @@ const EquipmentCategories: FC = () => {
 }
 
 interface EquipmentCardProps {
-  equipment: Equipment
+  equipment: EquipmentDisplay
 }
 
 const EquipmentCard: FC<EquipmentCardProps> = ({ equipment }) => {
@@ -205,14 +240,14 @@ const EquipmentCard: FC<EquipmentCardProps> = ({ equipment }) => {
       href={`/equipment/${equipment.slug}`}
     >
       <h3 class="text-xl font-semibold text-gray-900 mb-2">{equipment.name}</h3>
-      <RatingStars rating={equipment.rating} count={equipment.reviewCount} />
+      <RatingStars rating={equipment.rating || 0} count={equipment.reviewCount} />
       <p class="text-gray-600 mt-3">{equipment.description}</p>
     </a>
   )
 }
 
 interface PlayerCardProps {
-  player: Player
+  player: PlayerDisplay
 }
 
 const PlayerCard: FC<PlayerCardProps> = ({ player }) => {
@@ -224,7 +259,8 @@ const PlayerCard: FC<PlayerCardProps> = ({ player }) => {
       <h3 class="text-xl font-semibold text-gray-900 mb-3">{player.name}</h3>
       <div class="space-y-2 text-sm">
         <p>
-          <span class="font-medium text-gray-700">Highest Rating:</span> {player.highestRating}
+          <span class="font-medium text-gray-700">Highest Rating:</span>{' '}
+          {player.highest_rating || player.highestRating}
         </p>
         <p>
           <span class="font-medium text-gray-700">Style:</span> {player.style}

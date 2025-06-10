@@ -151,7 +151,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
       // TODO: Fetch videos and career stats
       const videos: VideoItem[] = []
-      const careerStats: CareerStats | null = null
+      const careerStats: CareerStats | undefined = undefined
 
       return c.render(
         <PlayerPage
@@ -178,7 +178,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.get('/search', async c => {
     const query = c.req.query('q') || ''
 
-    let results = null
+    let results: { equipment: Equipment[]; players: Player[] } | undefined = undefined
     if (query) {
       try {
         const env = validateEnvironment(c.env)

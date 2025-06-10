@@ -2,7 +2,6 @@ import { PlayerEditPageProps } from '../../types/components'
 import { Layout } from '../Layout'
 import { PlayerForm } from '../ui/PlayerForm'
 import { Breadcrumb, generateBreadcrumbs } from '../ui/Breadcrumb'
-import { ClientScript } from '../ClientScript'
 
 export function PlayerEditPage({ player }: PlayerEditPageProps) {
   const breadcrumbs = generateBreadcrumbs(`/players/${player.slug}/edit`)
@@ -85,8 +84,8 @@ export function PlayerEditPage({ player }: PlayerEditPageProps) {
         </div>
       </section>
 
-      <ClientScript>{addPlayerFormScript()}</ClientScript>
-      <ClientScript>{addEquipmentSetupScript()}</ClientScript>
+      <script dangerouslySetInnerHTML={{ __html: addPlayerFormScript() }} />
+      <script dangerouslySetInnerHTML={{ __html: addEquipmentSetupScript() }} />
     </Layout>
   )
 }

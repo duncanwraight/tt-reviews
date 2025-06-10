@@ -33,6 +33,15 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', '*.min.js', '.wrangler/'],
+    ignores: [
+      'node_modules/',
+      'dist/',
+      '*.min.js',
+      '.wrangler/',
+      'src/**/*.js',
+      'src/**/*.d.ts',
+      '*.js',
+      '*.d.ts',
+    ],
   },
 ]

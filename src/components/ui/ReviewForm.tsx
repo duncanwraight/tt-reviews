@@ -8,6 +8,7 @@ interface ReviewFormProps {
 }
 
 interface ReviewFormData {
+  id?: string
   overall_rating: number
   category_ratings: Record<string, number>
   review_text: string
@@ -64,7 +65,7 @@ export const ReviewForm: FC<ReviewFormProps> = ({
       <h3 class="text-xl font-semibold text-gray-900 mb-4">{formTitle}</h3>
 
       <form
-        method="POST"
+        method="post"
         action={isEditing ? `/api/reviews/${existingReview?.id}/update` : `/api/reviews/submit`}
         class="space-y-6"
       >

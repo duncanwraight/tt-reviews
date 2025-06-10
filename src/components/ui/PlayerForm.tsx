@@ -19,7 +19,7 @@ export const PlayerForm: FC<PlayerFormProps> = ({ player, isEditing = false, cla
       <form
         class="p-6"
         id="player-form"
-        method="POST"
+        method="post"
         action={isEditing ? '/api/players/update' : '/api/players/submit'}
         data-mode={isEditing ? 'update' : 'submit'}
       >

@@ -74,4 +74,12 @@ temp/
 *.tgz
 
 # Yarn Integrity file
-.yarn-integrity.dev.vars
+.yarn-integrity
+
+# Local dev vars
+.dev.vars
+
+# TypeScript build artifacts
+src/**/*.js
+src/**/*.d.ts
+src/**/*.d.ts.map

@@ -1,5 +1,18 @@
 import { Equipment, Player, EquipmentReview, PlayerEquipmentSetup } from './database'
 
+// Display types for frontend (extends database types with computed/display fields)
+export interface EquipmentDisplay extends Equipment {
+  rating?: number
+  reviewCount?: number
+  description?: string
+}
+
+export interface PlayerDisplay extends Player {
+  highestRating?: string
+  style?: string
+  currentSetup?: string
+}
+
 // Layout and SEO Props
 export interface LayoutProps {
   title: string
@@ -13,8 +26,8 @@ export interface LayoutProps {
 
 // Page Component Props
 export interface HomePageProps {
-  featuredEquipment?: Equipment[]
-  popularPlayers?: Player[]
+  featuredEquipment?: EquipmentDisplay[]
+  popularPlayers?: PlayerDisplay[]
 }
 
 export interface EquipmentPageProps {
