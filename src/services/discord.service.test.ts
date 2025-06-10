@@ -38,7 +38,7 @@ describe('DiscordService', () => {
       SUPABASE_URL: 'http://localhost:54321',
       SUPABASE_ANON_KEY: 'mock-anon-key',
       SUPABASE_SERVICE_ROLE_KEY: 'mock-service-key',
-      DISCORD_PUBLIC_KEY: 'mock-public-key',
+      DISCORD_PUBLIC_KEY: 'mock-public-key-that-is-long-enough-for-validation-check',
       DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/mock',
       DISCORD_ALLOWED_ROLES: 'role1,role2',
       SITE_URL: 'https://tt-reviews.local',

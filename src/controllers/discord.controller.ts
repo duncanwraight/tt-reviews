@@ -40,12 +40,16 @@ export const discordController = {
 
       // Handle application commands (slash commands)
       if (interaction.type === 2) {
-        return await discordService.handleSlashCommand(interaction)
+        const response = await discordService.handleSlashCommand(interaction)
+        const responseData = (await response.json()) as Record<string, unknown>
+        return c.json(responseData)
       }
 
       // Handle message components (buttons, select menus)
       if (interaction.type === 3) {
-        return await discordService.handleMessageComponent(interaction)
+        const response = await discordService.handleMessageComponent(interaction)
+        const responseData = (await response.json()) as Record<string, unknown>
+        return c.json(responseData)
       }
 
       return c.json({ error: 'Unknown interaction type' }, 400)
