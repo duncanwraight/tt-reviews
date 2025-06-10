@@ -44,12 +44,13 @@ jobs:
       - name: Deploy Supabase migrations
         run: |
           echo "🗃️ Deploying database migrations..."
-          # Update config.toml with project ref for CI
-          sed -i 's/project_id = "tt-reviews"/project_id = "${{ secrets.SUPABASE_PROJECT_REF }}"/' supabase/config.toml
-          # Push migrations to remote database
-          supabase db push --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          # Link to remote project
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          # Push migrations (handle interactive prompt)
+          echo "Y" | supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
