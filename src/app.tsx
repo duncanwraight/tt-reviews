@@ -27,9 +27,11 @@ import { LoginPage } from './components/pages/LoginPage'
 import { AdminPage } from './components/pages/AdminPage'
 import { AdminReviewsPage } from './components/pages/AdminReviewsPage'
 import { ProfilePage } from './components/pages/ProfilePage'
+import { EquipmentIndexPage } from './components/pages/EquipmentIndexPage'
 
 // Import services for data fetching
-import { EquipmentService, PlayerService, Equipment, Player } from './lib/supabase'
+import { PlayerService, Equipment, Player } from './lib/supabase'
+import { EquipmentService } from './services/equipment.service'
 import { ModerationService } from './services/moderation.service'
 import { VideoItem, CareerStats } from './types/components'
 import { createSupabaseClient } from './config/database'
@@ -211,13 +213,31 @@ export function createApp(): Hono<{ Variables: Variables }> {
   })
 
   // Category pages
-  app.get('/equipment', c => {
-    return c.render(
-      <div>
-        <h1>Equipment Categories</h1>
-        <p>Browse our equipment reviews by category.</p>
-      </div>
-    )
+  app.get('/equipment', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const equipmentService = new EquipmentService(supabase)
+
+      const [recentEquipment, recentReviews, categories] = await Promise.all([
+        equipmentService.getRecentEquipment(8),
+        equipmentService.getRecentReviews(6),
+        equipmentService.getEquipmentCategories(),
+      ])
+
+      return c.render(
+        <EquipmentIndexPage
+          recentEquipment={recentEquipment}
+          recentReviews={recentReviews}
+          categories={categories}
+        />
+      )
+    } catch (error) {
+      console.error('Error loading equipment index:', error)
+      return c.render(
+        <EquipmentIndexPage recentEquipment={[]} recentReviews={[]} categories={[]} />
+      )
+    }
   })
 
   app.get('/players', async c => {

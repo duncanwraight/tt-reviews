@@ -252,4 +252,66 @@ export class EquipmentService {
 
     return { reviews, total }
   }
+
+  async getRecentEquipment(limit = 10): Promise<Equipment[]> {
+    const { data, error } = await this.supabase
+      .from('equipment')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      console.error('Error fetching recent equipment:', error)
+      return []
+    }
+
+    return (data as unknown as Equipment[]) || []
+  }
+
+  async getRecentReviews(limit = 10): Promise<EquipmentReview[]> {
+    const { data, error } = await this.supabase
+      .from('equipment_reviews')
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          manufacturer,
+          category,
+          subcategory,
+          slug
+        )
+      `
+      )
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      console.error('Error fetching recent reviews:', error)
+      return []
+    }
+
+    return (data as unknown as EquipmentReview[]) || []
+  }
+
+  async getEquipmentCategories(): Promise<{ category: string; count: number }[]> {
+    const { data, error } = await this.supabase.from('equipment').select('category')
+
+    if (error) {
+      console.error('Error fetching equipment categories:', error)
+      return []
+    }
+
+    const categoryCount: Record<string, number> = {}
+    data.forEach(item => {
+      categoryCount[item.category] = (categoryCount[item.category] || 0) + 1
+    })
+
+    return Object.entries(categoryCount).map(([category, count]) => ({
+      category,
+      count,
+    }))
+  }
 }
