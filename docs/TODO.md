@@ -99,6 +99,7 @@
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max
   - Long pips = OX, 0.3mm then each mm up to 1.5
 - [ ] Implement all SEO improvements on every application page
+- [ ] Create a dynamic sitemap for use with Google Search etc
 - [ ] Configure homepage to pull real data from database instead of mock
   - Also get search bar working
 - [ ] Check SQL files in root directory, see if they can be removed
