@@ -350,7 +350,7 @@ describe('Discord Service Integration with Mocked Dependencies', () => {
     )
 
     const callArgs = vi.mocked(globalThis.fetch).mock.calls[0]
-    const requestBody = JSON.parse(callArgs?.[1]?.body as string || '{}')
+    const requestBody = JSON.parse((callArgs?.[1]?.body as string) || '{}')
 
     expect(requestBody.embeds[0].title).toBe('🆕 New Review Submitted')
     expect(requestBody.embeds[0].fields).toContainEqual({

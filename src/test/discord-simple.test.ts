@@ -206,7 +206,10 @@ describe('Discord Integration - Core Functionality', () => {
 
   describe('Discord Permission System', () => {
     it('should correctly validate user roles', () => {
-      const checkUserPermissions = (member: { roles?: string[] } | null, allowedRoles: string[]) => {
+      const checkUserPermissions = (
+        member: { roles?: string[] } | null,
+        allowedRoles: string[]
+      ) => {
         if (!member || !member.roles) return false
 
         if (allowedRoles.length === 0) {
