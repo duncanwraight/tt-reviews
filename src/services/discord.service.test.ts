@@ -126,7 +126,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.type).toBe(4)
       expect(responseData.data.content).toContain('🏓 **Equipment Search Results for "butterfly"**')
       expect(responseData.data.content).toContain('Butterfly Tenergy 05')
@@ -157,7 +157,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toContain('🏓 **Player Search Results for "ma long"**')
       expect(responseData.data.content).toContain('Ma Long')
     })
@@ -185,7 +185,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toContain('👍 **First Approval by moderator1**')
       expect(responseData.data.content).toContain('review-123')
     })
@@ -213,7 +213,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toContain('✅ **Review Fully Approved by moderator2**')
       expect(responseData.data.content).toContain('Review fully approved and published!')
     })
@@ -228,7 +228,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toBe('❌ You do not have permission to use this command.')
       expect(responseData.data.flags).toBe(64) // Ephemeral
     })
@@ -243,7 +243,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleSlashCommand(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toBe('❌ Unknown command.')
     })
   })
@@ -344,7 +344,7 @@ describe('DiscordService', () => {
         })
       )
 
-      const requestBody = JSON.parse(mockFetch.mock.calls[0][1].body)
+      const requestBody = JSON.parse(mockFetch.mock.calls[0]?.[1]?.body || '{}')
       expect(requestBody.embeds[0].title).toBe('🆕 New Review Submitted')
       expect(requestBody.embeds[0].fields).toContainEqual({
         name: 'Equipment',
@@ -390,7 +390,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleMessageComponent(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toContain('👍 **First Approval by moderator1**')
     })
 
@@ -408,7 +408,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleMessageComponent(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toContain('❌ **Review Rejected by moderator1**')
     })
 
@@ -421,7 +421,7 @@ describe('DiscordService', () => {
       const response = await discordService.handleMessageComponent(interaction)
       expect(response).toBeInstanceOf(globalThis.Response)
 
-      const responseData = await response.json()
+      const responseData = await response.json() as { type: number; data: { content: string } }
       expect(responseData.data.content).toBe('❌ Unknown interaction.')
     })
   })

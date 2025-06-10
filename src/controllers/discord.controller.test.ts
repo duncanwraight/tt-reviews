@@ -39,7 +39,7 @@ describe('Discord Controller', () => {
 
     vi.mocked(DiscordService).mockImplementation(() => mockDiscordService)
     vi.mocked(validateEnvironment).mockReturnValue(mockContext.env)
-    vi.mocked(createSupabaseClient).mockReturnValue({})
+    vi.mocked(createSupabaseClient).mockReturnValue({} as any)
 
     vi.clearAllMocks()
   })

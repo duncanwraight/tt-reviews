@@ -2,13 +2,11 @@ import { EquipmentPageProps } from '../../types/components'
 import { Layout } from '../Layout'
 import { Breadcrumb, generateBreadcrumbs } from '../ui/Breadcrumb'
 import { RatingStars, RatingBars } from '../ui/RatingStars'
-import { ReviewSection } from '../ui/ReviewSection'
 
 export function EquipmentPage({
   equipment,
   reviews,
   usedByPlayers = [],
-  similarEquipment = [],
 }: EquipmentPageProps) {
   const breadcrumbs = generateBreadcrumbs(`/equipment/${equipment.slug}`)
 
@@ -493,7 +491,7 @@ export function EquipmentPage({
   )
 }
 
-function EquipmentHeader({ equipment, usedByPlayers }: { equipment: any; usedByPlayers: any[] }) {
+function EquipmentHeader({ equipment, usedByPlayers }: { equipment: { name: string; brand: string; category: string }; usedByPlayers: { name: string; slug: string }[] }) {
   const averageRating = 4.5 // TODO: Calculate from reviews
   const reviewCount = 23 // TODO: Get from reviews.length
 
@@ -556,7 +554,7 @@ function EquipmentHeader({ equipment, usedByPlayers }: { equipment: any; usedByP
   )
 }
 
-function ReviewsSection({ equipment, reviews }: { equipment: any; reviews: any[] }) {
+function ReviewsSection({ equipment, reviews }: { equipment: { name: string }; reviews: { id: string; rating: number; comment: string; reviewer: string }[] }) {
   // Mock rating breakdown - in real implementation, calculate from reviews
   const ratingBreakdown = {
     Spin: 9,
