@@ -7,7 +7,6 @@
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
 - Make sure that SEO strategy and optimization guidelines (found in `./docs/SEO.md`) are constantly referenced when designing every relevant part of the application
-- Don't ever disable linting in files
 
 ## Interactions with my device
 
@@ -49,7 +48,7 @@ When you have completed a change, or a small batch of changes, always follow thi
 - **CRITICAL**: Run `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
 - **Discord Changes**: For Discord-related changes, also run `npm run test:discord` to verify integration
 - **DO NOT COMMIT** if `npm run check` fails with any TypeScript errors or linting errors
-- **Database Changes**: If you created new migrations, run `./scripts/deploy-migrations.sh` after deployment
+- **Database Changes**: Use `supabase migrations up` to apply migrations locally, but migrations will be deployed to the production database through the Github Actions pipeline which occurs once we've pushed to `main`
 - Await my input to confirm the change has been tested
 - Update the ./docs/TODO.md file to mark changes completed
 - Stage all files in the repo with `git add .`

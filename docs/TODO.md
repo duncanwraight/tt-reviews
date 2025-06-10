@@ -85,3 +85,35 @@
 - [x] Configure role restrictions for search commands
 - [x] Add moderation tracking and audit trail for Discord actions
 - [x] Create comprehensive test suite for Discord integration (26 tests passing)
+
+## Post-live improvements
+
+- [ ] Configure Cloudflare storage for image uploads
+- [ ] Include images as part of new player submission
+- [ ] Allow logged-in users to submit changes to players
+- [ ] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
+  - Include in submission and frontend interfaces
+  - Use flag icons for nations
+- [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
+- [ ] Add per-type sponge thicknesses for rubbers
+  - E.g. inverted = <1.5mm then each mm up to 2.3, then max
+  - Long pips = OX, 0.3mm then each mm up to 1.5
+- [ ] Implement all SEO improvements on every application page
+- [ ] Configure homepage to pull real data from database instead of mock
+  - Also get search bar working
+- [ ] Check SQL files in root directory, see if they can be removed
+- [ ] Fix "Login to Review" button on Equipment detail page (may be an issue for Admins)
+- [ ] Update Admin area to allow for configuration of almost everything - players, equipment and also categories for everything that requires a category, like sponge thicknesses and types of rubber
+- [ ] On pages where a search bar features, hide the search bar from the top header
+  - E.g. home page, search page
+- [ ] Implement /equipment/category interface
+- [ ] Improve the Discord webhook cards
+  - More relevant information
+  - Better looking
+  - Better support for multiple results
+  - Our URL cards don't look very good; no image etc. Can we improve this?
+
+## Security
+
+- [ ] Check all code for security vulnerabilities
+- [ ] Run a penetration test on our production application, using all of the frontend routes and API endpoints
