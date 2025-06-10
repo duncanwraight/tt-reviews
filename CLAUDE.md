@@ -7,6 +7,7 @@
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
 - Make sure that SEO strategy and optimization guidelines (found in `./docs/SEO.md`) are constantly referenced when designing every relevant part of the application
+- Don't ever disable linting in files
 
 ## Interactions with my device
 
@@ -100,3 +101,8 @@ const envTyped = env as Record<string, string>
 ## Important Notes
 
 - Don't try to run Bash(npm run dev) commands, I will do those - just ask me to do it and await my feedback
+
+## Code Commit Best Practices
+
+- Always run code quality checks, tests etc, the full works BEFORE trying to commit. We use pre-commit hooks, and ideally we want all code to pass those without having to fix again before committing
+- Don't ever disable linting in files

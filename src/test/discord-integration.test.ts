@@ -20,9 +20,15 @@ describe('Discord Integration - End to End', () => {
 
     app = createApp()
 
-    // Mock environment variables in process.env for testing
-    // eslint-disable-next-line no-undef
-    Object.assign(process.env, mockEnv)
+    // Mock environment variables for testing
+    vi.stubEnv('SUPABASE_URL', mockEnv.SUPABASE_URL)
+    vi.stubEnv('SUPABASE_ANON_KEY', mockEnv.SUPABASE_ANON_KEY)
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', mockEnv.SUPABASE_SERVICE_ROLE_KEY)
+    vi.stubEnv('DISCORD_PUBLIC_KEY', mockEnv.DISCORD_PUBLIC_KEY)
+    vi.stubEnv('DISCORD_WEBHOOK_URL', mockEnv.DISCORD_WEBHOOK_URL)
+    vi.stubEnv('DISCORD_ALLOWED_ROLES', mockEnv.DISCORD_ALLOWED_ROLES)
+    vi.stubEnv('ADMIN_EMAILS', mockEnv.ADMIN_EMAILS)
+    vi.stubEnv('SITE_URL', mockEnv.SITE_URL)
 
     // Mock global functions
     Object.defineProperty(globalThis, 'fetch', {
