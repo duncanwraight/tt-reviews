@@ -13,6 +13,7 @@ import { search } from './routes/search'
 import { health } from './routes/health'
 import { createReviewsRoutes } from './routes/reviews'
 import { moderation } from './routes/moderation'
+import { discord } from './routes/discord'
 
 // Import page components
 import { HomePage } from './components/pages/HomePage'
@@ -55,6 +56,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.route('/api/search', search)
   app.route('/api/reviews', createReviewsRoutes())
   app.route('/api/admin', moderation)
+  app.route('/api/discord', discord)
 
   // Frontend routes with JSX rendering
   app.get('/', async c => {

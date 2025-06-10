@@ -19,6 +19,17 @@ export class EquipmentService {
     return data as unknown as Equipment
   }
 
+  async getEquipmentById(id: string): Promise<Equipment | null> {
+    const { data, error } = await this.supabase.from('equipment').select('*').eq('id', id).single()
+
+    if (error) {
+      console.error('Error fetching equipment by ID:', error)
+      return null
+    }
+
+    return data as unknown as Equipment
+  }
+
   async searchEquipment(query: string): Promise<Equipment[]> {
     const { data, error } = await this.supabase
       .from('equipment')

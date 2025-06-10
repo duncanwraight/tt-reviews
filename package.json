@@ -11,13 +11,17 @@
     "dev": "wrangler dev --env dev",
     "deploy": "wrangler deploy",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:discord": "vitest run src/test/discord-simple.test.ts src/controllers/discord.controller.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build",
+    "check:discord": "npm run format:check && npm run lint && npm run typecheck && npm run test:discord && npm run build"
   },
   "repository": {
     "type": "git",
@@ -39,11 +43,13 @@
     "@types/node": "^22.15.30",
     "@typescript-eslint/eslint-plugin": "^8.33.1",
     "@typescript-eslint/parser": "^8.33.1",
+    "@vitest/ui": "^3.2.3",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.3",
     "wrangler": "^4.19.1"
   }
 }

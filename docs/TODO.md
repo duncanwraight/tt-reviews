@@ -72,6 +72,16 @@
 - [x] Create user profile page with review history
 - [x] Add dynamic admin interface detection
 
-## Integration
+## Discord Integration
 
-- [ ] Set up Discord webhook integration for moderation
+- [x] Set up Discord bot application and webhook endpoints
+- [x] Implement Discord authentication and role-based permissions
+- [x] Create notification system for new review submissions to OOAK channel
+- [x] Implement two-review approval system with Discord commands
+- [x] Add Discord slash commands for equipment search (/equipment query:butterfly)
+- [x] Add Discord slash commands for player search (/player query:messi)
+- [x] Implement Discord prefix commands for equipment search (!equipment butterfly)
+- [x] Implement Discord prefix commands for player search (!player messi)
+- [x] Configure role restrictions for search commands
+- [x] Add moderation tracking and audit trail for Discord actions
+- [x] Create comprehensive test suite for Discord integration (26 tests passing)

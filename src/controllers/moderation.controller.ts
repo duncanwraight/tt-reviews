@@ -52,21 +52,22 @@ export class ModerationController {
         )
       }
 
-      const success = await moderationService.approveReview(reviewId, user.id)
+      const result = await moderationService.approveReview(reviewId, user.id)
 
-      if (!success) {
+      if (!result.success) {
         return c.json(
           {
             success: false,
-            error: 'Failed to approve review',
+            error: result.message,
           },
-          500
+          result.status === 'error' ? 500 : 400
         )
       }
 
       return c.json({
         success: true,
-        message: 'Review approved successfully',
+        message: result.message,
+        status: result.status,
       })
     } catch (error) {
       console.error('Error approving review:', error)

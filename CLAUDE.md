@@ -19,7 +19,7 @@
 
 - File operations: ls, read, grep, find, cat, rg
 - Git operations: add, push, status, diff, log
-- Package managers: npm install, npm run (build/test/lint)
+- Package managers: npm install, npm run (build/test/lint/test:discord)
 - Database reads: SELECT queries
 - When running docker exec commands for data retrieval - e.g. database SELECTs or the aforementioned commands executed within a container
 - I will run supabase commands for you - apart from supabase migrations up, you can run that one without permission
@@ -46,6 +46,7 @@
 When you have completed a change, or a small batch of changes, always follow this process:
 
 - **CRITICAL**: Run `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
+- **Discord Changes**: For Discord-related changes, also run `npm run test:discord` to verify integration
 - **DO NOT COMMIT** if `npm run check` fails with any TypeScript errors or linting errors
 - Await my input to confirm the change has been tested
 - Update the ./docs/TODO.md file to mark changes completed
@@ -81,6 +82,20 @@ export class EquipmentService {
 // For environment variables
 const envTyped = env as Record<string, string>
 ```
+
+## Testing
+
+- **Discord Integration**: Complete test suite available via `npm run test:discord`
+- **All Tests**: Run `npm test` for full test coverage including Discord functionality
+- **Test Location**: Discord tests are in `src/test/discord-simple.test.ts` and `src/controllers/discord.controller.test.ts`
+- **Test Summary**: See `src/test/DISCORD_TEST_SUMMARY.md` for comprehensive Discord test coverage details
+
+## Discord Integration
+
+- **Endpoints**: `/api/discord/interactions`, `/api/discord/messages`, `/api/discord/notify`
+- **Commands**: Slash commands (`/equipment`, `/player`) and prefix commands (`!equipment`, `!player`)
+- **Moderation**: Two-review approval system with Discord button interactions
+- **Testing**: Use `npm run test:discord` to verify Discord functionality without requiring live Discord API
 
 ## Important Notes
 

@@ -2,6 +2,9 @@ import { Context } from 'hono'
 import { EquipmentService } from '../services/equipment.service.js'
 import { createResponse, createErrorResponse } from '../utils/response.js'
 import { CreateReviewRequest, UpdateReviewRequest, ReviewsResponse } from '../types/api.js'
+import { DiscordService } from '../services/discord.service'
+import { createSupabaseClient } from '../config/database'
+import { validateEnvironment } from '../config/environment'
 
 export class ReviewsController {
   constructor(private equipmentService: EquipmentService) {}
@@ -43,6 +46,28 @@ export class ReviewsController {
 
       if (!review) {
         return createErrorResponse(c, 'Failed to create review', 500)
+      }
+
+      // Send Discord notification for new review
+      try {
+        const env = validateEnvironment(c.env)
+        if (env.DISCORD_WEBHOOK_URL) {
+          const supabase = createSupabaseClient(env)
+          const discordService = new DiscordService(supabase, env)
+
+          // Get equipment details for the notification
+          const equipment = await this.equipmentService.getEquipmentById(body.equipment_id)
+
+          await discordService.notifyNewReview({
+            id: review.id,
+            equipment_name: equipment?.name || 'Unknown Equipment',
+            overall_rating: body.overall_rating,
+            reviewer_name: user.email || 'Anonymous',
+          })
+        }
+      } catch (error) {
+        // Don't fail the review creation if Discord notification fails
+        console.error('Failed to send Discord notification:', error)
       }
 
       return createResponse(c, { review }, 201)

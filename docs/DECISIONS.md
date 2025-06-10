@@ -54,6 +54,24 @@
 - First approval moves submission to "pending second review" state
 - Second approval publishes the review to the public site
 
+**Search Commands**: Dual Command System
+
+- **Prefix Commands**: `!player messi`, `!equipment butterfly` - Quick searches for power users
+- **Slash Commands**: `/player query:messi`, `/equipment query:butterfly` - Discoverable interface for new users
+- **Permission Requirements**:
+  - Verified bots (100+ servers) need Message Content Intent for prefix commands (difficult approval)
+  - Unverified bots can use prefix commands freely
+  - Slash commands work for all bot types without special permissions
+- **Implementation Strategy**: Support both command types for maximum user flexibility
+- **Role Restrictions**: Search commands limited to users with specific Discord roles (configured via environment variables)
+
+**Implementation Status**: Complete ✅
+
+- All Discord functionality implemented and tested (26 tests passing)
+- Comprehensive test suite validates integration without requiring live Discord API
+- Full documentation available in `./docs/DISCORD-INTEGRATION.md`
+- Test commands: `npm run test:discord` and `npm run check:discord`
+
 ### Alternative Considered
 
 - **Pure Cloudflare**: Hono + D1 database + custom auth

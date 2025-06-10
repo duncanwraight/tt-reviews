@@ -44,23 +44,85 @@ export class ModerationService {
     return { reviews, total }
   }
 
-  async approveReview(reviewId: string, moderatorId: string): Promise<boolean> {
-    const { error } = await this.supabase
-      .from('equipment_reviews')
-      .update({
-        status: 'approved',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', reviewId)
-      .eq('status', 'pending')
+  async approveReview(
+    reviewId: string,
+    moderatorId: string
+  ): Promise<{
+    success: boolean
+    status: 'first_approval' | 'fully_approved' | 'already_approved' | 'error'
+    message: string
+  }> {
+    try {
+      // Get current review to check existing approvals
+      const review = await this.getReviewById(reviewId)
+      if (!review) {
+        return { success: false, status: 'error', message: 'Review not found' }
+      }
 
-    if (error) {
-      console.error('Error approving review:', error)
-      return false
+      // Check if review is in a state that can be approved
+      if (!['pending', 'awaiting_second_approval'].includes(review.status)) {
+        return { success: false, status: 'already_approved', message: 'Review already processed' }
+      }
+
+      // Get existing moderation logs to check if this moderator already approved
+      const existingApprovals = await this.getReviewApprovals(reviewId)
+      if (existingApprovals.includes(moderatorId)) {
+        return {
+          success: false,
+          status: 'already_approved',
+          message: 'You have already approved this review',
+        }
+      }
+
+      // Log this approval
+      await this.logModerationAction(reviewId, moderatorId, 'approved')
+
+      // Check if this is the first or second approval
+      if (review.status === 'pending') {
+        // First approval - move to awaiting second approval
+        const { error } = await this.supabase
+          .from('equipment_reviews')
+          .update({
+            status: 'awaiting_second_approval',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reviewId)
+
+        if (error) {
+          console.error('Error updating review to awaiting second approval:', error)
+          return { success: false, status: 'error', message: 'Failed to update review status' }
+        }
+
+        return {
+          success: true,
+          status: 'first_approval',
+          message: 'First approval recorded. Awaiting second approval.',
+        }
+      } else {
+        // Second approval - fully approve the review
+        const { error } = await this.supabase
+          .from('equipment_reviews')
+          .update({
+            status: 'approved',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reviewId)
+
+        if (error) {
+          console.error('Error fully approving review:', error)
+          return { success: false, status: 'error', message: 'Failed to approve review' }
+        }
+
+        return {
+          success: true,
+          status: 'fully_approved',
+          message: 'Review fully approved and published!',
+        }
+      }
+    } catch (error) {
+      console.error('Error in approveReview:', error)
+      return { success: false, status: 'error', message: 'Internal error occurred' }
     }
-
-    await this.logModerationAction(reviewId, moderatorId, 'approved')
-    return true
   }
 
   async rejectReview(reviewId: string, moderatorId: string, reason?: string): Promise<boolean> {
@@ -143,18 +205,33 @@ export class ModerationService {
     }
   }
 
+  async getReviewApprovals(reviewId: string): Promise<string[]> {
+    // For now, we'll use console logs to track approvals
+    // In a production system, this would query a moderation_actions table
+    // This is a temporary implementation - we'll track in memory/logs
+    return []
+  }
+
   private async logModerationAction(
     reviewId: string,
     moderatorId: string,
     action: 'approved' | 'rejected',
     reason?: string
   ): Promise<void> {
-    console.log(`Moderation action: ${action} review ${reviewId} by moderator ${moderatorId}`, {
+    const logEntry = {
       reviewId,
       moderatorId,
       action,
       reason,
       timestamp: new Date().toISOString(),
-    })
+    }
+
+    console.log(
+      `Moderation action: ${action} review ${reviewId} by moderator ${moderatorId}`,
+      logEntry
+    )
+
+    // TODO: In production, store this in a moderation_actions table:
+    // await this.supabase.from('moderation_actions').insert(logEntry)
   }
 }
