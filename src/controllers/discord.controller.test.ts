@@ -21,6 +21,7 @@ describe('Discord Controller', () => {
         json: vi.fn(),
       },
       json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
       env: {
         DISCORD_PUBLIC_KEY: 'mock-key',
         DISCORD_WEBHOOK_URL: 'https://discord.com/webhook',

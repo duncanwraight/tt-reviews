@@ -44,6 +44,48 @@ describe('DiscordService', () => {
       SITE_URL: 'https://tt-reviews.local',
     }
 
+    // Mock the service constructors
+    vi.mocked(EquipmentService).mockImplementation(
+      () =>
+        ({
+          searchEquipment: vi.fn().mockResolvedValue([
+            {
+              id: '1',
+              name: 'Butterfly Tenergy 05',
+              manufacturer: 'Butterfly',
+              category: 'Rubber',
+              slug: 'butterfly-tenergy-05',
+            },
+          ]),
+        }) as any
+    )
+
+    vi.mocked(PlayerService).mockImplementation(
+      () =>
+        ({
+          searchPlayers: vi.fn().mockResolvedValue([
+            {
+              id: '1',
+              name: 'Ma Long',
+              slug: 'ma-long',
+              active: true,
+            },
+          ]),
+        }) as any
+    )
+
+    vi.mocked(ModerationService).mockImplementation(
+      () =>
+        ({
+          approveReview: vi.fn().mockResolvedValue({
+            success: true,
+            status: 'first_approval',
+            message: 'First approval recorded. Awaiting second approval.',
+          }),
+          rejectReview: vi.fn().mockResolvedValue(true),
+        }) as any
+    )
+
     discordService = new DiscordService(mockSupabase, mockEnv)
 
     // Reset mocks
@@ -133,18 +175,6 @@ describe('DiscordService', () => {
     })
 
     it('should handle player search command', async () => {
-      const mockPlayerService = {
-        searchPlayers: vi.fn().mockResolvedValue([
-          {
-            id: '1',
-            name: 'Ma Long',
-            slug: 'ma-long',
-            active: true,
-          },
-        ]),
-      }
-      vi.mocked(PlayerService).mockImplementation(() => mockPlayerService as any)
-
       const interaction = {
         data: {
           name: 'player',
@@ -163,15 +193,6 @@ describe('DiscordService', () => {
     })
 
     it('should handle approve command with first approval', async () => {
-      const mockModerationService = {
-        approveReview: vi.fn().mockResolvedValue({
-          success: true,
-          status: 'first_approval',
-          message: 'First approval recorded. Awaiting second approval.',
-        }),
-      }
-      vi.mocked(ModerationService).mockImplementation(() => mockModerationService as any)
-
       const interaction = {
         data: {
           name: 'approve',
@@ -191,14 +212,13 @@ describe('DiscordService', () => {
     })
 
     it('should handle approve command with full approval', async () => {
-      const mockModerationService = {
-        approveReview: vi.fn().mockResolvedValue({
-          success: true,
-          status: 'fully_approved',
-          message: 'Review fully approved and published!',
-        }),
-      }
-      vi.mocked(ModerationService).mockImplementation(() => mockModerationService as any)
+      // Access the moderation service instance from the discord service to update its mock
+      const moderationService = (discordService as any).moderationService
+      vi.mocked(moderationService.approveReview).mockResolvedValueOnce({
+        success: true,
+        status: 'fully_approved',
+        message: 'Review fully approved and published!',
+      })
 
       const interaction = {
         data: {
@@ -395,11 +415,6 @@ describe('DiscordService', () => {
     })
 
     it('should handle reject button click', async () => {
-      const mockModerationService = {
-        rejectReview: vi.fn().mockResolvedValue(true),
-      }
-      vi.mocked(ModerationService).mockImplementation(() => mockModerationService as any)
-
       const interaction = {
         data: { custom_id: 'reject_review-123' },
         user: { id: 'user-123', username: 'moderator1' },
