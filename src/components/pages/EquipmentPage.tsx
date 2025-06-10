@@ -491,7 +491,7 @@ function EquipmentHeader({
   equipment,
   usedByPlayers,
 }: {
-  equipment: { name: string; brand: string; category: string }
+  equipment: { name: string; manufacturer: string; category: string; subcategory?: string }
   usedByPlayers: { name: string; slug: string }[]
 }) {
   const averageRating = 4.5 // TODO: Calculate from reviews

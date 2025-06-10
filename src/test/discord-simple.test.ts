@@ -184,8 +184,8 @@ describe('Discord Integration - Core Functionality', () => {
       const payload = createNotificationPayload(reviewData)
 
       expect(payload.embeds).toHaveLength(1)
-      expect(payload.embeds[0].title).toBe('🆕 New Review Submitted')
-      expect(payload.embeds[0].fields).toHaveLength(3)
+      expect(payload.embeds?.[0]?.title).toBe('🆕 New Review Submitted')
+      expect(payload.embeds?.[0]?.fields).toHaveLength(3)
       expect(payload.embeds?.[0]?.fields?.[0]).toEqual({
         name: 'Equipment',
         value: 'Butterfly Tenergy 05',
@@ -198,7 +198,7 @@ describe('Discord Integration - Core Functionality', () => {
       })
 
       expect(payload.components).toHaveLength(1)
-      expect(payload.components[0].components).toHaveLength(2)
+      expect(payload.components?.[0]?.components).toHaveLength(2)
       expect(payload.components?.[0]?.components?.[0]?.custom_id).toBe('approve_review-123')
       expect(payload.components?.[0]?.components?.[1]?.custom_id).toBe('reject_review-123')
     })

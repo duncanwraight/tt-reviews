@@ -230,7 +230,7 @@ describe('DiscordService', () => {
 
       const responseData = (await response.json()) as { type: number; data: { content: string } }
       expect(responseData.data.content).toBe('❌ You do not have permission to use this command.')
-      expect(responseData.data.flags).toBe(64) // Ephemeral
+      expect((responseData.data as any).flags).toBe(64) // Ephemeral
     })
 
     it('should handle unknown command', async () => {

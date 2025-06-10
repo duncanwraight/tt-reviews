@@ -21,7 +21,7 @@ export interface LayoutProps {
   canonical?: string
   ogImage?: string
   structuredData?: object
-  children?: any
+  children?: unknown
 }
 
 // Page Component Props
