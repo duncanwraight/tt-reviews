@@ -89,7 +89,27 @@
 ## Bugs
 
 - [x] Confirm modal on approving moderation item in admin area doesn't do anything
-- [ ] When submitting a player change for moderation, even a successful submission displays an error modal
+- [ ] When trying to confirm moderation of a review from the admin area, I see an error about requiring a second review. This should only be the case when moderating from Discord; administrators should be able to approve a submission without a second confirmation
+      ```
+      [2025-06-10T23:22:16.427Z] POST /api/admin/reviews/2bca73ca-e991-4f00-a078-1e3500c1dfcf/approve - START
+      Moderation action: approved review 2bca73ca-e991-4f00-a078-1e3500c1dfcf by moderator fa4f22e7-a6be-45da-b108-665d62469607 {
+      reviewId: '2bca73ca-e991-4f00-a078-1e3500c1dfcf',
+      moderatorId: 'fa4f22e7-a6be-45da-b108-665d62469607',
+      action: 'approved',
+      reason: undefined,
+      timestamp: '2025-06-10T23:22:16.445Z'
+      }
+      ✘ [ERROR] Error updating review to awaiting second approval: {
+      code: '22P02',
+      details: null,
+      hint: null,
+      message: 'invalid input value for enum review_status: "awaiting_second_approval"'
+      }
+
+      [2025-06-10T23:22:16.452Z] POST /api/admin/reviews/2bca73ca-e991-4f00-a078-1e3500c1dfcf/approve - 500 (25ms) - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+      ```
+
+- [x] When submitting a player change for moderation, even a successful submission displays an error modal
 
 ## Post-live improvements
 
