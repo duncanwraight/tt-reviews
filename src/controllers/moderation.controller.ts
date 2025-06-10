@@ -1,15 +1,14 @@
 import type { Context } from 'hono'
 import { BindingsEnv } from '../types/environment'
-import { Variables } from '../middleware/auth'
-import { createClient } from '@supabase/supabase-js'
+import { EnhancedAuthVariables } from '../middleware/auth-enhanced'
 import { ModerationService } from '../services/moderation.service.js'
-import { validateEnvironment } from '../config/environment.js'
+import { createAuthService } from '../services/auth-wrapper.service'
 
 export class ModerationController {
-  static async getPendingReviews(c: Context<BindingsEnv & { Variables: Variables }>) {
+  static async getPendingReviews(c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>) {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const authService = createAuthService(c)
+      const supabase = authService.createAdminClient()
       const moderationService = new ModerationService(supabase)
 
       const limit = parseInt(c.req.query('limit') || '50')
@@ -33,10 +32,10 @@ export class ModerationController {
     }
   }
 
-  static async approveReview(c: Context<BindingsEnv & { Variables: Variables }>) {
+  static async approveReview(c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>) {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const authService = createAuthService(c)
+      const supabase = authService.createAdminClient()
       const moderationService = new ModerationService(supabase)
 
       const reviewId = c.req.param('id')
@@ -81,10 +80,10 @@ export class ModerationController {
     }
   }
 
-  static async rejectReview(c: Context<BindingsEnv & { Variables: Variables }>) {
+  static async rejectReview(c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>) {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const authService = createAuthService(c)
+      const supabase = authService.createAdminClient()
       const moderationService = new ModerationService(supabase)
 
       const reviewId = c.req.param('id')
@@ -130,10 +129,10 @@ export class ModerationController {
     }
   }
 
-  static async getReview(c: Context<BindingsEnv & { Variables: Variables }>) {
+  static async getReview(c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>) {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const authService = createAuthService(c)
+      const supabase = authService.createAdminClient()
       const moderationService = new ModerationService(supabase)
 
       const reviewId = c.req.param('id')
@@ -176,10 +175,10 @@ export class ModerationController {
     }
   }
 
-  static async getModerationStats(c: Context<BindingsEnv & { Variables: Variables }>) {
+  static async getModerationStats(c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>) {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const authService = createAuthService(c)
+      const supabase = authService.createAdminClient()
       const moderationService = new ModerationService(supabase)
 
       const stats = await moderationService.getModerationStats()

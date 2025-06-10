@@ -8,6 +8,9 @@ export async function errorHandler(c: Context, next: Next) {
   } catch (error) {
     console.error('Unhandled error:', error)
 
+    // Set JSON content type explicitly
+    c.header('Content-Type', 'application/json')
+
     if (error instanceof AppError) {
       return errorResponse(c, error.message, error.status, error.code)
     }

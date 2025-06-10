@@ -44,7 +44,7 @@ export const ProfilePage: FC = () => {
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
                 <div class="space-y-3">
                   <a
-                    href="/submit-review"
+                    href="/equipment"
                     class="block w-full bg-purple-600 text-white text-center py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     Submit New Review

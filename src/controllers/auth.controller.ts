@@ -1,10 +1,9 @@
 import { Context } from 'hono'
 import { AuthService } from '../services/auth.service'
-import { createSupabaseClient } from '../config/database'
-import { validateEnvironment } from '../config/environment'
+import { createAuthService } from '../services/auth-wrapper.service'
 import { successResponse, errorResponse } from '../utils/response'
 import { ValidationError } from '../utils/errors'
-import { Variables } from '../middleware/auth'
+import { EnhancedAuthVariables } from '../middleware/auth-enhanced'
 
 export class AuthController {
   static async signUp(c: Context) {
@@ -14,8 +13,8 @@ export class AuthController {
       throw new ValidationError('Email and password are required')
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authWrapperService = createAuthService(c)
+    const supabase = authWrapperService.createServerClient()
     const authService = new AuthService(supabase)
 
     const { user, error } = await authService.signUp(email, password)
@@ -34,8 +33,8 @@ export class AuthController {
       throw new ValidationError('Email and password are required')
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authWrapperService = createAuthService(c)
+    const supabase = authWrapperService.createServerClient()
     const authService = new AuthService(supabase)
 
     const { user, session, error } = await authService.signIn(email, password)
@@ -48,8 +47,8 @@ export class AuthController {
   }
 
   static async signOut(c: Context) {
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authWrapperService = createAuthService(c)
+    const supabase = authWrapperService.createServerClient()
     const authService = new AuthService(supabase)
 
     const { error } = await authService.signOut()
@@ -62,8 +61,8 @@ export class AuthController {
   }
 
   static async getUser(c: Context) {
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authWrapperService = createAuthService(c)
+    const supabase = authWrapperService.createServerClient()
     const authService = new AuthService(supabase)
 
     const { user, error } = await authService.getUser()
@@ -82,8 +81,8 @@ export class AuthController {
       throw new ValidationError('Email is required')
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authWrapperService = createAuthService(c)
+    const supabase = authWrapperService.createServerClient()
     const authService = new AuthService(supabase)
 
     const { error } = await authService.resetPassword(email)
@@ -95,7 +94,7 @@ export class AuthController {
     return successResponse(c, { message: 'Password reset email sent' })
   }
 
-  static async getProfile(c: Context<{ Variables: Variables }>) {
+  static async getProfile(c: Context<{ Variables: EnhancedAuthVariables }>) {
     const user = c.get('user')
     return successResponse(c, {
       user,
@@ -105,26 +104,11 @@ export class AuthController {
 
   static async getMe(c: Context) {
     try {
-      const authHeader = c.req.header('Authorization')
-      if (!authHeader?.startsWith('Bearer ')) {
-        return errorResponse(c, 'Authorization header required', 401)
-      }
-
-      const token = authHeader.slice(7)
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const authService = new AuthService(supabase, env)
-
-      const { data, error } = await supabase.auth.getUser(token)
-
-      if (error || !data.user) {
-        return errorResponse(c, 'Invalid authentication token', 401)
-      }
-
-      const isAdmin = authService.isAdmin(data.user)
+      const authWrapperService = createAuthService(c)
+      const { user, isAdmin } = await authWrapperService.getAuthContext(c)
 
       return successResponse(c, {
-        user: data.user,
+        user,
         isAdmin,
       })
     } catch (error) {

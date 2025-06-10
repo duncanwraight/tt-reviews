@@ -3,6 +3,7 @@
 - To find general information about table tennis, and the terminology used by its competitive players across the globe, read `./docs/GLOSSARY.md`
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
+- **Authentication architecture and implementation** can be found in `./docs/AUTHENTICATION.md` - read this for understanding the centralized auth system
 - **Coding standards and best practices** can be found in `./docs/CODING-STANDARDS.md` - follow these for all code
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
@@ -66,6 +67,7 @@ NEVER commit code that fails type checking or has build errors. Always ensure:
 
 When writing TypeScript code, follow these strict guidelines to avoid linting errors:
 
+- **Avoid inline styles**: In any JavaScript or TypeScript file we create, avoid inline styles. Put them in stylesheets instead
 - **No `any` types**: Always use proper TypeScript types. Import `SupabaseClient` type instead of using `any`
 - **No unused variables**: Remove or prefix with underscore if intentionally unused
 - **Proper type assertions**: Use `as Record<string, string>` for environment variables instead of accessing unknown types directly
@@ -101,6 +103,9 @@ const envTyped = env as Record<string, string>
 ## Important Notes
 
 - Don't try to run Bash(npm run dev) commands, I will do those - just ask me to do it and await my feedback
+- Always remember RLS policies for our Supabase databases (local and prod)
+- Don't run `supabase db reset` without EXPRESSLY ASKING TO DO SO in CAPITAL LETTERS
+- To run database queries, use `docker exec` on the relevant Supabase database container
 
 ## Code Commit Best Practices
 

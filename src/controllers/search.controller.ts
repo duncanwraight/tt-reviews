@@ -1,8 +1,7 @@
 import { Context } from 'hono'
 import { EquipmentService } from '../services/equipment.service'
 import { PlayersService } from '../services/players.service'
-import { createSupabaseClient } from '../config/database'
-import { validateEnvironment } from '../config/environment'
+import { createAuthService } from '../services/auth-wrapper.service'
 import { successResponse } from '../utils/response'
 import { ValidationError } from '../utils/errors'
 
@@ -14,8 +13,8 @@ export class SearchController {
       throw new ValidationError('Search query required')
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authService = createAuthService(c)
+    const supabase = authService.createServerClient()
     const equipmentService = new EquipmentService(supabase)
     const playerService = new PlayersService(supabase)
 

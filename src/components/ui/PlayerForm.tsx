@@ -22,6 +22,7 @@ export const PlayerForm: FC<PlayerFormProps> = ({ player, isEditing = false, cla
         method="post"
         action={isEditing ? '/api/players/update' : '/api/players/submit'}
         data-mode={isEditing ? 'update' : 'submit'}
+        onsubmit={`handlePlayerSubmit(event, '${isEditing ? 'update' : 'submit'}')`}
       >
         <div class="form-sections space-y-8">
           {/* Basic Information */}

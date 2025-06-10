@@ -354,7 +354,16 @@ export function EquipmentPage({ equipment, reviews, usedByPlayers = [] }: Equipm
             }
             
             function updateAuthButton() {
-              const token = localStorage.getItem('access_token');
+              const session = localStorage.getItem('session');
+              let token = null;
+              if (session) {
+                try {
+                  const sessionData = JSON.parse(session);
+                  token = sessionData.access_token;
+                } catch (e) {
+                  console.warn('Invalid session data');
+                }
+              }
               
               if (token) {
                 loginBtn.textContent = showingForm ? 'Cancel Review' : 'Write Review';
@@ -396,7 +405,16 @@ export function EquipmentPage({ equipment, reviews, usedByPlayers = [] }: Equipm
             reviewSubmitForm.addEventListener('submit', async function(e) {
               e.preventDefault();
               
-              const token = localStorage.getItem('access_token');
+              const session = localStorage.getItem('session');
+              let token = null;
+              if (session) {
+                try {
+                  const sessionData = JSON.parse(session);
+                  token = sessionData.access_token;
+                } catch (e) {
+                  console.warn('Invalid session data');
+                }
+              }
               if (!token) {
                 showError('Please log in to submit a review');
                 return;

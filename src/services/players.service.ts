@@ -263,4 +263,25 @@ export class PlayersService {
 
     return newEquipment?.id
   }
+
+  async submitPlayerEdit(
+    playerId: string,
+    editData: Partial<Player>,
+    userId: string
+  ): Promise<boolean> {
+    // Submit player edit for moderation
+    const { error } = await this.supabase.from('player_edits').insert({
+      player_id: playerId,
+      user_id: userId,
+      edit_data: editData,
+      status: 'pending',
+    })
+
+    if (error) {
+      console.error('Error submitting player edit:', error)
+      return false
+    }
+
+    return true
+  }
 }

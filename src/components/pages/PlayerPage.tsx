@@ -19,6 +19,38 @@ export function PlayerPage({ player, equipmentSetups, videos = [], careerStats }
         videos={videos}
         careerStats={careerStats}
       />
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+          document.addEventListener('DOMContentLoaded', function() {
+            // Show edit buttons if user is logged in
+            const session = localStorage.getItem('session');
+            let token = null;
+            
+            if (session) {
+              try {
+                const sessionData = JSON.parse(session);
+                token = sessionData.access_token;
+              } catch (e) {
+                console.warn('Invalid session data');
+              }
+            }
+            
+            const editBtn = document.getElementById('edit-player-btn');
+            const addEquipmentBtn = document.getElementById('add-equipment-btn');
+            
+            if (token) {
+              if (editBtn) {
+                editBtn.classList.remove('hidden');
+              }
+              if (addEquipmentBtn) {
+                addEquipmentBtn.classList.remove('hidden');
+              }
+            }
+          });
+        `,
+        }}
+      />
     </Layout>
   )
 }
@@ -55,6 +87,15 @@ function PlayerHeader({ player }: { player: any }) {
           </div>
 
           <div class="player-stats lg:col-span-1 text-center lg:text-right">
+            <div class="mb-4">
+              <button
+                id="edit-player-btn"
+                class="hidden px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onclick={`window.location.href='/players/${player.slug}/edit'`}
+              >
+                Edit Player
+              </button>
+            </div>
             <p class="text-sm text-gray-600 mb-2">
               <span class="font-medium text-gray-900">Notable Achievements</span>
             </p>
@@ -106,7 +147,11 @@ function PlayerTabs({
 
       <section class="tab-content py-8">
         <div id="timeline-content">
-          <EquipmentTimeline equipmentSetups={equipmentSetups} playerId={player.slug} />
+          <EquipmentTimeline
+            equipmentSetups={equipmentSetups}
+            playerId={player.slug}
+            playerName={player.name}
+          />
         </div>
         <div id="videos-content" style="display: none;">
           <VideosSection videos={videos} />
@@ -122,9 +167,11 @@ function PlayerTabs({
 function EquipmentTimeline({
   equipmentSetups,
   playerId,
+  playerName,
 }: {
   equipmentSetups: any[]
   playerId: string
+  playerName: string
 }) {
   // Mock data if no setups provided
   const mockSetups = equipmentSetups.length
@@ -148,6 +195,18 @@ function EquipmentTimeline({
 
   return (
     <div class="main-container">
+      {/* Timeline Header with Add Equipment Button */}
+      <div class="timeline-header flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
+        <button
+          id="add-equipment-btn"
+          class="hidden px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          onclick={`window.location.href='/players/${playerId}/edit#add-equipment'`}
+        >
+          Add Equipment Setup
+        </button>
+      </div>
+
       <div class="timeline relative pl-8">
         <div class="timeline-line absolute left-3 top-0 bottom-0 w-0.5 bg-gray-300"></div>
 

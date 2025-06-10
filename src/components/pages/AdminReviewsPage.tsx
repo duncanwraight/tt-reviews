@@ -1,6 +1,7 @@
 import type { FC } from 'hono/jsx'
 import { Layout } from '../Layout'
 import { EquipmentReview } from '../../types/database'
+import { getModalScript } from '../ui/Modal'
 
 interface AdminReviewsPageProps {
   reviews: EquipmentReview[]
@@ -146,17 +147,23 @@ export const AdminReviewsPage: FC<AdminReviewsPageProps> = ({ reviews, total }) 
         </div>
       </div>
 
+      <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
       <script
         dangerouslySetInnerHTML={{
           __html: `
             async function approveReview(reviewId) {
-              if (!confirm('Are you sure you want to approve this review?')) return;
-              
+              showConfirmModal(
+                'Approve Review', 
+                'Are you sure you want to approve this review?',
+                'performApproval("' + reviewId + '")'
+              );
+            }
+            
+            async function performApproval(reviewId) {
               try {
                 const session = localStorage.getItem('session');
                 if (!session) {
-                  alert('Session expired. Please log in again.');
-                  window.location.href = '/login';
+                  showErrorModal('Session Expired', 'Please log in again.', 'window.location.href = "/login"');
                   return;
                 }
                 
@@ -170,26 +177,70 @@ export const AdminReviewsPage: FC<AdminReviewsPageProps> = ({ reviews, total }) 
                 });
                 
                 if (response.ok) {
-                  alert('Review approved successfully!');
-                  window.location.reload();
+                  showSuccessModal('Review Approved', 'Review approved successfully!', 'window.location.reload()');
                 } else {
                   const error = await response.json();
-                  alert('Failed to approve review: ' + (error.error || 'Unknown error'));
+                  showErrorModal('Approval Failed', 'Failed to approve review: ' + (error.error || 'Unknown error'));
                 }
               } catch (error) {
-                alert('Error approving review: ' + error.message);
+                showErrorModal('Network Error', 'Error approving review: ' + error.message);
               }
             }
             
             async function rejectReview(reviewId) {
-              const reason = prompt('Reason for rejection (optional):');
-              if (reason === null) return; // User cancelled
+              // Create a custom modal for rejection reason input
+              const modal = document.createElement('div');
+              modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+              modal.onclick = function(e) { if (e.target === this) { document.body.removeChild(this); document.body.style.overflow = ''; } };
               
+              modal.innerHTML = \`
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                  <div class="mt-3">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                      <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 text-center">Reject Review</h3>
+                    <div class="mt-2 px-4 py-3">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Reason for rejection (optional):</label>
+                      <textarea
+                        id="rejection-reason"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        rows="3"
+                        placeholder="Enter reason for rejection..."
+                      ></textarea>
+                    </div>
+                    <div class="items-center px-4 py-3">
+                      <div class="flex justify-between space-x-4">
+                        <button
+                          onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = '';"
+                          class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onclick="performRejection('\${reviewId}', document.getElementById('rejection-reason').value); document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = '';"
+                          class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                          Reject Review
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              \`;
+              
+              document.body.appendChild(modal);
+              document.body.style.overflow = 'hidden';
+              document.getElementById('rejection-reason').focus();
+            }
+            
+            async function performRejection(reviewId, reason) {
               try {
                 const session = localStorage.getItem('session');
                 if (!session) {
-                  alert('Session expired. Please log in again.');
-                  window.location.href = '/login';
+                  showErrorModal('Session Expired', 'Please log in again.', 'window.location.href = "/login"');
                   return;
                 }
                 
@@ -204,14 +255,13 @@ export const AdminReviewsPage: FC<AdminReviewsPageProps> = ({ reviews, total }) 
                 });
                 
                 if (response.ok) {
-                  alert('Review rejected successfully!');
-                  window.location.reload();
+                  showSuccessModal('Review Rejected', 'Review rejected successfully!', 'window.location.reload()');
                 } else {
                   const error = await response.json();
-                  alert('Failed to reject review: ' + (error.error || 'Unknown error'));
+                  showErrorModal('Rejection Failed', 'Failed to reject review: ' + (error.error || 'Unknown error'));
                 }
               } catch (error) {
-                alert('Error rejecting review: ' + error.message);
+                showErrorModal('Network Error', 'Error rejecting review: ' + error.message);
               }
             }
           `,

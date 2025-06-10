@@ -1,7 +1,6 @@
 import { Context } from 'hono'
 import { EquipmentService } from '../services/equipment.service.js'
-import { createSupabaseClient } from '../config/database.js'
-import { validateEnvironment } from '../config/environment.js'
+import { createAuthService } from '../services/auth-wrapper.service'
 import { createResponse, createErrorResponse } from '../utils/response.js'
 
 export class EquipmentController {
@@ -70,8 +69,8 @@ export class EquipmentController {
       return createErrorResponse(c, 'Equipment slug is required', 400)
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    const authService = createAuthService(c)
+    const supabase = authService.createServerClient()
     const equipmentService = new EquipmentService(supabase)
 
     const equipment = await equipmentService.getEquipment(slug)

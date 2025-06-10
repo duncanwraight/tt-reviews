@@ -1,9 +1,8 @@
 import { Context } from 'hono'
 import { PlayersService } from '../services/players.service'
-import { createSupabaseClient } from '../config/database'
-import { validateEnvironment } from '../config/environment'
 import { successResponse } from '../utils/response'
 import { NotFoundError } from '../utils/errors'
+import { getAuthContext, createAuthService } from '../services/auth-wrapper.service'
 
 export class PlayersController {
   static async getPlayer(c: Context) {
@@ -13,8 +12,9 @@ export class PlayersController {
       throw new NotFoundError('Player slug is required')
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
+    // Use server-side client for public data (no auth required)
+    const authService = createAuthService(c)
+    const supabase = authService.createServerClient()
     const playerService = new PlayersService(supabase)
 
     const player = await playerService.getPlayer(slug)
@@ -79,11 +79,11 @@ export class PlayersController {
       }
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
-    const playerService = new PlayersService(supabase)
-
     try {
+      // Get authenticated context for user operations
+      const { supabase } = await getAuthContext(c)
+      const playerService = new PlayersService(supabase)
+
       const createdPlayer = await playerService.createPlayer(player)
       if (!createdPlayer) {
         return c.json({ success: false, message: 'Failed to create player' }, 500)
@@ -120,11 +120,11 @@ export class PlayersController {
 
     const targetSlug = slug || player.slug
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
-    const playerService = new PlayersService(supabase)
-
     try {
+      // Get authenticated context for user operations
+      const { supabase } = await getAuthContext(c)
+      const playerService = new PlayersService(supabase)
+
       const updatedPlayer = await playerService.updatePlayer(targetSlug, player)
       if (!updatedPlayer) {
         return c.json({ success: false, message: 'Player not found or update failed' }, 404)
@@ -153,11 +153,11 @@ export class PlayersController {
       return c.json({ success: false, message: 'Player slug is required' }, 400)
     }
 
-    const env = validateEnvironment(c.env)
-    const supabase = createSupabaseClient(env)
-    const playerService = new PlayersService(supabase)
-
     try {
+      // Get authenticated context for user operations
+      const { supabase } = await getAuthContext(c)
+      const playerService = new PlayersService(supabase)
+
       // First get the player to get their ID
       const player = await playerService.getPlayer(slug)
       if (!player) {
@@ -172,6 +172,40 @@ export class PlayersController {
       return successResponse(c, { message: 'Equipment setup added successfully' })
     } catch (error) {
       console.error('Error adding equipment setup:', error)
+      return c.json({ success: false, message: 'Internal server error' }, 500)
+    }
+  }
+
+  static async editPlayerInfo(c: Context) {
+    const slug = c.req.param('slug')
+    const body = await c.req.json()
+
+    if (!slug) {
+      return c.json({ success: false, message: 'Player slug is required' }, 400)
+    }
+
+    try {
+      // Get authenticated context - this includes user, token, and authenticated Supabase client
+      const { user, supabase } = await getAuthContext(c)
+      const playerService = new PlayersService(supabase)
+
+      // First get the player to verify it exists
+      const player = await playerService.getPlayer(slug)
+      if (!player) {
+        return c.json({ success: false, message: 'Player not found' }, 404)
+      }
+
+      // Create a moderated player edit entry
+      const success = await playerService.submitPlayerEdit(player.id, body, user.id)
+      if (!success) {
+        return c.json({ success: false, message: 'Failed to submit player edit' }, 500)
+      }
+
+      return successResponse(c, {
+        message: 'Player edit submitted for moderation review',
+      })
+    } catch (error) {
+      console.error('Error submitting player edit:', error)
       return c.json({ success: false, message: 'Internal server error' }, 500)
     }
   }

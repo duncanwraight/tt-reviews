@@ -3,7 +3,7 @@ import { EquipmentService } from '../services/equipment.service.js'
 import { createResponse, createErrorResponse } from '../utils/response.js'
 import { CreateReviewRequest, UpdateReviewRequest, ReviewsResponse } from '../types/api.js'
 import { DiscordService } from '../services/discord.service'
-import { createSupabaseClient } from '../config/database'
+import { createAuthService } from '../services/auth-wrapper.service'
 import { validateEnvironment } from '../config/environment'
 
 export class ReviewsController {
@@ -52,7 +52,8 @@ export class ReviewsController {
       try {
         const env = validateEnvironment(c.env)
         if (env.DISCORD_WEBHOOK_URL) {
-          const supabase = createSupabaseClient(env)
+          const authService = createAuthService(c)
+          const supabase = authService.createServerClient()
           const discordService = new DiscordService(supabase, env)
 
           // Get equipment details for the notification

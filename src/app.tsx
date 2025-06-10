@@ -295,8 +295,23 @@ export function createApp(): Hono<{ Variables: Variables }> {
     }
   })
 
+  // Built-in error handler for unhandled errors
+  app.onError((err, c) => {
+    console.error('Unhandled error:', err)
+    c.header('Content-Type', 'application/json')
+    c.status(500)
+    return c.json({
+      error: err.message || 'Internal Server Error',
+      timestamp: new Date().toISOString(),
+    })
+  })
+
   // 404 handler for unmatched routes
   app.notFound(c => {
+    if (c.req.path.startsWith('/api/')) {
+      c.header('Content-Type', 'application/json')
+      return c.json({ error: 'Not Found', timestamp: new Date().toISOString() }, 404)
+    }
     c.status(404)
     return c.render(
       <div>

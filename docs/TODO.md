@@ -86,9 +86,14 @@
 - [x] Add moderation tracking and audit trail for Discord actions
 - [x] Create comprehensive test suite for Discord integration (26 tests passing)
 
+## Bugs
+
+- [ ] Confirm modal on approving moderation item in admin area doesn't do anything
+
 ## Post-live improvements
 
 - [ ] Configure Cloudflare storage for image uploads
+  - See information in DECISIONS.md doc
 - [ ] Include images as part of new player submission
 - [ ] Allow logged-in users to submit changes to players
 - [ ] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
@@ -113,6 +118,15 @@
   - Better looking
   - Better support for multiple results
   - Our URL cards don't look very good; no image etc. Can we improve this?
+
+## Optimisations and Code Quality
+
+- [x] ~~We seem to reuse the session checking code in a lot of components. Can we make this DRY?~~ **COMPLETED**: Implemented centralized authentication architecture with AuthWrapperService
+- [x] **Replace browser alerts with modal dialogs**: Created reusable Modal component system with success/error/warning/confirmation modals
+- [ ] Check the "dangerouslySetInnerHTML" functions in our page components - is this good practice?
+- [ ] We seem to reuse `fetch()` a lot, do we not need a wrapper function for it to allow easy, DRY requests to our API layer?
+- [ ] Are inline styles best practice with Hono JSX?
+  - If not, let's remove them
 
 ## Security
 

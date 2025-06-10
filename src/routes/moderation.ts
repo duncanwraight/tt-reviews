@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
 import { BindingsEnv } from '../types/environment'
-import { Variables } from '../middleware/auth'
+import { EnhancedAuthVariables, requireAdmin } from '../middleware/auth-enhanced'
 import { ModerationController } from '../controllers/moderation.controller.js'
-import { requireAdmin } from '../middleware/admin.js'
 
-const moderation = new Hono<BindingsEnv & { Variables: Variables }>()
+const moderation = new Hono<BindingsEnv & { Variables: EnhancedAuthVariables }>()
 
 moderation.use('/*', requireAdmin)
 

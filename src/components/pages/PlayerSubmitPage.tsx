@@ -2,6 +2,7 @@ import { FC } from 'hono/jsx'
 import { Layout } from '../Layout'
 import { PlayerForm } from '../ui/PlayerForm'
 import { Breadcrumb, generateBreadcrumbs } from '../ui/Breadcrumb'
+import { getModalScript } from '../ui/Modal'
 
 export const PlayerSubmitPage: FC = () => {
   const breadcrumbs = generateBreadcrumbs('/players/submit')
@@ -49,6 +50,119 @@ export const PlayerSubmitPage: FC = () => {
           <PlayerForm />
         </div>
       </section>
+
+      <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
+      <script dangerouslySetInnerHTML={{ __html: addPlayerFormScript() }} />
+      <script dangerouslySetInnerHTML={{ __html: addAuthCheckScript() }} />
     </Layout>
   )
+}
+
+// Add player form script functionality
+function addPlayerFormScript() {
+  return `
+    async function handlePlayerSubmit(event, mode) {
+      event.preventDefault();
+      
+      const form = event.target;
+      const formData = new FormData(form);
+      
+      // Build player data
+      const playerData = {
+        name: formData.get('name'),
+        highest_rating: formData.get('highest_rating') || null,
+        active_years: formData.get('active_years') || null,
+        active: formData.get('active') === 'true'
+      };
+      
+      // Build equipment setup data if provided
+      const equipmentSetup = {};
+      if (formData.get('blade_name')) equipmentSetup.blade_name = formData.get('blade_name');
+      if (formData.get('forehand_rubber_name')) {
+        equipmentSetup.forehand_rubber_name = formData.get('forehand_rubber_name');
+        equipmentSetup.forehand_thickness = formData.get('forehand_thickness') || null;
+        equipmentSetup.forehand_color = formData.get('forehand_color') || null;
+      }
+      if (formData.get('backhand_rubber_name')) {
+        equipmentSetup.backhand_rubber_name = formData.get('backhand_rubber_name');
+        equipmentSetup.backhand_thickness = formData.get('backhand_thickness') || null;
+        equipmentSetup.backhand_color = formData.get('backhand_color') || null;
+      }
+      if (formData.get('year')) equipmentSetup.year = parseInt(formData.get('year'));
+      if (formData.get('source_type')) equipmentSetup.source_type = formData.get('source_type');
+      if (formData.get('source_url')) equipmentSetup.source_url = formData.get('source_url');
+      
+      try {
+        const session = localStorage.getItem('session');
+        let token = null;
+        if (session) {
+          try {
+            const sessionData = JSON.parse(session);
+            token = sessionData.access_token;
+          } catch (e) {
+            console.warn('Invalid session data');
+          }
+        }
+        if (!token) {
+          showErrorModal('Authentication Required', 'Please log in to submit player data', 
+            'window.location.href = "/login?return=" + encodeURIComponent(window.location.pathname)');
+          return;
+        }
+        
+        const endpoint = mode === 'update' ? '/api/players/update' : '/api/players/submit';
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            player: playerData,
+            equipmentSetup: Object.keys(equipmentSetup).length > 0 ? equipmentSetup : null
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success || result.id) {
+          // Show success message and redirect
+          const successMessage = mode === 'update' ? 'Player updated successfully!' : 'Player submitted successfully!';
+          const redirectUrl = result.slug || result.data?.slug ? '/players/' + (result.slug || result.data.slug) : '/players';
+          showSuccessModal('Success!', successMessage, 'window.location.href = "' + redirectUrl + '"');
+        } else {
+          showErrorModal('Submission Failed', result.message || 'Unknown error occurred while submitting player data');
+        }
+      } catch (error) {
+        console.error('Submit error:', error);
+        showErrorModal('Network Error', 'An error occurred while submitting the player data. Please check your connection and try again.');
+      }
+    }
+  `
+}
+
+// Add authentication check to redirect if not logged in
+function addAuthCheckScript() {
+  return `
+    document.addEventListener('DOMContentLoaded', function() {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        // Show login notice and redirect to login
+        const notice = document.createElement('div');
+        notice.className = 'bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded mb-4';
+        notice.innerHTML = 'You need to be logged in to submit new players. Redirecting to login...';
+        
+        const container = document.querySelector('.main-container');
+        if (container) {
+          container.insertBefore(notice, container.firstChild);
+        }
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          const currentPath = window.location.pathname;
+          window.location.href = '/login?return=' + encodeURIComponent(currentPath);
+        }, 2000);
+      }
+    });
+  `
 }
