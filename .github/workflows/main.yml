@@ -46,11 +46,10 @@ jobs:
           echo "🗃️ Deploying database migrations..."
           # Link to remote project
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          # Push migrations (handle interactive prompt)
-          echo "Y" | supabase db push
+          # Push migrations using linked project (avoids password prompt)
+          supabase db push --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
