@@ -105,3 +105,45 @@
   - No bundle size constraints from separate framework
   - Component-based architecture without deployment complexity
   - Type-safe JSX integrates seamlessly with TypeScript backend
+
+## Image Storage
+
+**Selected Solution: Cloudflare R2**
+
+### Decision Rationale
+
+- **Cost-Effective**: 10GB storage + 1M Class A + 10M Class B operations free tier
+- **No Egress Fees**: Unlike AWS S3, no charges for image serving
+- **Perfect Integration**: Native compatibility with Cloudflare Workers for resizing
+- **Global Performance**: CDN integration for fast worldwide image delivery
+
+### Image Size Strategy
+
+**Recommended Dimensions:**
+
+- **Player profile photos**: 300×300px (displayed at 144×144px for retina support)
+- **Equipment header photos**: 600×600px (square aspect, responsive display)
+- **Additional photos**: 800×600px (standard landscape format)
+
+**Processing Approach:**
+
+- Store original uploads in R2
+- Use Cloudflare Workers for on-demand resizing/optimization
+- Predetermined sizes for consistent UI experience
+- Automatic format conversion (WebP when supported)
+
+### Implementation Plan
+
+**Environment Setup:**
+
+- Development bucket: `tt-reviews-dev` (configured in .dev.vars)
+- Production bucket: `tt-reviews-prod` (to be created with separate API token)
+- Environment variables: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+
+**File Restrictions:**
+
+- Max file size: Based on R2 limits (up to 5TB per object)
+- Supported formats: JPEG, PNG, WebP
+- Upload validation via MIME type checking
+
+**Status**: Development environment configured ✅, implementation pending
