@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+routes = [
+  { pattern = "tabletennis.reviews", custom_domain = true }
+]
+
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -11,7 +15,7 @@ head_sampling_rate = 1
 ENVIRONMENT = "production"
 SUPABASE_URL = "https://rqehpjgumrtiowgxsdyw.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZWhwamd1bXJ0aW93Z3hzZHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDY1MzYsImV4cCI6MjA2NDk4MjUzNn0.yqQDMhV30mu-LLOgEFhH7wm-vpe-zgDX0Ju8MbXmjFk"
-SITE_URL = "https://app.tt-reviews.workers.dev"
+SITE_URL = "https://tabletennis.reviews"
 
 # Local dev settings
 [env.dev]
