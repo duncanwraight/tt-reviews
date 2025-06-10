@@ -24,7 +24,7 @@ export class PlayersController {
 
     const equipmentSetups = await playerService.getPlayerEquipmentSetups(player.id)
 
-    return successResponse(c, { player, equipmentSetups })
+    return successResponse(c, { success: true, player, equipmentSetups })
   }
 
   static async submitPlayer(c: Context) {
@@ -99,7 +99,7 @@ export class PlayersController {
 
       // Handle form submission redirect vs API response
       if (contentType?.includes('application/json')) {
-        return successResponse(c, createdPlayer)
+        return successResponse(c, { success: true, data: createdPlayer, ...createdPlayer })
       } else {
         // Form submission - redirect to player page
         return c.redirect(`/players/${createdPlayer.slug}`, 302)
@@ -138,7 +138,7 @@ export class PlayersController {
         }
       }
 
-      return successResponse(c, updatedPlayer)
+      return successResponse(c, { success: true, data: updatedPlayer, ...updatedPlayer })
     } catch (error) {
       console.error('Error updating player:', error)
       return c.json({ success: false, message: 'Internal server error' }, 500)
@@ -169,7 +169,7 @@ export class PlayersController {
         return c.json({ success: false, message: 'Failed to add equipment setup' }, 500)
       }
 
-      return successResponse(c, { message: 'Equipment setup added successfully' })
+      return successResponse(c, { success: true, message: 'Equipment setup added successfully' })
     } catch (error) {
       console.error('Error adding equipment setup:', error)
       return c.json({ success: false, message: 'Internal server error' }, 500)
@@ -202,6 +202,7 @@ export class PlayersController {
       }
 
       return successResponse(c, {
+        success: true,
         message: 'Player edit submitted for moderation review',
       })
     } catch (error) {

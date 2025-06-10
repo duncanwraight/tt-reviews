@@ -88,14 +88,13 @@
 
 ## Bugs
 
-- [ ] Confirm modal on approving moderation item in admin area doesn't do anything
+- [x] Confirm modal on approving moderation item in admin area doesn't do anything
+- [ ] When submitting a player change for moderation, even a successful submission displays an error modal
 
 ## Post-live improvements
 
-- [ ] Configure Cloudflare storage for image uploads
-  - See information in DECISIONS.md doc
-- [ ] Include images as part of new player submission
-- [ ] Allow logged-in users to submit changes to players
+- [ ] Update moderation interface to support player changes and player new equipment updates
+- [x] Allow logged-in users to submit changes to players
 - [ ] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
   - Include in submission and frontend interfaces
   - Use flag icons for nations
@@ -113,6 +112,9 @@
 - [ ] On pages where a search bar features, hide the search bar from the top header
   - E.g. home page, search page
 - [ ] Implement /equipment/category interface
+- [ ] Configure Cloudflare storage for image uploads
+  - See information in DECISIONS.md doc
+- [ ] Include images as part of new player submission
 - [ ] Improve the Discord webhook cards
   - More relevant information
   - Better looking

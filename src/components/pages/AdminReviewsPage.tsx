@@ -155,7 +155,7 @@ export const AdminReviewsPage: FC<AdminReviewsPageProps> = ({ reviews, total }) 
               showConfirmModal(
                 'Approve Review', 
                 'Are you sure you want to approve this review?',
-                'performApproval("' + reviewId + '")'
+                \`performApproval('\${reviewId}')\`
               );
             }
             

@@ -46,7 +46,7 @@
 
 When you have completed a change, or a small batch of changes, always follow this process:
 
-- **CRITICAL**: Run `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
+- **CRITICAL**: Run `npm run format` first, then `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
 - **Discord Changes**: For Discord-related changes, also run `npm run test:discord` to verify integration
 - **DO NOT COMMIT** if `npm run check` fails with any TypeScript errors or linting errors
 - **Database Changes**: Use `supabase migrations up` to apply migrations locally, but migrations will be deployed to the production database through the Github Actions pipeline which occurs once we've pushed to `main`
