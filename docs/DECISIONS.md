@@ -24,6 +24,36 @@
   - Inbound: Discord interactions → Workers endpoints → Supabase updates
 - **Image Storage**: Supabase Storage for player/equipment photos
 
+## Discord Integration
+
+**Architecture**: Same Worker Integration
+
+- Discord bot functionality implemented as webhook endpoints within existing Cloudflare Worker
+- No separate deployment or persistent connections required
+- Leverages existing database connections and authentication infrastructure
+
+**Authentication**: Role-Based Moderation
+
+- Discord server roles determine moderation permissions
+- Specific role IDs configured in worker environment variables
+- Bot validates user roles before allowing moderation commands
+- Supports multiple permission levels (e.g., Moderator, Admin roles)
+
+**Notification System**: OOAK Discord Channel Integration
+
+- New review submissions automatically posted to designated moderation channel
+- Include review content, rating, equipment details, and quick action buttons
+- Moderators use slash commands or reactions to approve/reject submissions
+- Bot updates database via existing API endpoints and responds with confirmation
+
+**Moderation Requirements**: Two-Review Approval System
+
+- All submissions require approval from two different moderators before going live
+- Prevents single-point-of-failure in content moderation
+- Tracks which moderators approved each submission for accountability
+- First approval moves submission to "pending second review" state
+- Second approval publishes the review to the public site
+
 ### Alternative Considered
 
 - **Pure Cloudflare**: Hono + D1 database + custom auth

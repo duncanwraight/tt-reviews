@@ -3,6 +3,7 @@
 - To find general information about table tennis, and the terminology used by its competitive players across the globe, read `./docs/GLOSSARY.md`
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
+- **Coding standards and best practices** can be found in `./docs/CODING-STANDARDS.md` - follow these for all code
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
 - Make sure that SEO strategy and optimization guidelines (found in `./docs/SEO.md`) are constantly referenced when designing every relevant part of the application

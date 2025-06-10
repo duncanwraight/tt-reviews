@@ -97,7 +97,7 @@ export class EquipmentService {
       return null
     }
 
-    return data as unknown as Equipment
+    return data as Equipment
   }
 
   async searchEquipment(query: string): Promise<Equipment[]> {
@@ -112,7 +112,7 @@ export class EquipmentService {
       return []
     }
 
-    return (data as unknown as Equipment[]) || []
+    return (data as Equipment[]) || []
   }
 
   async getEquipmentReviews(
@@ -136,7 +136,7 @@ export class EquipmentService {
       return []
     }
 
-    return (data as unknown as EquipmentReview[]) || []
+    return (data as EquipmentReview[]) || []
   }
 }
 
@@ -155,10 +155,10 @@ export class PlayerService {
       return null
     }
 
-    return data as unknown as Player
+    return data as Player
   }
 
-  async getPlayerEquipmentSetups(playerId: string): Promise<unknown[]> {
+  async getPlayerEquipmentSetups(playerId: string): Promise<PlayerEquipmentSetup[]> {
     const { data, error } = await this.supabase
       .from('player_equipment_setups')
       .select(
@@ -178,7 +178,21 @@ export class PlayerService {
       return []
     }
 
-    return data || []
+    return (data as PlayerEquipmentSetup[]) || []
+  }
+
+  async getAllPlayers(): Promise<Player[]> {
+    const { data, error } = await this.supabase
+      .from('players')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching players:', error)
+      return []
+    }
+
+    return (data as Player[]) || []
   }
 
   async searchPlayers(query: string): Promise<Player[]> {
@@ -193,7 +207,7 @@ export class PlayerService {
       return []
     }
 
-    return (data as unknown as Player[]) || []
+    return (data as Player[]) || []
   }
 }
 

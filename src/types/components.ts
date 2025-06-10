@@ -1,4 +1,4 @@
-import { Equipment, Player, EquipmentReview } from './database'
+import { Equipment, Player, EquipmentReview, PlayerEquipmentSetup } from './database'
 
 // Layout and SEO Props
 export interface LayoutProps {
@@ -8,7 +8,7 @@ export interface LayoutProps {
   canonical?: string
   ogImage?: string
   structuredData?: object
-  children: any
+  children?: any
 }
 
 // Page Component Props
@@ -26,9 +26,13 @@ export interface EquipmentPageProps {
 
 export interface PlayerPageProps {
   player: Player
-  equipmentSetups: any[]
-  videos?: any[]
-  careerStats?: any
+  equipmentSetups: PlayerEquipmentSetup[]
+  videos?: VideoItem[]
+  careerStats?: CareerStats
+}
+
+export interface PlayerEditPageProps {
+  player: Player
 }
 
 export interface SearchPageProps {
@@ -92,7 +96,7 @@ export interface SearchFilters {
 
 // Timeline Component Props
 export interface PlayerTimelineProps {
-  equipmentSetups: any[]
+  equipmentSetups: PlayerEquipmentSetup[]
   playerId: string
 }
 
@@ -125,6 +129,30 @@ export interface NavItem {
   label: string
   href: string
   active?: boolean
+}
+
+export interface PlayerFormProps {
+  player?: Player
+  isEditing?: boolean
+  className?: string
+}
+
+export interface VideoItem {
+  id: string
+  title: string
+  url: string
+  thumbnail?: string
+  duration?: string
+  description?: string
+}
+
+export interface CareerStats {
+  bestRanking?: number
+  currentRanking?: number
+  titles?: number
+  yearsActive?: string
+  playingStyle?: string
+  achievements?: string[]
 }
 
 export interface SiteConfig {

@@ -38,6 +38,7 @@ The development server will automatically reload when you make changes to the co
 
 - **Application Requirements**: See [`docs/reqs/`](docs/reqs/) for detailed requirements
 - **Tech Stack & Architecture**: [`docs/DECISIONS.md`](docs/DECISIONS.md)
+- **Coding Standards**: [`docs/CODING-STANDARDS.md`](docs/CODING-STANDARDS.md)
 - **Table Tennis Terminology**: [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
 - **UI/UX Style Guide**: [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md)
 - **Layout Guide**: [`docs/LAYOUT.md`](docs/LAYOUT.md)

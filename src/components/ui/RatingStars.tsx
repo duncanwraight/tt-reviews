@@ -1,6 +1,7 @@
+import { FC } from 'hono/jsx'
 import { RatingStarsProps } from '../../types/components'
 
-export function RatingStars({ rating, count, size = 'medium' }: RatingStarsProps) {
+export const RatingStars: FC<RatingStarsProps> = ({ rating, count, size = 'medium' }) => {
   const fullStars = Math.floor(rating)
   const hasHalfStar = rating % 1 >= 0.5
   const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0)
@@ -43,7 +44,11 @@ export function RatingStars({ rating, count, size = 'medium' }: RatingStarsProps
   )
 }
 
-export function RatingBars({ ratings }: { ratings: Record<string, number> }) {
+interface RatingBarsProps {
+  ratings: Record<string, number>
+}
+
+export const RatingBars: FC<RatingBarsProps> = ({ ratings }) => {
   return (
     <div class="rating-bars space-y-3">
       {Object.entries(ratings).map(([metric, value]) => (

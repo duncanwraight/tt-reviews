@@ -17,16 +17,20 @@ import { createReviewsRoutes } from './routes/reviews'
 import { HomePage } from './components/pages/HomePage'
 import { EquipmentPage } from './components/pages/EquipmentPage'
 import { PlayerPage } from './components/pages/PlayerPage'
+import { PlayersListPage } from './components/pages/PlayersListPage'
+import { PlayerSubmitPage } from './components/pages/PlayerSubmitPage'
+import { PlayerEditPage } from './components/pages/PlayerEditPage'
 import { SearchPage } from './components/pages/SearchPage'
 import { LoginPage } from './components/pages/LoginPage'
 
 // Import services for data fetching
-import { EquipmentService, PlayerService } from './lib/supabase'
+import { EquipmentService, PlayerService, Equipment, Player } from './lib/supabase'
+import { VideoItem, CareerStats } from './types/components'
 import { createSupabaseClient } from './config/database'
 import { validateEnvironment } from './config/environment'
 import { NotFoundError } from './utils/errors'
 
-export function createApp() {
+export function createApp(): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>()
 
   // Global middleware
@@ -48,8 +52,8 @@ export function createApp() {
   // Frontend routes with JSX rendering
   app.get('/', async c => {
     // TODO: Fetch featured equipment and popular players
-    const featuredEquipment: any[] = []
-    const popularPlayers: any[] = []
+    const featuredEquipment: Equipment[] = []
+    const popularPlayers: Player[] = []
 
     return c.render(
       <HomePage featuredEquipment={featuredEquipment} popularPlayers={popularPlayers} />
@@ -72,8 +76,8 @@ export function createApp() {
       const reviews = await equipmentService.getEquipmentReviews(equipment.id)
 
       // TODO: Fetch players who use this equipment
-      const usedByPlayers: any[] = []
-      const similarEquipment: any[] = []
+      const usedByPlayers: Player[] = []
+      const similarEquipment: Equipment[] = []
 
       return c.render(
         <EquipmentPage
@@ -97,6 +101,39 @@ export function createApp() {
     }
   })
 
+  // Player submission and edit routes (must come before /:slug to avoid conflicts)
+  app.get('/players/submit', c => {
+    return c.render(<PlayerSubmitPage />)
+  })
+
+  app.get('/players/:slug/edit', async c => {
+    const slug = c.req.param('slug')
+
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const playerService = new PlayerService(supabase)
+
+      const player = await playerService.getPlayer(slug)
+      if (!player) {
+        throw new NotFoundError('Player not found')
+      }
+
+      return c.render(<PlayerEditPage player={player} />)
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        c.status(404)
+        return c.render(
+          <div>
+            <h1>Player Not Found</h1>
+            <p>The player you're looking for doesn't exist.</p>
+          </div>
+        )
+      }
+      throw error
+    }
+  })
+
   app.get('/players/:slug', async c => {
     const slug = c.req.param('slug')
 
@@ -113,8 +150,8 @@ export function createApp() {
       const equipmentSetups = await playerService.getPlayerEquipmentSetups(player.id)
 
       // TODO: Fetch videos and career stats
-      const videos: any[] = []
-      const careerStats = null
+      const videos: VideoItem[] = []
+      const careerStats: CareerStats | null = null
 
       return c.render(
         <PlayerPage
@@ -154,7 +191,7 @@ export function createApp() {
           playerService.searchPlayers(query),
         ])
 
-        results = { equipment, players } as any
+        results = { equipment, players }
       } catch (error) {
         console.error('Search error:', error)
         results = { equipment: [], players: [] }
@@ -174,13 +211,19 @@ export function createApp() {
     )
   })
 
-  app.get('/players', c => {
-    return c.render(
-      <div>
-        <h1>Player Profiles</h1>
-        <p>Explore professional player equipment setups.</p>
-      </div>
-    )
+  app.get('/players', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createSupabaseClient(env)
+      const playerService = new PlayerService(supabase)
+
+      const players = await playerService.getAllPlayers()
+
+      return c.render(<PlayersListPage players={players} />)
+    } catch (error) {
+      console.error('Error fetching players:', error)
+      return c.render(<PlayersListPage players={[]} />)
+    }
   })
 
   // Authentication pages

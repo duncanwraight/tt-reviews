@@ -1,8 +1,9 @@
+import { FC } from 'hono/jsx'
 import { LayoutProps } from '../types/components'
 import { siteConfig, defaultSEO } from '../config/site'
 import { ClientScript } from './ClientScript'
 
-export function Layout({
+export const Layout: FC<LayoutProps> = ({
   title,
   description = defaultSEO.description,
   keywords = defaultSEO.keywords,
@@ -10,7 +11,7 @@ export function Layout({
   ogImage = defaultSEO.ogImage,
   structuredData,
   children,
-}: LayoutProps) {
+}: LayoutProps) => {
   const fullTitle = title.includes(siteConfig.siteName)
     ? title
     : `${title} | ${siteConfig.siteName}`
@@ -125,7 +126,7 @@ export function Layout({
   )
 }
 
-function Header() {
+const Header: FC = () => {
   return (
     <header class="header">
       <div class="header-container">

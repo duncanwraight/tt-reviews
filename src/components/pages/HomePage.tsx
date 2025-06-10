@@ -1,8 +1,10 @@
+import { FC } from 'hono/jsx'
 import { HomePageProps } from '../../types/components'
+import { Equipment, Player } from '../../types/database'
 import { Layout } from '../Layout'
 import { RatingStars } from '../ui/RatingStars'
 
-export function HomePage({ featuredEquipment = [], popularPlayers = [] }: HomePageProps) {
+export const HomePage: FC<HomePageProps> = ({ featuredEquipment = [], popularPlayers = [] }) => {
   return (
     <Layout
       title="Trusted Table Tennis Equipment Reviews"
@@ -17,7 +19,7 @@ export function HomePage({ featuredEquipment = [], popularPlayers = [] }: HomePa
   )
 }
 
-function HeroSection() {
+const HeroSection: FC = () => {
   return (
     <section class="hero text-center py-16 bg-gradient-to-br from-purple-50 to-teal-50">
       <div class="main-container">
@@ -37,7 +39,11 @@ function HeroSection() {
   )
 }
 
-function FeaturedReviews({ equipment }: { equipment: any[] }) {
+interface FeaturedReviewsProps {
+  equipment: Equipment[]
+}
+
+const FeaturedReviews: FC<FeaturedReviewsProps> = ({ equipment }) => {
   const mockEquipment = equipment.length
     ? equipment
     : [
@@ -83,7 +89,11 @@ function FeaturedReviews({ equipment }: { equipment: any[] }) {
   )
 }
 
-function PopularPlayers({ players }: { players: any[] }) {
+interface PopularPlayersProps {
+  players: Player[]
+}
+
+const PopularPlayers: FC<PopularPlayersProps> = ({ players }) => {
   const mockPlayers = players.length
     ? players
     : [
@@ -127,7 +137,7 @@ function PopularPlayers({ players }: { players: any[] }) {
   )
 }
 
-function EquipmentCategories() {
+const EquipmentCategories: FC = () => {
   const categories = [
     {
       icon: '🏓',
@@ -184,24 +194,32 @@ function EquipmentCategories() {
   )
 }
 
-function EquipmentCard({ equipment }: { equipment: any }) {
+interface EquipmentCardProps {
+  equipment: Equipment
+}
+
+const EquipmentCard: FC<EquipmentCardProps> = ({ equipment }) => {
   return (
-    <div
-      class="card bg-white rounded-lg p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-1"
-      onclick={`navigate('/equipment/${equipment.slug}'); return false;`}
+    <a
+      class="card bg-white rounded-lg p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-1 block"
+      href={`/equipment/${equipment.slug}`}
     >
       <h3 class="text-xl font-semibold text-gray-900 mb-2">{equipment.name}</h3>
       <RatingStars rating={equipment.rating} count={equipment.reviewCount} />
       <p class="text-gray-600 mt-3">{equipment.description}</p>
-    </div>
+    </a>
   )
 }
 
-function PlayerCard({ player }: { player: any }) {
+interface PlayerCardProps {
+  player: Player
+}
+
+const PlayerCard: FC<PlayerCardProps> = ({ player }) => {
   return (
-    <div
-      class="card bg-white rounded-lg p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-1"
-      onclick={`navigate('/players/${player.slug}'); return false;`}
+    <a
+      class="card bg-white rounded-lg p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-1 block"
+      href={`/players/${player.slug}`}
     >
       <h3 class="text-xl font-semibold text-gray-900 mb-3">{player.name}</h3>
       <div class="space-y-2 text-sm">
@@ -215,20 +233,29 @@ function PlayerCard({ player }: { player: any }) {
           <span class="font-medium text-gray-700">Current Setup:</span> {player.currentSetup}
         </p>
       </div>
-    </div>
+    </a>
   )
 }
 
-function CategoryCard({ category }: { category: any }) {
+interface CategoryCardProps {
+  category: {
+    icon: string
+    name: string
+    href: string
+    description: string
+  }
+}
+
+const CategoryCard: FC<CategoryCardProps> = ({ category }) => {
   return (
-    <div
-      class="category-card bg-white rounded-lg p-8 text-center border border-gray-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-200 cursor-pointer"
-      onclick={`navigate('${category.href}'); return false;`}
+    <a
+      class="category-card bg-white rounded-lg p-8 text-center border border-gray-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-200 cursor-pointer block"
+      href={category.href}
     >
       <div class="category-icon text-4xl mb-4">{category.icon}</div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">{category.name}</h3>
       <p class="text-gray-600">{category.description}</p>
-    </div>
+    </a>
   )
 }
 

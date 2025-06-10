@@ -1,10 +1,10 @@
-import { useState } from 'hono/jsx'
+import { FC } from 'hono/jsx'
 import { Equipment } from '../../types/database.js'
 
 interface ReviewFormProps {
   equipment: Equipment
-  onSubmit?: (reviewData: ReviewFormData) => void
-  onCancel?: () => void
+  isEditing?: boolean
+  existingReview?: ReviewFormData
 }
 
 interface ReviewFormData {
@@ -38,17 +38,11 @@ const rubberCategories = ['spin', 'speed', 'control', 'spin_sensitivity', 'feel'
 const antiCategories = ['speed', 'control', 'spin_sensitivity', 'reversal']
 const bladeCategories = ['speed', 'control', 'dwell', 'feel', 'quality']
 
-export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
-  const [formData, setFormData] = useState<ReviewFormData>({
-    overall_rating: 5,
-    category_ratings: {},
-    review_text: '',
-    reviewer_context: {},
-  })
-
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
+export const ReviewForm: FC<ReviewFormProps> = ({
+  equipment,
+  isEditing = false,
+  existingReview,
+}) => {
   const getRelevantCategories = () => {
     if (equipment.category === 'blade') {
       return bladeCategories
@@ -59,167 +53,88 @@ export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
     }
   }
 
-  const handleCategoryRatingChange = (category: string, value: number) => {
-    setFormData(prev => ({
-      ...prev,
-      category_ratings: {
-        ...prev.category_ratings,
-        [category]: value,
-      },
-    }))
-  }
-
-  const handleContextChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      reviewer_context: {
-        ...prev.reviewer_context,
-        [field]: value,
-      },
-    }))
-  }
-
-  const handleSubmit = async (e: Event) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify({
-          equipment_id: equipment.id,
-          ...formData,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string }
-        throw new Error(errorData.error || 'Failed to submit review')
-      }
-
-      const result = await response.json()
-      onSubmit?.(formData)
-
-      // Reset form
-      setFormData({
-        overall_rating: 5,
-        category_ratings: {},
-        review_text: '',
-        reviewer_context: {},
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   const categories = getRelevantCategories()
+  const formTitle = isEditing
+    ? `Edit Review for ${equipment.name}`
+    : `Write a Review for ${equipment.name}`
+  const submitText = isEditing ? 'Update Review' : 'Submit Review'
 
   return (
     <div class="bg-white rounded-lg shadow-md p-6">
-      <h3 class="text-xl font-semibold text-gray-900 mb-4">Write a Review for {equipment.name}</h3>
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">{formTitle}</h3>
 
-      {error && (
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+      <form
+        method="POST"
+        action={isEditing ? `/api/reviews/${existingReview?.id}/update` : `/api/reviews/submit`}
+        class="space-y-6"
+      >
+        {/* Hidden equipment ID */}
+        <input type="hidden" name="equipment_id" value={equipment.id} />
 
-      <form onSubmit={handleSubmit}>
         {/* Overall Rating */}
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Overall Rating (1-10)</label>
+        <div class="form-group">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Overall Rating (1-10) *
+          </label>
           <input
-            type="range"
+            type="number"
+            name="overall_rating"
             min="1"
             max="10"
             step="0.5"
-            value={formData.overall_rating}
-            onInput={e =>
-              setFormData(prev => ({
-                ...prev,
-                overall_rating: parseFloat((e.target as HTMLInputElement).value),
-              }))
-            }
-            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            value={existingReview?.overall_rating || 5}
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <div class="flex justify-between text-xs text-gray-500 mt-1">
-            <span>1</span>
-            <span class="font-medium text-blue-600">{formData.overall_rating}</span>
-            <span>10</span>
-          </div>
+          <p class="text-xs text-gray-500 mt-1">Rate from 1 (poor) to 10 (excellent)</p>
         </div>
 
         {/* Category Ratings */}
-        <div class="mb-6">
-          <h4 class="text-lg font-medium text-gray-900 mb-3">Category Ratings</h4>
-          <div class="space-y-4">
+        <div class="form-group">
+          <h4 class="text-lg font-medium text-gray-900 mb-3">Category Ratings (1-10)</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {categories.map(category => (
-              <div key={category}>
+              <div key={category} class="form-group">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  {categoryLabels[category]} (1-10)
+                  {categoryLabels[category]}
                 </label>
                 <input
-                  type="range"
+                  type="number"
+                  name={`category_rating_${category}`}
                   min="1"
                   max="10"
                   step="0.5"
-                  value={formData.category_ratings[category] || 5}
-                  onInput={e =>
-                    handleCategoryRatingChange(
-                      category,
-                      parseFloat((e.target as HTMLInputElement).value)
-                    )
-                  }
-                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  value={existingReview?.category_ratings[category] || 5}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>1</span>
-                  <span class="font-medium text-blue-600">
-                    {formData.category_ratings[category] || 5}
-                  </span>
-                  <span>10</span>
-                </div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Review Text */}
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+        <div class="form-group">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Your Review *</label>
           <textarea
-            value={formData.review_text}
-            onInput={e =>
-              setFormData(prev => ({
-                ...prev,
-                review_text: (e.target as HTMLTextAreaElement).value,
-              }))
-            }
+            name="review_text"
             rows={4}
+            required
+            value={existingReview?.review_text || ''}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Share your experience with this equipment..."
           />
         </div>
 
         {/* Reviewer Context */}
-        <div class="mb-6">
+        <div class="form-group">
           <h4 class="text-lg font-medium text-gray-900 mb-3">About You & Your Testing</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Playing Level</label>
               <input
                 type="text"
-                value={formData.reviewer_context.playing_level || ''}
-                onInput={e =>
-                  handleContextChange('playing_level', (e.target as HTMLInputElement).value)
-                }
+                name="playing_level"
+                value={existingReview?.reviewer_context.playing_level || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., 2000 USATT, 1800 TTR"
               />
@@ -228,10 +143,8 @@ export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
               <label class="block text-sm font-medium text-gray-700 mb-1">Style of Play</label>
               <input
                 type="text"
-                value={formData.reviewer_context.style_of_play || ''}
-                onInput={e =>
-                  handleContextChange('style_of_play', (e.target as HTMLInputElement).value)
-                }
+                name="style_of_play"
+                value={existingReview?.reviewer_context.style_of_play || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., Offensive looper, All-round"
               />
@@ -240,22 +153,18 @@ export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
               <label class="block text-sm font-medium text-gray-700 mb-1">Testing Duration</label>
               <input
                 type="text"
-                value={formData.reviewer_context.testing_duration || ''}
-                onInput={e =>
-                  handleContextChange('testing_duration', (e.target as HTMLInputElement).value)
-                }
+                name="testing_duration"
+                value={existingReview?.reviewer_context.testing_duration || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., 3 months, 6 weeks"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Testing Quantity</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Testing Frequency</label>
               <input
                 type="text"
-                value={formData.reviewer_context.testing_quantity || ''}
-                onInput={e =>
-                  handleContextChange('testing_quantity', (e.target as HTMLInputElement).value)
-                }
+                name="testing_quantity"
+                value={existingReview?.reviewer_context.testing_quantity || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., 5+ hours per week"
               />
@@ -266,24 +175,18 @@ export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
               </label>
               <input
                 type="text"
-                value={formData.reviewer_context.other_equipment || ''}
-                onInput={e =>
-                  handleContextChange('other_equipment', (e.target as HTMLInputElement).value)
-                }
+                name="other_equipment"
+                value={existingReview?.reviewer_context.other_equipment || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., Butterfly Timo Boll ALC blade"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Purchase Location & Price
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Info</label>
               <input
                 type="text"
-                value={formData.reviewer_context.purchase_price || ''}
-                onInput={e =>
-                  handleContextChange('purchase_price', (e.target as HTMLInputElement).value)
-                }
+                name="purchase_price"
+                value={existingReview?.reviewer_context.purchase_price || ''}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., Paddle Palace, $65"
               />
@@ -292,22 +195,18 @@ export function ReviewForm({ equipment, onSubmit, onCancel }: ReviewFormProps) {
         </div>
 
         {/* Submit Buttons */}
-        <div class="flex justify-end space-x-3">
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              Cancel
-            </button>
-          )}
+        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+            {submitText}
           </button>
         </div>
       </form>
