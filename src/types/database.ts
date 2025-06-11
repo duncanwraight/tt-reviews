@@ -64,3 +64,16 @@ export interface PlayerEquipmentSetup {
   created_at: string
   updated_at: string
 }
+
+export interface PlayerEdit {
+  id: string
+  player_id: string
+  user_id: string
+  edit_data: Partial<Player>
+  status: 'pending' | 'approved' | 'rejected' | 'awaiting_second_approval'
+  moderator_id?: string
+  moderator_notes?: string
+  created_at: string
+  updated_at: string
+  players?: Player
+}

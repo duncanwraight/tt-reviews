@@ -11,6 +11,12 @@ moderation.get('/reviews/pending', ModerationController.getPendingReviews)
 moderation.get('/reviews/:id', ModerationController.getReview)
 moderation.post('/reviews/:id/approve', ModerationController.approveReview)
 moderation.post('/reviews/:id/reject', ModerationController.rejectReview)
+
+moderation.get('/player-edits/pending', ModerationController.getPendingPlayerEdits)
+moderation.get('/player-edits/:id', ModerationController.getPlayerEdit)
+moderation.post('/player-edits/:id/approve', ModerationController.approvePlayerEdit)
+moderation.post('/player-edits/:id/reject', ModerationController.rejectPlayerEdit)
+
 moderation.get('/stats', ModerationController.getModerationStats)
 
 export { moderation }

@@ -44,7 +44,7 @@ describe('ModerationService', () => {
         }),
       })
 
-      const result = await moderationService.approveReview('review-123', 'moderator-1')
+      const result = await moderationService.approveReview('review-123', 'moderator-1', false)
 
       expect(result.success).toBe(true)
       expect(result.status).toBe('first_approval')
@@ -71,7 +71,7 @@ describe('ModerationService', () => {
         }),
       })
 
-      const result = await moderationService.approveReview('review-123', 'moderator-2')
+      const result = await moderationService.approveReview('review-123', 'moderator-2', false)
 
       expect(result.success).toBe(true)
       expect(result.status).toBe('fully_approved')
@@ -92,7 +92,7 @@ describe('ModerationService', () => {
       // Mock getReviewApprovals to return same moderator
       vi.spyOn(moderationService, 'getReviewApprovals').mockResolvedValue(['moderator-1'])
 
-      const result = await moderationService.approveReview('review-123', 'moderator-1')
+      const result = await moderationService.approveReview('review-123', 'moderator-1', false)
 
       expect(result.success).toBe(false)
       expect(result.status).toBe('already_approved')
@@ -102,7 +102,7 @@ describe('ModerationService', () => {
     it('should handle review not found', async () => {
       vi.spyOn(moderationService, 'getReviewById').mockResolvedValue(null)
 
-      const result = await moderationService.approveReview('nonexistent', 'moderator-1')
+      const result = await moderationService.approveReview('nonexistent', 'moderator-1', false)
 
       expect(result.success).toBe(false)
       expect(result.status).toBe('error')
@@ -115,7 +115,7 @@ describe('ModerationService', () => {
         status: 'approved',
       } as any)
 
-      const result = await moderationService.approveReview('review-123', 'moderator-1')
+      const result = await moderationService.approveReview('review-123', 'moderator-1', false)
 
       expect(result.success).toBe(false)
       expect(result.status).toBe('already_approved')
@@ -135,7 +135,7 @@ describe('ModerationService', () => {
         eq: vi.fn().mockResolvedValue({ error: 'Database error' }),
       })
 
-      const result = await moderationService.approveReview('review-123', 'moderator-1')
+      const result = await moderationService.approveReview('review-123', 'moderator-1', false)
 
       expect(result.success).toBe(false)
       expect(result.status).toBe('error')
@@ -145,11 +145,37 @@ describe('ModerationService', () => {
     it('should handle unexpected errors', async () => {
       vi.spyOn(moderationService, 'getReviewById').mockRejectedValue(new Error('Unexpected error'))
 
-      const result = await moderationService.approveReview('review-123', 'moderator-1')
+      const result = await moderationService.approveReview('review-123', 'moderator-1', false)
 
       expect(result.success).toBe(false)
       expect(result.status).toBe('error')
       expect(result.message).toBe('Internal error occurred')
+    })
+
+    it('should allow admin direct approval bypassing two-approval system', async () => {
+      // Mock getReviewById to return a pending review
+      vi.spyOn(moderationService, 'getReviewById').mockResolvedValue({
+        id: 'review-123',
+        status: 'pending',
+      } as any)
+
+      // Mock logModerationAction
+      vi.spyOn(moderationService as any, 'logModerationAction').mockResolvedValue(undefined)
+
+      // Mock update chain to succeed
+      mockSupabase.update.mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      })
+
+      const result = await moderationService.approveReview('review-123', 'admin-1', true)
+
+      expect(result.success).toBe(true)
+      expect(result.status).toBe('fully_approved')
+      expect(result.message).toBe('Review approved and published!')
+      expect(mockSupabase.update).toHaveBeenCalledWith({
+        status: 'approved',
+        updated_at: expect.any(String),
+      })
     })
   })
 
@@ -252,11 +278,14 @@ describe('ModerationService', () => {
 
   describe('getModerationStats', () => {
     it('should return correct moderation statistics', async () => {
-      // Mock count queries
+      // Mock count queries (equipment_reviews + player_edits)
       mockSupabase.eq
-        .mockResolvedValueOnce({ count: 5 }) // pending
-        .mockResolvedValueOnce({ count: 20 }) // approved
-        .mockResolvedValueOnce({ count: 3 }) // rejected
+        .mockResolvedValueOnce({ count: 5 }) // equipment pending
+        .mockResolvedValueOnce({ count: 20 }) // equipment approved
+        .mockResolvedValueOnce({ count: 3 }) // equipment rejected
+        .mockResolvedValueOnce({ count: 0 }) // player edits pending
+        .mockResolvedValueOnce({ count: 0 }) // player edits approved
+        .mockResolvedValueOnce({ count: 0 }) // player edits rejected
 
       const stats = await moderationService.getModerationStats()
 
@@ -265,14 +294,21 @@ describe('ModerationService', () => {
         approved: 20,
         rejected: 3,
         total: 28,
+        playerEditsPending: 0,
+        playerEditsApproved: 0,
+        playerEditsRejected: 0,
+        playerEditsTotal: 0,
       })
     })
 
     it('should handle null counts', async () => {
       mockSupabase.eq
-        .mockResolvedValueOnce({ count: null })
-        .mockResolvedValueOnce({ count: null })
-        .mockResolvedValueOnce({ count: null })
+        .mockResolvedValueOnce({ count: null }) // equipment pending
+        .mockResolvedValueOnce({ count: null }) // equipment approved
+        .mockResolvedValueOnce({ count: null }) // equipment rejected
+        .mockResolvedValueOnce({ count: null }) // player edits pending
+        .mockResolvedValueOnce({ count: null }) // player edits approved
+        .mockResolvedValueOnce({ count: null }) // player edits rejected
 
       const stats = await moderationService.getModerationStats()
 
@@ -281,6 +317,10 @@ describe('ModerationService', () => {
         approved: 0,
         rejected: 0,
         total: 0,
+        playerEditsPending: 0,
+        playerEditsApproved: 0,
+        playerEditsRejected: 0,
+        playerEditsTotal: 0,
       })
     })
   })

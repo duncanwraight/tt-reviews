@@ -26,6 +26,7 @@ import { SearchPage } from './components/pages/SearchPage'
 import { LoginPage } from './components/pages/LoginPage'
 import { AdminPage } from './components/pages/AdminPage'
 import { AdminReviewsPage } from './components/pages/AdminReviewsPage'
+import { AdminPlayerEditsPage } from './components/pages/AdminPlayerEditsPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { EquipmentIndexPage } from './components/pages/EquipmentIndexPage'
 
@@ -276,7 +277,20 @@ export function createApp(): Hono<{ Variables: Variables }> {
       return c.render(<AdminPage stats={stats} />)
     } catch (error) {
       console.error('Error loading admin dashboard:', error)
-      return c.render(<AdminPage stats={{ pending: 0, approved: 0, rejected: 0, total: 0 }} />)
+      return c.render(
+        <AdminPage
+          stats={{
+            pending: 0,
+            approved: 0,
+            rejected: 0,
+            total: 0,
+            playerEditsPending: 0,
+            playerEditsApproved: 0,
+            playerEditsRejected: 0,
+            playerEditsTotal: 0,
+          }}
+        />
+      )
     }
   })
 
@@ -292,6 +306,21 @@ export function createApp(): Hono<{ Variables: Variables }> {
     } catch (error) {
       console.error('Error loading pending reviews:', error)
       return c.render(<AdminReviewsPage reviews={[]} total={0} />)
+    }
+  })
+
+  app.get('/admin/player-edits', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const moderationService = new ModerationService(supabase)
+
+      const { playerEdits, total } = await moderationService.getPendingPlayerEdits(50, 0)
+
+      return c.render(<AdminPlayerEditsPage playerEdits={playerEdits} total={total} />)
+    } catch (error) {
+      console.error('Error loading pending player edits:', error)
+      return c.render(<AdminPlayerEditsPage playerEdits={[]} total={0} />)
     }
   })
 

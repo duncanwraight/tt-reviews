@@ -89,7 +89,7 @@
 ## Bugs
 
 - [x] Confirm modal on approving moderation item in admin area doesn't do anything
-- [ ] When trying to confirm moderation of a review from the admin area, I see an error about requiring a second review. This should only be the case when moderating from Discord; administrators should be able to approve a submission without a second confirmation
+- [x] When trying to confirm moderation of a review from the admin area, I see an error about requiring a second review. This should only be the case when moderating from Discord; administrators should be able to approve a submission without a second confirmation
       ```
       [2025-06-10T23:22:16.427Z] POST /api/admin/reviews/2bca73ca-e991-4f00-a078-1e3500c1dfcf/approve - START
       Moderation action: approved review 2bca73ca-e991-4f00-a078-1e3500c1dfcf by moderator fa4f22e7-a6be-45da-b108-665d62469607 {
@@ -110,10 +110,11 @@
       ```
 
 - [x] When submitting a player change for moderation, even a successful submission displays an error modal
+- [ ] No log out button anywhere for admins
 
 ## Post-live improvements
 
-- [ ] Update moderation interface to support player changes and player new equipment updates
+- [x] Update moderation interface to support player changes and player new equipment updates
 - [x] Allow logged-in users to submit changes to players
 - [ ] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
   - Include in submission and frontend interfaces
