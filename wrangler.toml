@@ -1,6 +1,6 @@
-name = "app"
+name = "tt-reviews-test"
 main = "workers/app.ts"
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-04-04"
 compatibility_flags = ["nodejs_compat_v2"]
 
 routes = [
@@ -16,6 +16,8 @@ ENVIRONMENT = "production"
 SUPABASE_URL = "https://rqehpjgumrtiowgxsdyw.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZWhwamd1bXJ0aW93Z3hzZHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDY1MzYsImV4cCI6MjA2NDk4MjUzNn0.yqQDMhV30mu-LLOgEFhH7wm-vpe-zgDX0Ju8MbXmjFk"
 SITE_URL = "https://tabletennis.reviews"
+SESSION_SECRET = "production-secret-replace-with-actual-secret"
+ADMIN_EMAILS = "admin@tabletennis.reviews"
 
 # Local dev settings
 [env.dev]
@@ -26,3 +28,5 @@ port = 8787
 ENVIRONMENT = "development"
 SUPABASE_URL = "http://tt-reviews.local:54321"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+SESSION_SECRET = "dev-secret-change-in-production"
+ADMIN_EMAILS = "admin@tabletennis.reviews"

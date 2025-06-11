@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import type { AppLoadContext } from '@remix-run/cloudflare'
+import type { AppLoadContext } from 'react-router'
 
 // Database types
 export interface Equipment {
