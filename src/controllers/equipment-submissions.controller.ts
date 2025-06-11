@@ -28,18 +28,12 @@ export async function submitEquipment(c: Context) {
 
     // Validate required fields
     if (!body.name || !body.manufacturer || !body.category) {
-      const baseUrl = new globalThis.URL(c.req.url).origin
-      return c.html(
-        EquipmentSubmitPage({
-          baseUrl,
-          user,
-          children: Modal({
-            id: 'validation-error',
-            type: 'error',
-            title: 'Validation Error',
-            message: 'Please fill in all required fields (name, manufacturer, and category).',
-          }),
-        })?.toString() || 'Error rendering page'
+      return c.json(
+        {
+          success: false,
+          error: 'Please fill in all required fields (name, manufacturer, and category).',
+        },
+        400
       )
     }
 
@@ -72,18 +66,12 @@ export async function submitEquipment(c: Context) {
 
     // Validate category
     if (!['blade', 'rubber', 'ball'].includes(equipmentData.category)) {
-      const baseUrl = new globalThis.URL(c.req.url).origin
-      return c.html(
-        EquipmentSubmitPage({
-          baseUrl,
-          user,
-          children: Modal({
-            id: 'invalid-category',
-            type: 'error',
-            title: 'Invalid Category',
-            message: 'Please select a valid equipment category.',
-          }),
-        })?.toString() || 'Error rendering page'
+      return c.json(
+        {
+          success: false,
+          error: 'Please select a valid equipment category.',
+        },
+        400
       )
     }
 
@@ -92,39 +80,27 @@ export async function submitEquipment(c: Context) {
       equipmentData.subcategory &&
       !['inverted', 'long_pips', 'anti', 'short_pips'].includes(equipmentData.subcategory)
     ) {
-      const baseUrl = new globalThis.URL(c.req.url).origin
-      return c.html(
-        EquipmentSubmitPage({
-          baseUrl,
-          user,
-          children: Modal({
-            id: 'invalid-subcategory',
-            type: 'error',
-            title: 'Invalid Subcategory',
-            message: 'Please select a valid equipment subcategory.',
-          }),
-        })?.toString() || 'Error rendering page'
+      return c.json(
+        {
+          success: false,
+          error: 'Please select a valid equipment subcategory.',
+        },
+        400
       )
     }
 
-    const supabase = authService.createServerClient()
+    const supabase = await authService.getAuthenticatedClient(c)
     const equipmentService = new EquipmentService(supabase)
 
     const submissionId = await equipmentService.submitEquipment(user.id, equipmentData)
 
     if (!submissionId) {
-      const baseUrl = new globalThis.URL(c.req.url).origin
-      return c.html(
-        EquipmentSubmitPage({
-          baseUrl,
-          user,
-          children: Modal({
-            id: 'submission-failed',
-            type: 'error',
-            title: 'Submission Failed',
-            message: 'Failed to submit equipment. Please try again.',
-          }),
-        })?.toString() || 'Error rendering page'
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to submit equipment. Please try again.',
+        },
+        400
       )
     }
 
@@ -147,22 +123,20 @@ export async function submitEquipment(c: Context) {
       // Don't fail the submission if Discord notification fails
     }
 
-    const baseUrl = new globalThis.URL(c.req.url).origin
-    return c.html(
-      EquipmentSubmitPage({
-        baseUrl,
-        user,
-        children: Modal({
-          id: 'submission-success',
-          type: 'success',
-          title: 'Equipment Submitted!',
-          message:
-            "Your equipment submission has been received and will be reviewed by our moderation team. You'll receive a Discord notification once it's been processed.",
-        }),
-      })?.toString() || 'Error rendering page'
-    )
+    return c.json({
+      success: true,
+      message:
+        'Equipment submitted successfully! Your submission will be reviewed by our moderation team.',
+      submissionId,
+    })
   } catch (error) {
     console.error('Error submitting equipment:', error)
-    return c.html('Internal server error', 500)
+    return c.json(
+      {
+        success: false,
+        error: 'Internal server error. Please try again later.',
+      },
+      500
+    )
   }
 }

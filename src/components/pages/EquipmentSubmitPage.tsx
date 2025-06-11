@@ -86,12 +86,12 @@ function addEquipmentFormScript() {
       }
       
       try {
-        const response = await window.authenticatedFetch('/api/equipment/submit', {
+        const response = await window.authenticatedFetch('/api/equipment-submissions/submit', {
           method: 'POST',
           body: formData
         });
         
-        if (response.success !== false) {
+        if (response.success === true) {
           window.showSuccessModal('Equipment Submitted!', 'Your equipment submission has been received and will be reviewed by our moderation team.');
           form.reset();
           
@@ -99,9 +99,12 @@ function addEquipmentFormScript() {
           setTimeout(() => {
             window.location.href = '/equipment';
           }, 2000);
+        } else if (response.success === false) {
+          window.showErrorModal('Submission Failed', response.error || 'Failed to submit equipment. Please try again.');
         }
       } catch (error) {
         console.error('Equipment submission error:', error);
+        window.showErrorModal('Network Error', 'Unable to submit equipment. Please check your connection and try again.');
       }
     }
     

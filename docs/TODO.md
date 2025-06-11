@@ -111,6 +111,15 @@
 
 - [x] When submitting a player change for moderation, even a successful submission displays an error modal
 - [x] No log out button anywhere for admins
+- [ ] Submitting new Equipment gets a 200 response but doesn't do anything, the form just stays active on the page
+- [ ] Approving a new Equipment submission throws an API error: {"error":"Authentication token required","timestamp":"2025-06-11T13:56:02.947Z"}
+
+## Authentication / architecture concerns
+
+- [ ] I would like to do a proper investigation of the application architecture
+  - Does the Frontend directly interact with the database?
+  - Does the Frontend authenticate with our API?
+  - We should be using the API for DB interactions, and keeping the Frontend for essentially submitting API requests and rendering responses
 
 ## Post-live improvements
 

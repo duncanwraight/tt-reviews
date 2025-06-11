@@ -58,7 +58,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.route('/api', health)
   app.route('/api/auth', auth)
   app.route('/api/equipment', equipment)
-  app.route('/api/equipment', equipmentSubmissions)
+  app.route('/api/equipment-submissions', equipmentSubmissions)
   app.route('/api/players', players)
   app.route('/api/search', search)
   app.route('/api/reviews', createReviewsRoutes())
@@ -74,6 +74,12 @@ export function createApp(): Hono<{ Variables: Variables }> {
     return c.render(
       <HomePage featuredEquipment={featuredEquipment} popularPlayers={popularPlayers} />
     )
+  })
+
+  // Equipment submission page (must come before /:slug pattern)
+  app.get('/equipment/submit', c => {
+    const baseUrl = new globalThis.URL(c.req.url).origin
+    return c.render(<EquipmentSubmitPage baseUrl={baseUrl} />)
   })
 
   app.get('/equipment/:slug', async c => {
@@ -215,12 +221,6 @@ export function createApp(): Hono<{ Variables: Variables }> {
     }
 
     return c.render(<SearchPage query={query} results={results} />)
-  })
-
-  // Equipment submission page (must come before /:slug pattern)
-  app.get('/equipment/submit', c => {
-    const baseUrl = new globalThis.URL(c.req.url).origin
-    return c.render(<EquipmentSubmitPage baseUrl={baseUrl} />)
   })
 
   // Category pages
