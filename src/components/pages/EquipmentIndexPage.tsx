@@ -19,10 +19,18 @@ export function EquipmentIndexPage({
         {/* Hero Section */}
         <div class="text-center mb-12">
           <h1 class="text-4xl font-bold text-gray-900 mb-4">Table Tennis Equipment Reviews</h1>
-          <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Discover the best table tennis equipment through comprehensive reviews, professional
             player setups, and community ratings. From professional blades to tournament rubbers.
           </p>
+          <div class="flex justify-center">
+            <a
+              href="/equipment/submit"
+              class="inline-flex items-center px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Submit New Equipment →
+            </a>
+          </div>
         </div>
 
         {/* Categories Grid */}
@@ -61,9 +69,14 @@ export function EquipmentIndexPage({
           <section>
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-900">Latest Equipment</h2>
-              <a href="/equipment/all" class="text-primary hover:text-primary/80 font-medium">
-                View All →
-              </a>
+              <div class="flex items-center space-x-4">
+                <a href="/equipment/submit" class="text-primary hover:text-primary/80 font-medium">
+                  Submit Equipment
+                </a>
+                <a href="/equipment/all" class="text-primary hover:text-primary/80 font-medium">
+                  View All →
+                </a>
+              </div>
             </div>
             <div class="space-y-4">
               {recentEquipment.map(equipment => (

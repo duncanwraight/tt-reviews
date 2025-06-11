@@ -10,7 +10,16 @@ export const EquipmentSubmissionForm: FC<EquipmentSubmissionFormProps> = ({ base
       <div class="bg-white rounded-lg shadow-md p-6">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Submit New Equipment</h2>
 
-        <form method="post" action={`${baseUrl}/api/equipment/submit`} class="space-y-6">
+        <div
+          id="error-message"
+          class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
+        ></div>
+        <div
+          id="success-message"
+          class="hidden mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded"
+        ></div>
+
+        <form id="equipment-form" class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Equipment Name */}
             <div class="md:col-span-2">
@@ -118,7 +127,8 @@ export const EquipmentSubmissionForm: FC<EquipmentSubmissionFormProps> = ({ base
             </button>
             <button
               type="submit"
-              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+              id="submit-button"
+              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit Equipment
             </button>

@@ -7,16 +7,12 @@ import { Modal } from '../components/ui/Modal.jsx'
 
 export async function showEquipmentSubmitForm(c: Context) {
   try {
-    const authService = createAuthService(c)
-    const user = await authService.getUser(c)
-
-    if (!user) {
-      return c.redirect('/auth/login?redirect=/equipment/submit')
-    }
-
     const baseUrl = new globalThis.URL(c.req.url).origin
-
-    return c.html(EquipmentSubmitPage({ baseUrl, user })?.toString() || 'Error rendering page')
+    // For web pages, authentication is handled client-side via localStorage session
+    // The page will redirect to login if no session exists
+    return c.html(
+      EquipmentSubmitPage({ baseUrl, user: undefined })?.toString() || 'Error rendering page'
+    )
   } catch (error) {
     console.error('Error showing equipment submit form:', error)
     return c.html('Internal server error', 500)
@@ -25,12 +21,8 @@ export async function showEquipmentSubmitForm(c: Context) {
 
 export async function submitEquipment(c: Context) {
   try {
+    const user = c.get('user')
     const authService = createAuthService(c)
-    const user = await authService.getUser(c)
-
-    if (!user) {
-      return c.redirect('/auth/login?redirect=/equipment/submit')
-    }
 
     const body = await c.req.parseBody()
 
