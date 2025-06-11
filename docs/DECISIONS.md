@@ -2,14 +2,14 @@
 
 ## TECH STACK
 
-**Selected Architecture: Hono + Supabase**
+**Selected Architecture: React Router v7 + Supabase**
 
 ### Frontend & API
 
-- **Framework**: Hono - Full-stack JS framework designed for edge runtimes
-- **Frontend**: Hono JSX - Server-side rendered components within Workers
-- **Hosting**: Cloudflare Workers - Serves both API endpoints and frontend (SSR)
-- **Benefits**: Single deployment target, global edge performance, component-based architecture, perfect SEO
+- **Framework**: React Router v7 (formerly Remix) - Full-stack React framework for Cloudflare Workers
+- **Frontend**: React with server-side rendering and file-based routing
+- **Hosting**: Cloudflare Workers - Unified full-stack deployment
+- **Benefits**: Modern React patterns, type-safe full-stack development, automatic code splitting, progressive enhancement
 
 ### Database & Authentication
 
@@ -95,16 +95,26 @@
 
 ### Frontend Architecture Decision
 
-**Hono JSX over Separate Frontend Framework**
+**React Router v7 Migration (January 2025)**
 
-- **Considered**: Astro, Next.js, Vite + SPA
-- **Selected**: Hono JSX components within existing Workers deployment
-- **Rationale**:
-  - Single deployment maintains architectural simplicity
-  - Server-side rendering ensures perfect SEO for content-heavy site
-  - No bundle size constraints from separate framework
-  - Component-based architecture without deployment complexity
-  - Type-safe JSX integrates seamlessly with TypeScript backend
+- **Previous**: Hono JSX with inline JavaScript and hybrid SSR/client architecture
+- **Current**: React Router v7 (Remix) on Cloudflare Workers
+- **Migration Rationale**:
+  - **Eliminates inline JavaScript**: Removed 200+ lines of `dangerouslySetInnerHTML` code
+  - **Type-safe full-stack**: End-to-end TypeScript from database to UI
+  - **Modern React patterns**: Proper component composition, hooks, and state management
+  - **Better DX**: Hot module replacement, proper error boundaries, loading states
+  - **Security improvements**: No XSS vulnerabilities from inline scripts
+  - **Maintainable architecture**: File-based routing with co-located data loading
+  - **Progressive enhancement**: Works without JavaScript, enhances with it
+  - **API endpoints**: Same routes serve both JSON (for external apps) and HTML (for browsers)
+
+### Implementation Benefits
+
+- **Unified deployment**: Frontend, backend, and API in single Worker
+- **Automatic optimization**: Code splitting, tree shaking, and bundling via Vite
+- **Better performance**: Proper caching, static asset optimization
+- **Developer experience**: React dev tools, TypeScript intellisense, proper debugging
 
 ## Image Storage
 

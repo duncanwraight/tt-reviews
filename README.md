@@ -1,45 +1,79 @@
-# TT Reviews
+# Welcome to React Router!
 
-A trusted table tennis equipment review platform featuring player profiles and community-moderated reviews.
+A modern, production-ready template for building full-stack React applications using React Router.
 
-## Local Development
+## Features
 
-### Prerequisites
+- 🚀 Server-side rendering
+- ⚡️ Hot Module Replacement (HMR)
+- 📦 Asset bundling and optimization
+- 🔄 Data loading and mutations
+- 🔒 TypeScript by default
+- 🎉 TailwindCSS for styling
+- 📖 [React Router docs](https://reactrouter.com/)
 
-- Node.js (v18 or later)
-- npm (comes with Node.js)
+## Getting Started
 
-### Setup
+### Installation
 
-1. Clone the repository:
+Install the dependencies:
 
-   ```bash
-   git clone https://github.com/duncanwraight/tt-reviews.git
-   cd tt-reviews
-   ```
+```bash
+npm install
+```
 
-2. Install dependencies:
+### Development
 
-   ```bash
-   npm install
-   ```
+Start the development server with HMR:
 
-3. Start the development server:
+```bash
+npm run dev
+```
 
-   ```bash
-   npm run dev
-   ```
+Your application will be available at `http://localhost:5173`.
 
-4. Open your browser and navigate to the URL shown in the terminal (typically `http://tt-reviews.local:8787`)
+## Previewing the Production Build
 
-The development server will automatically reload when you make changes to the code.
+Preview the production build locally:
 
-## Documentation
+```bash
+npm run preview
+```
 
-- **Application Requirements**: See [`docs/reqs/`](docs/reqs/) for detailed requirements
-- **Tech Stack & Architecture**: [`docs/DECISIONS.md`](docs/DECISIONS.md)
-- **Coding Standards**: [`docs/CODING-STANDARDS.md`](docs/CODING-STANDARDS.md)
-- **Table Tennis Terminology**: [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
-- **UI/UX Style Guide**: [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md)
-- **Layout Guide**: [`docs/LAYOUT.md`](docs/LAYOUT.md)
-- **SEO Strategy**: [`docs/SEO.md`](docs/SEO.md)
+## Building for Production
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+## Deployment
+
+Deployment is done using the Wrangler CLI.
+
+To build and deploy directly to production:
+
+```sh
+npm run deploy
+```
+
+To deploy a preview URL:
+
+```sh
+npx wrangler versions upload
+```
+
+You can then promote a version to production after verification or roll it out progressively.
+
+```sh
+npx wrangler versions deploy
+```
+
+## Styling
+
+This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+
+---
+
+Built with ❤️ using React Router.

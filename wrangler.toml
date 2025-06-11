@@ -1,7 +1,7 @@
 name = "app"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
+main = "workers/app.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat_v2"]
 
 routes = [
   { pattern = "tabletennis.reviews", custom_domain = true }

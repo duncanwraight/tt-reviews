@@ -20,6 +20,7 @@ build/
 # Cloudflare
 .wrangler/
 wrangler.toml.bak
+worker-configuration.d.ts
 
 # IDE and editors
 .vscode/
@@ -79,7 +80,10 @@ temp/
 # Local dev vars
 .dev.vars
 
-# TypeScript build artifacts
-src/**/*.js
-src/**/*.d.ts
-src/**/*.d.ts.map
+# React Router specific
+.react-router/
+*.d.ts.map
+*.js.map
+
+# Vite
+.vite/
