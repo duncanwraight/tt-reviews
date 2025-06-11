@@ -474,4 +474,84 @@ describe('DiscordService', () => {
       expect(result).toBe(false)
     })
   })
+
+  describe('notifyNewPlayerEdit', () => {
+    it('should send player edit notification with correct format', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+      vi.stubGlobal('fetch', mockFetch)
+
+      const editData = {
+        id: 'edit-123',
+        player_name: 'John Doe',
+        submitter_email: 'user@example.com',
+        edit_data: {
+          name: 'John Doe Updated',
+          highest_rating: 2500,
+          active_years: '2020-2024',
+          active: true,
+        },
+      }
+
+      const result = await discordService.notifyNewPlayerEdit(editData)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://discord.com/api/webhooks/mock',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('Player Edit Submitted'),
+        })
+      )
+
+      const callArgs = mockFetch.mock.calls[0]
+      expect(callArgs).toBeDefined()
+      const payload = JSON.parse(callArgs![1].body)
+
+      expect(payload.embeds[0].title).toBe('🏓 Player Edit Submitted')
+      expect(payload.embeds[0].color).toBe(0xe67e22)
+      expect(payload.embeds[0].fields).toEqual([
+        { name: 'Player', value: 'John Doe', inline: true },
+        { name: 'Submitted by', value: 'user@example.com', inline: true },
+        {
+          name: 'Changes',
+          value: 'Name: John Doe Updated\nRating: 2500\nActive: 2020-2024\nStatus: Active',
+          inline: false,
+        },
+      ])
+      expect(payload.components[0].components).toHaveLength(2)
+      expect(payload.components[0].components[0].custom_id).toBe('approve_player_edit_edit-123')
+      expect(payload.components[0].components[1].custom_id).toBe('reject_player_edit_edit-123')
+      expect(result).toEqual({ success: true })
+    })
+
+    it('should handle webhook errors gracefully', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: false })
+      vi.stubGlobal('fetch', mockFetch)
+
+      const editData = {
+        id: 'edit-123',
+        player_name: 'John Doe',
+        submitter_email: 'user@example.com',
+        edit_data: {},
+      }
+
+      const result = await discordService.notifyNewPlayerEdit(editData)
+      expect(result).toEqual({ success: false })
+    })
+
+    it('should throw error when webhook URL not configured', async () => {
+      const serviceWithoutWebhook = new DiscordService(mockSupabase, {} as any)
+
+      const editData = {
+        id: 'edit-123',
+        player_name: 'John Doe',
+        submitter_email: 'user@example.com',
+        edit_data: {},
+      }
+
+      await expect(serviceWithoutWebhook.notifyNewPlayerEdit(editData)).rejects.toThrow(
+        'DISCORD_WEBHOOK_URL not configured'
+      )
+    })
+  })
 })

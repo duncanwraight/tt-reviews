@@ -1,5 +1,6 @@
 import { Context } from 'hono'
 import { PlayersService } from '../services/players.service'
+import { DiscordService } from '../services/discord.service'
 import { successResponse } from '../utils/response'
 import { NotFoundError } from '../utils/errors'
 import { getAuthContext, createAuthService } from '../services/auth-wrapper.service'
@@ -196,9 +197,29 @@ export class PlayersController {
       }
 
       // Create a moderated player edit entry
-      const success = await playerService.submitPlayerEdit(player.id, body, user.id)
-      if (!success) {
+      const editId = await playerService.submitPlayerEdit(player.id, body, user.id)
+      if (!editId) {
         return c.json({ success: false, message: 'Failed to submit player edit' }, 500)
+      }
+
+      // Send Discord notification for new player edit submission
+      try {
+        const env = c.env as any
+        if (env?.DISCORD_WEBHOOK_URL) {
+          const authService = createAuthService(c)
+          const supabase = authService.createServerClient()
+          const discordService = new DiscordService(supabase, env)
+
+          await discordService.notifyNewPlayerEdit({
+            id: editId,
+            player_name: player.name,
+            submitter_email: user.email || 'Anonymous',
+            edit_data: body,
+          })
+        }
+      } catch (error) {
+        // Don't fail the player edit submission if Discord notification fails
+        console.error('Failed to send Discord notification for player edit:', error)
       }
 
       return successResponse(c, {

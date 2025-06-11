@@ -268,20 +268,24 @@ export class PlayersService {
     playerId: string,
     editData: Partial<Player>,
     userId: string
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     // Submit player edit for moderation
-    const { error } = await this.supabase.from('player_edits').insert({
-      player_id: playerId,
-      user_id: userId,
-      edit_data: editData,
-      status: 'pending',
-    })
+    const { data, error } = await this.supabase
+      .from('player_edits')
+      .insert({
+        player_id: playerId,
+        user_id: userId,
+        edit_data: editData,
+        status: 'pending',
+      })
+      .select('id')
+      .single()
 
     if (error) {
       console.error('Error submitting player edit:', error)
-      return false
+      return null
     }
 
-    return true
+    return data?.id || null
   }
 }

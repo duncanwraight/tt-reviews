@@ -277,6 +277,16 @@ export class DiscordService {
   async handleMessageComponent(interaction: any): Promise<globalThis.Response> {
     const customId = interaction.data.custom_id
 
+    if (customId.startsWith('approve_player_edit_')) {
+      const editId = customId.replace('approve_player_edit_', '')
+      return await this.handleApprovePlayerEdit(editId, interaction.user)
+    }
+
+    if (customId.startsWith('reject_player_edit_')) {
+      const editId = customId.replace('reject_player_edit_', '')
+      return await this.handleRejectPlayerEdit(editId, interaction.user)
+    }
+
     if (customId.startsWith('approve_')) {
       const reviewId = customId.replace('approve_', '')
       return await this.handleApproveReview(reviewId, interaction.user)
@@ -411,6 +421,111 @@ export class DiscordService {
   }
 
   /**
+   * Handle player edit approval
+   */
+  private async handleApprovePlayerEdit(editId: string, user: any): Promise<globalThis.Response> {
+    try {
+      const result = await this.moderationService.approvePlayerEdit(editId, user.id)
+
+      if (result.success) {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Player Edit Approved by ${user.username}**\nPlayer edit ${editId}: ${result.message}`,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      } else {
+        let emoji = '⚠️'
+        if (result.status === 'error') {
+          emoji = '❌'
+        }
+
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `${emoji} **Error**: ${result.message}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Error handling approve player edit:', error)
+      return new globalThis.Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player edit approval`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+  }
+
+  /**
+   * Handle player edit rejection
+   */
+  private async handleRejectPlayerEdit(editId: string, user: any): Promise<globalThis.Response> {
+    try {
+      const success = await this.moderationService.rejectPlayerEdit(editId, user.id)
+
+      if (success) {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Player Edit Rejected by ${user.username}**\nPlayer edit ${editId} has been rejected and changes will not be applied.`,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      } else {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to reject player edit ${editId}. It may have already been processed.`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Error handling reject player edit:', error)
+      return new globalThis.Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player edit rejection`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+  }
+
+  /**
    * Check if user has required permissions
    */
   private async checkUserPermissions(member: any, guildId: string): Promise<boolean> {
@@ -473,6 +588,84 @@ export class DiscordService {
             style: 4, // Danger/Red
             label: 'Reject',
             custom_id: `reject_${reviewData.id}`,
+          },
+        ],
+      },
+    ]
+
+    const payload = {
+      embeds: [embed],
+      components,
+    }
+
+    const response = await globalThis.fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    return { success: response.ok }
+  }
+
+  /**
+   * Send notification about new player edit submission
+   */
+  async notifyNewPlayerEdit(editData: any): Promise<any> {
+    const webhookUrl = this.env.DISCORD_WEBHOOK_URL
+    if (!webhookUrl) {
+      throw new Error('DISCORD_WEBHOOK_URL not configured')
+    }
+
+    // Create a summary of the changes
+    const changes = []
+    if (editData.edit_data.name) changes.push(`Name: ${editData.edit_data.name}`)
+    if (editData.edit_data.highest_rating)
+      changes.push(`Rating: ${editData.edit_data.highest_rating}`)
+    if (editData.edit_data.active_years) changes.push(`Active: ${editData.edit_data.active_years}`)
+    if (editData.edit_data.active !== undefined)
+      changes.push(`Status: ${editData.edit_data.active ? 'Active' : 'Inactive'}`)
+
+    const embed = {
+      title: '🏓 Player Edit Submitted',
+      description: `A player information update has been submitted and needs moderation.`,
+      color: 0xe67e22, // Orange color to distinguish from reviews
+      fields: [
+        {
+          name: 'Player',
+          value: editData.player_name || 'Unknown Player',
+          inline: true,
+        },
+        {
+          name: 'Submitted by',
+          value: editData.submitter_email || 'Anonymous',
+          inline: true,
+        },
+        {
+          name: 'Changes',
+          value: changes.length > 0 ? changes.join('\n') : 'No changes specified',
+          inline: false,
+        },
+      ],
+      timestamp: new Date().toISOString(),
+    }
+
+    const components = [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 3, // Success/Green
+            label: 'Approve Edit',
+            custom_id: `approve_player_edit_${editData.id}`,
+          },
+          {
+            type: 2, // Button
+            style: 4, // Danger/Red
+            label: 'Reject Edit',
+            custom_id: `reject_player_edit_${editData.id}`,
           },
         ],
       },
