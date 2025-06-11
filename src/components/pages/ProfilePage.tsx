@@ -66,20 +66,9 @@ export const ProfilePage: FC = () => {
         dangerouslySetInnerHTML={{
           __html: `
             async function loadProfile() {
-              const session = localStorage.getItem('session');
-              if (!session) {
-                window.location.href = '/login';
-                return;
-              }
-
               try {
-                const sessionData = JSON.parse(session);
-                const token = sessionData.access_token;
-
-                // Load user info
-                const userResponse = await fetch('/api/auth/me', {
-                  headers: { 'Authorization': 'Bearer ' + token }
-                });
+                // Load user info - authenticatedFetch will handle token validation and redirects
+                const userResponse = await window.authenticatedFetch('/api/auth/me');
 
                 if (userResponse.ok) {
                   const userData = await userResponse.json();
@@ -88,15 +77,14 @@ export const ProfilePage: FC = () => {
                 }
 
                 // Load user reviews
-                const reviewsResponse = await fetch('/api/reviews/user', {
-                  headers: { 'Authorization': 'Bearer ' + token }
-                });
+                const reviewsResponse = await window.authenticatedFetch('/api/reviews/user');
 
                 if (reviewsResponse.ok) {
                   const reviewsData = await reviewsResponse.json();
                   displayReviews(reviewsData.reviews || []);
                 }
               } catch (error) {
+                // authenticatedFetch handles auth errors and redirects automatically
                 console.error('Error loading profile:', error);
                 document.getElementById('user-email').textContent = 'Error loading profile';
               }
@@ -132,19 +120,16 @@ export const ProfilePage: FC = () => {
 
             async function signOut() {
               try {
-                const session = localStorage.getItem('session');
-                if (session) {
-                  const sessionData = JSON.parse(session);
-                  await fetch('/api/auth/signout', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + sessionData.access_token }
-                  });
-                }
+                await window.authenticatedFetch('/api/auth/signout', {
+                  method: 'POST'
+                });
               } catch (error) {
                 console.error('Error signing out:', error);
+                // Still clear local storage even if API call fails
               }
               
               localStorage.removeItem('session');
+              localStorage.removeItem('access_token');
               window.location.href = '/';
             }
 

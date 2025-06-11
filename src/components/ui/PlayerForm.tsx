@@ -89,6 +89,191 @@ export const PlayerForm: FC<PlayerFormProps> = ({ player, isEditing = false, cla
                   </option>
                 </select>
               </div>
+
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2" for="playing-style">
+                  Playing Style
+                </label>
+                <select
+                  id="playing-style"
+                  name="playing_style"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Select playing style</option>
+                  <option value="attacker" selected={player?.playing_style === 'attacker'}>
+                    Attacker
+                  </option>
+                  <option value="all_rounder" selected={player?.playing_style === 'all_rounder'}>
+                    All-Rounder
+                  </option>
+                  <option value="defender" selected={player?.playing_style === 'defender'}>
+                    Defender
+                  </option>
+                  <option
+                    value="counter_attacker"
+                    selected={player?.playing_style === 'counter_attacker'}
+                  >
+                    Counter-Attacker
+                  </option>
+                  <option value="chopper" selected={player?.playing_style === 'chopper'}>
+                    Chopper
+                  </option>
+                  <option value="unknown" selected={player?.playing_style === 'unknown'}>
+                    Unknown
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2" for="birth-country">
+                  Birth Country
+                </label>
+                <select
+                  id="birth-country"
+                  name="birth_country"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onchange="updateRepresentsDefault()"
+                >
+                  <option value="">Select birth country</option>
+                  <option value="CHN" selected={player?.birth_country === 'CHN'}>
+                    🇨🇳 China
+                  </option>
+                  <option value="JPN" selected={player?.birth_country === 'JPN'}>
+                    🇯🇵 Japan
+                  </option>
+                  <option value="GER" selected={player?.birth_country === 'GER'}>
+                    🇩🇪 Germany
+                  </option>
+                  <option value="KOR" selected={player?.birth_country === 'KOR'}>
+                    🇰🇷 South Korea
+                  </option>
+                  <option value="SWE" selected={player?.birth_country === 'SWE'}>
+                    🇸🇪 Sweden
+                  </option>
+                  <option value="FRA" selected={player?.birth_country === 'FRA'}>
+                    🇫🇷 France
+                  </option>
+                  <option value="HKG" selected={player?.birth_country === 'HKG'}>
+                    🇭🇰 Hong Kong
+                  </option>
+                  <option value="TPE" selected={player?.birth_country === 'TPE'}>
+                    🇹🇼 Chinese Taipei
+                  </option>
+                  <option value="SGP" selected={player?.birth_country === 'SGP'}>
+                    🇸🇬 Singapore
+                  </option>
+                  <option value="USA" selected={player?.birth_country === 'USA'}>
+                    🇺🇸 United States
+                  </option>
+                  <option value="BRA" selected={player?.birth_country === 'BRA'}>
+                    🇧🇷 Brazil
+                  </option>
+                  <option value="EGY" selected={player?.birth_country === 'EGY'}>
+                    🇪🇬 Egypt
+                  </option>
+                  <option value="NIG" selected={player?.birth_country === 'NIG'}>
+                    🇳🇬 Nigeria
+                  </option>
+                  <option value="IND" selected={player?.birth_country === 'IND'}>
+                    🇮🇳 India
+                  </option>
+                  <option value="AUS" selected={player?.birth_country === 'AUS'}>
+                    🇦🇺 Australia
+                  </option>
+                  <option value="POL" selected={player?.birth_country === 'POL'}>
+                    🇵🇱 Poland
+                  </option>
+                  <option value="ROU" selected={player?.birth_country === 'ROU'}>
+                    🇷🇴 Romania
+                  </option>
+                  <option value="AUT" selected={player?.birth_country === 'AUT'}>
+                    🇦🇹 Austria
+                  </option>
+                  <option value="DEN" selected={player?.birth_country === 'DEN'}>
+                    🇩🇰 Denmark
+                  </option>
+                  <option value="CRO" selected={player?.birth_country === 'CRO'}>
+                    🇭🇷 Croatia
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2" for="represents">
+                  Represents
+                  <span class="text-sm font-normal text-gray-500">(defaults to birth country)</span>
+                </label>
+                <select
+                  id="represents"
+                  name="represents"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Same as birth country</option>
+                  <option value="CHN" selected={player?.represents === 'CHN'}>
+                    🇨🇳 China
+                  </option>
+                  <option value="JPN" selected={player?.represents === 'JPN'}>
+                    🇯🇵 Japan
+                  </option>
+                  <option value="GER" selected={player?.represents === 'GER'}>
+                    🇩🇪 Germany
+                  </option>
+                  <option value="KOR" selected={player?.represents === 'KOR'}>
+                    🇰🇷 South Korea
+                  </option>
+                  <option value="SWE" selected={player?.represents === 'SWE'}>
+                    🇸🇪 Sweden
+                  </option>
+                  <option value="FRA" selected={player?.represents === 'FRA'}>
+                    🇫🇷 France
+                  </option>
+                  <option value="HKG" selected={player?.represents === 'HKG'}>
+                    🇭🇰 Hong Kong
+                  </option>
+                  <option value="TPE" selected={player?.represents === 'TPE'}>
+                    🇹🇼 Chinese Taipei
+                  </option>
+                  <option value="SGP" selected={player?.represents === 'SGP'}>
+                    🇸🇬 Singapore
+                  </option>
+                  <option value="USA" selected={player?.represents === 'USA'}>
+                    🇺🇸 United States
+                  </option>
+                  <option value="BRA" selected={player?.represents === 'BRA'}>
+                    🇧🇷 Brazil
+                  </option>
+                  <option value="EGY" selected={player?.represents === 'EGY'}>
+                    🇪🇬 Egypt
+                  </option>
+                  <option value="NIG" selected={player?.represents === 'NIG'}>
+                    🇳🇬 Nigeria
+                  </option>
+                  <option value="IND" selected={player?.represents === 'IND'}>
+                    🇮🇳 India
+                  </option>
+                  <option value="AUS" selected={player?.represents === 'AUS'}>
+                    🇦🇺 Australia
+                  </option>
+                  <option value="POL" selected={player?.represents === 'POL'}>
+                    🇵🇱 Poland
+                  </option>
+                  <option value="ROU" selected={player?.represents === 'ROU'}>
+                    🇷🇴 Romania
+                  </option>
+                  <option value="AUT" selected={player?.represents === 'AUT'}>
+                    🇦🇹 Austria
+                  </option>
+                  <option value="DEN" selected={player?.represents === 'DEN'}>
+                    🇩🇰 Denmark
+                  </option>
+                  <option value="CRO" selected={player?.represents === 'CRO'}>
+                    🇭🇷 Croatia
+                  </option>
+                  <option value="SVK" selected={player?.represents === 'SVK'}>
+                    🇸🇰 Slovakia
+                  </option>
+                </select>
+              </div>
             </div>
           </section>
 

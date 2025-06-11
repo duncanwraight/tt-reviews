@@ -193,7 +193,7 @@ export function getModalScript() {
             </div>
             <div class="items-center px-4 py-3">
               <button
-                onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm || ''}"
+                onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm ? onConfirm + ';' : ''}"
                 class="px-4 py-2 bg-green-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 OK
@@ -226,7 +226,7 @@ export function getModalScript() {
             </div>
             <div class="items-center px-4 py-3">
               <button
-                onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm || ''}"
+                onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm ? onConfirm + ';' : ''}"
                 class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 OK
@@ -260,13 +260,13 @@ export function getModalScript() {
             <div class="items-center px-4 py-3">
               <div class="flex justify-between space-x-4">
                 <button
-                  onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onCancel || ''}"
+                  onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onCancel ? onCancel + ';' : ''}"
                   class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 >
                   Cancel
                 </button>
                 <button
-                  onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm || ''}"
+                  onclick="document.body.removeChild(this.closest('.fixed')); document.body.style.overflow = ''; \${onConfirm ? onConfirm + ';' : ''}"
                   class="px-4 py-2 bg-yellow-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 >
                   Confirm

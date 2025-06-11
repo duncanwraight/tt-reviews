@@ -46,6 +46,26 @@ export function PlayerEditPage({ player }: PlayerEditPageProps) {
                 <span class="font-medium text-gray-700">Status:</span>
                 <span class="ml-2 text-gray-900">{player.active ? 'Active' : 'Retired'}</span>
               </div>
+              {player.playing_style && (
+                <div>
+                  <span class="font-medium text-gray-700">Playing Style:</span>
+                  <span class="ml-2 text-gray-900">
+                    {player.playing_style.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
+                </div>
+              )}
+              {player.birth_country && (
+                <div>
+                  <span class="font-medium text-gray-700">Birth Country:</span>
+                  <span class="ml-2 text-gray-900">{player.birth_country}</span>
+                </div>
+              )}
+              {player.represents && (
+                <div>
+                  <span class="font-medium text-gray-700">Represents:</span>
+                  <span class="ml-2 text-gray-900">{player.represents}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -168,6 +188,191 @@ function BasicInfoForm({ player }: { player: any }) {
               </option>
               <option value="false" selected={player.active === false}>
                 Retired
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="edit-playing-style">
+              Playing Style
+            </label>
+            <select
+              id="edit-playing-style"
+              name="playing_style"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">Select playing style</option>
+              <option value="attacker" selected={player.playing_style === 'attacker'}>
+                Attacker
+              </option>
+              <option value="all_rounder" selected={player.playing_style === 'all_rounder'}>
+                All-Rounder
+              </option>
+              <option value="defender" selected={player.playing_style === 'defender'}>
+                Defender
+              </option>
+              <option
+                value="counter_attacker"
+                selected={player.playing_style === 'counter_attacker'}
+              >
+                Counter-Attacker
+              </option>
+              <option value="chopper" selected={player.playing_style === 'chopper'}>
+                Chopper
+              </option>
+              <option value="unknown" selected={player.playing_style === 'unknown'}>
+                Unknown
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="edit-birth-country">
+              Birth Country
+            </label>
+            <select
+              id="edit-birth-country"
+              name="birth_country"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onchange="updateRepresentsDefault()"
+            >
+              <option value="">Select birth country</option>
+              <option value="CHN" selected={player.birth_country === 'CHN'}>
+                🇨🇳 China
+              </option>
+              <option value="JPN" selected={player.birth_country === 'JPN'}>
+                🇯🇵 Japan
+              </option>
+              <option value="GER" selected={player.birth_country === 'GER'}>
+                🇩🇪 Germany
+              </option>
+              <option value="KOR" selected={player.birth_country === 'KOR'}>
+                🇰🇷 South Korea
+              </option>
+              <option value="SWE" selected={player.birth_country === 'SWE'}>
+                🇸🇪 Sweden
+              </option>
+              <option value="FRA" selected={player.birth_country === 'FRA'}>
+                🇫🇷 France
+              </option>
+              <option value="HKG" selected={player.birth_country === 'HKG'}>
+                🇭🇰 Hong Kong
+              </option>
+              <option value="TPE" selected={player.birth_country === 'TPE'}>
+                🇹🇼 Chinese Taipei
+              </option>
+              <option value="SGP" selected={player.birth_country === 'SGP'}>
+                🇸🇬 Singapore
+              </option>
+              <option value="USA" selected={player.birth_country === 'USA'}>
+                🇺🇸 United States
+              </option>
+              <option value="BRA" selected={player.birth_country === 'BRA'}>
+                🇧🇷 Brazil
+              </option>
+              <option value="EGY" selected={player.birth_country === 'EGY'}>
+                🇪🇬 Egypt
+              </option>
+              <option value="NIG" selected={player.birth_country === 'NIG'}>
+                🇳🇬 Nigeria
+              </option>
+              <option value="IND" selected={player.birth_country === 'IND'}>
+                🇮🇳 India
+              </option>
+              <option value="AUS" selected={player.birth_country === 'AUS'}>
+                🇦🇺 Australia
+              </option>
+              <option value="POL" selected={player.birth_country === 'POL'}>
+                🇵🇱 Poland
+              </option>
+              <option value="ROU" selected={player.birth_country === 'ROU'}>
+                🇷🇴 Romania
+              </option>
+              <option value="AUT" selected={player.birth_country === 'AUT'}>
+                🇦🇹 Austria
+              </option>
+              <option value="DEN" selected={player.birth_country === 'DEN'}>
+                🇩🇰 Denmark
+              </option>
+              <option value="CRO" selected={player.birth_country === 'CRO'}>
+                🇭🇷 Croatia
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="edit-represents">
+              Represents
+              <span class="text-sm font-normal text-gray-500">(defaults to birth country)</span>
+            </label>
+            <select
+              id="edit-represents"
+              name="represents"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">Same as birth country</option>
+              <option value="CHN" selected={player.represents === 'CHN'}>
+                🇨🇳 China
+              </option>
+              <option value="JPN" selected={player.represents === 'JPN'}>
+                🇯🇵 Japan
+              </option>
+              <option value="GER" selected={player.represents === 'GER'}>
+                🇩🇪 Germany
+              </option>
+              <option value="KOR" selected={player.represents === 'KOR'}>
+                🇰🇷 South Korea
+              </option>
+              <option value="SWE" selected={player.represents === 'SWE'}>
+                🇸🇪 Sweden
+              </option>
+              <option value="FRA" selected={player.represents === 'FRA'}>
+                🇫🇷 France
+              </option>
+              <option value="HKG" selected={player.represents === 'HKG'}>
+                🇭🇰 Hong Kong
+              </option>
+              <option value="TPE" selected={player.represents === 'TPE'}>
+                🇹🇼 Chinese Taipei
+              </option>
+              <option value="SGP" selected={player.represents === 'SGP'}>
+                🇸🇬 Singapore
+              </option>
+              <option value="USA" selected={player.represents === 'USA'}>
+                🇺🇸 United States
+              </option>
+              <option value="BRA" selected={player.represents === 'BRA'}>
+                🇧🇷 Brazil
+              </option>
+              <option value="EGY" selected={player.represents === 'EGY'}>
+                🇪🇬 Egypt
+              </option>
+              <option value="NIG" selected={player.represents === 'NIG'}>
+                🇳🇬 Nigeria
+              </option>
+              <option value="IND" selected={player.represents === 'IND'}>
+                🇮🇳 India
+              </option>
+              <option value="AUS" selected={player.represents === 'AUS'}>
+                🇦🇺 Australia
+              </option>
+              <option value="POL" selected={player.represents === 'POL'}>
+                🇵🇱 Poland
+              </option>
+              <option value="ROU" selected={player.represents === 'ROU'}>
+                🇷🇴 Romania
+              </option>
+              <option value="AUT" selected={player.represents === 'AUT'}>
+                🇦🇹 Austria
+              </option>
+              <option value="DEN" selected={player.represents === 'DEN'}>
+                🇩🇰 Denmark
+              </option>
+              <option value="CRO" selected={player.represents === 'CRO'}>
+                🇭🇷 Croatia
+              </option>
+              <option value="SVK" selected={player.represents === 'SVK'}>
+                🇸🇰 Slovakia
               </option>
             </select>
           </div>
@@ -374,30 +579,17 @@ function addBasicInfoSubmit() {
         name: formData.get('name'),
         highest_rating: formData.get('highest_rating') || null,
         active_years: formData.get('active_years') || null,
-        active: formData.get('active') === 'true'
+        active: formData.get('active') === 'true',
+        playing_style: formData.get('playing_style') || null,
+        birth_country: formData.get('birth_country') || null,
+        represents: formData.get('represents') || null
       };
       
       try {
-        const session = localStorage.getItem('session');
-        let token = null;
-        if (session) {
-          try {
-            const sessionData = JSON.parse(session);
-            token = sessionData.access_token;
-          } catch (e) {
-            console.warn('Invalid session data');
-          }
-        }
-        if (!token) {
-          showErrorModal('Authentication Required', 'Please log in to edit player information');
-          return;
-        }
-        
-        const response = await fetch('/api/players/' + playerSlug + '/edit', {
+        const response = await window.authenticatedFetch('/api/players/' + playerSlug + '/edit', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(playerData)
         });
@@ -449,26 +641,10 @@ function addEquipmentSetupScript() {
       }
       
       try {
-        const session = localStorage.getItem('session');
-        let token = null;
-        if (session) {
-          try {
-            const sessionData = JSON.parse(session);
-            token = sessionData.access_token;
-          } catch (e) {
-            console.warn('Invalid session data');
-          }
-        }
-        if (!token) {
-          showErrorModal('Authentication Required', 'Please log in to add equipment setups');
-          return;
-        }
-        
-        const response = await fetch('/api/players/' + playerSlug + '/equipment', {
+        const response = await window.authenticatedFetch('/api/players/' + playerSlug + '/equipment', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(equipmentSetup)
         });
@@ -640,14 +816,23 @@ function addAuthCheckScript() {
         try {
           const sessionData = JSON.parse(session);
           token = sessionData.access_token;
+          
+          // Check if token is expired
+          if (token && window.isTokenExpired && window.isTokenExpired(token)) {
+            console.warn('Token is expired, clearing auth state');
+            window.clearAuthAndRedirect();
+            return;
+          }
         } catch (e) {
           console.warn('Invalid session data');
+          window.clearAuthAndRedirect();
+          return;
         }
       }
       
       if (!token) {
         // Redirect to login with return URL
-        const currentPath = window.location.pathname;
+        const currentPath = window.location.pathname + window.location.search;
         window.location.href = '/login?return=' + encodeURIComponent(currentPath);
       }
     });

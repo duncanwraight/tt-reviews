@@ -2,6 +2,34 @@ import { PlayerPageProps } from '../../types/components'
 import { Layout } from '../Layout'
 import { Breadcrumb, generateBreadcrumbs } from '../ui/Breadcrumb'
 
+// Helper function to get country flag emoji
+function getCountryFlag(countryCode: string): string {
+  const flags: Record<string, string> = {
+    CHN: '🇨🇳',
+    JPN: '🇯🇵',
+    GER: '🇩🇪',
+    KOR: '🇰🇷',
+    SWE: '🇸🇪',
+    FRA: '🇫🇷',
+    HKG: '🇭🇰',
+    TPE: '🇹🇼',
+    SGP: '🇸🇬',
+    USA: '🇺🇸',
+    BRA: '🇧🇷',
+    EGY: '🇪🇬',
+    NIG: '🇳🇬',
+    IND: '🇮🇳',
+    AUS: '🇦🇺',
+    POL: '🇵🇱',
+    ROU: '🇷🇴',
+    AUT: '🇦🇹',
+    DEN: '🇩🇰',
+    CRO: '🇭🇷',
+    SVK: '🇸🇰',
+  }
+  return flags[countryCode] || '🏳️'
+}
+
 export function PlayerPage({ player, equipmentSetups, videos = [], careerStats }: PlayerPageProps) {
   const breadcrumbs = generateBreadcrumbs(`/players/${player.slug}`)
 
@@ -69,6 +97,13 @@ function PlayerHeader({ player }: { player: any }) {
           <div class="player-details lg:col-span-4 text-center lg:text-left">
             <h1 class="text-3xl font-bold text-gray-900 mb-4">{player.name}</h1>
             <div class="player-meta flex flex-wrap justify-center lg:justify-start gap-6 mb-4 text-sm">
+              {(player.represents || player.birth_country) && (
+                <span>
+                  <span class="font-medium text-gray-700">Represents:</span>{' '}
+                  {getCountryFlag(player.represents || player.birth_country)}{' '}
+                  {player.represents || player.birth_country}
+                </span>
+              )}
               {player.highest_rating && (
                 <span>
                   <span class="font-medium text-gray-700">Highest Rating:</span>{' '}
@@ -80,9 +115,14 @@ function PlayerHeader({ player }: { player: any }) {
                   <span class="font-medium text-gray-700">Active:</span> {player.active_years}
                 </span>
               )}
-              <span>
-                <span class="font-medium text-gray-700">Style:</span> Defensive chopper
-              </span>
+              {player.playing_style && (
+                <span>
+                  <span class="font-medium text-gray-700">Style:</span>{' '}
+                  {player.playing_style
+                    .replace('_', ' ')
+                    .replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                </span>
+              )}
             </div>
           </div>
 

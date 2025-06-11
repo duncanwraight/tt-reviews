@@ -487,8 +487,43 @@ export const AdminPage: FC<AdminPageProps> = ({ stats }) => {
               </div>
             </div>
           </div>
+
+          <div class="bg-white rounded-lg shadow mt-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <h2 class="text-lg font-semibold text-gray-900">Account</h2>
+            </div>
+            <div class="p-6">
+              <button
+                onclick="signOut()"
+                class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            async function signOut() {
+              try {
+                await window.authenticatedFetch('/api/auth/signout', {
+                  method: 'POST'
+                });
+              } catch (error) {
+                console.error('Error signing out:', error);
+                // Still clear local storage even if API call fails
+              }
+              
+              localStorage.removeItem('session');
+              localStorage.removeItem('access_token');
+              window.location.href = '/';
+            }
+          `,
+        }}
+      />
     </Layout>
   )
 }

@@ -110,15 +110,16 @@
       ```
 
 - [x] When submitting a player change for moderation, even a successful submission displays an error modal
-- [ ] No log out button anywhere for admins
+- [x] No log out button anywhere for admins
 
 ## Post-live improvements
 
 - [x] Update moderation interface to support player changes and player new equipment updates
 - [x] Allow logged-in users to submit changes to players
-- [ ] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
+- [x] Add "Playing style" and "Born" / "Plays for" (nations) to new player creation
   - Include in submission and frontend interfaces
   - Use flag icons for nations
+  - Properly handle birth country vs. represents country distinction (e.g., Wang Yang: born China, represents Slovakia)
 - [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
 - [ ] Add per-type sponge thicknesses for rubbers
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max

@@ -72,7 +72,10 @@ function addPlayerFormScript() {
         name: formData.get('name'),
         highest_rating: formData.get('highest_rating') || null,
         active_years: formData.get('active_years') || null,
-        active: formData.get('active') === 'true'
+        active: formData.get('active') === 'true',
+        playing_style: formData.get('playing_style') || null,
+        birth_country: formData.get('birth_country') || null,
+        represents: formData.get('represents') || null
       };
       
       // Build equipment setup data if provided
@@ -93,28 +96,11 @@ function addPlayerFormScript() {
       if (formData.get('source_url')) equipmentSetup.source_url = formData.get('source_url');
       
       try {
-        const session = localStorage.getItem('session');
-        let token = null;
-        if (session) {
-          try {
-            const sessionData = JSON.parse(session);
-            token = sessionData.access_token;
-          } catch (e) {
-            console.warn('Invalid session data');
-          }
-        }
-        if (!token) {
-          showErrorModal('Authentication Required', 'Please log in to submit player data', 
-            'window.location.href = "/login?return=" + encodeURIComponent(window.location.pathname)');
-          return;
-        }
-        
         const endpoint = mode === 'update' ? '/api/players/update' : '/api/players/submit';
-        const response = await fetch(endpoint, {
+        const response = await window.authenticatedFetch(endpoint, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             player: playerData,
@@ -144,24 +130,31 @@ function addPlayerFormScript() {
 function addAuthCheckScript() {
   return `
     document.addEventListener('DOMContentLoaded', function() {
-      const token = localStorage.getItem('access_token');
+      const session = localStorage.getItem('session');
+      let token = null;
+      
+      if (session) {
+        try {
+          const sessionData = JSON.parse(session);
+          token = sessionData.access_token;
+          
+          // Check if token is expired
+          if (token && window.isTokenExpired && window.isTokenExpired(token)) {
+            console.warn('Token is expired, clearing auth state');
+            window.clearAuthAndRedirect();
+            return;
+          }
+        } catch (e) {
+          console.warn('Invalid session data');
+          window.clearAuthAndRedirect();
+          return;
+        }
+      }
       
       if (!token) {
-        // Show login notice and redirect to login
-        const notice = document.createElement('div');
-        notice.className = 'bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded mb-4';
-        notice.innerHTML = 'You need to be logged in to submit new players. Redirecting to login...';
-        
-        const container = document.querySelector('.main-container');
-        if (container) {
-          container.insertBefore(notice, container.firstChild);
-        }
-        
-        // Redirect after a short delay
-        setTimeout(() => {
-          const currentPath = window.location.pathname;
-          window.location.href = '/login?return=' + encodeURIComponent(currentPath);
-        }, 2000);
+        // Redirect to login with return URL
+        const currentPath = window.location.pathname + window.location.search;
+        window.location.href = '/login?return=' + encodeURIComponent(currentPath);
       }
     });
   `

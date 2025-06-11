@@ -10,6 +10,27 @@ export function ClientScript() {
           return false;
         }
         
+        // Make functions available globally
+        window.clearAuthAndRedirect = function(redirectUrl = '/login') {
+          console.log('Clearing auth state and redirecting to:', redirectUrl);
+          localStorage.removeItem('session');
+          localStorage.removeItem('access_token');
+          
+          // Update auth button immediately
+          const authButton = document.getElementById('authButton');
+          if (authButton) {
+            authButton.textContent = 'Login';
+            authButton.style.background = 'var(--primary, #7c3aed)';
+            authButton.href = '/login';
+          }
+          
+          // Redirect with return URL if not already on login page
+          if (window.location.pathname !== '/login') {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = \`\${redirectUrl}?return=\${returnUrl}\`;
+          }
+        };
+        
         // Search functionality
         document.addEventListener('DOMContentLoaded', function() {
           // Enhanced search functionality
@@ -50,6 +71,24 @@ export function ClientScript() {
               performSearch();
             });
           });
+          
+          // Auto-update represents field when birth country changes
+          window.updateRepresentsDefault = function() {
+            // Try both regular and edit form IDs
+            const birthCountry = document.getElementById('birth-country') || document.getElementById('edit-birth-country');
+            const represents = document.getElementById('represents') || document.getElementById('edit-represents');
+            
+            if (birthCountry && represents && birthCountry.value) {
+              // Only update if represents is currently empty/default
+              if (!represents.value || represents.value === '') {
+                // Find the matching option in represents dropdown
+                const matchingOption = represents.querySelector(\`option[value="\${birthCountry.value}"]\`);
+                if (matchingOption) {
+                  represents.value = birthCountry.value;
+                }
+              }
+            }
+          };
           
           // Tab switching functionality for player pages
           window.switchTab = function(tabName) {
@@ -124,10 +163,40 @@ export function ClientScript() {
             }
           }
           
-          // Check admin status via API
+          
+          // Check if token is expired or invalid
+          window.isTokenExpired = function(token) {
+            if (!token) return true;
+            
+            try {
+              // JWT tokens have 3 parts separated by dots
+              const parts = token.split('.');
+              if (parts.length !== 3) return true;
+              
+              // Decode the payload (second part)
+              const payload = JSON.parse(atob(parts[1]));
+              const now = Math.floor(Date.now() / 1000);
+              
+              // Check if token has expired (exp is in seconds)
+              return payload.exp && payload.exp < now;
+            } catch (e) {
+              console.warn('Error checking token expiry:', e);
+              return true; // Assume expired if we can't parse it
+            }
+          }
+          
+          // Check admin status via API with token validation
           async function checkAdminStatus(token) {
             try {
               console.log('Checking admin status with token:', token ? 'present' : 'missing');
+              
+              // First check if token is expired before making request
+              if (window.isTokenExpired(token)) {
+                console.warn('Token is expired, clearing auth state');
+                window.clearAuthAndRedirect();
+                return false;
+              }
+              
               const response = await fetch('/api/auth/me', {
                 headers: {
                   'Authorization': \`Bearer \${token}\`
@@ -140,6 +209,10 @@ export function ClientScript() {
                 const userData = await response.json();
                 console.log('User data:', userData);
                 return userData.isAdmin || false;
+              } else if (response.status === 401 || response.status === 403) {
+                console.warn('Token invalid or expired (401/403), clearing auth state');
+                window.clearAuthAndRedirect();
+                return false;
               } else {
                 console.warn('Admin check failed with status:', response.status);
                 const errorText = await response.text();
@@ -150,6 +223,51 @@ export function ClientScript() {
             }
             return false;
           }
+          
+          // Global function to handle API requests with token validation
+          window.authenticatedFetch = async function(url, options = {}) {
+            const session = localStorage.getItem('session');
+            if (!session) {
+              window.clearAuthAndRedirect();
+              throw new Error('No session found');
+            }
+            
+            let sessionData;
+            try {
+              sessionData = JSON.parse(session);
+            } catch (e) {
+              console.warn('Invalid session data');
+              window.clearAuthAndRedirect();
+              throw new Error('Invalid session data');
+            }
+            
+            const token = sessionData.access_token;
+            if (!token || window.isTokenExpired(token)) {
+              console.warn('Token missing or expired');
+              window.clearAuthAndRedirect();
+              throw new Error('Token expired');
+            }
+            
+            // Add authorization header
+            const headers = {
+              'Authorization': \`Bearer \${token}\`,
+              ...options.headers
+            };
+            
+            const response = await fetch(url, {
+              ...options,
+              headers
+            });
+            
+            // Check for auth errors in response
+            if (response.status === 401 || response.status === 403) {
+              console.warn('Request failed with auth error, clearing session');
+              window.clearAuthAndRedirect();
+              throw new Error('Authentication failed');
+            }
+            
+            return response;
+          };
           
           // Handle auth button clicks
           window.handleAuthButton = function() {
