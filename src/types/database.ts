@@ -77,3 +77,18 @@ export interface PlayerEdit {
   updated_at: string
   players?: Player
 }
+
+export interface EquipmentSubmission {
+  id: string
+  user_id: string
+  name: string
+  manufacturer: string
+  category: 'blade' | 'rubber' | 'ball'
+  subcategory?: 'inverted' | 'long_pips' | 'anti' | 'short_pips'
+  specifications: Record<string, unknown>
+  status: 'pending' | 'approved' | 'rejected'
+  moderator_id?: string
+  moderator_notes?: string
+  created_at: string
+  updated_at: string
+}

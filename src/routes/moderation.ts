@@ -17,6 +17,17 @@ moderation.get('/player-edits/:id', ModerationController.getPlayerEdit)
 moderation.post('/player-edits/:id/approve', ModerationController.approvePlayerEdit)
 moderation.post('/player-edits/:id/reject', ModerationController.rejectPlayerEdit)
 
+moderation.get(
+  '/equipment-submissions/pending',
+  ModerationController.getPendingEquipmentSubmissions
+)
+moderation.get('/equipment-submissions/:id', ModerationController.getEquipmentSubmission)
+moderation.post(
+  '/equipment-submissions/:id/approve',
+  ModerationController.approveEquipmentSubmission
+)
+moderation.post('/equipment-submissions/:id/reject', ModerationController.rejectEquipmentSubmission)
+
 moderation.get('/stats', ModerationController.getModerationStats)
 
 export { moderation }

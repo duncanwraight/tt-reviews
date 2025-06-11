@@ -8,6 +8,7 @@ import { Variables } from './middleware/auth'
 // Import routes
 import { auth } from './routes/auth'
 import { equipment } from './routes/equipment'
+import { equipmentSubmissions } from './routes/equipment-submissions'
 import { players } from './routes/players'
 import { search } from './routes/search'
 import { health } from './routes/health'
@@ -27,6 +28,7 @@ import { LoginPage } from './components/pages/LoginPage'
 import { AdminPage } from './components/pages/AdminPage'
 import { AdminReviewsPage } from './components/pages/AdminReviewsPage'
 import { AdminPlayerEditsPage } from './components/pages/AdminPlayerEditsPage'
+import { AdminEquipmentSubmissionsPage } from './components/pages/AdminEquipmentSubmissionsPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { EquipmentIndexPage } from './components/pages/EquipmentIndexPage'
 
@@ -60,6 +62,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.route('/api/reviews', createReviewsRoutes())
   app.route('/api/admin', moderation)
   app.route('/api/discord', discord)
+
+  // Equipment submission routes
+  app.route('/equipment', equipmentSubmissions)
 
   // Frontend routes with JSX rendering
   app.get('/', async c => {
@@ -288,6 +293,10 @@ export function createApp(): Hono<{ Variables: Variables }> {
             playerEditsApproved: 0,
             playerEditsRejected: 0,
             playerEditsTotal: 0,
+            equipmentSubmissionsPending: 0,
+            equipmentSubmissionsApproved: 0,
+            equipmentSubmissionsRejected: 0,
+            equipmentSubmissionsTotal: 0,
           }}
         />
       )
@@ -321,6 +330,24 @@ export function createApp(): Hono<{ Variables: Variables }> {
     } catch (error) {
       console.error('Error loading pending player edits:', error)
       return c.render(<AdminPlayerEditsPage playerEdits={[]} total={0} />)
+    }
+  })
+
+  app.get('/admin/equipment-submissions', async c => {
+    try {
+      const env = validateEnvironment(c.env)
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+      const moderationService = new ModerationService(supabase)
+
+      const { equipmentSubmissions, total } =
+        await moderationService.getPendingEquipmentSubmissions(50, 0)
+
+      return c.render(
+        <AdminEquipmentSubmissionsPage equipmentSubmissions={equipmentSubmissions} total={total} />
+      )
+    } catch (error) {
+      console.error('Error loading pending equipment submissions:', error)
+      return c.render(<AdminEquipmentSubmissionsPage equipmentSubmissions={[]} total={0} />)
     }
   })
 

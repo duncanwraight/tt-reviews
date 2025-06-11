@@ -314,4 +314,37 @@ export class EquipmentService {
       count,
     }))
   }
+
+  async submitEquipment(
+    userId: string,
+    equipmentData: {
+      name: string
+      manufacturer: string
+      category: 'blade' | 'rubber' | 'ball'
+      subcategory?: 'inverted' | 'long_pips' | 'anti' | 'short_pips'
+      specifications?: Record<string, unknown>
+    }
+  ): Promise<string | null> {
+    // Submit equipment for moderation
+    const { data, error } = await this.supabase
+      .from('equipment_submissions')
+      .insert({
+        user_id: userId,
+        name: equipmentData.name,
+        manufacturer: equipmentData.manufacturer,
+        category: equipmentData.category,
+        subcategory: equipmentData.subcategory,
+        specifications: equipmentData.specifications || {},
+        status: 'pending',
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      console.error('Error submitting equipment:', error)
+      return null
+    }
+
+    return data?.id || null
+  }
 }

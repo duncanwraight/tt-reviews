@@ -287,6 +287,16 @@ export class DiscordService {
       return await this.handleRejectPlayerEdit(editId, interaction.user)
     }
 
+    if (customId.startsWith('approve_equipment_')) {
+      const submissionId = customId.replace('approve_equipment_', '')
+      return await this.handleApproveEquipmentSubmission(submissionId, interaction.user)
+    }
+
+    if (customId.startsWith('reject_equipment_')) {
+      const submissionId = customId.replace('reject_equipment_', '')
+      return await this.handleRejectEquipmentSubmission(submissionId, interaction.user)
+    }
+
     if (customId.startsWith('approve_')) {
       const reviewId = customId.replace('approve_', '')
       return await this.handleApproveReview(reviewId, interaction.user)
@@ -526,6 +536,117 @@ export class DiscordService {
   }
 
   /**
+   * Handle equipment submission approval
+   */
+  private async handleApproveEquipmentSubmission(
+    submissionId: string,
+    user: any
+  ): Promise<globalThis.Response> {
+    try {
+      const result = await this.moderationService.approveEquipmentSubmission(submissionId, user.id)
+
+      if (result.success) {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Equipment Approved by ${user.username}**\nEquipment submission ${submissionId}: ${result.message}`,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      } else {
+        let emoji = '⚠️'
+        if (result.status === 'error') {
+          emoji = '❌'
+        }
+
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `${emoji} **Error**: ${result.message}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Error handling approve equipment submission:', error)
+      return new globalThis.Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process equipment submission approval`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+  }
+
+  /**
+   * Handle equipment submission rejection
+   */
+  private async handleRejectEquipmentSubmission(
+    submissionId: string,
+    user: any
+  ): Promise<globalThis.Response> {
+    try {
+      const success = await this.moderationService.rejectEquipmentSubmission(submissionId, user.id)
+
+      if (success) {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Equipment Rejected by ${user.username}**\nEquipment submission ${submissionId} has been rejected and will not be published.`,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      } else {
+        return new globalThis.Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to reject equipment submission`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Error handling reject equipment submission:', error)
+      return new globalThis.Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process equipment submission rejection`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+  }
+
+  /**
    * Check if user has required permissions
    */
   private async checkUserPermissions(member: any, guildId: string): Promise<boolean> {
@@ -666,6 +787,87 @@ export class DiscordService {
             style: 4, // Danger/Red
             label: 'Reject Edit',
             custom_id: `reject_player_edit_${editData.id}`,
+          },
+        ],
+      },
+    ]
+
+    const payload = {
+      embeds: [embed],
+      components,
+    }
+
+    const response = await globalThis.fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    return { success: response.ok }
+  }
+
+  /**
+   * Send notification about new equipment submission
+   */
+  async notifyNewEquipmentSubmission(submissionData: any): Promise<any> {
+    const webhookUrl = this.env.DISCORD_WEBHOOK_URL
+    if (!webhookUrl) {
+      throw new Error('DISCORD_WEBHOOK_URL not configured')
+    }
+
+    const embed = {
+      title: '⚙️ Equipment Submission',
+      description: `A new equipment submission has been received and needs moderation.`,
+      color: 0x9b59b6, // Purple color to distinguish from reviews and player edits
+      fields: [
+        {
+          name: 'Equipment Name',
+          value: submissionData.name || 'Unknown Equipment',
+          inline: true,
+        },
+        {
+          name: 'Manufacturer',
+          value: submissionData.manufacturer || 'Unknown',
+          inline: true,
+        },
+        {
+          name: 'Category',
+          value: submissionData.category
+            ? submissionData.category.charAt(0).toUpperCase() + submissionData.category.slice(1)
+            : 'Unknown',
+          inline: true,
+        },
+        {
+          name: 'Subcategory',
+          value: submissionData.subcategory || 'N/A',
+          inline: true,
+        },
+        {
+          name: 'Submitted by',
+          value: submissionData.submitter_email || 'Anonymous',
+          inline: true,
+        },
+      ],
+      timestamp: new Date().toISOString(),
+    }
+
+    const components = [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 3, // Success/Green
+            label: 'Approve Equipment',
+            custom_id: `approve_equipment_${submissionData.id}`,
+          },
+          {
+            type: 2, // Button
+            style: 4, // Danger/Red
+            label: 'Reject Equipment',
+            custom_id: `reject_equipment_${submissionData.id}`,
           },
         ],
       },
