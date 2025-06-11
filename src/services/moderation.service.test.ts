@@ -278,7 +278,7 @@ describe('ModerationService', () => {
 
   describe('getModerationStats', () => {
     it('should return correct moderation statistics', async () => {
-      // Mock count queries (equipment_reviews + player_edits)
+      // Mock count queries (equipment_reviews + player_edits + equipment_submissions)
       mockSupabase.eq
         .mockResolvedValueOnce({ count: 5 }) // equipment pending
         .mockResolvedValueOnce({ count: 20 }) // equipment approved
@@ -286,6 +286,9 @@ describe('ModerationService', () => {
         .mockResolvedValueOnce({ count: 0 }) // player edits pending
         .mockResolvedValueOnce({ count: 0 }) // player edits approved
         .mockResolvedValueOnce({ count: 0 }) // player edits rejected
+        .mockResolvedValueOnce({ count: 0 }) // equipment submissions pending
+        .mockResolvedValueOnce({ count: 0 }) // equipment submissions approved
+        .mockResolvedValueOnce({ count: 0 }) // equipment submissions rejected
 
       const stats = await moderationService.getModerationStats()
 
@@ -298,6 +301,10 @@ describe('ModerationService', () => {
         playerEditsApproved: 0,
         playerEditsRejected: 0,
         playerEditsTotal: 0,
+        equipmentSubmissionsPending: 0,
+        equipmentSubmissionsApproved: 0,
+        equipmentSubmissionsRejected: 0,
+        equipmentSubmissionsTotal: 0,
       })
     })
 
@@ -309,6 +316,9 @@ describe('ModerationService', () => {
         .mockResolvedValueOnce({ count: null }) // player edits pending
         .mockResolvedValueOnce({ count: null }) // player edits approved
         .mockResolvedValueOnce({ count: null }) // player edits rejected
+        .mockResolvedValueOnce({ count: null }) // equipment submissions pending
+        .mockResolvedValueOnce({ count: null }) // equipment submissions approved
+        .mockResolvedValueOnce({ count: null }) // equipment submissions rejected
 
       const stats = await moderationService.getModerationStats()
 
@@ -321,6 +331,10 @@ describe('ModerationService', () => {
         playerEditsApproved: 0,
         playerEditsRejected: 0,
         playerEditsTotal: 0,
+        equipmentSubmissionsPending: 0,
+        equipmentSubmissionsApproved: 0,
+        equipmentSubmissionsRejected: 0,
+        equipmentSubmissionsTotal: 0,
       })
     })
   })
