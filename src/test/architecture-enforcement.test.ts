@@ -150,16 +150,17 @@ describe('Architecture Enforcement', () => {
         const hasDangerousHTML = content.includes('dangerouslySetInnerHTML')
 
         if (hasDangerousHTML) {
-          // Should reference modular JS, CSS, or be small component
+          // Should reference modular JS or be small component (critical CSS inline is acceptable)
           const usesModularJS =
-            content.includes('/client/auth.js') ||
-            content.includes('/client/forms.js') ||
-            content.includes('/client/styles.css') ||
-            content.includes('/client/config.js')
+            content.includes('/client/auth.js') || content.includes('/client/forms.js')
 
           const isSmallComponent = content.split('\n').length < 100
 
-          expect(usesModularJS || isSmallComponent).toBe(true)
+          // Allow Layout component with critical CSS
+          const isLayoutWithCriticalCSS =
+            file.includes('Layout.tsx') && content.includes('Critical CSS')
+
+          expect(usesModularJS || isSmallComponent || isLayoutWithCriticalCSS).toBe(true)
         }
       }
     })

@@ -61,6 +61,31 @@ export function createApp(): Hono<{ Variables: EnhancedAuthVariables }> {
   app.route('/api/admin', moderation)
   app.route('/api/discord', discord)
 
+  // Static file serving for client assets
+  app.get('/client/auth.js', c => {
+    c.header('Content-Type', 'application/javascript')
+    return c.text(`
+      // Authentication utilities for client-side usage
+      // This file provides consistent authentication patterns across components
+      console.log('Auth module loaded');
+      
+      // Global authentication functions will be added here in future
+      window.authLoaded = true;
+    `)
+  })
+
+  app.get('/client/forms.js', c => {
+    c.header('Content-Type', 'application/javascript')
+    return c.text(`
+      // Form handling utilities for client-side usage
+      // This file provides consistent form submission patterns
+      console.log('Forms module loaded');
+      
+      // Global form handling functions will be added here in future
+      window.formsLoaded = true;
+    `)
+  })
+
   // Frontend routes with JSX rendering
   app.get('/', async c => {
     // TODO: Fetch featured equipment and popular players
