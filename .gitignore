@@ -87,3 +87,6 @@ temp/
 
 # Vite
 .vite/
+
+# Old application
+.archive/
