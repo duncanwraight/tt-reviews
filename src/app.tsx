@@ -31,6 +31,7 @@ import { AdminPlayerEditsPage } from './components/pages/AdminPlayerEditsPage'
 import { AdminEquipmentSubmissionsPage } from './components/pages/AdminEquipmentSubmissionsPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { EquipmentIndexPage } from './components/pages/EquipmentIndexPage'
+import { EquipmentSubmitPage } from './components/pages/EquipmentSubmitPage'
 
 // Import services for data fetching
 import { PlayerService, Equipment, Player } from './lib/supabase'
@@ -57,14 +58,12 @@ export function createApp(): Hono<{ Variables: Variables }> {
   app.route('/api', health)
   app.route('/api/auth', auth)
   app.route('/api/equipment', equipment)
+  app.route('/api/equipment', equipmentSubmissions)
   app.route('/api/players', players)
   app.route('/api/search', search)
   app.route('/api/reviews', createReviewsRoutes())
   app.route('/api/admin', moderation)
   app.route('/api/discord', discord)
-
-  // Equipment submission routes
-  app.route('/equipment', equipmentSubmissions)
 
   // Frontend routes with JSX rendering
   app.get('/', async c => {
@@ -216,6 +215,12 @@ export function createApp(): Hono<{ Variables: Variables }> {
     }
 
     return c.render(<SearchPage query={query} results={results} />)
+  })
+
+  // Equipment submission page (must come before /:slug pattern)
+  app.get('/equipment/submit', c => {
+    const baseUrl = new globalThis.URL(c.req.url).origin
+    return c.render(<EquipmentSubmitPage baseUrl={baseUrl} />)
   })
 
   // Category pages
