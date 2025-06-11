@@ -174,6 +174,8 @@ export const AdminPlayerEditsPage: FC<AdminPlayerEditsPageProps> = ({ playerEdit
       </div>
 
       <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

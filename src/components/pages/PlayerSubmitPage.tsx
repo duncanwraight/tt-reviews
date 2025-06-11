@@ -51,6 +51,8 @@ export const PlayerSubmitPage: FC = () => {
         </div>
       </section>
 
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
       <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
       <script dangerouslySetInnerHTML={{ __html: addPlayerFormScript() }} />
       <script dangerouslySetInnerHTML={{ __html: addAuthCheckScript() }} />

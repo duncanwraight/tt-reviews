@@ -3,7 +3,7 @@
 - To find general information about table tennis, and the terminology used by its competitive players across the globe, read `./docs/GLOSSARY.md`
 - Application requirements can be found in all of the markdown files in `./docs/reqs`
 - Tech stack and architecture decisions can be found in `./docs/DECISIONS.md`
-- **Authentication architecture and implementation** can be found in `./docs/AUTHENTICATION.md` - read this for understanding the centralized auth system
+- **Application architecture and security implementation** can be found in `./docs/ARCHITECTURE-SECURITY.md` - read this for understanding the secure centralized architecture
 - **Coding standards and best practices** can be found in `./docs/CODING-STANDARDS.md` - follow these for all code
 - UI/UX design guidelines and style principles can be found in `./docs/STYLE-GUIDE.md`
 - Layout guide can be found in `./docs/LAYOUT.md`
@@ -111,3 +111,167 @@ const envTyped = env as Record<string, string>
 
 - Always run code quality checks, tests etc, the full works BEFORE trying to commit. We use pre-commit hooks, and ideally we want all code to pass those without having to fix again before committing
 - Don't ever disable linting in files
+
+## Authentication Implementation Patterns
+
+**CRITICAL**: Always follow these exact patterns when implementing authentication functionality:
+
+### 1. Database Access Pattern
+
+**ALWAYS use `InternalApiService` for database operations** - never direct Supabase clients in routes:
+
+```typescript
+// ✅ CORRECT: Use InternalApiService
+const apiService = new InternalApiService(c)
+const equipment = await apiService.getEquipment(slug)
+
+// ❌ WRONG: Direct database access
+const supabase = createSupabaseClient(env)
+const equipment = await equipmentService.getEquipment(slug)
+```
+
+### 2. Authentication Middleware Pattern
+
+**Use the appropriate middleware** for different authentication needs:
+
+```typescript
+// For required authentication (Bearer token or cookie)
+app.use('/admin/*', secureAuth)
+
+// For optional authentication
+app.use('/api/data', optionalSecureAuth)
+
+// For admin-only access
+app.use('/admin/settings', requireSecureAdmin)
+
+// For CSRF protection on forms
+app.post('/submit', requireCSRF, handler)
+```
+
+### 3. Route Context Types
+
+**Always use proper context types** with authentication:
+
+```typescript
+// ✅ CORRECT: Use EnhancedAuthVariables
+app.get('/protected', secureAuth, async (c: Context<{ Variables: EnhancedAuthVariables }>) => {
+  const user = c.get('user')
+  const isAdmin = c.get('isAdmin')
+})
+
+// ❌ WRONG: Generic Variables type
+app.get('/protected', async (c: Context) => {
+  // Missing type safety
+})
+```
+
+### 4. Client Creation Pattern
+
+**Use appropriate client types** based on data access needs:
+
+```typescript
+class InternalApiService {
+  // For public data
+  private getPublicClient(): SupabaseClient {
+    return this.authService.createServerClient()
+  }
+
+  // For user-specific data with RLS
+  private async getAuthenticatedClient(): Promise<SupabaseClient> {
+    return this.authService.getAuthenticatedClient(this.context)
+  }
+
+  // For admin operations only
+  private getAdminClient(): SupabaseClient {
+    return this.authService.createAdminClient()
+  }
+}
+```
+
+### 5. Error Handling Pattern
+
+**Use consistent error responses** for authentication:
+
+```typescript
+// Authentication required
+return c.json({ error: 'Authentication token required' }, 401)
+
+// Admin access required
+return c.json({ error: 'Admin access required' }, 403)
+
+// CSRF validation failed
+return c.json({ error: 'Invalid CSRF token' }, 403)
+```
+
+### 6. Cookie Authentication Pattern
+
+**For secure browser authentication** use `CookieAuthService`:
+
+```typescript
+// Sign in with secure cookies
+const cookieAuth = new CookieAuthService(env)
+const result = await cookieAuth.signInWithCookie(c, email, password)
+
+// Validate CSRF tokens
+if (!cookieAuth.validateCSRFToken(c, formData.get('csrf_token'))) {
+  return c.json({ error: 'Invalid CSRF token' }, 403)
+}
+```
+
+### 7. Frontend JavaScript Pattern
+
+**Use modular client-side code** from `public/client/`:
+
+```tsx
+// ✅ CORRECT: Reference external modules
+<script src="/client/auth.js"></script>
+<script src="/client/forms.js"></script>
+
+// ❌ WRONG: Inline JavaScript
+<script dangerouslySetInnerHTML={{__html: `/* 200+ lines */`}} />
+```
+
+### 8. Service Role Restrictions
+
+**ONLY use service role key** for these specific cases:
+
+- Admin operations in `ModerationController`
+- Internal admin methods in `InternalApiService`
+- Configuration validation
+
+**NEVER use service role key** for:
+
+- SSR routes
+- Public data access
+- User authentication flows
+
+### 9. Type Safety Requirements
+
+**Always import and use proper types**:
+
+```typescript
+import { SupabaseClient } from '@supabase/supabase-js'
+import { EnhancedAuthVariables, SecureAuthVariables } from '../types/components'
+
+// Never use 'any' types
+const supabase: SupabaseClient = createClient(url, key)
+```
+
+### 10. CSRF Implementation
+
+**For all forms with cookie authentication**:
+
+```typescript
+// Generate token in service
+const csrfToken = cookieAuth.setCSRFToken(c)
+
+// Include in forms
+<input type="hidden" name="csrf_token" value={csrfToken} />
+
+// Validate in handlers
+if (!cookieAuth.validateCSRFToken(c, formData.get('csrf_token'))) {
+  return c.json({ error: 'Invalid CSRF token' }, 403)
+}
+```
+
+**KEY PRINCIPLE**: Follow the centralized, secure architecture patterns established in the security overhaul. Never bypass `InternalApiService`, always use proper middleware, and maintain type safety throughout.

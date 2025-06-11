@@ -29,6 +29,8 @@ export const EquipmentSubmitPage: FC<EquipmentSubmitPageProps> = ({ baseUrl, use
         </div>
       </div>
 
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
       <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
       <script dangerouslySetInnerHTML={{ __html: addEquipmentFormScript() }} />
       <script dangerouslySetInnerHTML={{ __html: addAuthCheckScript() }} />

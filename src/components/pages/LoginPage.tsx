@@ -119,6 +119,8 @@ export function LoginPage() {
         </div>
       </div>
 
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

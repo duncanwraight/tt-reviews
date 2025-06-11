@@ -117,6 +117,9 @@ export function PlayerEditPage({ player }: PlayerEditPageProps) {
         </div>
       </section>
 
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
+      <script src="/client/config.js"></script>
       <script dangerouslySetInnerHTML={{ __html: getModalScript() }} />
       <script dangerouslySetInnerHTML={{ __html: addBasicInfoSubmit() }} />
       <script dangerouslySetInnerHTML={{ __html: addPlayerFormScript() }} />

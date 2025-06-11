@@ -504,6 +504,7 @@ export const AdminPage: FC<AdminPageProps> = ({ stats }) => {
         </div>
       </div>
 
+      <script src="/client/auth.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

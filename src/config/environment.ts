@@ -8,15 +8,15 @@ export function validateEnvironment(env: unknown): Environment {
   const supabaseServiceRoleKey = envTyped.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl) {
-    throw new Error('SUPABASE_URL environment variable is required')
+    throw new Error('Database URL configuration is required')
   }
 
   if (!supabaseAnonKey) {
-    throw new Error('SUPABASE_ANON_KEY environment variable is required')
+    throw new Error('Database public key configuration is required')
   }
 
   if (!supabaseServiceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required')
+    throw new Error('Database admin key configuration is required')
   }
 
   return {

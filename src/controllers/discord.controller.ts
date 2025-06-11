@@ -1,11 +1,11 @@
 import { Context } from 'hono'
-import { Variables } from '../middleware/auth'
+import { EnhancedAuthVariables } from '../middleware/auth-enhanced'
 import { DiscordService } from '../services/discord.service'
-import { createSupabaseClient } from '../config/database'
+import { createAuthService } from '../services/auth-wrapper.service'
 import { validateEnvironment } from '../config/environment'
 import { successResponse } from '../utils/response'
 
-type HonoContext = Context<{ Variables: Variables }>
+type HonoContext = Context<{ Variables: EnhancedAuthVariables }>
 
 export const discordController = {
   /**
@@ -14,7 +14,8 @@ export const discordController = {
   async handleInteractions(c: HonoContext) {
     try {
       const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
+      const authService = createAuthService(c)
+      const supabase = authService.createServerClient()
       const discordService = new DiscordService(supabase, env)
 
       const signature = c.req.header('x-signature-ed25519')
@@ -55,9 +56,9 @@ export const discordController = {
       return c.json({ error: 'Unknown interaction type' }, 400)
     } catch (error) {
       console.error('Discord interaction error:', error)
-      // Return more specific error for configuration issues
-      if (error instanceof Error && error.message.includes('DISCORD_PUBLIC_KEY')) {
-        return c.json({ error: `Configuration error: ${error.message}` }, 500)
+      // Return generic error for configuration issues
+      if (error instanceof Error && error.message.includes('Discord verification key')) {
+        return c.json({ error: 'Discord service configuration error' }, 500)
       }
       return c.json({ error: 'Internal server error' }, 500)
     }
@@ -69,7 +70,8 @@ export const discordController = {
   async handleMessages(c: HonoContext) {
     try {
       const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
+      const authService = createAuthService(c)
+      const supabase = authService.createServerClient()
       const discordService = new DiscordService(supabase, env)
 
       const body = await c.req.json()
@@ -95,7 +97,8 @@ export const discordController = {
   async sendNotification(c: HonoContext) {
     try {
       const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
+      const authService = createAuthService(c)
+      const supabase = authService.createServerClient()
       const discordService = new DiscordService(supabase, env)
 
       const { type, data } = await c.req.json()

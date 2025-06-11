@@ -1,11 +1,14 @@
 import { Context, Next } from 'hono'
 import { BindingsEnv } from '../types/environment'
-import { Variables } from './auth'
+import { EnhancedAuthVariables } from './auth-enhanced'
 import { createClient } from '@supabase/supabase-js'
 import { AuthService } from '../services/auth.service.js'
 import { validateEnvironment } from '../config/environment.js'
 
-export async function requireAdmin(c: Context<BindingsEnv & { Variables: Variables }>, next: Next) {
+export async function requireAdmin(
+  c: Context<BindingsEnv & { Variables: EnhancedAuthVariables }>,
+  next: Next
+) {
   try {
     const env = validateEnvironment(c.env)
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY)
@@ -20,7 +23,7 @@ export async function requireAdmin(c: Context<BindingsEnv & { Variables: Variabl
     const { data, error } = await supabase.auth.getUser(token)
 
     if (error || !data.user) {
-      return c.json({ error: 'Invalid authentication token' }, 401)
+      return c.json({ error: 'Authentication required' }, 401)
     }
 
     const isAdmin = authService.isAdmin(data.user)
@@ -29,7 +32,6 @@ export async function requireAdmin(c: Context<BindingsEnv & { Variables: Variabl
     }
 
     c.set('user', data.user)
-    c.set('isAdmin', true)
 
     await next()
   } catch (error) {

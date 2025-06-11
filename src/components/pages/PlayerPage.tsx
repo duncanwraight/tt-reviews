@@ -47,6 +47,7 @@ export function PlayerPage({ player, equipmentSetups, videos = [], careerStats }
         videos={videos}
         careerStats={careerStats}
       />
+      <script src="/client/auth.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

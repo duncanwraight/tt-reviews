@@ -3,7 +3,7 @@ import { jsxRenderer } from 'hono/jsx-renderer'
 import { errorHandler } from './middleware/error'
 import { requestLogger } from './middleware/logger'
 import { corsMiddleware } from './middleware/cors'
-import { Variables } from './middleware/auth'
+import { EnhancedAuthVariables } from './middleware/auth-enhanced'
 
 // Import routes
 import { auth } from './routes/auth'
@@ -34,17 +34,13 @@ import { EquipmentIndexPage } from './components/pages/EquipmentIndexPage'
 import { EquipmentSubmitPage } from './components/pages/EquipmentSubmitPage'
 
 // Import services for data fetching
-import { PlayerService, Equipment, Player } from './lib/supabase'
-import { EquipmentService } from './services/equipment.service'
-import { ModerationService } from './services/moderation.service'
+import { Equipment, Player } from './lib/supabase'
 import { VideoItem, CareerStats } from './types/components'
-import { createSupabaseClient } from './config/database'
-import { validateEnvironment } from './config/environment'
 import { NotFoundError } from './utils/errors'
-import { createClient } from '@supabase/supabase-js'
+import { InternalApiService } from './services/internal-api.service'
 
-export function createApp(): Hono<{ Variables: Variables }> {
-  const app = new Hono<{ Variables: Variables }>()
+export function createApp(): Hono<{ Variables: EnhancedAuthVariables }> {
+  const app = new Hono<{ Variables: EnhancedAuthVariables }>()
 
   // Global middleware
   app.use('*', corsMiddleware)
@@ -86,16 +82,14 @@ export function createApp(): Hono<{ Variables: Variables }> {
     const slug = c.req.param('slug')
 
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const equipmentService = new EquipmentService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const equipment = await equipmentService.getEquipment(slug)
+      const equipment = await apiService.getEquipment(slug)
       if (!equipment) {
         throw new NotFoundError('Equipment not found')
       }
 
-      const reviews = await equipmentService.getEquipmentReviews(equipment.id)
+      const reviews = await apiService.getEquipmentReviews(equipment.id)
 
       // TODO: Fetch players who use this equipment
       const usedByPlayers: Player[] = []
@@ -132,11 +126,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
     const slug = c.req.param('slug')
 
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const playerService = new PlayerService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const player = await playerService.getPlayer(slug)
+      const player = await apiService.getPlayer(slug)
       if (!player) {
         throw new NotFoundError('Player not found')
       }
@@ -160,16 +152,14 @@ export function createApp(): Hono<{ Variables: Variables }> {
     const slug = c.req.param('slug')
 
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const playerService = new PlayerService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const player = await playerService.getPlayer(slug)
+      const player = await apiService.getPlayer(slug)
       if (!player) {
         throw new NotFoundError('Player not found')
       }
 
-      const equipmentSetups = await playerService.getPlayerEquipmentSetups(player.id)
+      const equipmentSetups = await apiService.getPlayerEquipmentSetups(player.id)
 
       // TODO: Fetch videos and career stats
       const videos: VideoItem[] = []
@@ -203,14 +193,11 @@ export function createApp(): Hono<{ Variables: Variables }> {
     let results: { equipment: Equipment[]; players: Player[] } | undefined = undefined
     if (query) {
       try {
-        const env = validateEnvironment(c.env)
-        const supabase = createSupabaseClient(env)
-        const equipmentService = new EquipmentService(supabase)
-        const playerService = new PlayerService(supabase)
+        const apiService = new InternalApiService(c)
 
         const [equipment, players] = await Promise.all([
-          equipmentService.searchEquipment(query),
-          playerService.searchPlayers(query),
+          apiService.searchEquipment(query),
+          apiService.searchPlayers(query),
         ])
 
         results = { equipment, players }
@@ -226,14 +213,12 @@ export function createApp(): Hono<{ Variables: Variables }> {
   // Category pages
   app.get('/equipment', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const equipmentService = new EquipmentService(supabase)
+      const apiService = new InternalApiService(c)
 
       const [recentEquipment, recentReviews, categories] = await Promise.all([
-        equipmentService.getRecentEquipment(8),
-        equipmentService.getRecentReviews(6),
-        equipmentService.getEquipmentCategories(),
+        apiService.getRecentEquipment(8),
+        apiService.getRecentReviews(6),
+        apiService.getEquipmentCategories(),
       ])
 
       return c.render(
@@ -253,11 +238,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   app.get('/players', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createSupabaseClient(env)
-      const playerService = new PlayerService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const players = await playerService.getAllPlayers()
+      const players = await apiService.getAllPlayers()
 
       return c.render(<PlayersListPage players={players} />)
     } catch (error) {
@@ -278,11 +261,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
   // Admin pages
   app.get('/admin', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-      const moderationService = new ModerationService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const stats = await moderationService.getModerationStats()
+      const stats = await apiService.getModerationStats()
 
       return c.render(<AdminPage stats={stats} />)
     } catch (error) {
@@ -310,11 +291,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   app.get('/admin/reviews', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-      const moderationService = new ModerationService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const { reviews, total } = await moderationService.getPendingReviews(50, 0)
+      const { reviews, total } = await apiService.getPendingReviews(50, 0)
 
       return c.render(<AdminReviewsPage reviews={reviews} total={total} />)
     } catch (error) {
@@ -325,11 +304,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   app.get('/admin/player-edits', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-      const moderationService = new ModerationService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const { playerEdits, total } = await moderationService.getPendingPlayerEdits(50, 0)
+      const { playerEdits, total } = await apiService.getPendingPlayerEdits(50, 0)
 
       return c.render(<AdminPlayerEditsPage playerEdits={playerEdits} total={total} />)
     } catch (error) {
@@ -340,12 +317,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   app.get('/admin/equipment-submissions', async c => {
     try {
-      const env = validateEnvironment(c.env)
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-      const moderationService = new ModerationService(supabase)
+      const apiService = new InternalApiService(c)
 
-      const { equipmentSubmissions, total } =
-        await moderationService.getPendingEquipmentSubmissions(50, 0)
+      const { equipmentSubmissions, total } = await apiService.getPendingEquipmentSubmissions(50, 0)
 
       return c.render(
         <AdminEquipmentSubmissionsPage equipmentSubmissions={equipmentSubmissions} total={total} />

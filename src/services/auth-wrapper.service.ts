@@ -32,14 +32,14 @@ export class AuthWrapperService {
   /**
    * Create Supabase client with user's access token for RLS
    */
-  private createAuthenticatedClient(token: string): SupabaseClient {
+  protected createAuthenticatedClient(token: string): SupabaseClient {
     return createSupabaseClient(this.env, token)
   }
 
   /**
    * Check if user is admin based on email
    */
-  private isUserAdmin(user: User): boolean {
+  protected isUserAdmin(user: User): boolean {
     if (!user?.email || !this.env.ADMIN_EMAILS) {
       return false
     }
@@ -51,7 +51,7 @@ export class AuthWrapperService {
   /**
    * Validate token and get user information
    */
-  private async validateTokenAndGetUser(token: string, supabase: SupabaseClient): Promise<User> {
+  protected async validateTokenAndGetUser(token: string, supabase: SupabaseClient): Promise<User> {
     const {
       data: { user },
       error,

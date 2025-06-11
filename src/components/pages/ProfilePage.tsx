@@ -62,6 +62,7 @@ export const ProfilePage: FC = () => {
         </div>
       </div>
 
+      <script src="/client/auth.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

@@ -303,6 +303,8 @@ export function EquipmentPage({ equipment, reviews, usedByPlayers = [] }: Equipm
         </div>
       </div>
 
+      <script src="/client/auth.js"></script>
+      <script src="/client/forms.js"></script>
       <script
         dangerouslySetInnerHTML={{
           __html: `

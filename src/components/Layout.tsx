@@ -56,66 +56,9 @@ export const Layout: FC<LayoutProps> = ({
 
         {/* Tailwind CSS */}
         <script src="https://cdn.tailwindcss.com"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-            tailwind.config = {
-              theme: {
-                extend: {
-                  colors: {
-                    primary: '#7c3aed',
-                    secondary: '#64748b',
-                    accent: '#14b8a6'
-                  },
-                  fontFamily: {
-                    sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif']
-                  }
-                }
-              }
-            }
-          `,
-          }}
-        />
-
-        {/* Inline Critical CSS */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            :root {
-              --primary: #7c3aed; --secondary: #64748b; --accent: #14b8a6;
-              --background: #fafafa; --text: #18181b; --card-bg: #ffffff;
-              --border: #f1f5f9; --success: #10b981; --warning: #f59e0b; --error: #ef4444; --info: #3b82f6;
-            }
-            body {
-              font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-              background-color: var(--background); color: var(--text); line-height: 1.5;
-            }
-            .header {
-              background: var(--card-bg); border-bottom: 1px solid var(--border);
-              padding: 1rem 0; position: sticky; top: 0; z-index: 50;
-            }
-            .header-container {
-              max-width: 1200px; margin: 0 auto; padding: 0 1rem;
-              display: flex; align-items: center; justify-content: space-between; gap: 2rem;
-            }
-            .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); text-decoration: none; }
-            .nav-menu { display: flex; gap: 2rem; align-items: center; }
-            .nav-link { text-decoration: none; color: var(--secondary); font-weight: 500; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s; }
-            .nav-link:hover, .nav-link.active { color: var(--primary); background: rgba(124, 58, 237, 0.1); }
-            .login-btn { background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s; }
-            .discord-link { display: flex; align-items: center; gap: 0.5rem; color: #5865f2; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s; }
-            .discord-link:hover { background: rgba(88, 101, 242, 0.1); }
-            .discord-text { font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.125rem; }
-            .main-container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
-            .search-container { flex: 1; max-width: 500px; position: relative; }
-            .search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: var(--background); transition: all 0.2s; }
-            .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
-            .mobile-menu-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; }
-            @media (max-width: 768px) { .search-container { display: none; } .nav-menu { display: none; } .mobile-menu-toggle { display: block; } }
-          `,
-          }}
-        />
+        {/* Modular CSS and Configuration */}
+        <link rel="stylesheet" href="/client/styles.css" />
+        <script src="/client/config.js"></script>
       </head>
       <body>
         <Header />

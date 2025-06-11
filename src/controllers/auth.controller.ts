@@ -1,16 +1,18 @@
 import { Context } from 'hono'
 import { AuthService } from '../services/auth.service'
 import { createAuthService } from '../services/auth-wrapper.service'
+import { CookieAuthService } from '../services/cookie-auth.service'
 import { successResponse, errorResponse } from '../utils/response'
 import { ValidationError } from '../utils/errors'
 import { EnhancedAuthVariables } from '../middleware/auth-enhanced'
+import { SecureAuthVariables } from '../middleware/auth-secure'
 
 export class AuthController {
   static async signUp(c: Context) {
     const { email, password } = await c.req.json()
 
     if (!email || !password) {
-      throw new ValidationError('Email and password are required')
+      throw new ValidationError('Email and authentication credentials are required')
     }
 
     const authWrapperService = createAuthService(c)
@@ -30,7 +32,7 @@ export class AuthController {
     const { email, password } = await c.req.json()
 
     if (!email || !password) {
-      throw new ValidationError('Email and password are required')
+      throw new ValidationError('Email and authentication credentials are required')
     }
 
     const authWrapperService = createAuthService(c)
@@ -113,6 +115,88 @@ export class AuthController {
       })
     } catch (error) {
       console.error('Error in getMe:', error)
+      return errorResponse(c, 'Authentication failed', 500)
+    }
+  }
+
+  /**
+   * Secure cookie-based sign in
+   */
+  static async signInSecure(c: Context<{ Variables: SecureAuthVariables }>) {
+    try {
+      const { email, password } = await c.req.json()
+
+      if (!email || !password) {
+        throw new ValidationError('Email and authentication credentials are required')
+      }
+
+      const authService = c.get('authService') || new CookieAuthService(c.env as any)
+      const { user, session, csrfToken, error } = await authService.signInWithCookie(
+        c,
+        email,
+        password
+      )
+
+      if (error) {
+        return errorResponse(c, error.message, 400)
+      }
+
+      return successResponse(c, {
+        user,
+        session: {
+          // Don't return sensitive token data to client
+          user: session.user,
+          expires_at: session.expires_at,
+        },
+        csrfToken,
+      })
+    } catch (error) {
+      console.error('Secure sign in error:', error)
+      return errorResponse(c, 'Sign in failed', 500)
+    }
+  }
+
+  /**
+   * Secure cookie-based sign out
+   */
+  static async signOutSecure(c: Context<{ Variables: SecureAuthVariables }>) {
+    try {
+      const authService = c.get('authService') || new CookieAuthService(c.env as any)
+      const { error } = await authService.signOutWithCookie(c)
+
+      if (error) {
+        console.error('Sign out error:', error)
+        return errorResponse(c, 'Sign out failed', 500)
+      }
+
+      return successResponse(c, { message: 'Signed out successfully' })
+    } catch (error) {
+      console.error('Secure sign out error:', error)
+      return errorResponse(c, 'Sign out failed', 500)
+    }
+  }
+
+  /**
+   * Get current user info for cookie-authenticated requests
+   */
+  static async getMeSecure(c: Context<{ Variables: SecureAuthVariables }>) {
+    try {
+      const user = c.get('user')
+      const authContext = c.get('authContext')
+      const sessionData = c.get('sessionData')
+
+      return successResponse(c, {
+        user,
+        isAdmin: authContext?.isAdmin || false,
+        sessionData: sessionData
+          ? {
+              user_id: sessionData.user_id,
+              expires_at: sessionData.expires_at,
+            }
+          : null,
+      })
+    } catch (error) {
+      console.error('Error in getMeSecure:', error)
       return errorResponse(c, 'Authentication failed', 500)
     }
   }

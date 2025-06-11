@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { discordController } from '../controllers/discord.controller'
-import { Variables } from '../middleware/auth'
+import { EnhancedAuthVariables } from '../middleware/auth-enhanced'
 
-export const discord = new Hono<{ Variables: Variables }>()
+export const discord = new Hono<{ Variables: EnhancedAuthVariables }>()
 
 // Discord webhook endpoint for interactions (slash commands, buttons, etc.)
 discord.post('/interactions', discordController.handleInteractions)

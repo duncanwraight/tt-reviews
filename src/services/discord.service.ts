@@ -23,14 +23,12 @@ export class DiscordService {
   async verifySignature(signature: string, timestamp: string, body: string): Promise<boolean> {
     const PUBLIC_KEY = this.env.DISCORD_PUBLIC_KEY
     if (!PUBLIC_KEY) {
-      throw new Error('DISCORD_PUBLIC_KEY not configured')
+      throw new Error('Discord verification key not configured')
     }
 
     // Check for placeholder values that indicate misconfiguration
     if (PUBLIC_KEY === 'your_discord_application_public_key_here' || PUBLIC_KEY.length < 32) {
-      throw new Error(
-        'DISCORD_PUBLIC_KEY is not properly configured - still contains placeholder or invalid value'
-      )
+      throw new Error('Discord verification key is not properly configured')
     }
 
     try {

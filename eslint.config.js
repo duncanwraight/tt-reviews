@@ -40,6 +40,8 @@ export default [
       '.wrangler/',
       'src/**/*.js',
       'src/**/*.d.ts',
+      'public/**/*.js',
+      'public/**/*.d.ts',
       '*.js',
       '*.d.ts',
       'scripts/',
