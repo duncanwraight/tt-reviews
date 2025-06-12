@@ -1,48 +1,25 @@
+import { Outlet } from "react-router";
 import type { Route } from "./+types/players";
+import { getServerClient } from "~/lib/supabase.server";
 import { data } from "react-router";
-import { DatabaseService } from "~/lib/database.server";
+
 import { PageLayout } from "~/components/layout/PageLayout";
-import { PageSection } from "~/components/layout/PageSection";
-import { Breadcrumb } from "~/components/ui/Breadcrumb";
-import { PlayersHeader } from "~/components/players/PlayersHeader";
-import { PlayersGrid } from "~/components/players/PlayersGrid";
-import { PlayersFooter } from "~/components/players/PlayersFooter";
 
-export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "Professional Table Tennis Players | TT Reviews" },
-    { name: "description", content: "Browse professional table tennis players and discover their equipment setups, playing styles, and career achievements." },
-  ];
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const sbServerClient = getServerClient(request, context);
+  const userResponse = await sbServerClient.client.auth.getUser();
+  
+  return data({ 
+    user: userResponse?.data?.user || null,
+  }, { headers: sbServerClient.headers });
 }
 
-export async function loader({ context }: Route.LoaderArgs): Promise<Route.LoaderData> {
-  const db = new DatabaseService(context);
-  const players = await db.getAllPlayers();
-
-  return data({
-    players,
-  });
-}
-
-export default function Players({ loaderData }: Route.ComponentProps) {
-  const { players } = loaderData;
-
-  const breadcrumbItems = [
-    { label: "Home", href: "/" },
-    { label: "Players", href: "/players" },
-  ];
+export default function PlayersLayout({ loaderData }: Route.ComponentProps) {
+  const { user } = loaderData;
 
   return (
-    <PageLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Breadcrumb items={breadcrumbItems} />
-        
-        <PageSection>
-          <PlayersHeader totalPlayers={players.length} />
-          <PlayersGrid players={players} />
-          <PlayersFooter hasPlayers={players.length > 0} />
-        </PageSection>
-      </div>
+    <PageLayout user={user}>
+      <Outlet />
     </PageLayout>
   );
 }

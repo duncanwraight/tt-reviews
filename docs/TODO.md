@@ -57,7 +57,13 @@
     - ✅ Database integration with equipment_submissions table
     - ✅ Success/error handling and user feedback
     - ✅ Navigation integration (main nav + profile quick actions)
-  - [ ] Player submit (`/players/submit`)
+  - [x] Player submit (`/players/submit`) ✅
+    - ✅ Created nested route structure (players.tsx layout + players.submit.tsx child)
+    - ✅ Created player_submissions table with proper RLS policies
+    - ✅ Complete submission form with player info and equipment setup
+    - ✅ Authentication protection and database integration
+    - ✅ Fixed routing conflicts by restructuring players routes
+    - ✅ Navigation integration with submit links
   - [ ] Player edit (`/players/:slug/edit`)
 
 - [ ] **Admin Pages** (Admin only):
