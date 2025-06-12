@@ -69,27 +69,27 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
     
     const highestRating = formData.get('highest_rating') as string;
     if (highestRating !== (player.highest_rating || '')) {
-      editData.highest_rating = highestRating || null;
+      editData.highest_rating = highestRating || undefined;
     }
     
     const activeYears = formData.get('active_years') as string;
     if (activeYears !== (player.active_years || '')) {
-      editData.active_years = activeYears || null;
+      editData.active_years = activeYears || undefined;
     }
     
     const playingStyle = formData.get('playing_style') as string;
     if (playingStyle !== (player.playing_style || '')) {
-      editData.playing_style = playingStyle || null;
+      editData.playing_style = playingStyle || undefined;
     }
     
     const birthCountry = formData.get('birth_country') as string;
     if (birthCountry !== (player.birth_country || '')) {
-      editData.birth_country = birthCountry || null;
+      editData.birth_country = birthCountry || undefined;
     }
     
     const represents = formData.get('represents') as string;
     if (represents !== (player.represents || '')) {
-      editData.represents = represents || null;
+      editData.represents = represents || undefined;
     }
 
     // Check if there are any changes

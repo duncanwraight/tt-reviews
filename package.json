@@ -10,7 +10,10 @@
 		"dev:wrangler": "wrangler dev --env dev",
 		"postinstall": "npm run cf-typegen",
 		"preview": "npm run build && vite preview",
-		"typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
+		"typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
+		"check": "npm run build",
+		"test": "echo 'No tests configured yet'",
+		"test:discord": "echo 'Discord tests not yet migrated to React Router v7'"
 	},
 	"dependencies": {
 		"@react-router/fs-routes": "^7.6.2",

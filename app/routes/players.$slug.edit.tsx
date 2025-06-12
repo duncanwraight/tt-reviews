@@ -41,8 +41,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     user: userResponse.data.user,
     player,
     env: {
-      SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
-      SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+      SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
+      SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env).SUPABASE_ANON_KEY!,
     },
   }, { headers: sbServerClient.headers });
 }

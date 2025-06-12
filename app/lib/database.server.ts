@@ -90,7 +90,7 @@ export interface PlayerSubmission {
 
 // Supabase client factory
 export function createSupabaseClient(context: AppLoadContext): SupabaseClient {
-  const env = context.cloudflare.env as Record<string, string>
+  const env = context.cloudflare.env as Cloudflare.Env
   const supabaseUrl = env.SUPABASE_URL
   const supabaseKey = env.SUPABASE_ANON_KEY
 
@@ -102,7 +102,7 @@ export function createSupabaseClient(context: AppLoadContext): SupabaseClient {
 }
 
 export function createSupabaseAdminClient(context: AppLoadContext): SupabaseClient {
-  const env = context.cloudflare.env as Record<string, string>
+  const env = context.cloudflare.env as Cloudflare.Env
   const supabaseUrl = env.SUPABASE_URL
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 

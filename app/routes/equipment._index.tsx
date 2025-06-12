@@ -1,4 +1,4 @@
-import type { Route } from "./+types/equipment";
+import type { Route } from "./+types/equipment._index";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { data } from "react-router";

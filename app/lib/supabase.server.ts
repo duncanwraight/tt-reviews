@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { AppLoadContext } from "react-router";
 
 export const getServerClient = (request: Request, context: AppLoadContext) => {
-	const env = context.cloudflare.env as Record<string, string>;
+	const env = context.cloudflare.env as Cloudflare.Env;
 	const headers = new Headers();
 	const supabase = createServerClient(
 		env.SUPABASE_URL!,
@@ -11,7 +11,11 @@ export const getServerClient = (request: Request, context: AppLoadContext) => {
 		{
 			cookies: {
 				getAll() {
-					return parseCookieHeader(request.headers.get("Cookie") ?? "") ?? {};
+					const cookies = parseCookieHeader(request.headers.get("Cookie") ?? "") ?? [];
+					return cookies.map(cookie => ({
+						name: cookie.name,
+						value: cookie.value || ""
+					}));
 				},
 				setAll(cookiesToSet) {
 					cookiesToSet.forEach(({ name, value, options }) =>

@@ -26,7 +26,7 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request, context }: Route.LoaderArgs): Promise<Route.LoaderData> {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q');
   

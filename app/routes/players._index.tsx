@@ -14,7 +14,7 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ context }: Route.LoaderArgs): Promise<Route.LoaderData> {
+export async function loader({ context }: Route.LoaderArgs) {
   const db = new DatabaseService(context);
   const players = await db.getAllPlayers();
 
