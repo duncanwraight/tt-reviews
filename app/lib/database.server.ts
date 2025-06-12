@@ -94,18 +94,10 @@ export function createSupabaseClient(context: AppLoadContext): SupabaseClient {
   const supabaseUrl = env.SUPABASE_URL
   const supabaseKey = env.SUPABASE_ANON_KEY
 
-  console.log('createSupabaseClient: Environment check', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey,
-    url: supabaseUrl,
-    keyLength: supabaseKey?.length
-  })
-
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase environment variables')
   }
 
-  console.log('createSupabaseClient: Creating client with URL:', supabaseUrl)
   return createClient(supabaseUrl, supabaseKey)
 }
 
@@ -135,14 +127,14 @@ export class DatabaseService {
       .from('equipment')
       .select('*')
       .eq('slug', slug)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching equipment:', error)
       return null
     }
 
-    return data as Equipment
+    return data as Equipment | null
   }
 
   async getEquipmentById(id: string): Promise<Equipment | null> {
@@ -150,14 +142,14 @@ export class DatabaseService {
       .from('equipment')
       .select('*')
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching equipment by ID:', error)
       return null
     }
 
-    return data as Equipment
+    return data as Equipment | null
   }
 
   async searchEquipment(query: string): Promise<Equipment[]> {
@@ -265,14 +257,14 @@ export class DatabaseService {
       .from('players')
       .select('*')
       .eq('slug', slug)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching player:', error)
       return null
     }
 
-    return data as Player
+    return data as Player | null
   }
 
   async getAllPlayers(): Promise<Player[]> {

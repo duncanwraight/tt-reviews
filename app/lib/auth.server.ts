@@ -176,12 +176,6 @@ export class AuthService {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error || !user) {
-      console.warn('Token validation failed:', {
-        error: error?.message,
-        hasUser: !!user,
-        tokenLength: token?.length,
-        tokenPrefix: token?.substring(0, 20) + '...'
-      })
       throw new Error(`Token validation failed: ${error?.message || 'No user found'}`)
     }
 
@@ -221,7 +215,6 @@ export class AuthService {
     try {
       return await this.getAuthContext(session)
     } catch (error) {
-      console.warn('Auth context failed:', error.message)
       return null
     }
   }
@@ -233,24 +226,14 @@ export class AuthService {
     error: Error | null
   }> {
     try {
-      console.log('AuthService.signIn: Starting sign in for', email)
       const supabase = createSupabaseClient(this.context)
-      console.log('AuthService.signIn: Created Supabase client')
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      console.log('AuthService.signIn: Supabase response', {
-        hasData: !!data,
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
-        error: error?.message
-      })
-
       if (error || !data.user || !data.session) {
-        console.log('AuthService.signIn: Sign in failed', error?.message)
         return {
           user: null,
           sessionData: null,
