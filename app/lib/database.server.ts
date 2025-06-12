@@ -363,6 +363,67 @@ export class DatabaseService {
     return (data as EquipmentReview[]) || []
   }
 
+  async getUserReviews(userId: string): Promise<EquipmentReview[]> {
+    const { data, error } = await this.supabase
+      .from('equipment_reviews')
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          slug,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching user reviews:', error)
+      return []
+    }
+
+    return (data as EquipmentReview[]) || []
+  }
+
+  // Equipment submission methods
+  async submitEquipment(submission: Omit<EquipmentSubmission, 'id' | 'created_at' | 'updated_at' | 'status' | 'moderator_id' | 'moderator_notes'>): Promise<EquipmentSubmission | null> {
+    const { data, error } = await this.supabase
+      .from('equipment_submissions')
+      .insert({
+        ...submission,
+        status: 'pending'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error submitting equipment:', error)
+      return null
+    }
+
+    return data as EquipmentSubmission
+  }
+
+  async getUserEquipmentSubmissions(userId: string): Promise<EquipmentSubmission[]> {
+    const { data, error } = await this.supabase
+      .from('equipment_submissions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching user equipment submissions:', error)
+      return []
+    }
+
+    return (data as EquipmentSubmission[]) || []
+  }
+
   // General search
   async search(query: string): Promise<{
     equipment: Equipment[]

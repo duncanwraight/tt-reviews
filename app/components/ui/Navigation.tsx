@@ -24,6 +24,9 @@ export function Navigation({ user }: NavigationProps) {
             </Link>
             {user ? (
               <>
+                <Link to="/equipment/submit" className="text-gray-700 hover:text-purple-600 transition-colors">
+                  Submit
+                </Link>
                 <Link to="/profile" className="text-gray-700 hover:text-purple-600 transition-colors">
                   Profile
                 </Link>

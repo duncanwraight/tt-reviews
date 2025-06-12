@@ -26,6 +26,16 @@
 ### Page Migration (Systematic Approach)
 **Note**: Migrating from existing implementation in `/archive` directory to new React Router v7 structure
 
+### **Routing Architecture** ✅
+- [x] **File-Based Routing Migration**: Migrated from explicit route configuration to file-based routing ✅
+  - ✅ Installed `@react-router/fs-routes` package
+  - ✅ Updated `/app/routes.ts` to use `flatRoutes()` for automatic route discovery
+  - ✅ Implemented proper nested route structure with layouts
+  - ✅ Fixed equipment route conflicts (`/equipment/submit` vs `/equipment/:slug`)
+  - ✅ Created layout pattern: `equipment.tsx` (layout) + `equipment._index.tsx` (content) + `equipment.submit.tsx` (child)
+  - ✅ Added comprehensive file-based routing documentation to CLAUDE.md
+  - ✅ Consolidated home page from `/home` to `/` (root route in `_index.tsx`)
+
 - [ ] **Public Pages** (No auth required):
   - [x] Home page (`/`) - with search functionality ✅
   - [x] Equipment index (`/equipment`) ✅
@@ -36,8 +46,17 @@
 
 - [ ] **User Pages** (Auth required):
   - [x] Login/Signup (`/login`) ✅
-  - [ ] Profile page (`/profile`)
-  - [ ] Equipment submit (`/equipment/submit`)
+  - [x] Profile page (`/profile`) ✅
+    - ✅ User dashboard with account information
+    - ✅ User review history display
+    - ✅ Quick actions sidebar with navigation
+    - ✅ Professional component architecture (ProfileInfo, UserReviews, QuickActions)
+  - [x] Equipment submit (`/equipment/submit`) ✅
+    - ✅ Complete submission form with validation
+    - ✅ Authentication protection
+    - ✅ Database integration with equipment_submissions table
+    - ✅ Success/error handling and user feedback
+    - ✅ Navigation integration (main nav + profile quick actions)
   - [ ] Player submit (`/players/submit`)
   - [ ] Player edit (`/players/:slug/edit`)
 

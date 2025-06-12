@@ -186,6 +186,63 @@ const handleLogout = async () => {
 - **Cloudflare**: Access via `context.cloudflare.env as Record<string, string>`
 - **Regular Node.js**: Access via `process.env` (reference apps only)
 
+## React Router v7 File-Based Routing
+
+This project uses **file-based routing** with React Router v7. Key configuration details:
+
+### Routes Configuration
+- **File**: `/app/routes.ts` uses `flatRoutes()` from `@react-router/fs-routes`
+- **Pattern**: Routes are automatically discovered based on file naming conventions
+- **No manual registration** needed - just create files with correct names
+
+### File Naming Conventions
+
+#### Basic Routes
+```
+/app/routes/
+├── _index.tsx          → / (root/home page)
+├── login.tsx           → /login
+├── profile.tsx         → /profile
+```
+
+#### Nested Routes with Layout
+```
+/app/routes/
+├── equipment.tsx           → Layout component with <Outlet />
+├── equipment._index.tsx    → /equipment (content)
+├── equipment.submit.tsx    → /equipment/submit (content)
+├── equipment.$slug.tsx     → /equipment/:slug (content)
+```
+
+#### Dynamic Parameters
+- Use `$` prefix for dynamic segments: `equipment.$slug.tsx` → `/equipment/:slug`
+- Use `_index.tsx` for index routes within nested layouts
+
+### Layout Structure
+When you have nested routes (e.g., `equipment.*`):
+
+1. **Layout file** (`equipment.tsx`):
+   - Contains shared layout (Navigation, Footer, etc.)
+   - Must include `<Outlet />` where child routes render
+   - Handles auth and common data loading
+
+2. **Child routes** (`equipment._index.tsx`, `equipment.submit.tsx`):
+   - Contain only the specific content for that route
+   - NO layout components (Navigation, Footer, PageLayout)
+   - Render inside the parent's `<Outlet />`
+
+### Route Resolution Order
+- More specific routes are matched first automatically
+- `/equipment/submit` takes precedence over `/equipment/:slug`
+- No manual ordering needed with proper file naming
+
+### Best Practices
+- ✅ Use layout files for shared components across route families
+- ✅ Keep child routes focused on content only
+- ✅ Follow dot notation for nested routes (`parent.child.tsx`)
+- ❌ Don't duplicate layout components in child routes
+- ❌ Don't manually configure routes in `routes.ts` unless necessary
+
 ## Important Notes
 
 - Don't try to run Bash(npm run dev) commands, I will do those - just ask me to do it and await my feedback
