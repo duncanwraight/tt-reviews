@@ -60,6 +60,34 @@ export interface EquipmentSubmission {
   updated_at: string
 }
 
+export interface PlayerSubmission {
+  id: string
+  user_id: string
+  name: string
+  highest_rating?: string
+  active_years?: string
+  playing_style?: 'attacker' | 'all_rounder' | 'defender' | 'counter_attacker' | 'chopper' | 'unknown'
+  birth_country?: string
+  represents?: string
+  equipment_setup?: {
+    year?: number
+    blade_name?: string
+    forehand_rubber_name?: string
+    forehand_thickness?: string
+    forehand_color?: 'red' | 'black'
+    backhand_rubber_name?: string
+    backhand_thickness?: string
+    backhand_color?: 'red' | 'black'
+    source_type?: 'interview' | 'video' | 'tournament_footage' | 'official_website'
+    source_url?: string
+  }
+  status: 'pending' | 'approved' | 'rejected'
+  moderator_id?: string
+  moderator_notes?: string
+  created_at: string
+  updated_at: string
+}
+
 // Supabase client factory
 export function createSupabaseClient(context: AppLoadContext): SupabaseClient {
   const env = context.cloudflare.env as Record<string, string>
@@ -422,6 +450,40 @@ export class DatabaseService {
     }
 
     return (data as EquipmentSubmission[]) || []
+  }
+
+  // Player submission methods
+  async submitPlayer(submission: Omit<PlayerSubmission, 'id' | 'created_at' | 'updated_at' | 'status' | 'moderator_id' | 'moderator_notes'>): Promise<PlayerSubmission | null> {
+    const { data, error } = await this.supabase
+      .from('player_submissions')
+      .insert({
+        ...submission,
+        status: 'pending'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error submitting player:', error)
+      return null
+    }
+
+    return data as PlayerSubmission
+  }
+
+  async getUserPlayerSubmissions(userId: string): Promise<PlayerSubmission[]> {
+    const { data, error } = await this.supabase
+      .from('player_submissions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching user player submissions:', error)
+      return []
+    }
+
+    return (data as PlayerSubmission[]) || []
   }
 
   // General search
