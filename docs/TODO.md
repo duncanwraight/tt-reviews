@@ -28,7 +28,7 @@
 
 - [ ] **Public Pages** (No auth required):
   - [x] Home page (`/`) - with search functionality ✅
-  - [ ] Equipment index (`/equipment`)
+  - [x] Equipment index (`/equipment`) ✅
   - [ ] Equipment detail (`/equipment/:slug`)
   - [ ] Player index (`/players`) 
   - [ ] Player detail (`/players/:slug`)

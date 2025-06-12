@@ -207,6 +207,56 @@ export class DatabaseService {
     return (data as Equipment[]) || []
   }
 
+  async getAllEquipment(options?: {
+    category?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: 'name' | 'created_at' | 'manufacturer';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<Equipment[]> {
+    let query = this.supabase.from('equipment').select('*')
+
+    if (options?.category) {
+      query = query.eq('category', options.category)
+    }
+
+    const sortBy = options?.sortBy || 'created_at'
+    const sortOrder = options?.sortOrder || 'desc'
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error fetching equipment:', error)
+      return []
+    }
+
+    return (data as Equipment[]) || []
+  }
+
+  async getEquipmentByCategory(category: string): Promise<Equipment[]> {
+    const { data, error } = await this.supabase
+      .from('equipment')
+      .select('*')
+      .eq('category', category)
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching equipment by category:', error)
+      return []
+    }
+
+    return (data as Equipment[]) || []
+  }
+
   async getEquipmentCategories(): Promise<{ category: string; count: number }[]> {
     const { data, error } = await this.supabase.from('equipment').select('category')
 
