@@ -2,7 +2,6 @@ import type { Route } from "./+types/players.$slug";
 import { data, redirect } from "react-router";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
-import { PageLayout } from "~/components/layout/PageLayout";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
@@ -58,7 +57,7 @@ export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
   ];
 
   return (
-    <PageLayout user={user}>
+    <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Breadcrumb items={breadcrumbItems} />
       </div>
@@ -70,6 +69,6 @@ export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
         equipmentSetups={equipmentSetups}
         showEditButtons={!!user}
       />
-    </PageLayout>
+    </>
   );
 }

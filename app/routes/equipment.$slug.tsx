@@ -3,7 +3,6 @@ import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { data, redirect } from "react-router";
 
-import { PageLayout } from "~/components/layout/PageLayout";
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
@@ -71,7 +70,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
   ];
 
   return (
-    <PageLayout user={user}>
+    <>
       <PageSection background="white" padding="small">
         <Breadcrumb items={breadcrumbItems} />
       </PageSection>
@@ -93,6 +92,6 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
       />
 
       <RelatedEquipmentSection category={equipment.category} />
-    </PageLayout>
+    </>
   );
 }
