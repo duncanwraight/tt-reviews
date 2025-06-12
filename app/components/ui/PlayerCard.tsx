@@ -1,43 +1,65 @@
 import { Link } from "react-router";
+import { Player } from "~/lib/types";
 
 interface PlayerCardProps {
-  player: {
-    id: string;
-    name: string;
-    slug: string;
-    highest_rating?: string;
-    playing_style?: string;
-    currentSetup?: string;
-  };
+  player: Player;
 }
 
 export function PlayerCard({ player }: PlayerCardProps) {
+  const getPlayingStyleLabel = (style: string | undefined) => {
+    if (!style || style === 'unknown') return 'Pro Player';
+    return style.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
-    <Link
-      to={`/players/${player.slug}`}
-      className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
-    >
+    <div className="player-card bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="inline-block px-3 py-1 text-xs font-semibold text-teal-800 bg-teal-100 rounded-full capitalize">
-            {player.playing_style?.replace('_', ' ') || 'Pro Player'}
-          </span>
-          {player.highest_rating && (
-            <span className="text-sm font-medium text-gray-600">
-              Rating: {player.highest_rating}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <Link to={`/players/${player.slug}`} className="hover:text-purple-600">
+                {player.name}
+              </Link>
+            </h3>
+            {player.highest_rating && (
+              <p className="text-sm text-gray-600 mb-2">
+                Peak Rating: {player.highest_rating}
+              </p>
+            )}
+            {player.active_years && (
+              <p className="text-sm text-gray-600 mb-2">Active: {player.active_years}</p>
+            )}
+            {player.playing_style && player.playing_style !== 'unknown' && (
+              <p className="text-sm text-gray-600 mb-2">
+                Style: {getPlayingStyleLabel(player.playing_style)}
+              </p>
+            )}
+          </div>
+          <div className="ml-4">
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                player.active
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              {player.active ? 'Active' : 'Retired'}
             </span>
-          )}
+          </div>
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors">
-          {player.name}
-        </h3>
-        <p className="text-gray-600 mb-4">{player.currentSetup}</p>
+
         <div className="flex items-center justify-between">
-          <span className="text-teal-600 font-semibold group-hover:text-teal-800">
-            View Setup →
-          </span>
+          <Link
+            to={`/players/${player.slug}`}
+            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+          >
+            View Profile →
+          </Link>
+          <div className="text-xs text-gray-500">
+            Added {new Date(player.created_at).toLocaleDateString()}
+          </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

@@ -41,8 +41,8 @@
   - [x] Home page (`/`) - with search functionality ✅
   - [x] Equipment index (`/equipment`) ✅
   - [x] Equipment detail (`/equipment/:slug`) ✅
-  - [ ] Player index (`/players`) 
-  - [ ] Player detail (`/players/:slug`)
+  - [x] Player index (`/players`) ✅
+  - [x] Player detail (`/players/:slug`) ✅
   - [ ] Search page (`/search`)
 
 - [ ] **User Pages** (Auth required):
