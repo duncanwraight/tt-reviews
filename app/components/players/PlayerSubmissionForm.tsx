@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useNavigate } from "react-router";
+import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
 
 interface PlayerSubmissionFormProps {
   env: {
@@ -43,12 +44,6 @@ const PLAYING_STYLES = [
   { value: 'unknown', label: 'Unknown' },
 ];
 
-const SOURCE_TYPES = [
-  { value: 'interview', label: 'Interview' },
-  { value: 'video', label: 'Video' },
-  { value: 'tournament_footage', label: 'Tournament Footage' },
-  { value: 'official_website', label: 'Official Website' },
-];
 
 export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps) {
   const navigate = useNavigate();
@@ -283,190 +278,11 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
           </div>
 
           {/* Equipment Setup Section */}
-          <div className="border-b border-gray-200 pb-6">
-            <div className="flex items-center mb-4">
-              <input
-                type="checkbox"
-                id="include_equipment"
-                checked={includeEquipment}
-                onChange={(e) => setIncludeEquipment(e.target.checked)}
-                disabled={isSubmitting}
-                className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-              />
-              <label htmlFor="include_equipment" className="text-lg font-semibold text-gray-900">
-                Include Equipment Setup (Optional)
-              </label>
-            </div>
-            
-            {includeEquipment && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Year */}
-                  <div>
-                    <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-2">
-                      Year
-                    </label>
-                    <input
-                      type="number"
-                      id="year"
-                      name="year"
-                      min="1970"
-                      max={new Date().getFullYear()}
-                      defaultValue={new Date().getFullYear()}
-                      disabled={isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    />
-                  </div>
-
-                  {/* Blade */}
-                  <div>
-                    <label htmlFor="blade_name" className="block text-sm font-medium text-gray-700 mb-2">
-                      Blade
-                    </label>
-                    <input
-                      type="text"
-                      id="blade_name"
-                      name="blade_name"
-                      disabled={isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                      placeholder="e.g., Butterfly Viscaria"
-                    />
-                  </div>
-                </div>
-
-                {/* Forehand Setup */}
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Forehand</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="forehand_rubber_name" className="block text-sm font-medium text-gray-700 mb-2">
-                        Rubber
-                      </label>
-                      <input
-                        type="text"
-                        id="forehand_rubber_name"
-                        name="forehand_rubber_name"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                        placeholder="e.g., Hurricane 3"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="forehand_thickness" className="block text-sm font-medium text-gray-700 mb-2">
-                        Thickness
-                      </label>
-                      <input
-                        type="text"
-                        id="forehand_thickness"
-                        name="forehand_thickness"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                        placeholder="e.g., 2.1mm"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="forehand_color" className="block text-sm font-medium text-gray-700 mb-2">
-                        Color
-                      </label>
-                      <select
-                        id="forehand_color"
-                        name="forehand_color"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                      >
-                        <option value="">Select color</option>
-                        <option value="red">Red</option>
-                        <option value="black">Black</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Backhand Setup */}
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Backhand</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="backhand_rubber_name" className="block text-sm font-medium text-gray-700 mb-2">
-                        Rubber
-                      </label>
-                      <input
-                        type="text"
-                        id="backhand_rubber_name"
-                        name="backhand_rubber_name"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                        placeholder="e.g., Tenergy 64"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="backhand_thickness" className="block text-sm font-medium text-gray-700 mb-2">
-                        Thickness
-                      </label>
-                      <input
-                        type="text"
-                        id="backhand_thickness"
-                        name="backhand_thickness"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                        placeholder="e.g., 2.1mm"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="backhand_color" className="block text-sm font-medium text-gray-700 mb-2">
-                        Color
-                      </label>
-                      <select
-                        id="backhand_color"
-                        name="backhand_color"
-                        disabled={isSubmitting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                      >
-                        <option value="">Select color</option>
-                        <option value="red">Red</option>
-                        <option value="black">Black</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Source Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="source_type" className="block text-sm font-medium text-gray-700 mb-2">
-                      Source Type
-                    </label>
-                    <select
-                      id="source_type"
-                      name="source_type"
-                      disabled={isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    >
-                      <option value="">Select source type</option>
-                      {SOURCE_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="source_url" className="block text-sm font-medium text-gray-700 mb-2">
-                      Source URL
-                    </label>
-                    <input
-                      type="url"
-                      id="source_url"
-                      name="source_url"
-                      disabled={isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <PlayerEquipmentSetup 
+            includeEquipment={includeEquipment}
+            onToggleEquipment={setIncludeEquipment}
+            isSubmitting={isSubmitting}
+          />
 
           {/* Submit Button */}
           <div className="flex justify-end space-x-3">

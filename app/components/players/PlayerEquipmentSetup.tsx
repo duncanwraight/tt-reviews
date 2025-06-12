@@ -1,3 +1,5 @@
+import { type ComponentProps } from "react";
+
 interface PlayerEquipmentSetupProps {
   includeEquipment: boolean;
   onToggleEquipment: (include: boolean) => void;
