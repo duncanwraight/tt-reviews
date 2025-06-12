@@ -1,12 +1,42 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
 import { getServerClient } from "~/lib/supabase.server";
+import { DatabaseService } from "~/lib/database.server";
 import { data } from "react-router";
+
+import { Navigation } from "~/components/ui/Navigation";
+import { HeroSection } from "~/components/sections/HeroSection";
+import { FeaturedEquipmentSection } from "~/components/sections/FeaturedEquipmentSection";
+import { PopularPlayersSection } from "~/components/sections/PopularPlayersSection";
+import { CategoriesSection } from "~/components/sections/CategoriesSection";
+import { Footer } from "~/components/ui/Footer";
+
+interface EquipmentDisplay {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  manufacturer: string;
+  rating?: number;
+  reviewCount?: number;
+}
+
+interface PlayerDisplay {
+  id: string;
+  name: string;
+  slug: string;
+  highest_rating?: string;
+  playing_style?: string;
+  currentSetup?: string;
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "TT Reviews - Table Tennis Equipment Reviews" },
-    { name: "description", content: "The best place for table tennis equipment reviews and player information" },
+    { title: "TT Reviews - Table Tennis Equipment Reviews & Player Database" },
+    { name: "description", content: "Discover the best table tennis equipment through professional reviews and explore detailed player setups. Your comprehensive guide to table tennis gear and pro player information." },
+    { name: "keywords", content: "table tennis, ping pong, equipment reviews, professional players, rubber, blade, ball, tournament equipment" },
+    { property: "og:title", content: "TT Reviews - Table Tennis Equipment Reviews & Player Database" },
+    { property: "og:description", content: "Discover the best table tennis equipment through professional reviews and explore detailed player setups." },
+    { property: "og:type", content: "website" },
   ];
 }
 
@@ -14,50 +44,47 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
   
+  const db = new DatabaseService(context);
+  
+  const [recentEquipment, allPlayers] = await Promise.all([
+    db.getRecentEquipment(6),
+    db.getAllPlayers()
+  ]);
+
+  const featuredEquipment: EquipmentDisplay[] = recentEquipment.map(equipment => ({
+    ...equipment,
+    rating: 4.2,
+    reviewCount: Math.floor(Math.random() * 20) + 1
+  }));
+
+  const popularPlayers: PlayerDisplay[] = allPlayers
+    .filter(player => player.active)
+    .slice(0, 6)
+    .map(player => ({
+      ...player,
+      currentSetup: "Professional Setup"
+    }));
+  
   return data({ 
-    message: "Welcome to TT Reviews",
     user: userResponse?.data?.user || null,
+    featuredEquipment,
+    popularPlayers,
   }, { headers: sbServerClient.headers });
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { message, user } = loaderData;
+  const { user, featuredEquipment, popularPlayers } = loaderData;
 
   return (
-    <div>
-      <nav style={{ padding: "1rem", background: "#f5f5f5", borderBottom: "1px solid #ddd" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0 }}>TT Reviews</h2>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <a href="/test-db" style={{ textDecoration: "none", color: "#1976d2" }}>Test DB</a>
-            <a href="/test-api" style={{ textDecoration: "none", color: "#1976d2" }}>Test API</a>
-            {user ? (
-              <>
-                <a href="/profile" style={{ textDecoration: "none", color: "#1976d2" }}>
-                  Profile ({user.email})
-                </a>
-                <form method="post" action="/logout" style={{ display: "inline" }}>
-                  <button 
-                    type="submit"
-                    style={{ 
-                      background: "none", 
-                      border: "none", 
-                      color: "#d32f2f", 
-                      cursor: "pointer",
-                      textDecoration: "underline"
-                    }}
-                  >
-                    Logout
-                  </button>
-                </form>
-              </>
-            ) : (
-              <a href="/login" style={{ textDecoration: "none", color: "#1976d2" }}>Login</a>
-            )}
-          </div>
-        </div>
-      </nav>
-      <Welcome message={message} />
+    <div className="min-h-screen bg-gray-50">
+      <Navigation user={user} />
+      <main>
+        <HeroSection />
+        <FeaturedEquipmentSection equipment={featuredEquipment} />
+        <PopularPlayersSection players={popularPlayers} />
+        <CategoriesSection />
+      </main>
+      <Footer />
     </div>
   );
 }
