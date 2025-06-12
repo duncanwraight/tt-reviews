@@ -4,6 +4,7 @@ import { Footer } from "../ui/Footer";
 interface User {
   id: string;
   email?: string;
+  role?: string;
 }
 
 interface PageLayoutProps {

@@ -4,6 +4,7 @@ interface NavigationProps {
   user?: {
     id: string;
     email?: string;
+    role?: string;
   } | null;
 }
 
@@ -30,9 +31,15 @@ export function Navigation({ user }: NavigationProps) {
                 <Link to="/players/submit" className="text-gray-700 hover:text-purple-600 transition-colors">
                   Submit Player
                 </Link>
-                <Link to="/profile" className="text-gray-700 hover:text-purple-600 transition-colors">
-                  Profile
-                </Link>
+                {user.role === 'admin' ? (
+                  <Link to="/admin" className="text-gray-700 hover:text-purple-600 transition-colors">
+                    Admin
+                  </Link>
+                ) : (
+                  <Link to="/profile" className="text-gray-700 hover:text-purple-600 transition-colors">
+                    Profile
+                  </Link>
+                )}
                 <form method="post" action="/logout" className="inline">
                   <button 
                     type="submit"

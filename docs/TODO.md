@@ -64,13 +64,37 @@
     - ✅ Authentication protection and database integration
     - ✅ Fixed routing conflicts by restructuring players routes
     - ✅ Navigation integration with submit links
-  - [ ] Player edit (`/players/:slug/edit`)
+  - [x] Player edit (`/players/:slug/edit`) ✅
+    - ✅ Created players.$slug.edit.tsx route with authentication protection
+    - ✅ Built PlayerEditForm component with validation and change detection
+    - ✅ Integrated with existing player_edits table and RLS policies
+    - ✅ Navigation integration with edit buttons in player pages
 
-- [ ] **Admin Pages** (Admin only):
-  - [ ] Admin dashboard (`/admin`)
-  - [ ] Admin reviews (`/admin/reviews`)
-  - [ ] Admin equipment submissions (`/admin/equipment-submissions`)
-  - [ ] Admin player edits (`/admin/player-edits`)
+- [x] **Admin Pages** (Admin only): ✅
+  - [x] Admin dashboard (`/admin`) ✅
+    - ✅ Overview dashboard with submission/edit counts and pending items
+    - ✅ Quick action buttons and content statistics
+    - ✅ Proper Supabase RBAC with JWT claims and auth hooks
+    - ✅ Production-ready role-based access control
+  - [x] Admin equipment submissions (`/admin/equipment-submissions`) ✅
+    - ✅ List view of all equipment submissions with status badges
+    - ✅ Detailed specification display and moderation notes
+    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+  - [x] Admin player submissions (`/admin/player-submissions`) ✅
+    - ✅ List view of all player submissions with complete player info
+    - ✅ Equipment setup display and status management
+    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+  - [x] Admin player edits (`/admin/player-edits`) ✅
+    - ✅ List view of all player edit requests with diff display
+    - ✅ Integration with players table for context
+    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+
+- [x] **Role-Based Access Control (RBAC)**: ✅
+  - ✅ Implemented proper Supabase RBAC following official best practices
+  - ✅ Created user_roles table with auth hook for JWT claims
+  - ✅ Server-side role checking in admin routes using JWT decoding
+  - ✅ Frontend role display in Navigation component (Admin vs Profile)
+  - ✅ Production-ready pattern avoiding RLS recursion issues
 
 ### API Endpoints (External Integration)
 - [ ] **Pure API Routes** (JSON responses):

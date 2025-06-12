@@ -186,6 +186,43 @@ const handleLogout = async () => {
 - **Cloudflare**: Access via `context.cloudflare.env as Record<string, string>`
 - **Regular Node.js**: Access via `process.env` (reference apps only)
 
+## Role-Based Access Control (RBAC)
+
+This project uses **Supabase RBAC** with JWT claims following official best practices.
+
+### Using User Roles in Components
+
+**In Route Loaders** (server-side):
+```typescript
+// Decode JWT to get user role
+let userWithRole = userResponse?.data?.user || null;
+if (userWithRole) {
+  const session = await sbServerClient.client.auth.getSession();
+  if (session.data.session?.access_token) {
+    const payload = JSON.parse(Buffer.from(session.data.session.access_token.split('.')[1], 'base64').toString());
+    userWithRole = { ...userWithRole, role: payload.user_role || 'user' };
+  }
+}
+```
+
+**In Components** (client-side):
+```typescript
+// Check user role from props
+{user?.role === 'admin' ? (
+  <AdminComponent />
+) : (
+  <RegularComponent />
+)}
+```
+
+**Role Values**: `'admin'`, `'moderator'`, `'user'` (default)
+
+### Managing User Roles
+
+- **Add role**: `INSERT INTO user_roles (user_id, role) VALUES (uuid, 'admin')`
+- **Auth hook**: Automatically adds `user_role` claim to JWT tokens
+- **Production**: Enable auth hook in Supabase Dashboard > Authentication > Hooks
+
 ## React Router v7 File-Based Routing
 
 This project uses **file-based routing** with React Router v7. Key configuration details:
