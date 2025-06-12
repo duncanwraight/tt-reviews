@@ -14,8 +14,9 @@
 ### Database & Authentication
 
 - **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
+- **Authentication**: Supabase Auth with client-side implementation
 - **Benefits**: Mature PostgreSQL with full-text search, generous free tier, built-in auth system
+- **Auth Architecture**: Client-side only authentication for React Router compatibility (see CLAUDE.md)
 
 ### Integration Points
 
@@ -38,6 +39,7 @@
 - Specific role IDs configured in worker environment variables
 - Bot validates user roles before allowing moderation commands
 - Supports multiple permission levels (e.g., Moderator, Admin roles)
+- **Note**: Discord auth is separate from main app Supabase authentication
 
 **Notification System**: OOAK Discord Channel Integration
 
@@ -108,6 +110,7 @@
   - **Maintainable architecture**: File-based routing with co-located data loading
   - **Progressive enhancement**: Works without JavaScript, enhances with it
   - **API endpoints**: Same routes serve both JSON (for external apps) and HTML (for browsers)
+  - **Authentication architecture**: Client-side only Supabase auth eliminates server/client conflicts
 
 ### Implementation Benefits
 

@@ -71,7 +71,6 @@ export async function validateCSRF(
   formData?: FormData
 ): Promise<void> {
   const authService = new AuthService(context)
-  const session = await authService.getSession(request)
   
   let csrfToken: string | undefined
   
@@ -87,7 +86,7 @@ export async function validateCSRF(
     }
   }
   
-  if (!authService.validateCSRFToken(session, csrfToken)) {
+  if (!authService.validateCSRFToken(request, csrfToken)) {
     throw new Error('Invalid CSRF token')
   }
 }

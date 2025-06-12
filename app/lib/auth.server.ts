@@ -19,13 +19,13 @@ export interface AuthContext {
   isAdmin: boolean
 }
 
-// Create session storage with secure settings
+// Direct session storage creation per context - standard React Router v7 pattern
 function createSessionStorage(context: AppLoadContext) {
   const env = context.cloudflare.env as Record<string, string>
   
   return createCookieSessionStorage({
     cookie: {
-      name: '__session',
+      name: 'session',
       httpOnly: true,
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
@@ -45,9 +45,15 @@ export class AuthService {
     this.sessionStorage = createSessionStorage(context)
   }
 
-  // Get session from request
+  // Get session from request with error handling
   async getSession(request: Request) {
-    return await this.sessionStorage.getSession(request.headers.get('Cookie'))
+    try {
+      return await this.sessionStorage.getSession(request.headers.get('Cookie'))
+    } catch (error) {
+      // If session parsing fails (e.g., invalid format), return new session
+      console.warn('Session parsing failed, creating new session:', error.message)
+      return await this.sessionStorage.getSession('')
+    }
   }
 
   // Commit session to response headers
@@ -78,23 +84,69 @@ export class AuthService {
     session.set('sessionData', sessionData)
   }
 
-  // Get CSRF token from session
-  getCSRFToken(session: any): string {
-    let token = session.get('csrfToken')
-    if (!token) {
-      token = this.generateCSRFToken()
-      session.set('csrfToken', token)
+  // Get CSRF token using double-submit cookie pattern  
+  getCSRFToken(request: Request): { token: string; cookieHeader: string } {
+    try {
+      // Safely extract cookies from request
+      const cookies = this.extractCookies(request)
+      const existingToken = this.extractCSRFTokenFromCookies(cookies)
+      
+      if (existingToken && this.isValidCSRFToken(existingToken)) {
+        return { token: existingToken, cookieHeader: '' }
+      }
+      
+      // Generate new token and cookie
+      const token = this.generateCSRFToken()
+      const env = this.context.cloudflare.env as Record<string, string>
+      const isSecure = env.ENVIRONMENT === 'production'
+      const cookieHeader = `__csrf=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24}${isSecure ? '; Secure' : ''}`
+      
+      return { token, cookieHeader }
+    } catch (error) {
+      // Fallback: generate new token if anything goes wrong
+      const token = this.generateCSRFToken()
+      const env = this.context.cloudflare.env as Record<string, string>
+      const isSecure = env.ENVIRONMENT === 'production'
+      const cookieHeader = `__csrf=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24}${isSecure ? '; Secure' : ''}`
+      
+      return { token, cookieHeader }
     }
-    return token
   }
 
-  // Validate CSRF token
-  validateCSRFToken(session: any, providedToken?: string): boolean {
-    const storedToken = session.get('csrfToken')
-    if (!storedToken || !providedToken) {
+  // Validate CSRF token using double-submit cookie pattern
+  validateCSRFToken(request: Request, providedToken?: string): boolean {
+    try {
+      if (!providedToken || !this.isValidCSRFToken(providedToken)) {
+        return false
+      }
+      
+      const cookies = this.extractCookies(request)
+      const cookieToken = this.extractCSRFTokenFromCookies(cookies)
+      
+      return cookieToken === providedToken && this.isValidCSRFToken(cookieToken)
+    } catch (error) {
       return false
     }
-    return storedToken === providedToken
+  }
+
+  // Safely extract cookies from request
+  private extractCookies(request: Request): string {
+    try {
+      return request?.headers?.get('Cookie') || ''
+    } catch (error) {
+      return ''
+    }
+  }
+
+  // Validate CSRF token format
+  private isValidCSRFToken(token: string): boolean {
+    return typeof token === 'string' && token.length === 64 && /^[a-f0-9]+$/.test(token)
+  }
+
+  // Extract CSRF token from cookie string
+  private extractCSRFTokenFromCookies(cookies: string): string | null {
+    const match = cookies.match(/__csrf=([^;]+)/)
+    return match ? match[1] : null
   }
 
   // Generate secure CSRF token
@@ -124,7 +176,13 @@ export class AuthService {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error || !user) {
-      throw new Error('Invalid authentication token')
+      console.warn('Token validation failed:', {
+        error: error?.message,
+        hasUser: !!user,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...'
+      })
+      throw new Error(`Token validation failed: ${error?.message || 'No user found'}`)
     }
 
     return user
@@ -162,7 +220,8 @@ export class AuthService {
   async getOptionalAuthContext(session: any): Promise<AuthContext | null> {
     try {
       return await this.getAuthContext(session)
-    } catch {
+    } catch (error) {
+      console.warn('Auth context failed:', error.message)
       return null
     }
   }
@@ -174,13 +233,24 @@ export class AuthService {
     error: Error | null
   }> {
     try {
+      console.log('AuthService.signIn: Starting sign in for', email)
       const supabase = createSupabaseClient(this.context)
+      console.log('AuthService.signIn: Created Supabase client')
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('AuthService.signIn: Supabase response', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        error: error?.message
+      })
+
       if (error || !data.user || !data.session) {
+        console.log('AuthService.signIn: Sign in failed', error?.message)
         return {
           user: null,
           sessionData: null,

@@ -1,17 +1,22 @@
-import type { Route } from "./+types/profile"
+import type { Route } from "./+types/profile";
+import { getServerClient } from "~/lib/supabase.server";
+import { redirect, data } from "react-router";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { requireAuth } = await import("~/lib/auth-utils.server")
-  const authContext = await requireAuth(request, context)
+  const sbServerClient = getServerClient(request, context);
+  const userResponse = await sbServerClient.client.auth.getUser();
   
-  return {
-    user: authContext.user,
-    isAdmin: authContext.isAdmin,
+  if (userResponse.error || !userResponse.data.user) {
+    throw redirect("/login", { headers: sbServerClient.headers });
   }
+  
+  return data({
+    user: userResponse.data.user,
+  }, { headers: sbServerClient.headers });
 }
 
 export default function Profile({ loaderData }: Route.ComponentProps) {
-  const { user, isAdmin } = loaderData
+  const { user } = loaderData
 
   return (
     <div style={{ fontFamily: "monospace", padding: "2rem", maxWidth: "600px" }}>
@@ -22,7 +27,6 @@ export default function Profile({ loaderData }: Route.ComponentProps) {
         <p><strong>Email:</strong> {user.email}</p>
         <p><strong>User ID:</strong> {user.id}</p>
         <p><strong>Created:</strong> {new Date(user.created_at).toLocaleDateString()}</p>
-        <p><strong>Admin:</strong> {isAdmin ? "✅ Yes" : "❌ No"}</p>
       </div>
 
       <div style={{ display: "flex", gap: "1rem" }}>

@@ -1,193 +1,157 @@
-import type { Route } from "./+types/login"
+import {
+	Link,
+	redirect,
+	useNavigate,
+	data,
+	type MetaFunction,
+} from "react-router";
+import type { Route } from "./+types/login";
+import { getServerClient } from "~/lib/supabase.server";
+import { createBrowserClient } from "@supabase/ssr";
+import { useState } from "react";
 
-// Server-only imports are isolated in the loader/action functions
+export const meta: MetaFunction = () => {
+	return [
+		{ title: "Login - TT Reviews" },
+		{
+			name: "description",
+			content: "Login to your TT Reviews account",
+		},
+	];
+};
+
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { redirect } = await import('react-router')
-  const { getOptionalAuth, getAuthService } = await import("~/lib/auth-utils.server")
-  
-  // If already logged in, redirect to home
-  const authContext = await getOptionalAuth(request, context)
-  if (authContext) {
-    return redirect('/')
-  }
+	const sbServerClient = getServerClient(request, context);
+	const userResponse = await sbServerClient.client.auth.getUser();
 
-  // Get CSRF token for the form
-  const authService = getAuthService(context)
-  const session = await authService.getSession(request)
-  const csrfToken = authService.getCSRFToken(session)
+	if (userResponse?.data?.user) {
+		throw redirect("/", { headers: sbServerClient.headers });
+	}
 
-  return {
-    csrfToken,
-  }
+	return data(
+		{
+			env: {
+				SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
+				SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+			},
+		},
+		{ headers: sbServerClient.headers },
+	);
 }
 
-export async function action({ request, context }: Route.ActionArgs) {
-  const { redirect } = await import('react-router')
-  const { getAuthService } = await import("~/lib/auth-utils.server")
-  
-  const authService = getAuthService(context)
-  const formData = await request.formData()
-  
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const csrfToken = formData.get('csrf_token') as string
-  const intent = formData.get('intent') as string
 
-  // Validate CSRF token
-  const session = await authService.getSession(request)
-  const isValidCSRF = authService.validateCSRFToken(session, csrfToken)
-  
-  // Debug: Log CSRF validation
-  console.log('CSRF Debug:', {
-    providedToken: csrfToken?.substring(0, 8) + '...',
-    storedToken: session.get('csrfToken')?.substring(0, 8) + '...',
-    isValid: isValidCSRF
-  })
-  
-  if (!isValidCSRF) {
-    return {
-      error: 'Invalid CSRF token - please refresh the page and try again',
-      csrfToken: authService.getCSRFToken(session),
-    }
-  }
+export default function Login({ loaderData }: Route.ComponentProps) {
+	const [error, setError] = useState<string | null>(null);
+	const { env } = loaderData;
+	const navigate = useNavigate();
 
-  if (!email || !password) {
-    return {
-      error: 'Email and password are required',
-      csrfToken: authService.getCSRFToken(session),
-    }
-  }
+	const doLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const formData = new FormData(event.currentTarget);
+		const dataFields = Object.fromEntries(formData.entries());
+		const intent = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value');
 
-  try {
-    let result
-    
-    if (intent === 'signup') {
-      result = await authService.signUp(email, password)
-    } else {
-      result = await authService.signIn(email, password)
-    }
+		const supabase = createBrowserClient(
+			env.SUPABASE_URL,
+			env.SUPABASE_ANON_KEY,
+		);
 
-    if (result.error) {
-      return {
-        error: result.error.message,
-        csrfToken: authService.getCSRFToken(session),
-      }
-    }
+		try {
+			let result;
+			
+			if (intent === 'signup') {
+				result = await supabase.auth.signUp({
+					email: dataFields.email as string,
+					password: dataFields.password as string,
+				});
+			} else {
+				result = await supabase.auth.signInWithPassword({
+					email: dataFields.email as string,
+					password: dataFields.password as string,
+				});
+			}
 
-    if (result.sessionData) {
-      // Set session data and redirect
-      authService.setSessionData(session, result.sessionData)
-      
-      const redirectTo = new URL(request.url).searchParams.get('redirectTo') || '/'
-      
-      return redirect(redirectTo, {
-        headers: {
-          'Set-Cookie': await authService.commitSession(session),
-        },
-      })
-    } else {
-      // For signup, might need email confirmation
-      return {
-        success: 'Please check your email to confirm your account',
-        csrfToken: authService.getCSRFToken(session),
-      }
-    }
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : 'Authentication failed',
-      csrfToken: authService.getCSRFToken(session),
-    }
-  }
-}
+			if (result.error) {
+				console.log(result.error);
+				setError(result.error.message);
+				return;
+			}
 
-export default function Login({ loaderData, actionData }: Route.ComponentProps) {
-  const { csrfToken } = loaderData
-  const error = actionData?.error
-  const success = actionData?.success
+			if (result.data.session) {
+				navigate("/");
+			} else if (intent === 'signup') {
+				setError('Please check your email to confirm your account');
+			}
+		} catch (err) {
+			console.error(err);
+			setError('An unexpected error occurred');
+		}
+	};
 
-  return (
-    <div style={{ fontFamily: "monospace", padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>Login / Sign Up</h1>
-      
-      {error && (
-        <div style={{ background: "#ffebee", padding: "1rem", borderRadius: "4px", marginBottom: "1rem", color: "#c62828" }}>
-          {error}
-        </div>
-      )}
-      
-      {success && (
-        <div style={{ background: "#e8f5e8", padding: "1rem", borderRadius: "4px", marginBottom: "1rem", color: "#2e7d32" }}>
-          {success}
-        </div>
-      )}
+	return (
+		<div className="p-8 min-w-3/4 w-[500px] mx-auto">
+			<h1 className="text-2xl">TT Reviews - Login</h1>
+			
+			{error && (
+				<div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mt-4">
+					{error}
+				</div>
+			)}
 
-      <form method="post" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <input type="hidden" name="csrf_token" value={actionData?.csrfToken || csrfToken} />
-        
-        <div>
-          <label htmlFor="email" style={{ display: "block", marginBottom: "0.5rem" }}>Email:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            required
-            style={{ width: "100%", padding: "0.5rem", border: "1px solid #ccc", borderRadius: "4px" }}
-          />
-        </div>
+			<form className="mt-6" onSubmit={doLogin}>
+				<div className="flex flex-col gap-4">
+					<div>
+						<label htmlFor="email" className="block text-sm font-medium mb-2">
+							Email:
+						</label>
+						<input
+							id="email"
+							className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+							type="email"
+							name="email"
+							placeholder="Enter your email"
+							required
+						/>
+					</div>
+					<div>
+						<label htmlFor="password" className="block text-sm font-medium mb-2">
+							Password:
+						</label>
+						<input
+							id="password"
+							className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+							type="password"
+							name="password"
+							placeholder="Enter your password"
+							required
+							minLength={6}
+						/>
+					</div>
+					<div className="flex gap-4 mt-4">
+						<button
+							type="submit"
+							name="intent"
+							value="login"
+							className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+						>
+							Login
+						</button>
+						<button
+							type="submit"
+							name="intent"
+							value="signup"
+							className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+						>
+							Sign Up
+						</button>
+					</div>
+				</div>
+			</form>
 
-        <div>
-          <label htmlFor="password" style={{ display: "block", marginBottom: "0.5rem" }}>Password:</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            required
-            minLength={6}
-            style={{ width: "100%", padding: "0.5rem", border: "1px solid #ccc", borderRadius: "4px" }}
-          />
-        </div>
-
-        <div style={{ display: "flex", gap: "1rem" }}>
-          <button
-            type="submit"
-            name="intent"
-            value="login"
-            style={{ 
-              flex: 1, 
-              padding: "0.75rem", 
-              backgroundColor: "#1976d2", 
-              color: "white", 
-              border: "none", 
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Login
-          </button>
-          
-          <button
-            type="submit"
-            name="intent"
-            value="signup"
-            style={{ 
-              flex: 1, 
-              padding: "0.75rem", 
-              backgroundColor: "#388e3c", 
-              color: "white", 
-              border: "none", 
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Sign Up
-          </button>
-        </div>
-      </form>
-
-      <div style={{ marginTop: "2rem", fontSize: "0.9em", color: "#666" }}>
-        <p><strong>Test Account:</strong></p>
-        <p>You can create a new account or use existing credentials from your archive data.</p>
-      </div>
-    </div>
-  )
+			<div className="mt-8 text-sm text-gray-600">
+				<p><strong>Test Account:</strong></p>
+				<p>You can create a new account or use existing credentials.</p>
+			</div>
+		</div>
+	);
 }

@@ -1,5 +1,7 @@
 import type { Route } from "./+types/home";
 import { Welcome } from "../welcome/welcome";
+import { getServerClient } from "~/lib/supabase.server";
+import { data } from "react-router";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -9,18 +11,17 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { getOptionalAuth } = await import("~/lib/auth-utils.server");
-  const authContext = await getOptionalAuth(request, context);
+  const sbServerClient = getServerClient(request, context);
+  const userResponse = await sbServerClient.client.auth.getUser();
   
-  return { 
-    message: context.cloudflare.env.VALUE_FROM_CLOUDFLARE,
-    user: authContext?.user || null,
-    isAdmin: authContext?.isAdmin || false,
-  };
+  return data({ 
+    message: "Welcome to TT Reviews",
+    user: userResponse?.data?.user || null,
+  }, { headers: sbServerClient.headers });
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { message, user, isAdmin } = loaderData;
+  const { message, user } = loaderData;
 
   return (
     <div>
@@ -35,9 +36,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <a href="/profile" style={{ textDecoration: "none", color: "#1976d2" }}>
                   Profile ({user.email})
                 </a>
-                {isAdmin && (
-                  <span style={{ color: "#388e3c", fontWeight: "bold" }}>ADMIN</span>
-                )}
                 <form method="post" action="/logout" style={{ display: "inline" }}>
                   <button 
                     type="submit"

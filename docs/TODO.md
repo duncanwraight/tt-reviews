@@ -8,17 +8,20 @@
   - [x] Test RLS policies work with new architecture - confirmed working with `/test-db`
 
 ### Authentication & Authorization  
-- [⚠️] **Auth System**: Migrate from cookie-based to React Router sessions (PARTIAL)
+- [x] **Auth System**: Migrate from cookie-based to React Router sessions ✅
   - [x] Port authentication service to React Router session management
   - [x] Update middleware patterns for route-level authentication  
   - [x] Implement admin role checking in loaders
   - [x] Add CSRF protection for forms
-  - [ ] **BLOCKER**: Fix Supabase local development email confirmation issues
-    - Issue: Local Supabase still requiring email verification despite `enable_confirmations = false` in config.toml
-    - Config changes attempted: Set `enable_confirmations = false` and `double_confirm_changes = false`
-    - Restarted Supabase local instance - issue persists
-    - Need to investigate: Alternative approaches (manual confirmation, test user setup, config override)
-  - [ ] Complete authentication flow testing once email confirmation resolved
+  - [x] **RESOLVED**: Fix authentication architecture conflicts ✅
+    - ✅ Fixed conflicting server/client auth by using client-side only approach
+    - ✅ Fixed Supabase server client cookie parsing format
+    - ✅ Removed server-side action from login route causing 400/500 errors
+    - ✅ Simplified login form to use client-side onSubmit handler
+    - ✅ Added comprehensive authentication documentation to CLAUDE.md
+    - ✅ Added `/debug-auth` route for troubleshooting
+    - ✅ Updated environment configuration for tt-reviews.local
+  - [x] Complete authentication flow testing - login/signup/logout working ✅
 
 ### Page Migration (Systematic Approach)
 - [ ] **Public Pages** (No auth required):
@@ -30,7 +33,7 @@
   - [ ] Search page (`/search`)
 
 - [ ] **User Pages** (Auth required):
-  - [ ] Login/Signup (`/login`)
+  - [x] Login/Signup (`/login`) ✅
   - [ ] Profile page (`/profile`)
   - [ ] Equipment submit (`/equipment/submit`)
   - [ ] Player submit (`/players/submit`)

@@ -111,10 +111,18 @@ export function createSupabaseClient(context: AppLoadContext): SupabaseClient {
   const supabaseUrl = env.SUPABASE_URL
   const supabaseKey = env.SUPABASE_ANON_KEY
 
+  console.log('createSupabaseClient: Environment check', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey,
+    url: supabaseUrl,
+    keyLength: supabaseKey?.length
+  })
+
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase environment variables')
   }
 
+  console.log('createSupabaseClient: Creating client with URL:', supabaseUrl)
   return createClient(supabaseUrl, supabaseKey)
 }
 
