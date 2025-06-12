@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EquipmentTimeline } from "./EquipmentTimeline";
-import { PlayerEquipmentSetup } from "~/lib/types";
+import type { PlayerEquipmentSetup } from "~/lib/database.server";
 
 interface PlayerTabsProps {
   player: {

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { PlayerEquipmentSetup } from "~/lib/types";
+import type { PlayerEquipmentSetup } from "~/lib/database.server";
 
 interface EquipmentTimelineProps {
   equipmentSetups: (PlayerEquipmentSetup & {

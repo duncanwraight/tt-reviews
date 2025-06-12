@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router";
+
 interface SearchFormProps {
   placeholder?: string;
   className?: string;
@@ -7,12 +9,14 @@ export function SearchForm({
   placeholder = "Search equipment, players, or brands...",
   className = ""
 }: SearchFormProps) {
+  const navigate = useNavigate();
+
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const query = formData.get('q') as string;
-    if (query.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(query.trim())}`;
+    if (query && query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
     }
   };
 

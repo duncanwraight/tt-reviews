@@ -1,4 +1,4 @@
-import { Player } from "~/lib/types";
+import type { Player } from "~/lib/database.server";
 
 interface PlayerHeaderProps {
   player: Player;

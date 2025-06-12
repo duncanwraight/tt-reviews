@@ -41,36 +41,17 @@
 - Every new change we work on should be stored in `./docs/TODO.md`
 - You should read this file every time we start a new conversation
 
-## Workflow
+## Frontend requirements
 
-When you have completed a change, or a small batch of changes, always follow this process:
-
-- **CRITICAL**: Run `npm run format` first, then `npm run check` (formats, lints, and type checks) and ensure it passes with zero errors
-- **Discord Changes**: For Discord-related changes, also run `npm run test:discord` to verify integration
-- **DO NOT COMMIT** if `npm run check` fails with any TypeScript errors or linting errors
-- **Database Changes**: Use `supabase migrations up` to apply migrations locally, but migrations will be deployed to the production database through the Github Actions pipeline which occurs once we've pushed to `main`
-- Await my input to confirm the change has been tested
-- Update the ./docs/TODO.md file to mark changes completed
-- Stage all files in the repo with `git add .`
-- Commit and push
-
-### Pre-Commit Requirements
-
-NEVER commit code that fails type checking or has build errors. Always ensure:
-
-1. `npm run check` passes completely (zero errors)
-2. All TypeScript errors are resolved
-3. No critical linting errors remain (warnings are acceptable)
-
-## Code Quality Standards
-
-When writing TypeScript code, follow these strict guidelines to avoid linting errors:
-
-- **Avoid inline styles**: In any JavaScript or TypeScript file we create, avoid inline styles. Put them in stylesheets instead
-- **No `any` types**: Always use proper TypeScript types. Import `SupabaseClient` type instead of using `any`
-- **No unused variables**: Remove or prefix with underscore if intentionally unused
-- **Proper type assertions**: Use `as Record<string, string>` for environment variables instead of accessing unknown types directly
-- **Import specific types**: Import `{ createClient, SupabaseClient }` instead of just the client
+- Break down large JSX blocks into small, focused React components
+- Create reusable UI components in `/app/components/ui/` 
+- Create page-specific components in `/app/components/[feature]/`
+- Use composition over large monolithic components
+- Implement proper TypeScript interfaces for all component props
+- Follow single responsibility principle - each component should have one clear purpose
+- Create layout components (`PageLayout`, `PageSection`) for consistent structure
+- Avoid inline JSX blocks - extract into named components with clear interfaces
+- Use proper React patterns: controlled components, proper event handling, etc.
 
 ## Authentication Architecture
 
