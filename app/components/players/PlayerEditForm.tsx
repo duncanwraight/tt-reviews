@@ -120,6 +120,34 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
         throw submitError;
       }
 
+      // Send Discord notification (non-blocking)
+      try {
+        const notificationData = {
+          id: data.id,
+          player_name: player.name,
+          player_id: player.id,
+          edit_data: editData,
+          submitter_email: "User submission", // We don't have email in this context
+        };
+
+        fetch(`/api/discord/notify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "new_player_edit",
+            data: notificationData,
+          }),
+        }).catch((error) => {
+          console.error("Discord notification failed:", error);
+          // Don't fail the submission if Discord notification fails
+        });
+      } catch (error) {
+        console.error("Discord notification setup failed:", error);
+        // Don't fail the submission if Discord notification setup fails
+      }
+
       setSuccess(
         "Player edit submitted successfully! It will be reviewed by our team."
       );

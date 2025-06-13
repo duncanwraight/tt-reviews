@@ -41,7 +41,7 @@
   - ✅ Added comprehensive file-based routing documentation to CLAUDE.md
   - ✅ Consolidated home page from `/home` to `/` (root route in `_index.tsx`)
 
-- [ ] **Public Pages** (No auth required):
+- [x] **Public Pages** (No auth required):
 
   - [x] Home page (`/`) - with search functionality ✅
   - [x] Equipment index (`/equipment`) ✅
@@ -50,7 +50,7 @@
   - [x] Player detail (`/players/:slug`) ✅
   - [x] Search page (`/search`) ✅
 
-- [ ] **User Pages** (Auth required):
+- [x] **User Pages** (Auth required):
 
   - [x] Login/Signup (`/login`) ✅
   - [x] Profile page (`/profile`) ✅
@@ -152,6 +152,14 @@
   - [ ] Add image optimization and resizing
   - [ ] Create image upload components
 
+### Caching
+- [ ] Agree and implement best possible solution for caching when using Cloudflare Workers
+  - Our application is very read-heavy, with content that won't be changing regularly
+
+### Performance
+  - [ ] Add error boundaries for better UX
+  - [ ] Test bundle size and loading performance
+
 ### Testing & Quality
 
 - [ ] **Test Migration**:
@@ -159,10 +167,6 @@
   - [ ] Add React Router specific tests
   - [ ] Test SSR/hydration behavior
   - [ ] Validate Discord integration still works
-- [ ] **Performance**:
-  - [ ] Implement proper caching strategies
-  - [ ] Add error boundaries for better UX
-  - [ ] Test bundle size and loading performance
 
 ### SEO & Meta Tags
 
@@ -186,7 +190,7 @@
 
 ### Features (Previous TODO items)
 
-- [ ] Create reusable loading/feedback system for async operations (register, sign in, submit equipment)
+- [x] Create reusable loading/feedback system for async operations (register, sign in, submit equipment)
 - [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
 - [ ] Add per-type sponge thicknesses for rubbers
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max
@@ -194,7 +198,7 @@
 - [ ] Update Admin area to allow for configuration of almost everything - players, equipment and also categories for everything that requires a category, like sponge thicknesses and types of rubber
 - [ ] On pages where a search bar features, hide the search bar from the top header
   - E.g. home page, search page
-- [ ] Implement /equipment/category interface
+- [x] Implement /equipment/category interface
 - [ ] Include images as part of new player submission
 - [ ] Improve the Discord webhook cards
   - More relevant information

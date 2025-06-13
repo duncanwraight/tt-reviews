@@ -57,7 +57,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // Use authenticated client with RLS policies
   const supabase = sbServerClient.client;
-  const { error: submitError } = await supabase
+  const { data: submission, error: submitError } = await supabase
     .from("equipment_submissions")
     .insert({
       user_id: user.id,
@@ -67,7 +67,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       subcategory: subcategory || null,
       specifications,
       status: "pending",
-    });
+    })
+    .select()
+    .single();
 
   if (submitError) {
     console.error("Submission error:", submitError);
@@ -75,6 +77,39 @@ export async function action({ request, context }: Route.ActionArgs) {
       { error: "Failed to submit equipment. Please try again." },
       { status: 500, headers: sbServerClient.headers }
     );
+  }
+
+  // Send Discord notification (non-blocking)
+  try {
+    const notificationData = {
+      id: submission.id,
+      name: submission.name,
+      manufacturer: submission.manufacturer,
+      category: submission.category,
+      subcategory: submission.subcategory,
+      submitter_email: user.email,
+    };
+
+    // Make internal API call to Discord notification endpoint
+    const env = context.cloudflare.env as Cloudflare.Env;
+    const baseUrl = env.SITE_URL || `https://${request.headers.get("host")}`;
+    
+    fetch(`${baseUrl}/api/discord/notify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "new_equipment_submission",
+        data: notificationData,
+      }),
+    }).catch((error) => {
+      console.error("Discord notification failed:", error);
+      // Don't fail the submission if Discord notification fails
+    });
+  } catch (error) {
+    console.error("Discord notification setup failed:", error);
+    // Don't fail the submission if Discord notification setup fails
   }
 
   return data(

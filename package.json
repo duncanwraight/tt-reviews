@@ -12,8 +12,9 @@
     "preview": "npm run build && vite preview",
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
     "check": "npm run build",
-    "test": "echo 'No tests configured yet'",
-    "test:discord": "echo 'Discord tests not yet migrated to React Router v7'"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:discord": "vitest run app/lib/__tests__/discord.test.ts"
   },
   "dependencies": {
     "@react-router/fs-routes": "^7.6.2",
@@ -38,6 +39,8 @@
     "vite": "^6.3.3",
     "vite-plugin-devtools-json": "^0.2.0",
     "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^2.1.8",
+    "dotenv": "^16.4.7",
     "wrangler": "^4.19.2"
   }
 }
