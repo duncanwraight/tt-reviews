@@ -81,8 +81,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // Send Discord notification (non-blocking)
   try {
-    console.log("Starting Discord notification...");
-    
     const notificationData = {
       id: submission.id,
       name: submission.name,
@@ -92,21 +90,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       submitter_email: user.email,
     };
 
-    console.log("Notification data:", notificationData);
-
     // Get environment variables
     const env = context.cloudflare.env as Cloudflare.Env;
-    const baseUrl = env.SITE_URL || `https://${request.headers.get("host")}`;
     
-    console.log("Base URL:", baseUrl);
-    console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
-    
-    // Skip internal API call - use direct Discord webhook instead
-    console.log("=== Using direct Discord webhook (avoiding worker-to-worker call) ===");
-
-    // Call Discord webhook directly with full notification structure
+    // Use direct Discord webhook (avoiding worker-to-worker call)
     if (env.DISCORD_WEBHOOK_URL) {
-      console.log("Calling Discord webhook directly with full notification...");
       
       const embed = {
         title: "⚙️ Equipment Submission",
@@ -177,22 +165,14 @@ export async function action({ request, context }: Route.ActionArgs) {
         body: JSON.stringify(payload),
       });
 
-      console.log("Direct Discord response status:", directResponse.status);
-      console.log("Direct Discord response ok:", directResponse.ok);
-      
       if (!directResponse.ok) {
         const directErrorText = await directResponse.text();
         console.error("Direct Discord error:", directErrorText);
-      } else {
-        console.log("Discord notification sent successfully!");
       }
-    } else {
-      console.error("DISCORD_WEBHOOK_URL not available");
     }
     
   } catch (error) {
     console.error("Discord notification failed:", error);
-    console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
   }
 
   return data(

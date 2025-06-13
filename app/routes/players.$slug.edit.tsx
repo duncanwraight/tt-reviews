@@ -136,8 +136,6 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Send Discord notification (non-blocking)
     try {
-      console.log("Starting player edit Discord notification...");
-      
       const notificationData = {
         id: playerEdit.id,
         player_name: player.name,
@@ -146,18 +144,11 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         submitter_email: userResponse.data.user.email || "Anonymous",
       };
 
-      console.log("Player edit notification data:", notificationData);
-
       // Get environment variables
       const env = context.cloudflare.env as Cloudflare.Env;
       
-      console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
-      
       // Use direct Discord webhook (avoiding worker-to-worker call)
-      console.log("=== Using direct Discord webhook for player edit (avoiding worker-to-worker call) ===");
-
       if (env.DISCORD_WEBHOOK_URL) {
-        console.log("Calling Discord webhook directly for player edit...");
         
         // Create a summary of the changes
         const changes = [];
@@ -225,22 +216,14 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           body: JSON.stringify(payload),
         });
 
-        console.log("Direct Discord response status:", directResponse.status);
-        console.log("Direct Discord response ok:", directResponse.ok);
-        
         if (!directResponse.ok) {
           const directErrorText = await directResponse.text();
           console.error("Direct Discord error:", directErrorText);
-        } else {
-          console.log("Player edit Discord notification sent successfully!");
         }
-      } else {
-        console.error("DISCORD_WEBHOOK_URL not available");
       }
       
     } catch (error) {
       console.error("Player edit Discord notification failed:", error);
-      console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
       // Don't fail the submission if Discord notification fails
     }
 
