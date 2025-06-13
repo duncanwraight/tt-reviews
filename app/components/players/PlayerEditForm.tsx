@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Form, useNavigate, useActionData } from "react-router";
+import { Form, useNavigate } from "react-router";
+import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import type { Player } from "~/lib/database.server";
 
 interface PlayerEditFormProps {
@@ -46,22 +46,28 @@ const PLAYING_STYLES = [
 
 export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
   const navigate = useNavigate();
-  const actionData = useActionData() as { error?: string; success?: boolean; message?: string } | undefined;
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = () => {
-    setIsSubmitting(true);
-  };
-
-  // Handle success redirect
-  if (actionData?.success) {
-    setTimeout(() => {
-      navigate(`/players/${player.slug}`);
-    }, 2000);
-  }
 
   return (
     <div className="max-w-3xl mx-auto">
+      <RouterFormModalWrapper
+        loadingTitle="Submitting Player Edit"
+        loadingMessage="Please wait while we submit your player edit for review..."
+        successTitle="Player Edit Submitted!"
+        successMessage="Your player edit has been successfully submitted and will be reviewed by our team. Thank you for contributing!"
+        errorTitle="Submission Failed"
+        successRedirect={() => navigate(`/players/${player.slug}`)}
+        successRedirectDelay={3000}
+        successActions={
+          <button
+            onClick={() => navigate(`/players/${player.slug}`)}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+          >
+            Back to Player
+          </button>
+        }
+      >
+        {({ isLoading }) => (
+          <>
       {/* Current Information Display */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -138,19 +144,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
           Edit Player Information
         </h2>
 
-        {actionData?.error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {actionData.error}
-          </div>
-        )}
-
-        {actionData?.success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {actionData.message || "Player edit submitted successfully!"}
-          </div>
-        )}
-
-        <Form onSubmit={handleSubmit} method="post" className="space-y-6">
+        <Form method="post" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Player Name */}
             <div className="md:col-span-2">
@@ -166,7 +160,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 name="name"
                 defaultValue={player.name}
                 required
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>
@@ -184,7 +178,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 id="highest_rating"
                 name="highest_rating"
                 defaultValue={player.highest_rating || ""}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 placeholder="e.g., 3000+"
               />
@@ -203,7 +197,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 id="active_years"
                 name="active_years"
                 defaultValue={player.active_years || ""}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 placeholder="e.g., 2005-present"
               />
@@ -221,7 +215,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 id="playing_style"
                 name="playing_style"
                 defaultValue={player.playing_style || ""}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select playing style</option>
@@ -245,7 +239,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 id="birth_country"
                 name="birth_country"
                 defaultValue={player.birth_country || ""}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select country</option>
@@ -269,7 +263,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
                 id="represents"
                 name="represents"
                 defaultValue={player.represents || ""}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select country</option>
@@ -287,21 +281,23 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
             <button
               type="button"
               onClick={() => navigate(`/players/${player.slug}`)}
-              disabled={isSubmitting}
+              disabled={isLoading}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isLoading}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit Changes"}
+              {isLoading ? "Submitting..." : "Submit Changes"}
             </button>
           </div>
         </Form>
-      </div>
+          </>
+        )}
+      </RouterFormModalWrapper>
     </div>
   );
 }
