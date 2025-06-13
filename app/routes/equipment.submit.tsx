@@ -81,6 +81,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // Send Discord notification (non-blocking)
   try {
+    console.log("Starting Discord notification...");
+    
     const notificationData = {
       id: submission.id,
       name: submission.name,
@@ -90,11 +92,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       submitter_email: user.email,
     };
 
+    console.log("Notification data:", notificationData);
+
     // Make internal API call to Discord notification endpoint
     const env = context.cloudflare.env as Cloudflare.Env;
     const baseUrl = env.SITE_URL || `https://${request.headers.get("host")}`;
     
-    fetch(`${baseUrl}/api/discord/notify`, {
+    console.log("Base URL:", baseUrl);
+    console.log("Full URL:", `${baseUrl}/api/discord/notify`);
+    
+    const response = await fetch(`${baseUrl}/api/discord/notify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -103,13 +110,18 @@ export async function action({ request, context }: Route.ActionArgs) {
         type: "new_equipment_submission",
         data: notificationData,
       }),
-    }).catch((error) => {
-      console.error("Discord notification failed:", error);
-      // Don't fail the submission if Discord notification fails
     });
+
+    console.log("Discord API response status:", response.status);
+    console.log("Discord API response ok:", response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Discord API error response:", errorText);
+    }
+    
   } catch (error) {
-    console.error("Discord notification setup failed:", error);
-    // Don't fail the submission if Discord notification setup fails
+    console.error("Discord notification failed:", error);
   }
 
   return data(
