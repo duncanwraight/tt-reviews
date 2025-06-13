@@ -1,7 +1,6 @@
 import type { Route } from "./+types/players.$slug.edit";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
-import { sendDiscordPlayerEditNotification } from "~/lib/discord-webhook.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -71,23 +70,38 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const editDataJson = formData.get("editData") as string;
   
-  if (!editDataJson) {
-    return data(
-      { error: "No edit data provided" },
-      { status: 400, headers: sbServerClient.headers }
-    );
+  // Build edit data with only changed fields
+  const editData: any = {};
+
+  const name = formData.get("name") as string;
+  if (name && name.trim() !== player.name) {
+    editData.name = name.trim();
   }
 
-  let editData;
-  try {
-    editData = JSON.parse(editDataJson);
-  } catch {
-    return data(
-      { error: "Invalid edit data format" },
-      { status: 400, headers: sbServerClient.headers }
-    );
+  const highestRating = formData.get("highest_rating") as string;
+  if (highestRating !== (player.highest_rating || "")) {
+    editData.highest_rating = highestRating || undefined;
+  }
+
+  const activeYears = formData.get("active_years") as string;
+  if (activeYears !== (player.active_years || "")) {
+    editData.active_years = activeYears || undefined;
+  }
+
+  const playingStyle = formData.get("playing_style") as string;
+  if (playingStyle !== (player.playing_style || "")) {
+    editData.playing_style = playingStyle || undefined;
+  }
+
+  const birthCountry = formData.get("birth_country") as string;
+  if (birthCountry !== (player.birth_country || "")) {
+    editData.birth_country = birthCountry || undefined;
+  }
+
+  const represents = formData.get("represents") as string;
+  if (represents !== (player.represents || "")) {
+    editData.represents = represents || undefined;
   }
 
   // Check if there are any changes
@@ -122,6 +136,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Send Discord notification (non-blocking)
     try {
+      console.log("Starting player edit Discord notification...");
+      
       const notificationData = {
         id: playerEdit.id,
         player_name: player.name,
@@ -130,9 +146,101 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         submitter_email: userResponse.data.user.email || "Anonymous",
       };
 
-      await sendDiscordPlayerEditNotification(context, notificationData);
+      console.log("Player edit notification data:", notificationData);
+
+      // Get environment variables
+      const env = context.cloudflare.env as Cloudflare.Env;
+      
+      console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
+      
+      // Use direct Discord webhook (avoiding worker-to-worker call)
+      console.log("=== Using direct Discord webhook for player edit (avoiding worker-to-worker call) ===");
+
+      if (env.DISCORD_WEBHOOK_URL) {
+        console.log("Calling Discord webhook directly for player edit...");
+        
+        // Create a summary of the changes
+        const changes = [];
+        if (editData.name) changes.push(`Name: ${editData.name}`);
+        if (editData.highest_rating) changes.push(`Rating: ${editData.highest_rating}`);
+        if (editData.active_years) changes.push(`Active: ${editData.active_years}`);
+        if (editData.playing_style) changes.push(`Style: ${editData.playing_style}`);
+        if (editData.birth_country) changes.push(`Birth Country: ${editData.birth_country}`);
+        if (editData.represents) changes.push(`Represents: ${editData.represents}`);
+
+        const embed = {
+          title: "🏓 Player Edit Submitted",
+          description: "A player information update has been submitted and needs moderation.",
+          color: 0xe67e22, // Orange color to distinguish from reviews
+          fields: [
+            {
+              name: "Player",
+              value: notificationData.player_name || "Unknown Player",
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: notificationData.submitter_email || "Anonymous",
+              inline: true,
+            },
+            {
+              name: "Changes",
+              value: changes.length > 0 ? changes.join("\n") : "No changes specified",
+              inline: false,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Success/Green
+                label: "Approve Edit",
+                custom_id: `approve_player_edit_${notificationData.id}`,
+              },
+              {
+                type: 2, // Button
+                style: 4, // Danger/Red
+                label: "Reject Edit",
+                custom_id: `reject_player_edit_${notificationData.id}`,
+              },
+            ],
+          },
+        ];
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+        
+        const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        console.log("Direct Discord response status:", directResponse.status);
+        console.log("Direct Discord response ok:", directResponse.ok);
+        
+        if (!directResponse.ok) {
+          const directErrorText = await directResponse.text();
+          console.error("Direct Discord error:", directErrorText);
+        } else {
+          console.log("Player edit Discord notification sent successfully!");
+        }
+      } else {
+        console.error("DISCORD_WEBHOOK_URL not available");
+      }
+      
     } catch (error) {
-      console.error("Discord notification failed:", error);
+      console.error("Player edit Discord notification failed:", error);
+      console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
       // Don't fail the submission if Discord notification fails
     }
 

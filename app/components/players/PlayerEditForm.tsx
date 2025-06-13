@@ -49,50 +49,8 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
   const actionData = useActionData() as { error?: string; success?: boolean; message?: string } | undefined;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = () => {
     setIsSubmitting(true);
-    
-    const formData = new FormData(event.currentTarget);
-
-    // Build edit data with only changed fields
-    const editData: Partial<Player> = {};
-
-    const name = formData.get("name") as string;
-    if (name && name.trim() !== player.name) {
-      editData.name = name.trim();
-    }
-
-    const highestRating = formData.get("highest_rating") as string;
-    if (highestRating !== (player.highest_rating || "")) {
-      editData.highest_rating = highestRating || undefined;
-    }
-
-    const activeYears = formData.get("active_years") as string;
-    if (activeYears !== (player.active_years || "")) {
-      editData.active_years = activeYears || undefined;
-    }
-
-    const playingStyle = formData.get("playing_style") as string;
-    if (playingStyle !== (player.playing_style || "")) {
-      editData.playing_style = playingStyle || undefined;
-    }
-
-    const birthCountry = formData.get("birth_country") as string;
-    if (birthCountry !== (player.birth_country || "")) {
-      editData.birth_country = birthCountry || undefined;
-    }
-
-    const represents = formData.get("represents") as string;
-    if (represents !== (player.represents || "")) {
-      editData.represents = represents || undefined;
-    }
-
-    // Add the edit data as a hidden field
-    const editDataInput = document.createElement("input");
-    editDataInput.type = "hidden";
-    editDataInput.name = "editData";
-    editDataInput.value = JSON.stringify(editData);
-    event.currentTarget.appendChild(editDataInput);
   };
 
   // Handle success redirect
@@ -192,7 +150,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
           </div>
         )}
 
-        <Form onSubmit={handleSubmit} className="space-y-6">
+        <Form onSubmit={handleSubmit} method="post" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Player Name */}
             <div className="md:col-span-2">
