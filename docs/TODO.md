@@ -106,7 +106,9 @@
 
 ### API Endpoints (External Integration)
 
-- [ ] **Pure API Routes** (JSON responses):
+- [ ] Add an API token generation mechanism to the /admin area
+  - Allow administrator users to pick another user and generate a token on their behalf
+- [ ] **Pure API Routes** (JSON responses with authentication mechanism, using an API token):
   - [ ] `GET /api/equipment/:slug` - Equipment details
   - [ ] `GET /api/players/:slug` - Player details
   - [ ] `GET /api/search` - Search functionality

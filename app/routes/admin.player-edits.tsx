@@ -1,6 +1,8 @@
 import type { Route } from "./+types/admin.player-edits";
-import { data } from "react-router";
+import { data, redirect, Form } from "react-router";
 import { createSupabaseClient } from "~/lib/database.server";
+import { getServerClient } from "~/lib/supabase.server";
+import { getUserWithRole } from "~/lib/auth.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,7 +14,15 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const sbServerClient = getServerClient(request, context);
+  const user = await getUserWithRole(sbServerClient);
+
+  // Check admin access
+  if (!user || user.role !== "admin") {
+    throw redirect("/", { headers: sbServerClient.headers });
+  }
+
   const supabase = createSupabaseClient(context);
 
   const { data: playerEdits, error } = await supabase
@@ -32,14 +42,52 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   if (error) {
     console.error("Error fetching player edits:", error);
-    return data({ playerEdits: [] });
+    return data({ playerEdits: [], user }, { headers: sbServerClient.headers });
   }
 
-  return data({ playerEdits: playerEdits || [] });
+  return data({ playerEdits: playerEdits || [], user }, { headers: sbServerClient.headers });
+}
+
+export async function action({ request, context }: Route.ActionArgs) {
+  const sbServerClient = getServerClient(request, context);
+  const user = await getUserWithRole(sbServerClient);
+
+  // Check admin access
+  if (!user || user.role !== "admin") {
+    throw redirect("/", { headers: sbServerClient.headers });
+  }
+
+  const formData = await request.formData();
+  const editId = formData.get("editId") as string;
+  const actionType = formData.get("action") as string;
+  const moderatorNotes = formData.get("moderatorNotes") as string || null;
+
+  if (!editId || !actionType) {
+    return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
+  }
+
+  const supabase = createSupabaseClient(context);
+
+  const { error } = await supabase
+    .from("player_edits")
+    .update({
+      status: actionType as "approved" | "rejected",
+      moderator_id: user.id,
+      moderator_notes: moderatorNotes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", editId);
+
+  if (error) {
+    console.error("Error updating player edit:", error);
+    return data({ error: "Failed to update edit" }, { status: 500, headers: sbServerClient.headers });
+  }
+
+  return redirect("/admin/player-edits", { headers: sbServerClient.headers });
 }
 
 export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
-  const { playerEdits } = loaderData;
+  const { playerEdits, user } = loaderData;
 
   const getStatusBadge = (status: string) => {
     const baseClasses =
@@ -151,22 +199,34 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
                   <div className="mt-3 flex items-center space-x-3">
                     {edit.status === "pending" && (
                       <>
-                        <button
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          onClick={() => {
-                            /* TODO: Implement approve action */
-                          }}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          onClick={() => {
-                            /* TODO: Implement reject action */
-                          }}
-                        >
-                          Reject
-                        </button>
+                        <Form method="post" className="inline">
+                          <input
+                            type="hidden"
+                            name="editId"
+                            value={edit.id}
+                          />
+                          <input type="hidden" name="action" value="approved" />
+                          <button
+                            type="submit"
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            Approve
+                          </button>
+                        </Form>
+                        <Form method="post" className="inline">
+                          <input
+                            type="hidden"
+                            name="editId"
+                            value={edit.id}
+                          />
+                          <input type="hidden" name="action" value="rejected" />
+                          <button
+                            type="submit"
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            Reject
+                          </button>
+                        </Form>
                       </>
                     )}
                     {edit.players?.slug && (

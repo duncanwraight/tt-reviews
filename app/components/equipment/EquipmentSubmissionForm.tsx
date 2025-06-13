@@ -1,119 +1,25 @@
-import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { useNavigate } from "react-router";
+import { Form, useActionData, useNavigation } from "react-router";
 
-interface EquipmentSubmissionFormProps {
-  env: {
-    SUPABASE_URL: string;
-    SUPABASE_ANON_KEY: string;
-  };
-  userId: string;
-}
+export function EquipmentSubmissionForm() {
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
 
-export function EquipmentSubmissionForm({
-  env,
-  userId,
-}: EquipmentSubmissionFormProps) {
-  const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
-    const formData = new FormData(event.currentTarget);
-    const name = formData.get("name") as string;
-    const manufacturer = formData.get("manufacturer") as string;
-    const category = formData.get("category") as string;
-    const subcategory = formData.get("subcategory") as string;
-    const specificationsText = formData.get("specifications") as string;
-
-    // Validate required fields
-    if (!name || !manufacturer || !category) {
-      setError("Please fill in all required fields.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Parse specifications as JSON if provided
-    let specifications = {};
-    if (specificationsText.trim()) {
-      try {
-        // Try to parse as JSON, fallback to simple object
-        specifications = JSON.parse(specificationsText);
-      } catch {
-        // If not valid JSON, treat as description
-        specifications = { description: specificationsText.trim() };
-      }
-    }
-
-    try {
-      const supabase = createBrowserClient(
-        env.SUPABASE_URL,
-        env.SUPABASE_ANON_KEY
-      );
-
-      const { data, error: submitError } = await supabase
-        .from("equipment_submissions")
-        .insert({
-          user_id: userId,
-          name: name.trim(),
-          manufacturer: manufacturer.trim(),
-          category: category as "blade" | "rubber" | "ball",
-          subcategory: subcategory || null,
-          specifications,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (submitError) {
-        throw submitError;
-      }
-
-      setSuccess(
-        "Equipment submitted successfully! It will be reviewed by our team."
-      );
-
-      // Reset form
-      (event.target as HTMLFormElement).reset();
-
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate("/equipment");
-      }, 2000);
-    } catch (err) {
-      console.error("Submission error:", err);
-      setError("Failed to submit equipment. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
+        {actionData?.error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800">{actionData.error}</p>
+          </div>
+        )}
+
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Submit New Equipment
         </h2>
 
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <Form method="post" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Equipment Name */}
             <div className="md:col-span-2">
@@ -218,14 +124,12 @@ export function EquipmentSubmissionForm({
 
           {/* Submit Button */}
           <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => navigate("/equipment")}
-              disabled={isSubmitting}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+            <a
+              href="/equipment"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               Cancel
-            </button>
+            </a>
             <button
               type="submit"
               disabled={isSubmitting}
@@ -234,7 +138,7 @@ export function EquipmentSubmissionForm({
               {isSubmitting ? "Submitting..." : "Submit Equipment"}
             </button>
           </div>
-        </form>
+        </Form>
       </div>
     </div>
   );
