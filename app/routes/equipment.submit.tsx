@@ -94,14 +94,18 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     console.log("Notification data:", notificationData);
 
-    // Make internal API call to Discord notification endpoint
+    // Get environment variables
     const env = context.cloudflare.env as Cloudflare.Env;
     const baseUrl = env.SITE_URL || `https://${request.headers.get("host")}`;
     
     console.log("Base URL:", baseUrl);
+    console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
+    
+    // Test 1: Try calling our internal API
+    console.log("=== TEST 1: Internal API call ===");
     console.log("Full URL:", `${baseUrl}/api/discord/notify`);
     
-    const response = await fetch(`${baseUrl}/api/discord/notify`, {
+    const apiResponse = await fetch(`${baseUrl}/api/discord/notify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -112,16 +116,56 @@ export async function action({ request, context }: Route.ActionArgs) {
       }),
     });
 
-    console.log("Discord API response status:", response.status);
-    console.log("Discord API response ok:", response.ok);
+    console.log("API response status:", apiResponse.status);
+    console.log("API response ok:", apiResponse.ok);
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Discord API error response:", errorText);
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error("API error response:", errorText);
+    } else {
+      const successData = await apiResponse.json();
+      console.log("API success response:", successData);
+    }
+
+    // Test 2: Try calling Discord webhook directly
+    console.log("=== TEST 2: Direct Discord webhook call ===");
+    if (env.DISCORD_WEBHOOK_URL) {
+      console.log("Calling Discord webhook directly...");
+      
+      const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          embeds: [{
+            title: "⚙️ Test Equipment Submission (Direct)",
+            description: `Direct webhook test for ${notificationData.name}`,
+            color: 0x9b59b6,
+            fields: [
+              { name: "Equipment", value: notificationData.name, inline: true },
+              { name: "Manufacturer", value: notificationData.manufacturer, inline: true },
+              { name: "Category", value: notificationData.category, inline: true },
+            ],
+            timestamp: new Date().toISOString(),
+          }]
+        }),
+      });
+
+      console.log("Direct Discord response status:", directResponse.status);
+      console.log("Direct Discord response ok:", directResponse.ok);
+      
+      if (!directResponse.ok) {
+        const directErrorText = await directResponse.text();
+        console.error("Direct Discord error:", directErrorText);
+      }
+    } else {
+      console.error("DISCORD_WEBHOOK_URL not available");
     }
     
   } catch (error) {
     console.error("Discord notification failed:", error);
+    console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
   }
 
   return data(

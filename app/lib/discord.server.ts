@@ -848,8 +848,14 @@ export class DiscordService {
    * Send notification about new equipment submission
    */
   async notifyNewEquipmentSubmission(submissionData: any): Promise<any> {
+    console.log("notifyNewEquipmentSubmission called with data:", submissionData);
+    
     const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
+    console.log("Webhook URL exists:", !!webhookUrl);
+    console.log("Webhook URL (first 50 chars):", webhookUrl ? webhookUrl.substring(0, 50) + "..." : "null");
+    
     if (!webhookUrl) {
+      console.error("DISCORD_WEBHOOK_URL not configured");
       throw new Error("DISCORD_WEBHOOK_URL not configured");
     }
 
