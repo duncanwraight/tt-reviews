@@ -17,31 +17,49 @@ export function Navigation({ user }: NavigationProps) {
             TT Reviews
           </Link>
           <div className="flex items-center space-x-6">
-            <Link to="/equipment" className="text-gray-700 hover:text-purple-600 transition-colors">
+            <Link
+              to="/equipment"
+              className="text-gray-700 hover:text-purple-600 transition-colors"
+            >
               Equipment
             </Link>
-            <Link to="/players" className="text-gray-700 hover:text-purple-600 transition-colors">
+            <Link
+              to="/players"
+              className="text-gray-700 hover:text-purple-600 transition-colors"
+            >
               Players
             </Link>
             {user ? (
               <>
-                <Link to="/equipment/submit" className="text-gray-700 hover:text-purple-600 transition-colors">
+                <Link
+                  to="/equipment/submit"
+                  className="text-gray-700 hover:text-purple-600 transition-colors"
+                >
                   Submit Equipment
                 </Link>
-                <Link to="/players/submit" className="text-gray-700 hover:text-purple-600 transition-colors">
+                <Link
+                  to="/players/submit"
+                  className="text-gray-700 hover:text-purple-600 transition-colors"
+                >
                   Submit Player
                 </Link>
-                {user.role === 'admin' ? (
-                  <Link to="/admin" className="text-gray-700 hover:text-purple-600 transition-colors">
+                {user.role === "admin" ? (
+                  <Link
+                    to="/admin"
+                    className="text-gray-700 hover:text-purple-600 transition-colors"
+                  >
                     Admin
                   </Link>
                 ) : (
-                  <Link to="/profile" className="text-gray-700 hover:text-purple-600 transition-colors">
+                  <Link
+                    to="/profile"
+                    className="text-gray-700 hover:text-purple-600 transition-colors"
+                  >
                     Profile
                   </Link>
                 )}
                 <form method="post" action="/logout" className="inline">
-                  <button 
+                  <button
                     type="submit"
                     className="text-red-600 hover:text-red-800 transition-colors bg-none border-none cursor-pointer"
                   >
@@ -50,7 +68,10 @@ export function Navigation({ user }: NavigationProps) {
                 </form>
               </>
             ) : (
-              <Link to="/login" className="text-purple-600 hover:text-purple-800 transition-colors">
+              <Link
+                to="/login"
+                className="text-purple-600 hover:text-purple-800 transition-colors"
+              >
                 Login
               </Link>
             )}

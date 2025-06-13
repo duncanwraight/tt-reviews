@@ -1,41 +1,43 @@
 {
-	"name": "tt-reviews-new",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"build": "react-router build",
-		"cf-typegen": "wrangler types",
-		"deploy": "npm run build && wrangler deploy",
-		"dev": "react-router dev",
-		"dev:wrangler": "wrangler dev --env dev",
-		"postinstall": "npm run cf-typegen",
-		"preview": "npm run build && vite preview",
-		"typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
-		"check": "npm run build",
-		"test": "echo 'No tests configured yet'",
-		"test:discord": "echo 'Discord tests not yet migrated to React Router v7'"
-	},
-	"dependencies": {
-		"@react-router/fs-routes": "^7.6.2",
-		"@supabase/ssr": "^0.6.1",
-		"@supabase/supabase-js": "^2.48.1",
-		"isbot": "^5.1.27",
-		"react": "^19.1.0",
-		"react-dom": "^19.1.0",
-		"react-router": "^7.5.3"
-	},
-	"devDependencies": {
-		"@cloudflare/vite-plugin": "^1.0.12",
-		"@react-router/dev": "^7.5.3",
-		"@tailwindcss/vite": "^4.1.4",
-		"@types/node": "^20",
-		"@types/react": "^19.1.2",
-		"@types/react-dom": "^19.1.2",
-		"tailwindcss": "^4.1.4",
-		"typescript": "^5.8.3",
-		"vite": "^6.3.3",
-		"vite-plugin-devtools-json": "^0.2.0",
-		"vite-tsconfig-paths": "^5.1.4",
-		"wrangler": "^4.19.2"
-	}
+  "name": "tt-reviews-new",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "react-router build",
+    "cf-typegen": "wrangler types",
+    "deploy": "npm run build && wrangler deploy",
+    "dev": "react-router dev",
+    "dev:wrangler": "wrangler dev --env dev",
+    "postinstall": "npm run cf-typegen",
+    "preview": "npm run build && vite preview",
+    "typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
+    "check": "npm run build",
+    "test": "echo 'No tests configured yet'",
+    "test:discord": "echo 'Discord tests not yet migrated to React Router v7'"
+  },
+  "dependencies": {
+    "@react-router/fs-routes": "^7.6.2",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.48.1",
+    "isbot": "^5.1.27",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.5.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.0.12",
+    "@react-router/dev": "^7.5.3",
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/node": "^20",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "husky": "^9.2.1",
+    "prettier": "^3.5.2",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.3",
+    "vite-plugin-devtools-json": "^0.2.0",
+    "vite-tsconfig-paths": "^5.1.4",
+    "wrangler": "^4.19.2"
+  }
 }

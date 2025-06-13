@@ -7,7 +7,7 @@ interface Review {
   category_ratings: Record<string, number>;
   review_text?: string;
   reviewer_context: Record<string, unknown>;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   created_at: string;
 }
 
@@ -23,29 +23,34 @@ interface ReviewsSectionProps {
   equipmentName: string;
 }
 
-export function ReviewsSection({ reviews, reviewCount, user, equipmentName }: ReviewsSectionProps) {
+export function ReviewsSection({
+  reviews,
+  reviewCount,
+  user,
+  equipmentName,
+}: ReviewsSectionProps) {
   return (
     <section className="py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ReviewsSectionHeader 
-          reviewCount={reviewCount} 
-          user={user} 
-        />
-        
+        <ReviewsSectionHeader reviewCount={reviewCount} user={user} />
+
         {reviews.length > 0 ? (
           <ReviewsList reviews={reviews} />
         ) : (
-          <NoReviewsState 
-            equipmentName={equipmentName} 
-            user={user} 
-          />
+          <NoReviewsState equipmentName={equipmentName} user={user} />
         )}
       </div>
     </section>
   );
 }
 
-function ReviewsSectionHeader({ reviewCount, user }: { reviewCount: number; user?: User | null }) {
+function ReviewsSectionHeader({
+  reviewCount,
+  user,
+}: {
+  reviewCount: number;
+  user?: User | null;
+}) {
   return (
     <div className="flex items-center justify-between mb-8">
       <h2 className="text-2xl font-bold text-gray-900">
@@ -85,7 +90,13 @@ function ReviewsList({ reviews }: { reviews: Review[] }) {
   );
 }
 
-function NoReviewsState({ equipmentName, user }: { equipmentName: string; user?: User | null }) {
+function NoReviewsState({
+  equipmentName,
+  user,
+}: {
+  equipmentName: string;
+  user?: User | null;
+}) {
   return (
     <div className="text-center py-12">
       <div className="text-6xl mb-4">📝</div>

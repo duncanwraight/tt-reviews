@@ -13,14 +13,19 @@ export function QuickActions({ env }: QuickActionsProps) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+    const supabase = createBrowserClient(
+      env.SUPABASE_URL,
+      env.SUPABASE_ANON_KEY
+    );
     await supabase.auth.signOut();
     navigate("/login");
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        Quick Actions
+      </h2>
       <div className="space-y-3">
         <Link
           to="/equipment/submit"

@@ -10,7 +10,7 @@ export function HeroSection() {
         <p className="text-xl md:text-2xl mb-8 text-purple-100">
           Discover the gear that powers professional players
         </p>
-        
+
         <SearchForm className="max-w-2xl mx-auto" />
       </div>
     </section>

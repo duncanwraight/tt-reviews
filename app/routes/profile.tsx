@@ -12,23 +12,27 @@ import { QuickActions } from "~/components/profile/QuickActions";
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
-  
+
   if (userResponse.error || !userResponse.data.user) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
-  
+
   // Fetch user reviews
   const dbService = new DatabaseService(context);
   const userReviews = await dbService.getUserReviews(userResponse.data.user.id);
-  
-  return data({
-    user: userResponse.data.user,
-    reviews: userReviews,
-    env: {
-      SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
-      SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env).SUPABASE_ANON_KEY!,
+
+  return data(
+    {
+      user: userResponse.data.user,
+      reviews: userReviews,
+      env: {
+        SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
+          .SUPABASE_ANON_KEY!,
+      },
     },
-  }, { headers: sbServerClient.headers });
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function Profile({ loaderData }: Route.ComponentProps) {
@@ -40,15 +44,17 @@ export default function Profile({ loaderData }: Route.ComponentProps) {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-            <p className="text-gray-600">Manage your account and review history</p>
+            <p className="text-gray-600">
+              Manage your account and review history
+            </p>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <ProfileInfo user={user} />
               <UserReviews reviews={reviews} />
             </div>
-            
+
             <div className="lg:col-span-1">
               <QuickActions env={env} />
             </div>

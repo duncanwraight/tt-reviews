@@ -23,18 +23,22 @@ interface EquipmentHeaderProps {
   usedByPlayers?: Player[];
 }
 
-export function EquipmentHeader({ 
-  equipment, 
-  averageRating = 0, 
-  reviewCount = 0, 
-  usedByPlayers = [] 
+export function EquipmentHeader({
+  equipment,
+  averageRating = 0,
+  reviewCount = 0,
+  usedByPlayers = [],
 }: EquipmentHeaderProps) {
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'blade': return '🏓';
-      case 'rubber': return '⚫';
-      case 'ball': return '🟠';
-      default: return '📋';
+      case "blade":
+        return "🏓";
+      case "rubber":
+        return "⚫";
+      case "ball":
+        return "🟠";
+      default:
+        return "📋";
     }
   };
 
@@ -44,11 +48,16 @@ export function EquipmentHeader({
 
   const getSubcategoryName = (subcategory: string) => {
     switch (subcategory) {
-      case 'inverted': return 'Inverted';
-      case 'long_pips': return 'Long Pips';
-      case 'short_pips': return 'Short Pips';
-      case 'anti': return 'Anti-Spin';
-      default: return subcategory?.charAt(0).toUpperCase() + subcategory?.slice(1);
+      case "inverted":
+        return "Inverted";
+      case "long_pips":
+        return "Long Pips";
+      case "short_pips":
+        return "Short Pips";
+      case "anti":
+        return "Anti-Spin";
+      default:
+        return subcategory?.charAt(0).toUpperCase() + subcategory?.slice(1);
     }
   };
 
@@ -56,9 +65,11 @@ export function EquipmentHeader({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
       <div className="grid md:grid-cols-2 gap-8">
         <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64">
-          <span className="text-6xl">{getCategoryIcon(equipment.category)}</span>
+          <span className="text-6xl">
+            {getCategoryIcon(equipment.category)}
+          </span>
         </div>
-        
+
         <div>
           <div className="flex items-center gap-3 mb-4">
             <span className="inline-block px-3 py-1 text-sm font-semibold text-purple-800 bg-purple-100 rounded-full">
@@ -70,25 +81,23 @@ export function EquipmentHeader({
               </span>
             )}
           </div>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {equipment.name}
           </h1>
-          
-          <p className="text-xl text-gray-600 mb-4">
-            {equipment.manufacturer}
-          </p>
-          
+
+          <p className="text-xl text-gray-600 mb-4">{equipment.manufacturer}</p>
+
           {reviewCount > 0 && (
             <div className="mb-6">
-              <RatingStars 
-                rating={averageRating} 
-                count={reviewCount} 
-                size="large" 
+              <RatingStars
+                rating={averageRating}
+                count={reviewCount}
+                size="large"
               />
             </div>
           )}
-          
+
           {usedByPlayers.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">
@@ -102,7 +111,11 @@ export function EquipmentHeader({
                     className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 text-white font-bold text-sm rounded-full hover:from-teal-600 hover:to-teal-700 transition-all duration-200 transform hover:scale-110"
                     title={player.name}
                   >
-                    {player.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    {player.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .substring(0, 2)}
                   </Link>
                 ))}
               </div>

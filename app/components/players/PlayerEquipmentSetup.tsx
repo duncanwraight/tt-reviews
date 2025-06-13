@@ -7,16 +7,16 @@ interface PlayerEquipmentSetupProps {
 }
 
 const SOURCE_TYPES = [
-  { value: 'interview', label: 'Interview' },
-  { value: 'video', label: 'Video' },
-  { value: 'tournament_footage', label: 'Tournament Footage' },
-  { value: 'official_website', label: 'Official Website' },
+  { value: "interview", label: "Interview" },
+  { value: "video", label: "Video" },
+  { value: "tournament_footage", label: "Tournament Footage" },
+  { value: "official_website", label: "Official Website" },
 ];
 
-export function PlayerEquipmentSetup({ 
-  includeEquipment, 
-  onToggleEquipment, 
-  isSubmitting 
+export function PlayerEquipmentSetup({
+  includeEquipment,
+  onToggleEquipment,
+  isSubmitting,
 }: PlayerEquipmentSetupProps) {
   return (
     <div className="border-b border-gray-200 pb-6">
@@ -29,17 +29,23 @@ export function PlayerEquipmentSetup({
           disabled={isSubmitting}
           className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
         />
-        <label htmlFor="include_equipment" className="text-lg font-semibold text-gray-900">
+        <label
+          htmlFor="include_equipment"
+          className="text-lg font-semibold text-gray-900"
+        >
           Include Equipment Setup (Optional)
         </label>
       </div>
-      
+
       {includeEquipment && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Year */}
             <div>
-              <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="year"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Year
               </label>
               <input
@@ -56,7 +62,10 @@ export function PlayerEquipmentSetup({
 
             {/* Blade */}
             <div>
-              <label htmlFor="blade_name" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="blade_name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Blade
               </label>
               <input
@@ -71,23 +80,26 @@ export function PlayerEquipmentSetup({
           </div>
 
           {/* Forehand Setup */}
-          <RubberSetup 
-            side="forehand" 
-            label="Forehand" 
-            isSubmitting={isSubmitting} 
+          <RubberSetup
+            side="forehand"
+            label="Forehand"
+            isSubmitting={isSubmitting}
           />
 
           {/* Backhand Setup */}
-          <RubberSetup 
-            side="backhand" 
-            label="Backhand" 
-            isSubmitting={isSubmitting} 
+          <RubberSetup
+            side="backhand"
+            label="Backhand"
+            isSubmitting={isSubmitting}
           />
 
           {/* Source Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="source_type" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="source_type"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Source Type
               </label>
               <select
@@ -105,7 +117,10 @@ export function PlayerEquipmentSetup({
               </select>
             </div>
             <div>
-              <label htmlFor="source_url" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="source_url"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Source URL
               </label>
               <input
@@ -125,7 +140,7 @@ export function PlayerEquipmentSetup({
 }
 
 interface RubberSetupProps {
-  side: 'forehand' | 'backhand';
+  side: "forehand" | "backhand";
   label: string;
   isSubmitting: boolean;
 }
@@ -136,7 +151,10 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
       <h4 className="text-md font-medium text-gray-900 mb-3">{label}</h4>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label htmlFor={`${side}_rubber_name`} className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor={`${side}_rubber_name`}
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Rubber
           </label>
           <input
@@ -145,11 +163,16 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
             name={`${side}_rubber_name`}
             disabled={isSubmitting}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-            placeholder={side === 'forehand' ? 'e.g., Hurricane 3' : 'e.g., Tenergy 64'}
+            placeholder={
+              side === "forehand" ? "e.g., Hurricane 3" : "e.g., Tenergy 64"
+            }
           />
         </div>
         <div>
-          <label htmlFor={`${side}_thickness`} className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor={`${side}_thickness`}
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Thickness
           </label>
           <input
@@ -162,7 +185,10 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
           />
         </div>
         <div>
-          <label htmlFor={`${side}_color`} className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor={`${side}_color`}
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Color
           </label>
           <select

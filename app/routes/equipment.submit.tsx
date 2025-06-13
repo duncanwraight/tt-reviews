@@ -8,18 +8,22 @@ import { EquipmentSubmissionForm } from "~/components/equipment/EquipmentSubmiss
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
-  
+
   if (userResponse.error || !userResponse.data.user) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
-  
-  return data({
-    user: userResponse.data.user,
-    env: {
-      SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
-      SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env).SUPABASE_ANON_KEY!,
+
+  return data(
+    {
+      user: userResponse.data.user,
+      env: {
+        SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
+          .SUPABASE_ANON_KEY!,
+      },
     },
-  }, { headers: sbServerClient.headers });
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
@@ -29,12 +33,15 @@ export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
     <PageSection background="white" padding="medium">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Submit New Equipment</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Submit New Equipment
+          </h1>
           <p className="text-lg text-gray-600">
-            Help expand our equipment database by submitting new table tennis equipment.
+            Help expand our equipment database by submitting new table tennis
+            equipment.
           </p>
         </div>
-        
+
         <EquipmentSubmissionForm env={env} userId={user.id} />
       </div>
     </PageSection>

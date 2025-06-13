@@ -17,10 +17,21 @@ export function meta({ params, data }: Route.MetaArgs) {
 
   return [
     { title: `${player.name} Equipment & Setup | TT Reviews` },
-    { name: "description", content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses, with historical changes and sources.` },
-    { name: "keywords", content: `${player.name}, table tennis equipment, pro player setup, ${player.playing_style || 'professional'}` },
+    {
+      name: "description",
+      content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses, with historical changes and sources.`,
+    },
+    {
+      name: "keywords",
+      content: `${player.name}, table tennis equipment, pro player setup, ${
+        player.playing_style || "professional"
+      }`,
+    },
     { property: "og:title", content: `${player.name} Equipment & Setup` },
-    { property: "og:description", content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses.` },
+    {
+      property: "og:description",
+      content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses.`,
+    },
     { property: "og:type", content: "profile" },
   ];
 }
@@ -28,9 +39,9 @@ export function meta({ params, data }: Route.MetaArgs) {
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
-  
+
   const db = new DatabaseService(context);
-  
+
   // Get player data
   const player = await db.getPlayer(params.slug);
   if (!player) {
@@ -40,11 +51,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // Get equipment setups with related equipment data
   const equipmentSetups = await db.getPlayerEquipmentSetups(player.id);
 
-  return data({
-    user: userResponse?.data?.user || null,
-    player,
-    equipmentSetups,
-  }, { headers: sbServerClient.headers });
+  return data(
+    {
+      user: userResponse?.data?.user || null,
+      player,
+      equipmentSetups,
+    },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
@@ -61,10 +75,10 @@ export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Breadcrumb items={breadcrumbItems} />
       </div>
-      
+
       <PlayerHeader player={player} showEditButton={!!user} />
-      
-      <PlayerTabs 
+
+      <PlayerTabs
         player={player}
         equipmentSetups={equipmentSetups}
         showEditButtons={!!user}

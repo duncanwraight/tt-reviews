@@ -8,38 +8,50 @@ import { PageLayout } from "~/components/layout/PageLayout";
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
-  
+
   if (userResponse.error || !userResponse.data.user) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 
   // Check admin role from JWT claims (proper Supabase RBAC pattern)
   const session = await sbServerClient.client.auth.getSession();
-  
+  let userWithRole = userResponse.data.user;
+
   if (session.data.session?.access_token) {
     try {
       // Decode JWT to get custom claims added by auth hook
-      const payload = JSON.parse(Buffer.from(session.data.session.access_token.split('.')[1], 'base64').toString());
-      
-      if (payload.user_role !== 'admin') {
-        throw redirect("/", { 
+      const payload = JSON.parse(
+        Buffer.from(
+          session.data.session.access_token.split(".")[1],
+          "base64"
+        ).toString()
+      );
+
+      if (payload.user_role !== "admin") {
+        throw redirect("/", {
           headers: sbServerClient.headers,
         });
       }
+
+      // Add role to user object for navigation
+      userWithRole = { ...userWithRole, role: payload.user_role };
     } catch (error) {
-      throw redirect("/", { 
+      throw redirect("/", {
         headers: sbServerClient.headers,
       });
     }
   } else {
-    throw redirect("/login", { 
+    throw redirect("/login", {
       headers: sbServerClient.headers,
     });
   }
-  
-  return data({ 
-    user: userResponse.data.user,
-  }, { headers: sbServerClient.headers });
+
+  return data(
+    {
+      user: userWithRole,
+    },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function AdminLayout({ loaderData }: Route.ComponentProps) {
@@ -53,10 +65,14 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Admin Dashboard
+                </h1>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">Welcome, {user.email}</span>
+                <span className="text-sm text-gray-600">
+                  Welcome, {user.email}
+                </span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                   Admin
                 </span>

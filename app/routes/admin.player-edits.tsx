@@ -5,7 +5,10 @@ import { createSupabaseClient } from "~/lib/database.server";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Player Edits | Admin | TT Reviews" },
-    { name: "description", content: "Review and moderate player edit submissions." },
+    {
+      name: "description",
+      content: "Review and moderate player edit submissions.",
+    },
   ];
 }
 
@@ -13,20 +16,22 @@ export async function loader({ context }: Route.LoaderArgs) {
   const supabase = createSupabaseClient(context);
 
   const { data: playerEdits, error } = await supabase
-    .from('player_edits')
-    .select(`
+    .from("player_edits")
+    .select(
+      `
       *,
       players (
         id,
         name,
         slug
       )
-    `)
-    .order('created_at', { ascending: false })
+    `
+    )
+    .order("created_at", { ascending: false })
     .limit(50);
 
   if (error) {
-    console.error('Error fetching player edits:', error);
+    console.error("Error fetching player edits:", error);
     return data({ playerEdits: [] });
   }
 
@@ -37,15 +42,16 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
   const { playerEdits } = loaderData;
 
   const getStatusBadge = (status: string) => {
-    const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+    const baseClasses =
+      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
     switch (status) {
-      case 'pending':
+      case "pending":
         return `${baseClasses} bg-yellow-100 text-yellow-800`;
-      case 'approved':
+      case "approved":
         return `${baseClasses} bg-green-100 text-green-800`;
-      case 'rejected':
+      case "rejected":
         return `${baseClasses} bg-red-100 text-red-800`;
-      case 'awaiting_second_approval':
+      case "awaiting_second_approval":
         return `${baseClasses} bg-blue-100 text-blue-800`;
       default:
         return `${baseClasses} bg-gray-100 text-gray-800`;
@@ -53,10 +59,14 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
   };
 
   const formatEditData = (editData: any) => {
-    return Object.entries(editData).map(([key, value]) => {
-      const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      return `${label}: ${value}`;
-    }).join(', ');
+    return Object.entries(editData)
+      .map(([key, value]) => {
+        const label = key
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
+        return `${label}: ${value}`;
+      })
+      .join(", ");
   };
 
   return (
@@ -71,8 +81,12 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
       {playerEdits.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">✏️</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No edits found</h3>
-          <p className="text-gray-600">No player edits to review at this time.</p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            No edits found
+          </h3>
+          <p className="text-gray-600">
+            No player edits to review at this time.
+          </p>
         </div>
       ) : (
         <div className="bg-white shadow overflow-hidden rounded-md">
@@ -85,7 +99,7 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
                       <span className="text-2xl mr-3">👤</span>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          Edit for {edit.players?.name || 'Unknown Player'}
+                          Edit for {edit.players?.name || "Unknown Player"}
                         </p>
                         <p className="text-sm text-gray-500">
                           Changes: {formatEditData(edit.edit_data)}
@@ -94,23 +108,30 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
                     </div>
                     <div className="flex items-center space-x-3">
                       <span className={getStatusBadge(edit.status)}>
-                        {edit.status.replace(/_/g, ' ')}
+                        {edit.status.replace(/_/g, " ")}
                       </span>
                       <div className="text-sm text-gray-500">
                         {new Date(edit.created_at).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Proposed Changes:</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      Proposed Changes:
+                    </h4>
                     <div className="space-y-1">
                       {Object.entries(edit.edit_data).map(([key, value]) => (
                         <div key={key} className="text-sm">
                           <span className="font-medium text-gray-700">
-                            {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
+                            {key
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                            :
                           </span>
-                          <span className="ml-2 text-gray-900">{String(value)}</span>
+                          <span className="ml-2 text-gray-900">
+                            {String(value)}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -118,23 +139,31 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
 
                   {edit.moderator_notes && (
                     <div className="mt-2 text-sm">
-                      <strong className="text-gray-700">Moderator Notes:</strong>
-                      <p className="text-gray-600 mt-1">{edit.moderator_notes}</p>
+                      <strong className="text-gray-700">
+                        Moderator Notes:
+                      </strong>
+                      <p className="text-gray-600 mt-1">
+                        {edit.moderator_notes}
+                      </p>
                     </div>
                   )}
 
                   <div className="mt-3 flex items-center space-x-3">
-                    {edit.status === 'pending' && (
+                    {edit.status === "pending" && (
                       <>
-                        <button 
+                        <button
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          onClick={() => {/* TODO: Implement approve action */}}
+                          onClick={() => {
+                            /* TODO: Implement approve action */
+                          }}
                         >
                           Approve
                         </button>
-                        <button 
+                        <button
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          onClick={() => {/* TODO: Implement reject action */}}
+                          onClick={() => {
+                            /* TODO: Implement reject action */
+                          }}
                         >
                           Reject
                         </button>

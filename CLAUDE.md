@@ -44,7 +44,7 @@
 ## Frontend requirements
 
 - Break down large JSX blocks into small, focused React components
-- Create reusable UI components in `/app/components/ui/` 
+- Create reusable UI components in `/app/components/ui/`
 - Create page-specific components in `/app/components/[feature]/`
 - Use composition over large monolithic components
 - Implement proper TypeScript interfaces for all component props
@@ -62,6 +62,7 @@
 ### Supabase Client Setup
 
 #### Server-Side Client (for server loaders only)
+
 ```typescript
 // app/lib/supabase.server.ts
 import { createServerClient } from "@supabase/ssr";
@@ -80,7 +81,10 @@ export const getServerClient = (request: Request, context: AppLoadContext) => {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            headers.append("Set-Cookie", serializeCookieHeader(name, value, options))
+            headers.append(
+              "Set-Cookie",
+              serializeCookieHeader(name, value, options)
+            )
           );
         },
       },
@@ -91,19 +95,18 @@ export const getServerClient = (request: Request, context: AppLoadContext) => {
 ```
 
 #### Client-Side Browser Client
+
 ```typescript
 // In React components
 import { createBrowserClient } from "@supabase/ssr";
 
-const supabase = createBrowserClient(
-  env.SUPABASE_URL,
-  env.SUPABASE_ANON_KEY,
-);
+const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
 ```
 
 ### Auth Patterns
 
 #### 1. Login/Signup Forms
+
 - Use **regular HTML forms** (`<form>`) NOT React Router's `<Form>`
 - Handle form submission with **client-side only** `onSubmit` handlers
 - Use `createBrowserClient` for all auth operations
@@ -113,28 +116,31 @@ const supabase = createBrowserClient(
 const doLogin = async (event: React.FormEvent<HTMLFormElement>) => {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
-  const intent = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value');
-  
+  const intent = (event.nativeEvent as SubmitEvent).submitter?.getAttribute(
+    "value"
+  );
+
   const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-  
+
   let result;
-  if (intent === 'signup') {
+  if (intent === "signup") {
     result = await supabase.auth.signUp({
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
     });
   } else {
     result = await supabase.auth.signInWithPassword({
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
     });
   }
-  
+
   // Handle result...
 };
 ```
 
 #### 2. Protected Routes
+
 - Use server-side client in **loaders only** to check auth status
 - Redirect unauthenticated users to login
 - Pass environment variables to client for browser operations
@@ -152,8 +158,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     {
       user: userResponse.data.user,
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -162,6 +170,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 ```
 
 #### 3. Logout
+
 - Always use client-side logout
 - Redirect after successful logout
 
@@ -182,7 +191,7 @@ const handleLogout = async () => {
 
 ### Environment Variables
 
-- **Local Development**: Use `tt-reviews.local:54321` instead of `localhost:54321` 
+- **Local Development**: Use `tt-reviews.local:54321` instead of `localhost:54321`
 - **Cloudflare**: Access via `context.cloudflare.env as Record<string, string>`
 - **Regular Node.js**: Access via `process.env` (reference apps only)
 
@@ -193,26 +202,31 @@ This project uses **Supabase RBAC** with JWT claims following official best prac
 ### Using User Roles in Components
 
 **In Route Loaders** (server-side):
+
 ```typescript
 // Decode JWT to get user role
 let userWithRole = userResponse?.data?.user || null;
 if (userWithRole) {
   const session = await sbServerClient.client.auth.getSession();
   if (session.data.session?.access_token) {
-    const payload = JSON.parse(Buffer.from(session.data.session.access_token.split('.')[1], 'base64').toString());
-    userWithRole = { ...userWithRole, role: payload.user_role || 'user' };
+    const payload = JSON.parse(
+      Buffer.from(
+        session.data.session.access_token.split(".")[1],
+        "base64"
+      ).toString()
+    );
+    userWithRole = { ...userWithRole, role: payload.user_role || "user" };
   }
 }
 ```
 
 **In Components** (client-side):
+
 ```typescript
 // Check user role from props
-{user?.role === 'admin' ? (
-  <AdminComponent />
-) : (
-  <RegularComponent />
-)}
+{
+  user?.role === "admin" ? <AdminComponent /> : <RegularComponent />;
+}
 ```
 
 **Role Values**: `'admin'`, `'moderator'`, `'user'` (default)
@@ -228,6 +242,7 @@ if (userWithRole) {
 This project uses **file-based routing** with React Router v7. Key configuration details:
 
 ### Routes Configuration
+
 - **File**: `/app/routes.ts` uses `flatRoutes()` from `@react-router/fs-routes`
 - **Pattern**: Routes are automatically discovered based on file naming conventions
 - **No manual registration** needed - just create files with correct names
@@ -235,6 +250,7 @@ This project uses **file-based routing** with React Router v7. Key configuration
 ### File Naming Conventions
 
 #### Basic Routes
+
 ```
 /app/routes/
 ├── _index.tsx          → / (root/home page)
@@ -243,6 +259,7 @@ This project uses **file-based routing** with React Router v7. Key configuration
 ```
 
 #### Nested Routes with Layout
+
 ```
 /app/routes/
 ├── equipment.tsx           → Layout component with <Outlet />
@@ -252,13 +269,16 @@ This project uses **file-based routing** with React Router v7. Key configuration
 ```
 
 #### Dynamic Parameters
+
 - Use `$` prefix for dynamic segments: `equipment.$slug.tsx` → `/equipment/:slug`
 - Use `_index.tsx` for index routes within nested layouts
 
 ### Layout Structure
+
 When you have nested routes (e.g., `equipment.*`):
 
 1. **Layout file** (`equipment.tsx`):
+
    - Contains shared layout (Navigation, Footer, etc.)
    - Must include `<Outlet />` where child routes render
    - Handles auth and common data loading
@@ -269,11 +289,13 @@ When you have nested routes (e.g., `equipment.*`):
    - Render inside the parent's `<Outlet />`
 
 ### Route Resolution Order
+
 - More specific routes are matched first automatically
 - `/equipment/submit` takes precedence over `/equipment/:slug`
 - No manual ordering needed with proper file naming
 
 ### Best Practices
+
 - ✅ Use layout files for shared components across route families
 - ✅ Keep child routes focused on content only
 - ✅ Follow dot notation for nested routes (`parent.child.tsx`)

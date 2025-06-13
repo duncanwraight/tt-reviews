@@ -27,11 +27,11 @@ export function SearchResults({ results }: SearchResultsProps) {
             )}
 
             {results.players.length > 0 && (
-              <ResultsSection 
-                title="Players" 
-                items={results.players} 
-                type="players" 
-                icon="👤" 
+              <ResultsSection
+                title="Players"
+                items={results.players}
+                type="players"
+                icon="👤"
               />
             )}
           </div>

@@ -10,7 +10,11 @@ import { PlayersFooter } from "~/components/players/PlayersFooter";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Professional Table Tennis Players | TT Reviews" },
-    { name: "description", content: "Browse professional table tennis players and discover their equipment setups, playing styles, and career achievements." },
+    {
+      name: "description",
+      content:
+        "Browse professional table tennis players and discover their equipment setups, playing styles, and career achievements.",
+    },
   ];
 }
 
@@ -34,7 +38,7 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <Breadcrumb items={breadcrumbItems} />
-      
+
       <PageSection>
         <PlayersHeader totalPlayers={players.length} />
         <PlayersGrid players={players} />

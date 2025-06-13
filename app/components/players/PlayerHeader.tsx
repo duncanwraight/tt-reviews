@@ -8,37 +8,40 @@ interface PlayerHeaderProps {
 // Helper function to get country flag emoji
 function getCountryFlag(countryCode: string): string {
   const flags: Record<string, string> = {
-    CHN: '🇨🇳',
-    JPN: '🇯🇵',
-    GER: '🇩🇪',
-    KOR: '🇰🇷',
-    SWE: '🇸🇪',
-    FRA: '🇫🇷',
-    HKG: '🇭🇰',
-    TPE: '🇹🇼',
-    SGP: '🇸🇬',
-    USA: '🇺🇸',
-    BRA: '🇧🇷',
-    EGY: '🇪🇬',
-    NIG: '🇳🇬',
-    IND: '🇮🇳',
-    AUS: '🇦🇺',
-    POL: '🇵🇱',
-    ROU: '🇷🇴',
-    AUT: '🇦🇹',
-    DEN: '🇩🇰',
-    CRO: '🇭🇷',
-    SVK: '🇸🇰',
+    CHN: "🇨🇳",
+    JPN: "🇯🇵",
+    GER: "🇩🇪",
+    KOR: "🇰🇷",
+    SWE: "🇸🇪",
+    FRA: "🇫🇷",
+    HKG: "🇭🇰",
+    TPE: "🇹🇼",
+    SGP: "🇸🇬",
+    USA: "🇺🇸",
+    BRA: "🇧🇷",
+    EGY: "🇪🇬",
+    NIG: "🇳🇬",
+    IND: "🇮🇳",
+    AUS: "🇦🇺",
+    POL: "🇵🇱",
+    ROU: "🇷🇴",
+    AUT: "🇦🇹",
+    DEN: "🇩🇰",
+    CRO: "🇭🇷",
+    SVK: "🇸🇰",
   };
-  return flags[countryCode] || '🏳️';
+  return flags[countryCode] || "🏳️";
 }
 
 function getPlayingStyleLabel(style: string | undefined): string {
-  if (!style || style === 'unknown') return '';
-  return style.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  if (!style || style === "unknown") return "";
+  return style.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-export function PlayerHeader({ player, showEditButton = false }: PlayerHeaderProps) {
+export function PlayerHeader({
+  player,
+  showEditButton = false,
+}: PlayerHeaderProps) {
   return (
     <section className="player-header bg-white border-b border-gray-200 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -50,29 +53,34 @@ export function PlayerHeader({ player, showEditButton = false }: PlayerHeaderPro
           </div>
 
           <div className="player-details lg:col-span-4 text-center lg:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">{player.name}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {player.name}
+            </h1>
             <div className="player-meta flex flex-wrap justify-center lg:justify-start gap-6 mb-4 text-sm">
               {(player.represents || player.birth_country) && (
                 <span>
-                  <span className="font-medium text-gray-700">Represents:</span>{' '}
-                  {getCountryFlag(player.represents || player.birth_country)}{' '}
+                  <span className="font-medium text-gray-700">Represents:</span>{" "}
+                  {getCountryFlag(player.represents || player.birth_country)}{" "}
                   {player.represents || player.birth_country}
                 </span>
               )}
               {player.highest_rating && (
                 <span>
-                  <span className="font-medium text-gray-700">Highest Rating:</span>{' '}
+                  <span className="font-medium text-gray-700">
+                    Highest Rating:
+                  </span>{" "}
                   {player.highest_rating}
                 </span>
               )}
               {player.active_years && (
                 <span>
-                  <span className="font-medium text-gray-700">Active:</span> {player.active_years}
+                  <span className="font-medium text-gray-700">Active:</span>{" "}
+                  {player.active_years}
                 </span>
               )}
-              {player.playing_style && player.playing_style !== 'unknown' && (
+              {player.playing_style && player.playing_style !== "unknown" && (
                 <span>
-                  <span className="font-medium text-gray-700">Style:</span>{' '}
+                  <span className="font-medium text-gray-700">Style:</span>{" "}
                   {getPlayingStyleLabel(player.playing_style)}
                 </span>
               )}
@@ -91,7 +99,9 @@ export function PlayerHeader({ player, showEditButton = false }: PlayerHeaderPro
               </div>
             )}
             <p className="text-sm text-gray-600 mb-2">
-              <span className="font-medium text-gray-900">Notable Achievements</span>
+              <span className="font-medium text-gray-900">
+                Notable Achievements
+              </span>
             </p>
             <p className="text-sm text-gray-600">
               World Championship semifinalist, Olympic bronze medalist

@@ -5,7 +5,10 @@ import { DatabaseService, createSupabaseClient } from "~/lib/database.server";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Admin Dashboard | TT Reviews" },
-    { name: "description", content: "Admin dashboard for managing TT Reviews submissions and edits." },
+    {
+      name: "description",
+      content: "Admin dashboard for managing TT Reviews submissions and edits.",
+    },
   ];
 }
 
@@ -19,24 +22,37 @@ export async function loader({ context }: Route.LoaderArgs) {
     { count: playerSubmissionsCount },
     { count: playerEditsCount },
     { count: equipmentCount },
-    { count: playersCount }
+    { count: playersCount },
   ] = await Promise.all([
-    supabase.from('equipment_submissions').select('*', { count: 'exact', head: true }),
-    supabase.from('player_submissions').select('*', { count: 'exact', head: true }),
-    supabase.from('player_edits').select('*', { count: 'exact', head: true }),
-    supabase.from('equipment').select('*', { count: 'exact', head: true }),
-    supabase.from('players').select('*', { count: 'exact', head: true })
+    supabase
+      .from("equipment_submissions")
+      .select("*", { count: "exact", head: true }),
+    supabase
+      .from("player_submissions")
+      .select("*", { count: "exact", head: true }),
+    supabase.from("player_edits").select("*", { count: "exact", head: true }),
+    supabase.from("equipment").select("*", { count: "exact", head: true }),
+    supabase.from("players").select("*", { count: "exact", head: true }),
   ]);
 
   // Get pending items counts
   const [
     { count: pendingEquipmentSubmissions },
     { count: pendingPlayerSubmissions },
-    { count: pendingPlayerEdits }
+    { count: pendingPlayerEdits },
   ] = await Promise.all([
-    supabase.from('equipment_submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('player_submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('player_edits').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+    supabase
+      .from("equipment_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("player_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("player_edits")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
 
   return data({
@@ -49,7 +65,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       pendingEquipmentSubmissions: pendingEquipmentSubmissions || 0,
       pendingPlayerSubmissions: pendingPlayerSubmissions || 0,
       pendingPlayerEdits: pendingPlayerEdits || 0,
-    }
+    },
   });
 }
 
@@ -58,50 +74,55 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
   const statCards = [
     {
-      title: 'Equipment Submissions',
+      title: "Equipment Submissions",
       total: stats.equipmentSubmissions,
       pending: stats.pendingEquipmentSubmissions,
-      link: '/admin/equipment-submissions',
-      color: 'bg-blue-500'
+      link: "/admin/equipment-submissions",
+      color: "bg-blue-500",
     },
     {
-      title: 'Player Submissions',
+      title: "Player Submissions",
       total: stats.playerSubmissions,
       pending: stats.pendingPlayerSubmissions,
-      link: '/admin/player-submissions',
-      color: 'bg-green-500'
+      link: "/admin/player-submissions",
+      color: "bg-green-500",
     },
     {
-      title: 'Player Edits',
+      title: "Player Edits",
       total: stats.playerEdits,
       pending: stats.pendingPlayerEdits,
-      link: '/admin/player-edits',
-      color: 'bg-purple-500'
-    }
+      link: "/admin/player-edits",
+      color: "bg-purple-500",
+    },
   ];
 
   const contentStats = [
     {
-      title: 'Total Equipment',
+      title: "Total Equipment",
       count: stats.equipment,
-      icon: '🏓',
-      color: 'bg-orange-100 text-orange-800'
+      icon: "🏓",
+      color: "bg-orange-100 text-orange-800",
     },
     {
-      title: 'Total Players',
+      title: "Total Players",
       count: stats.players,
-      icon: '👤',
-      color: 'bg-indigo-100 text-indigo-800'
-    }
+      icon: "👤",
+      color: "bg-indigo-100 text-indigo-800",
+    },
   ];
 
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h2>
-        
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Dashboard Overview
+        </h2>
+
         {/* Pending Items Alert */}
-        {(stats.pendingEquipmentSubmissions + stats.pendingPlayerSubmissions + stats.pendingPlayerEdits) > 0 && (
+        {stats.pendingEquipmentSubmissions +
+          stats.pendingPlayerSubmissions +
+          stats.pendingPlayerEdits >
+          0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -112,7 +133,11 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   Items Pending Review
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  You have {stats.pendingEquipmentSubmissions + stats.pendingPlayerSubmissions + stats.pendingPlayerEdits} items waiting for review.
+                  You have{" "}
+                  {stats.pendingEquipmentSubmissions +
+                    stats.pendingPlayerSubmissions +
+                    stats.pendingPlayerEdits}{" "}
+                  items waiting for review.
                 </div>
               </div>
             </div>
@@ -130,9 +155,13 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-medium text-gray-600">{card.title}</h3>
+                  <h3 className="text-sm font-medium text-gray-600">
+                    {card.title}
+                  </h3>
                   <div className="flex items-center mt-1">
-                    <span className="text-2xl font-semibold text-gray-900">{card.total}</span>
+                    <span className="text-2xl font-semibold text-gray-900">
+                      {card.total}
+                    </span>
                     <span className="text-sm text-gray-500 ml-2">total</span>
                   </div>
                 </div>
@@ -151,7 +180,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Content Stats */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Content Statistics</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Content Statistics
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {contentStats.map((stat, index) => (
               <div key={index} className="flex items-center">
@@ -159,7 +190,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   <span className="text-2xl">{stat.icon}</span>
                 </div>
                 <div>
-                  <div className="text-2xl font-semibold text-gray-900">{stat.count}</div>
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {stat.count}
+                  </div>
                   <div className="text-sm text-gray-600">{stat.title}</div>
                 </div>
               </div>
@@ -170,7 +203,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Quick Actions
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <a
             href="/admin/equipment-submissions"

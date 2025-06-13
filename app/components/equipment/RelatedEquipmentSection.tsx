@@ -4,7 +4,9 @@ interface RelatedEquipmentSectionProps {
   category: string;
 }
 
-export function RelatedEquipmentSection({ category }: RelatedEquipmentSectionProps) {
+export function RelatedEquipmentSection({
+  category,
+}: RelatedEquipmentSectionProps) {
   const getCategoryName = (cat: string) => {
     return cat.charAt(0).toUpperCase() + cat.slice(1);
   };
@@ -29,9 +31,7 @@ function SectionHeader({ category }: { category: string }) {
       <h2 className="text-2xl font-bold text-gray-900 mb-4">
         More {getCategoryName(category)}s
       </h2>
-      <p className="text-gray-600">
-        Explore other {category}s in our database
-      </p>
+      <p className="text-gray-600">Explore other {category}s in our database</p>
     </div>
   );
 }

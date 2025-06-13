@@ -3,14 +3,16 @@
 ## React Router v7 Migration (Priority: High)
 
 ### Core Infrastructure
+
 - [x] **Database Connection**: Port Supabase integration to React Router loaders/actions ✅
   - [x] Create database service layer compatible with React Router context
   - [x] Test RLS policies work with new architecture - confirmed working with `/test-db`
 
-### Authentication & Authorization  
+### Authentication & Authorization
+
 - [x] **Auth System**: Migrate from cookie-based to React Router sessions ✅
   - [x] Port authentication service to React Router session management
-  - [x] Update middleware patterns for route-level authentication  
+  - [x] Update middleware patterns for route-level authentication
   - [x] Implement admin role checking in loaders
   - [x] Add CSRF protection for forms
   - [x] **RESOLVED**: Fix authentication architecture conflicts ✅
@@ -24,10 +26,13 @@
   - [x] Complete authentication flow testing - login/signup/logout working ✅
 
 ### Page Migration (Systematic Approach)
+
 **Note**: Migrating from existing implementation in `/archive` directory to new React Router v7 structure
 
 ### **Routing Architecture** ✅
+
 - [x] **File-Based Routing Migration**: Migrated from explicit route configuration to file-based routing ✅
+
   - ✅ Installed `@react-router/fs-routes` package
   - ✅ Updated `/app/routes.ts` to use `flatRoutes()` for automatic route discovery
   - ✅ Implemented proper nested route structure with layouts
@@ -37,6 +42,7 @@
   - ✅ Consolidated home page from `/home` to `/` (root route in `_index.tsx`)
 
 - [ ] **Public Pages** (No auth required):
+
   - [x] Home page (`/`) - with search functionality ✅
   - [x] Equipment index (`/equipment`) ✅
   - [x] Equipment detail (`/equipment/:slug`) ✅
@@ -45,6 +51,7 @@
   - [x] Search page (`/search`) ✅
 
 - [ ] **User Pages** (Auth required):
+
   - [x] Login/Signup (`/login`) ✅
   - [x] Profile page (`/profile`) ✅
     - ✅ User dashboard with account information
@@ -71,6 +78,7 @@
     - ✅ Navigation integration with edit buttons in player pages
 
 - [x] **Admin Pages** (Admin only): ✅
+
   - [x] Admin dashboard (`/admin`) ✅
     - ✅ Overview dashboard with submission/edit counts and pending items
     - ✅ Quick action buttons and content statistics
@@ -97,6 +105,7 @@
   - ✅ Production-ready pattern avoiding RLS recursion issues
 
 ### API Endpoints (External Integration)
+
 - [ ] **Pure API Routes** (JSON responses):
   - [ ] `GET /api/equipment/:slug` - Equipment details
   - [ ] `GET /api/players/:slug` - Player details
@@ -105,9 +114,10 @@
   - [ ] `GET /api/reviews/:id` - Review details
 
 ### Discord Integration
-- [ ] **Webhook Endpoints**: 
+
+- [ ] **Webhook Endpoints**:
   - [ ] `POST /api/discord/interactions` - Discord slash commands
-  - [ ] `POST /api/discord/messages` - Message handling  
+  - [ ] `POST /api/discord/messages` - Message handling
   - [ ] `POST /api/discord/notify` - Notifications
 - [ ] **Port Discord Services**:
   - [ ] Migrate `DiscordService` to work with React Router actions
@@ -115,6 +125,7 @@
   - [ ] Test Discord command functionality
 
 ### Forms & Validation
+
 - [ ] **Form Components**:
   - [ ] Review submission form with validation
   - [ ] Equipment submission form with image upload
@@ -126,6 +137,7 @@
   - [ ] Implement proper loading states
 
 ### Image Handling
+
 - [ ] **R2 Integration**:
   - [ ] Port image upload functionality to React Router actions
   - [ ] Implement image processing workflows
@@ -133,6 +145,7 @@
   - [ ] Create image upload components
 
 ### Testing & Quality
+
 - [ ] **Test Migration**:
   - [ ] Port existing test suite to new architecture
   - [ ] Add React Router specific tests
@@ -144,6 +157,7 @@
   - [ ] Test bundle size and loading performance
 
 ### SEO & Meta Tags
+
 - [ ] **Meta Functions**:
   - [ ] Implement dynamic meta tags for all pages
   - [ ] Port SEO strategy to React Router meta exports
@@ -151,6 +165,7 @@
   - [ ] Create dynamic sitemap generation
 
 ### Development Workflow
+
 - [x] **Build System**: ✅
   - [x] Configure linting for React Router patterns ✅
   - [x] Update build scripts and CI/CD ✅
@@ -162,6 +177,7 @@
 ## Post-Migration Improvements
 
 ### Features (Previous TODO items)
+
 - [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
 - [ ] Add per-type sponge thicknesses for rubbers
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max
@@ -178,6 +194,7 @@
   - Our URL cards don't look very good; no image etc. Can we improve this?
 
 ### Completed (Migrated from archive)
+
 - [x] ~~Update moderation interface to support player changes and player new equipment updates~~
 - [x] ~~Allow logged-in users to submit changes to players~~
 - [x] ~~Add "Playing style" and "Born" / "Plays for" (nations) to new player creation~~

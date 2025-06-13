@@ -5,16 +5,16 @@ interface SearchFormProps {
   className?: string;
 }
 
-export function SearchForm({ 
+export function SearchForm({
   placeholder = "Search equipment, players, or brands...",
-  className = ""
+  className = "",
 }: SearchFormProps) {
   const navigate = useNavigate();
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const query = formData.get('q') as string;
+    const query = formData.get("q") as string;
     if (query && query.trim()) {
       navigate(`/search?q=${encodeURIComponent(query.trim())}`);
     }

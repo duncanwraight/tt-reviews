@@ -7,16 +7,26 @@ export function Footer() {
         <div className="text-center">
           <h3 className="text-2xl font-bold mb-4">TT Reviews</h3>
           <p className="text-gray-400 mb-6">
-            Your trusted source for table tennis equipment reviews and player information
+            Your trusted source for table tennis equipment reviews and player
+            information
           </p>
           <div className="flex justify-center space-x-6">
-            <Link to="/equipment" className="text-gray-400 hover:text-white transition-colors">
+            <Link
+              to="/equipment"
+              className="text-gray-400 hover:text-white transition-colors"
+            >
               Equipment
             </Link>
-            <Link to="/players" className="text-gray-400 hover:text-white transition-colors">
+            <Link
+              to="/players"
+              className="text-gray-400 hover:text-white transition-colors"
+            >
               Players
             </Link>
-            <Link to="/search" className="text-gray-400 hover:text-white transition-colors">
+            <Link
+              to="/search"
+              className="text-gray-400 hover:text-white transition-colors"
+            >
               Search
             </Link>
           </div>

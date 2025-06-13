@@ -12,40 +12,42 @@ interface PlayerSubmissionFormProps {
 }
 
 const COUNTRIES = [
-  { code: 'CHN', name: 'China' },
-  { code: 'JPN', name: 'Japan' },
-  { code: 'GER', name: 'Germany' },
-  { code: 'KOR', name: 'South Korea' },
-  { code: 'SWE', name: 'Sweden' },
-  { code: 'FRA', name: 'France' },
-  { code: 'HKG', name: 'Hong Kong' },
-  { code: 'TPE', name: 'Chinese Taipei' },
-  { code: 'SGP', name: 'Singapore' },
-  { code: 'USA', name: 'United States' },
-  { code: 'BRA', name: 'Brazil' },
-  { code: 'EGY', name: 'Egypt' },
-  { code: 'NIG', name: 'Nigeria' },
-  { code: 'IND', name: 'India' },
-  { code: 'AUS', name: 'Australia' },
-  { code: 'POL', name: 'Poland' },
-  { code: 'ROU', name: 'Romania' },
-  { code: 'AUT', name: 'Austria' },
-  { code: 'DEN', name: 'Denmark' },
-  { code: 'CRO', name: 'Croatia' },
-  { code: 'SVK', name: 'Slovakia' },
+  { code: "CHN", name: "China" },
+  { code: "JPN", name: "Japan" },
+  { code: "GER", name: "Germany" },
+  { code: "KOR", name: "South Korea" },
+  { code: "SWE", name: "Sweden" },
+  { code: "FRA", name: "France" },
+  { code: "HKG", name: "Hong Kong" },
+  { code: "TPE", name: "Chinese Taipei" },
+  { code: "SGP", name: "Singapore" },
+  { code: "USA", name: "United States" },
+  { code: "BRA", name: "Brazil" },
+  { code: "EGY", name: "Egypt" },
+  { code: "NIG", name: "Nigeria" },
+  { code: "IND", name: "India" },
+  { code: "AUS", name: "Australia" },
+  { code: "POL", name: "Poland" },
+  { code: "ROU", name: "Romania" },
+  { code: "AUT", name: "Austria" },
+  { code: "DEN", name: "Denmark" },
+  { code: "CRO", name: "Croatia" },
+  { code: "SVK", name: "Slovakia" },
 ];
 
 const PLAYING_STYLES = [
-  { value: 'attacker', label: 'Attacker' },
-  { value: 'all_rounder', label: 'All-Rounder' },
-  { value: 'defender', label: 'Defender' },
-  { value: 'counter_attacker', label: 'Counter-Attacker' },
-  { value: 'chopper', label: 'Chopper' },
-  { value: 'unknown', label: 'Unknown' },
+  { value: "attacker", label: "Attacker" },
+  { value: "all_rounder", label: "All-Rounder" },
+  { value: "defender", label: "Defender" },
+  { value: "counter_attacker", label: "Counter-Attacker" },
+  { value: "chopper", label: "Chopper" },
+  { value: "unknown", label: "Unknown" },
 ];
 
-
-export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps) {
+export function PlayerSubmissionForm({
+  env,
+  userId,
+}: PlayerSubmissionFormProps) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +61,11 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
     setSuccess(null);
 
     const formData = new FormData(event.currentTarget);
-    const name = formData.get('name') as string;
+    const name = formData.get("name") as string;
 
     // Validate required fields
     if (!name) {
-      setError('Player name is required.');
+      setError("Player name is required.");
       setIsSubmitting(false);
       return;
     }
@@ -72,53 +74,58 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
     const submission: any = {
       user_id: userId,
       name: name.trim(),
-      highest_rating: formData.get('highest_rating') || null,
-      active_years: formData.get('active_years') || null,
-      playing_style: formData.get('playing_style') || null,
-      birth_country: formData.get('birth_country') || null,
-      represents: formData.get('represents') || null,
+      highest_rating: formData.get("highest_rating") || null,
+      active_years: formData.get("active_years") || null,
+      playing_style: formData.get("playing_style") || null,
+      birth_country: formData.get("birth_country") || null,
+      represents: formData.get("represents") || null,
     };
 
     // Add equipment setup if included
     if (includeEquipment) {
       const equipmentSetup: any = {};
-      
-      const year = formData.get('year');
+
+      const year = formData.get("year");
       if (year) equipmentSetup.year = parseInt(year as string);
-      
-      const bladeValue = formData.get('blade_name');
+
+      const bladeValue = formData.get("blade_name");
       if (bladeValue) equipmentSetup.blade_name = bladeValue;
-      
-      const forehandRubber = formData.get('forehand_rubber_name');
+
+      const forehandRubber = formData.get("forehand_rubber_name");
       if (forehandRubber) {
         equipmentSetup.forehand_rubber_name = forehandRubber;
-        equipmentSetup.forehand_thickness = formData.get('forehand_thickness') || null;
-        equipmentSetup.forehand_color = formData.get('forehand_color') || null;
+        equipmentSetup.forehand_thickness =
+          formData.get("forehand_thickness") || null;
+        equipmentSetup.forehand_color = formData.get("forehand_color") || null;
       }
-      
-      const backhandRubber = formData.get('backhand_rubber_name');
+
+      const backhandRubber = formData.get("backhand_rubber_name");
       if (backhandRubber) {
         equipmentSetup.backhand_rubber_name = backhandRubber;
-        equipmentSetup.backhand_thickness = formData.get('backhand_thickness') || null;
-        equipmentSetup.backhand_color = formData.get('backhand_color') || null;
+        equipmentSetup.backhand_thickness =
+          formData.get("backhand_thickness") || null;
+        equipmentSetup.backhand_color = formData.get("backhand_color") || null;
       }
-      
-      const sourceType = formData.get('source_type');
+
+      const sourceType = formData.get("source_type");
       if (sourceType) equipmentSetup.source_type = sourceType;
-      
-      const sourceUrl = formData.get('source_url');
+
+      const sourceUrl = formData.get("source_url");
       if (sourceUrl) equipmentSetup.source_url = sourceUrl;
-      
+
       if (Object.keys(equipmentSetup).length > 0) {
         submission.equipment_setup = equipmentSetup;
       }
     }
 
     try {
-      const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-      
+      const supabase = createBrowserClient(
+        env.SUPABASE_URL,
+        env.SUPABASE_ANON_KEY
+      );
+
       const { data, error: submitError } = await supabase
-        .from('player_submissions')
+        .from("player_submissions")
         .insert(submission)
         .select()
         .single();
@@ -127,20 +134,21 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
         throw submitError;
       }
 
-      setSuccess('Player submitted successfully! It will be reviewed by our team.');
-      
+      setSuccess(
+        "Player submitted successfully! It will be reviewed by our team."
+      );
+
       // Reset form
       (event.target as HTMLFormElement).reset();
       setIncludeEquipment(false);
-      
+
       // Redirect after a short delay
       setTimeout(() => {
-        navigate('/players');
+        navigate("/players");
       }, 2000);
-
     } catch (err) {
-      console.error('Submission error:', err);
-      setError('Failed to submit player. Please try again.');
+      console.error("Submission error:", err);
+      setError("Failed to submit player. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -149,14 +157,16 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Submit New Player</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Submit New Player
+        </h2>
 
         {error && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
             {success}
@@ -166,12 +176,17 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Player Information */}
           <div className="border-b border-gray-200 pb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Player Information</h3>
-            
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Player Information
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Player Name */}
               <div className="md:col-span-2">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Player Name *
                 </label>
                 <input
@@ -187,7 +202,10 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
 
               {/* Highest Rating */}
               <div>
-                <label htmlFor="highest_rating" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="highest_rating"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Highest Rating
                 </label>
                 <input
@@ -202,7 +220,10 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
 
               {/* Active Years */}
               <div>
-                <label htmlFor="active_years" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="active_years"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Active Years
                 </label>
                 <input
@@ -217,7 +238,10 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
 
               {/* Playing Style */}
               <div>
-                <label htmlFor="playing_style" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="playing_style"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Playing Style
                 </label>
                 <select
@@ -237,7 +261,10 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
 
               {/* Birth Country */}
               <div>
-                <label htmlFor="birth_country" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="birth_country"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Birth Country
                 </label>
                 <select
@@ -257,7 +284,10 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
 
               {/* Represents */}
               <div>
-                <label htmlFor="represents" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="represents"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Represents
                 </label>
                 <select
@@ -278,7 +308,7 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
           </div>
 
           {/* Equipment Setup Section */}
-          <PlayerEquipmentSetup 
+          <PlayerEquipmentSetup
             includeEquipment={includeEquipment}
             onToggleEquipment={setIncludeEquipment}
             isSubmitting={isSubmitting}
@@ -288,7 +318,7 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
           <div className="flex justify-end space-x-3">
             <button
               type="button"
-              onClick={() => navigate('/players')}
+              onClick={() => navigate("/players")}
               disabled={isSubmitting}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
             >
@@ -299,7 +329,7 @@ export function PlayerSubmissionForm({ env, userId }: PlayerSubmissionFormProps)
               disabled={isSubmitting}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Player'}
+              {isSubmitting ? "Submitting..." : "Submit Player"}
             </button>
           </div>
         </form>
