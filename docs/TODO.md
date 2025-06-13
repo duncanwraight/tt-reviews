@@ -134,6 +134,27 @@
   - [x] Update moderation workflow for new architecture ✅
   - [x] Test Discord command functionality ✅
 
+### Submission System Improvements
+
+- [ ] **User Submission Management**:
+  - [ ] Add submissions section to user profiles showing submission status
+  - [ ] Display rejection reasons and admin feedback in user profiles
+  - [ ] Add submission history with filtering (pending, approved, rejected)
+  - [ ] Show submission progress indicators and timestamps
+
+- [ ] **Enhanced Moderation Workflow**:
+  - [ ] Require two approvals for submissions (Discord + Admin UI, or two Discord)
+  - [ ] Allow admins to add detailed rejection justifications
+  - [ ] Implement submission status tracking (pending → under_review → approved/rejected)
+  - [ ] Add automatic image cleanup for rejected submissions
+  - [ ] Create moderation audit trail for accountability
+
+- [ ] **Discord Integration Enhancements**:
+  - [ ] Update Discord bot to support two-approval workflow
+  - [ ] Add rejection reason collection via Discord interactions
+  - [ ] Sync Discord approvals with database submission status
+  - [ ] Add notification system for status changes
+
 ### Forms & Validation
 
 - [ ] **Form Components**:
@@ -190,6 +211,17 @@
   - [x] Configure local development environment ✅
 
 ---
+
+## Post-Live Improvements
+
+### Quality Control & User Experience
+- [ ] **Duplicate Detection**: Check for existing equipment/players before allowing submission to prevent duplicates
+- [ ] **Enhanced Validation**: Verify manufacturer names against known databases, validate country codes, check rating ranges
+- [ ] **Submission Guidelines**: Interactive guide showing what makes a good submission with examples and best practices
+- [ ] **Image Quality Checking**: Validate image resolution, detect inappropriate content
+- [ ] **Draft Submissions**: Allow users to save incomplete submissions and return to them later
+- [ ] **Submission Appeals**: Allow users to respond to rejection feedback and resubmit with corrections
+- [ ] **Resubmission Workflow**: Enable users to create new submissions based on rejected ones with improvements
 
 ## Post-Migration Improvements
 

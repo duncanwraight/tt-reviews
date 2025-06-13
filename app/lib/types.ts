@@ -1,5 +1,23 @@
 // Shared types that can be used by both client and server components
 
+export type ReviewStatus = 
+  | "pending" 
+  | "under_review" 
+  | "awaiting_second_approval" 
+  | "approved" 
+  | "rejected";
+
+export type ApprovalSource = "admin_ui" | "discord";
+
+export type RejectionCategory = 
+  | "duplicate"
+  | "insufficient_info" 
+  | "poor_image_quality"
+  | "inappropriate_content"
+  | "invalid_data"
+  | "spam"
+  | "other";
+
 export interface Player {
   id: string;
   name: string;
@@ -50,6 +68,20 @@ export interface PlayerEquipmentSetup {
     | "tournament_footage"
     | "official_website";
   verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModeratorApproval {
+  id: string;
+  submission_type: "equipment" | "player" | "player_edit";
+  submission_id: string;
+  moderator_id: string;
+  source: ApprovalSource;
+  action: "approved" | "rejected";
+  notes?: string;
+  rejection_category?: RejectionCategory;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
 }

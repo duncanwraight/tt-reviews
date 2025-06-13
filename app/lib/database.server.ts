@@ -53,9 +53,12 @@ export interface EquipmentSubmission {
   category: "blade" | "rubber" | "ball";
   subcategory?: "inverted" | "long_pips" | "anti" | "short_pips";
   specifications: Record<string, unknown>;
-  status: "pending" | "approved" | "rejected";
+  status: import("./types").ReviewStatus;
   moderator_id?: string;
   moderator_notes?: string;
+  rejection_category?: import("./types").RejectionCategory;
+  rejection_reason?: string;
+  approval_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -91,9 +94,14 @@ export interface PlayerSubmission {
       | "official_website";
     source_url?: string;
   };
-  status: "pending" | "approved" | "rejected";
+  status: import("./types").ReviewStatus;
   moderator_id?: string;
   moderator_notes?: string;
+  rejection_category?: import("./types").RejectionCategory;
+  rejection_reason?: string;
+  approval_count: number;
+  image_url?: string;
+  image_key?: string;
   created_at: string;
   updated_at: string;
 }

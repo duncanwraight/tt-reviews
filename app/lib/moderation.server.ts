@@ -1,259 +1,229 @@
-import type { AppLoadContext } from "react-router";
-import { createSupabaseClient } from "./database.server";
-import type { EquipmentSubmission, PlayerEdit, EquipmentReview } from "./database.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ApprovalSource, RejectionCategory, ModeratorApproval } from "./types";
+import { deleteImageFromR2Native } from "./r2-native.server";
 
-interface ModerationResult {
+export interface ApprovalResult {
   success: boolean;
-  status: "first_approval" | "fully_approved" | "already_approved" | "error";
-  message: string;
+  newStatus?: string;
+  error?: string;
+}
+
+export interface RejectionData {
+  category: RejectionCategory;
+  reason: string;
 }
 
 export class ModerationService {
-  private context: AppLoadContext;
+  constructor(private supabase: SupabaseClient) {}
 
-  constructor(context: AppLoadContext) {
-    this.context = context;
+  async recordApproval(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string,
+    moderatorId: string,
+    source: ApprovalSource,
+    notes?: string
+  ): Promise<ApprovalResult> {
+    try {
+      // Check if this moderator has already approved this submission
+      const { data: existingApproval } = await this.supabase
+        .from("moderator_approvals")
+        .select("id")
+        .eq("submission_type", submissionType)
+        .eq("submission_id", submissionId)
+        .eq("moderator_id", moderatorId)
+        .eq("action", "approved")
+        .maybeSingle();
+
+      if (existingApproval) {
+        return { success: false, error: "You have already approved this submission" };
+      }
+
+      // Record the approval
+      const { error } = await this.supabase
+        .from("moderator_approvals")
+        .insert({
+          submission_type: submissionType,
+          submission_id: submissionId,
+          moderator_id: moderatorId,
+          source,
+          action: "approved",
+          notes,
+        });
+
+      if (error) {
+        return { success: false, error: "Failed to record approval" };
+      }
+
+      // Get updated submission status
+      const status = await this.getSubmissionStatus(submissionType, submissionId);
+      
+      return { success: true, newStatus: status };
+    } catch (error) {
+      return { success: false, error: "Internal error" };
+    }
   }
 
-  /**
-   * Approve equipment submission
-   */
-  async approveEquipmentSubmission(
+  async recordRejection(
+    submissionType: "equipment" | "player" | "player_edit",
     submissionId: string,
-    moderatorId: string
-  ): Promise<ModerationResult> {
+    moderatorId: string,
+    source: ApprovalSource,
+    rejectionData: RejectionData,
+    bucket?: R2Bucket
+  ): Promise<ApprovalResult> {
     try {
-      const supabase = createSupabaseClient(this.context);
-
-      // Get the submission first to check if it exists and is pending
-      const { data: submission, error: fetchError } = await supabase
-        .from("equipment_submissions")
-        .select("*")
-        .eq("id", submissionId)
-        .single();
-
-      if (fetchError || !submission) {
-        return {
-          success: false,
-          status: "error",
-          message: "Equipment submission not found",
-        };
-      }
-
-      if (submission.status !== "pending") {
-        return {
-          success: false,
-          status: "already_approved",
-          message: "Equipment submission has already been processed",
-        };
-      }
-
-      // Update the submission status
-      const { error: updateError } = await supabase
-        .from("equipment_submissions")
-        .update({
-          status: "approved",
+      // Record the rejection
+      const { error } = await this.supabase
+        .from("moderator_approvals")
+        .insert({
+          submission_type: submissionType,
+          submission_id: submissionId,
           moderator_id: moderatorId,
-          updated_at: new Date().toISOString(),
+          source,
+          action: "rejected",
+          rejection_category: rejectionData.category,
+          rejection_reason: rejectionData.reason,
+        });
+
+      if (error) {
+        return { success: false, error: "Failed to record rejection" };
+      }
+
+      // Update the submission with rejection details
+      const tableName = this.getTableName(submissionType);
+      await this.supabase
+        .from(tableName)
+        .update({
+          rejection_category: rejectionData.category,
+          rejection_reason: rejectionData.reason,
         })
         .eq("id", submissionId);
 
-      if (updateError) {
-        console.error("Error approving equipment submission:", updateError);
-        return {
-          success: false,
-          status: "error",
-          message: "Failed to approve equipment submission",
-        };
+      // Delete associated image if it exists
+      if (bucket) {
+        await this.deleteSubmissionImage(submissionType, submissionId, bucket);
       }
 
-      return {
-        success: true,
-        status: "fully_approved",
-        message: "Equipment submission approved successfully!",
-      };
+      return { success: true, newStatus: "rejected" };
     } catch (error) {
-      console.error("Error in approveEquipmentSubmission:", error);
-      return {
-        success: false,
-        status: "error",
-        message: "Internal error approving equipment submission",
-      };
+      return { success: false, error: "Internal error" };
     }
   }
 
-  /**
-   * Reject equipment submission
-   */
-  async rejectEquipmentSubmission(
-    submissionId: string,
-    moderatorId: string
-  ): Promise<boolean> {
-    try {
-      const supabase = createSupabaseClient(this.context);
+  async getSubmissionApprovals(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string
+  ): Promise<ModeratorApproval[]> {
+    const { data, error } = await this.supabase
+      .from("moderator_approvals")
+      .select("*")
+      .eq("submission_type", submissionType)
+      .eq("submission_id", submissionId)
+      .order("created_at", { ascending: true });
 
-      // Get the submission first to check if it exists and is pending
-      const { data: submission, error: fetchError } = await supabase
+    if (error) {
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async getUserSubmissions(userId: string, limit: number = 20) {
+    const [equipmentSubmissions, playerSubmissions, playerEdits] = await Promise.all([
+      this.supabase
         .from("equipment_submissions")
         .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      
+      this.supabase
+        .from("player_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      
+      this.supabase
+        .from("player_edits")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ]);
+
+    const allSubmissions = [
+      ...(equipmentSubmissions.data || []).map(s => ({ ...s, type: "equipment" as const })),
+      ...(playerSubmissions.data || []).map(s => ({ ...s, type: "player" as const })),
+      ...(playerEdits.data || []).map(s => ({ ...s, type: "player_edit" as const })),
+    ];
+
+    // Sort by creation date and limit
+    return allSubmissions
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit);
+  }
+
+  private async getSubmissionStatus(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string
+  ): Promise<string> {
+    const tableName = this.getTableName(submissionType);
+    const { data } = await this.supabase
+      .from(tableName)
+      .select("status")
+      .eq("id", submissionId)
+      .single();
+
+    return data?.status || "pending";
+  }
+
+  private async deleteSubmissionImage(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string,
+    bucket: R2Bucket
+  ): Promise<void> {
+    try {
+      const tableName = this.getTableName(submissionType);
+      const { data: submission } = await this.supabase
+        .from(tableName)
+        .select("specifications, image_key")
         .eq("id", submissionId)
         .single();
 
-      if (fetchError || !submission) {
-        return false;
+      if (!submission) return;
+
+      // Get image key from submission data
+      let imageKey: string | null = null;
+      
+      if (submissionType === "equipment" && submission.specifications?.image_key) {
+        imageKey = submission.specifications.image_key;
+      } else if (submission.image_key) {
+        imageKey = submission.image_key;
       }
 
-      if (submission.status !== "pending") {
-        return false;
+      if (imageKey) {
+        await deleteImageFromR2Native(bucket, imageKey);
       }
-
-      // Update the submission status
-      const { error: updateError } = await supabase
-        .from("equipment_submissions")
-        .update({
-          status: "rejected",
-          moderator_id: moderatorId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", submissionId);
-
-      return !updateError;
     } catch (error) {
-      console.error("Error in rejectEquipmentSubmission:", error);
-      return false;
+      // Don't throw - image deletion failure shouldn't block rejection
     }
   }
 
-  /**
-   * Approve player edit
-   */
-  async approvePlayerEdit(
-    editId: string,
-    moderatorId: string
-  ): Promise<ModerationResult> {
-    try {
-      const supabase = createSupabaseClient(this.context);
-
-      // Get the player edit first to check if it exists and is pending
-      const { data: playerEdit, error: fetchError } = await supabase
-        .from("player_edits")
-        .select("*")
-        .eq("id", editId)
-        .single();
-
-      if (fetchError || !playerEdit) {
-        return {
-          success: false,
-          status: "error",
-          message: "Player edit not found",
-        };
-      }
-
-      if (playerEdit.status !== "pending") {
-        return {
-          success: false,
-          status: "already_approved",
-          message: "Player edit has already been processed",
-        };
-      }
-
-      // Update the player edit status
-      const { error: updateError } = await supabase
-        .from("player_edits")
-        .update({
-          status: "approved",
-          moderator_id: moderatorId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editId);
-
-      if (updateError) {
-        console.error("Error approving player edit:", updateError);
-        return {
-          success: false,
-          status: "error",
-          message: "Failed to approve player edit",
-        };
-      }
-
-      // TODO: Apply the changes to the actual player record
-      // This would involve updating the players table with the edit_data
-      // For now, we'll just mark the edit as approved
-
-      return {
-        success: true,
-        status: "fully_approved",
-        message: "Player edit approved successfully!",
-      };
-    } catch (error) {
-      console.error("Error in approvePlayerEdit:", error);
-      return {
-        success: false,
-        status: "error",
-        message: "Internal error approving player edit",
-      };
+  private getTableName(submissionType: "equipment" | "player" | "player_edit"): string {
+    switch (submissionType) {
+      case "equipment":
+        return "equipment_submissions";
+      case "player":
+        return "player_submissions";
+      case "player_edit":
+        return "player_edits";
+      default:
+        throw new Error(`Unknown submission type: ${submissionType}`);
     }
   }
+}
 
-  /**
-   * Reject player edit
-   */
-  async rejectPlayerEdit(editId: string, moderatorId: string): Promise<boolean> {
-    try {
-      const supabase = createSupabaseClient(this.context);
-
-      // Get the player edit first to check if it exists and is pending
-      const { data: playerEdit, error: fetchError } = await supabase
-        .from("player_edits")
-        .select("*")
-        .eq("id", editId)
-        .single();
-
-      if (fetchError || !playerEdit) {
-        return false;
-      }
-
-      if (playerEdit.status !== "pending") {
-        return false;
-      }
-
-      // Update the player edit status
-      const { error: updateError } = await supabase
-        .from("player_edits")
-        .update({
-          status: "rejected",
-          moderator_id: moderatorId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editId);
-
-      return !updateError;
-    } catch (error) {
-      console.error("Error in rejectPlayerEdit:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Approve review (placeholder - reviews not yet implemented)
-   */
-  async approveReview(
-    reviewId: string,
-    moderatorId: string
-  ): Promise<ModerationResult> {
-    // TODO: Implement when review system is added
-    return {
-      success: false,
-      status: "error",
-      message: "Review moderation not yet implemented",
-    };
-  }
-
-  /**
-   * Reject review (placeholder - reviews not yet implemented)
-   */
-  async rejectReview(reviewId: string, moderatorId: string): Promise<boolean> {
-    // TODO: Implement when review system is added
-    return false;
-  }
+export function createModerationService(supabase: SupabaseClient): ModerationService {
+  return new ModerationService(supabase);
 }
