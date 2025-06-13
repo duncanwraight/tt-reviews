@@ -1,7 +1,6 @@
 import type { Route } from "./+types/equipment.submit";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
-import { createSupabaseAdminClient } from "~/lib/database.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -56,8 +55,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
   }
 
-  // Use service role client to bypass RLS issues
-  const supabase = createSupabaseAdminClient(context);
+  // Use authenticated client with RLS policies
+  const supabase = sbServerClient.client;
   const { error: submitError } = await supabase
     .from("equipment_submissions")
     .insert({
