@@ -77,7 +77,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  return redirect("/equipment", { headers: sbServerClient.headers });
+  return data(
+    { success: true, message: "Equipment submitted successfully! It will be reviewed by our team." },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {

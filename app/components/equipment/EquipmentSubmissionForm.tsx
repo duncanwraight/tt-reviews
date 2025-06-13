@@ -1,25 +1,36 @@
-import { Form, useActionData, useNavigation } from "react-router";
+import { Form, useNavigate } from "react-router";
+import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 
 export function EquipmentSubmissionForm() {
-  const actionData = useActionData();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
-
+  const navigate = useNavigate();
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
-        {actionData?.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800">{actionData.error}</p>
-          </div>
-        )}
+        <RouterFormModalWrapper
+          loadingTitle="Submitting Equipment"
+          loadingMessage="Please wait while we submit your equipment to our database..."
+          successTitle="Equipment Submitted!"
+          successMessage="Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!"
+          errorTitle="Submission Failed"
+          successRedirect={() => navigate("/equipment")}
+          successRedirectDelay={3000}
+          successActions={
+            <button
+              onClick={() => navigate("/equipment")}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+            >
+              View Equipment List
+            </button>
+          }
+        >
+          {({ isLoading }) => (
+            <>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Submit New Equipment
+              </h2>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Submit New Equipment
-        </h2>
-
-        <Form method="post" className="space-y-6">
+              <Form method="post" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Equipment Name */}
             <div className="md:col-span-2">
@@ -34,7 +45,7 @@ export function EquipmentSubmissionForm() {
                 id="name"
                 name="name"
                 required
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 placeholder="e.g., Hurricane 3"
               />
@@ -53,7 +64,7 @@ export function EquipmentSubmissionForm() {
                 id="manufacturer"
                 name="manufacturer"
                 required
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 placeholder="e.g., DHS, Butterfly, Yasaka"
               />
@@ -71,7 +82,7 @@ export function EquipmentSubmissionForm() {
                 id="category"
                 name="category"
                 required
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select category</option>
@@ -92,7 +103,7 @@ export function EquipmentSubmissionForm() {
               <select
                 id="subcategory"
                 name="subcategory"
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select subcategory (optional)</option>
@@ -115,7 +126,7 @@ export function EquipmentSubmissionForm() {
                 id="specifications"
                 name="specifications"
                 rows={4}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 placeholder="Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)"
               />
@@ -132,13 +143,16 @@ export function EquipmentSubmissionForm() {
             </a>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isLoading}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit Equipment"}
+              {isLoading ? "Submitting..." : "Submit Equipment"}
             </button>
           </div>
-        </Form>
+              </Form>
+            </>
+          )}
+        </RouterFormModalWrapper>
       </div>
     </div>
   );

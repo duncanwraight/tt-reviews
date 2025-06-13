@@ -8,7 +8,8 @@ import {
 import type { Route } from "./+types/login";
 import { getServerClient } from "~/lib/supabase.server";
 import { createBrowserClient } from "@supabase/ssr";
-import { useState } from "react";
+import { useAsyncOperationWithModal } from "~/hooks/useAsyncOperationWithModal";
+import { FeedbackModal } from "~/components/ui/FeedbackModal";
 
 export const meta: MetaFunction = () => {
   return [
@@ -41,11 +42,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function Login({ loaderData }: Route.ComponentProps) {
-  const [error, setError] = useState<string | null>(null);
   const { env } = loaderData;
   const navigate = useNavigate();
+  const { modalState, execute, closeModal } = useAsyncOperationWithModal();
 
-  const doLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const dataFields = Object.fromEntries(formData.entries());
@@ -58,10 +59,12 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       env.SUPABASE_ANON_KEY
     );
 
-    try {
+    const isSignup = intent === "signup";
+
+    await execute(async () => {
       let result;
 
-      if (intent === "signup") {
+      if (isSignup) {
         result = await supabase.auth.signUp({
           email: dataFields.email as string,
           password: dataFields.password as string,
@@ -74,33 +77,40 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       }
 
       if (result.error) {
-        console.log(result.error);
-        setError(result.error.message);
-        return;
+        throw new Error(result.error.message);
       }
 
-      if (result.data.session) {
-        navigate("/");
-      } else if (intent === "signup") {
-        setError("Please check your email to confirm your account");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("An unexpected error occurred");
-    }
+      return result;
+    }, {
+      loadingTitle: isSignup ? "Creating Account" : "Signing In",
+      loadingMessage: isSignup 
+        ? "Creating your account, please wait..." 
+        : "Verifying your credentials...",
+      successTitle: isSignup ? "Account Created!" : "Welcome Back!",
+      successMessage: isSignup 
+        ? "Please check your email to confirm your account before signing in." 
+        : "You have been successfully signed in. Redirecting to homepage...",
+      errorTitle: "Authentication Failed",
+      successRedirect: isSignup ? undefined : () => navigate("/"),
+      successRedirectDelay: isSignup ? 4000 : 2500
+    });
   };
 
   return (
     <div className="p-8 min-w-3/4 w-[500px] mx-auto">
       <h1 className="text-2xl">TT Reviews - Login</h1>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mt-4">
-          {error}
-        </div>
-      )}
+      <FeedbackModal
+        isOpen={modalState.isOpen}
+        type={modalState.type}
+        title={modalState.title}
+        message={modalState.message}
+        autoClose={modalState.autoClose}
+        autoCloseDelay={modalState.autoCloseDelay}
+        onClose={modalState.onClose || closeModal}
+      />
 
-      <form className="mt-6" onSubmit={doLogin}>
+      <form onSubmit={handleAuth} className="mt-6">
         <div className="flex flex-col gap-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2">
@@ -108,11 +118,12 @@ export default function Login({ loaderData }: Route.ComponentProps) {
             </label>
             <input
               id="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               type="email"
               name="email"
               placeholder="Enter your email"
               required
+              disabled={modalState.isOpen && modalState.type === "loading"}
             />
           </div>
           <div>
@@ -124,12 +135,13 @@ export default function Login({ loaderData }: Route.ComponentProps) {
             </label>
             <input
               id="password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               type="password"
               name="password"
               placeholder="Enter your password"
               required
               minLength={6}
+              disabled={modalState.isOpen && modalState.type === "loading"}
             />
           </div>
           <div className="flex gap-4 mt-4">
@@ -137,7 +149,8 @@ export default function Login({ loaderData }: Route.ComponentProps) {
               type="submit"
               name="intent"
               value="login"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              disabled={modalState.isOpen && modalState.type === "loading"}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Login
             </button>
@@ -145,7 +158,8 @@ export default function Login({ loaderData }: Route.ComponentProps) {
               type="submit"
               name="intent"
               value="signup"
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              disabled={modalState.isOpen && modalState.type === "loading"}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Sign Up
             </button>

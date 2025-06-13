@@ -186,6 +186,7 @@
 
 ### Features (Previous TODO items)
 
+- [ ] Create reusable loading/feedback system for async operations (register, sign in, submit equipment)
 - [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
 - [ ] Add per-type sponge thicknesses for rubbers
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max

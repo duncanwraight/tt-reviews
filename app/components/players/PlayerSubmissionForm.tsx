@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useNavigate } from "react-router";
 import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
+import { useAsyncOperationWithModal } from "~/hooks/useAsyncOperationWithModal";
+import { FeedbackModal } from "~/components/ui/FeedbackModal";
 
 interface PlayerSubmissionFormProps {
   env: {
@@ -49,76 +51,69 @@ export function PlayerSubmissionForm({
   userId,
 }: PlayerSubmissionFormProps) {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [includeEquipment, setIncludeEquipment] = useState(false);
+  const { modalState, execute, closeModal } = useAsyncOperationWithModal();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
 
     const formData = new FormData(event.currentTarget);
     const name = formData.get("name") as string;
 
     // Validate required fields
     if (!name) {
-      setError("Player name is required.");
-      setIsSubmitting(false);
-      return;
+      throw new Error("Player name is required.");
     }
 
-    // Build player submission data
-    const submission: any = {
-      user_id: userId,
-      name: name.trim(),
-      highest_rating: formData.get("highest_rating") || null,
-      active_years: formData.get("active_years") || null,
-      playing_style: formData.get("playing_style") || null,
-      birth_country: formData.get("birth_country") || null,
-      represents: formData.get("represents") || null,
-    };
+    await execute(async () => {
+      // Build player submission data
+      const submission: any = {
+        user_id: userId,
+        name: name.trim(),
+        highest_rating: formData.get("highest_rating") || null,
+        active_years: formData.get("active_years") || null,
+        playing_style: formData.get("playing_style") || null,
+        birth_country: formData.get("birth_country") || null,
+        represents: formData.get("represents") || null,
+      };
 
-    // Add equipment setup if included
-    if (includeEquipment) {
-      const equipmentSetup: any = {};
+      // Add equipment setup if included
+      if (includeEquipment) {
+        const equipmentSetup: any = {};
 
-      const year = formData.get("year");
-      if (year) equipmentSetup.year = parseInt(year as string);
+        const year = formData.get("year");
+        if (year) equipmentSetup.year = parseInt(year as string);
 
-      const bladeValue = formData.get("blade_name");
-      if (bladeValue) equipmentSetup.blade_name = bladeValue;
+        const bladeValue = formData.get("blade_name");
+        if (bladeValue) equipmentSetup.blade_name = bladeValue;
 
-      const forehandRubber = formData.get("forehand_rubber_name");
-      if (forehandRubber) {
-        equipmentSetup.forehand_rubber_name = forehandRubber;
-        equipmentSetup.forehand_thickness =
-          formData.get("forehand_thickness") || null;
-        equipmentSetup.forehand_color = formData.get("forehand_color") || null;
+        const forehandRubber = formData.get("forehand_rubber_name");
+        if (forehandRubber) {
+          equipmentSetup.forehand_rubber_name = forehandRubber;
+          equipmentSetup.forehand_thickness =
+            formData.get("forehand_thickness") || null;
+          equipmentSetup.forehand_color = formData.get("forehand_color") || null;
+        }
+
+        const backhandRubber = formData.get("backhand_rubber_name");
+        if (backhandRubber) {
+          equipmentSetup.backhand_rubber_name = backhandRubber;
+          equipmentSetup.backhand_thickness =
+            formData.get("backhand_thickness") || null;
+          equipmentSetup.backhand_color = formData.get("backhand_color") || null;
+        }
+
+        const sourceType = formData.get("source_type");
+        if (sourceType) equipmentSetup.source_type = sourceType;
+
+        const sourceUrl = formData.get("source_url");
+        if (sourceUrl) equipmentSetup.source_url = sourceUrl;
+
+        if (Object.keys(equipmentSetup).length > 0) {
+          submission.equipment_setup = equipmentSetup;
+        }
       }
 
-      const backhandRubber = formData.get("backhand_rubber_name");
-      if (backhandRubber) {
-        equipmentSetup.backhand_rubber_name = backhandRubber;
-        equipmentSetup.backhand_thickness =
-          formData.get("backhand_thickness") || null;
-        equipmentSetup.backhand_color = formData.get("backhand_color") || null;
-      }
-
-      const sourceType = formData.get("source_type");
-      if (sourceType) equipmentSetup.source_type = sourceType;
-
-      const sourceUrl = formData.get("source_url");
-      if (sourceUrl) equipmentSetup.source_url = sourceUrl;
-
-      if (Object.keys(equipmentSetup).length > 0) {
-        submission.equipment_setup = equipmentSetup;
-      }
-    }
-
-    try {
       const supabase = createBrowserClient(
         env.SUPABASE_URL,
         env.SUPABASE_ANON_KEY
@@ -134,44 +129,38 @@ export function PlayerSubmissionForm({
         throw submitError;
       }
 
-      setSuccess(
-        "Player submitted successfully! It will be reviewed by our team."
-      );
-
       // Reset form
       (event.target as HTMLFormElement).reset();
       setIncludeEquipment(false);
 
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate("/players");
-      }, 2000);
-    } catch (err) {
-      console.error("Submission error:", err);
-      setError("Failed to submit player. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      return data;
+    }, {
+      loadingTitle: "Submitting Player",
+      loadingMessage: "Please wait while we submit your player to our database...",
+      successTitle: "Player Submitted!",
+      successMessage: "Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
+      errorTitle: "Submission Failed",
+      successRedirect: () => navigate("/players"),
+      successRedirectDelay: 3000
+    });
   };
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
+        <FeedbackModal
+          isOpen={modalState.isOpen}
+          type={modalState.type}
+          title={modalState.title}
+          message={modalState.message}
+          autoClose={modalState.autoClose}
+          autoCloseDelay={modalState.autoCloseDelay}
+          onClose={modalState.onClose || closeModal}
+        />
+
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Submit New Player
         </h2>
-
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {success}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Player Information */}
@@ -194,7 +183,7 @@ export function PlayerSubmissionForm({
                   id="name"
                   name="name"
                   required
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="e.g., Ma Long"
                 />
@@ -212,7 +201,7 @@ export function PlayerSubmissionForm({
                   type="text"
                   id="highest_rating"
                   name="highest_rating"
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="e.g., 3000+"
                 />
@@ -230,7 +219,7 @@ export function PlayerSubmissionForm({
                   type="text"
                   id="active_years"
                   name="active_years"
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="e.g., 2005-present"
                 />
@@ -247,7 +236,7 @@ export function PlayerSubmissionForm({
                 <select
                   id="playing_style"
                   name="playing_style"
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select playing style</option>
@@ -270,7 +259,7 @@ export function PlayerSubmissionForm({
                 <select
                   id="birth_country"
                   name="birth_country"
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select country</option>
@@ -293,7 +282,7 @@ export function PlayerSubmissionForm({
                 <select
                   id="represents"
                   name="represents"
-                  disabled={isSubmitting}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select country</option>
@@ -311,7 +300,7 @@ export function PlayerSubmissionForm({
           <PlayerEquipmentSetup
             includeEquipment={includeEquipment}
             onToggleEquipment={setIncludeEquipment}
-            isSubmitting={isSubmitting}
+            isSubmitting={modalState.isOpen && modalState.type === "loading"}
           />
 
           {/* Submit Button */}
@@ -319,17 +308,17 @@ export function PlayerSubmissionForm({
             <button
               type="button"
               onClick={() => navigate("/players")}
-              disabled={isSubmitting}
+              disabled={modalState.isOpen && modalState.type === "loading"}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={modalState.isOpen && modalState.type === "loading"}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit Player"}
+              {modalState.isOpen && modalState.type === "loading" ? "Submitting..." : "Submit Player"}
             </button>
           </div>
         </form>
