@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { useNavigate } from "react-router";
+import { Form, useNavigate, useActionData } from "react-router";
 import type { Player } from "~/lib/database.server";
 
 interface PlayerEditFormProps {
@@ -47,16 +46,12 @@ const PLAYING_STYLES = [
 
 export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
   const navigate = useNavigate();
+  const actionData = useActionData() as { error?: string; success?: boolean; message?: string } | undefined;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
+    
     const formData = new FormData(event.currentTarget);
 
     // Build edit data with only changed fields
@@ -92,77 +87,20 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
       editData.represents = represents || undefined;
     }
 
-    // Check if there are any changes
-    if (Object.keys(editData).length === 0) {
-      setError("No changes detected. Please modify at least one field.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const supabase = createBrowserClient(
-        env.SUPABASE_URL,
-        env.SUPABASE_ANON_KEY
-      );
-
-      const { data, error: submitError } = await supabase
-        .from("player_edits")
-        .insert({
-          player_id: player.id,
-          user_id: userId,
-          edit_data: editData,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (submitError) {
-        throw submitError;
-      }
-
-      // Send Discord notification (non-blocking)
-      try {
-        const notificationData = {
-          id: data.id,
-          player_name: player.name,
-          player_id: player.id,
-          edit_data: editData,
-          submitter_email: "User submission", // We don't have email in this context
-        };
-
-        fetch("/api/discord/notify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "new_player_edit",
-            data: notificationData,
-          }),
-        }).catch((error) => {
-          console.error("Discord notification failed:", error);
-          // Don't fail the submission if Discord notification fails
-        });
-      } catch (error) {
-        console.error("Discord notification setup failed:", error);
-        // Don't fail the submission if Discord notification setup fails
-      }
-
-      setSuccess(
-        "Player edit submitted successfully! It will be reviewed by our team."
-      );
-
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate(`/players/${player.slug}`);
-      }, 2000);
-    } catch (err) {
-      console.error("Edit submission error:", err);
-      setError("Failed to submit player edit. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Add the edit data as a hidden field
+    const editDataInput = document.createElement("input");
+    editDataInput.type = "hidden";
+    editDataInput.name = "editData";
+    editDataInput.value = JSON.stringify(editData);
+    event.currentTarget.appendChild(editDataInput);
   };
+
+  // Handle success redirect
+  if (actionData?.success) {
+    setTimeout(() => {
+      navigate(`/players/${player.slug}`);
+    }, 2000);
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -242,19 +180,19 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
           Edit Player Information
         </h2>
 
-        {error && (
+        {actionData?.error && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
+            {actionData.error}
           </div>
         )}
 
-        {success && (
+        {actionData?.success && (
           <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {success}
+            {actionData.message || "Player edit submitted successfully!"}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <Form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Player Name */}
             <div className="md:col-span-2">
@@ -404,7 +342,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
               {isSubmitting ? "Submitting..." : "Submit Changes"}
             </button>
           </div>
-        </form>
+        </Form>
       </div>
     </div>
   );

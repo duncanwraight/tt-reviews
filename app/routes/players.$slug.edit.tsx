@@ -1,6 +1,7 @@
 import type { Route } from "./+types/players.$slug.edit";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
+import { sendDiscordPlayerEditNotification } from "~/lib/discord-webhook.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -52,6 +53,100 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     },
     { headers: sbServerClient.headers }
   );
+}
+
+export async function action({ request, context, params }: Route.ActionArgs) {
+  const sbServerClient = getServerClient(request, context);
+  const userResponse = await sbServerClient.client.auth.getUser();
+
+  if (userResponse.error || !userResponse.data.user) {
+    throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  const db = new DatabaseService(context);
+  const player = await db.getPlayer(params.slug);
+
+  if (!player) {
+    throw redirect("/players");
+  }
+
+  const formData = await request.formData();
+  const editDataJson = formData.get("editData") as string;
+  
+  if (!editDataJson) {
+    return data(
+      { error: "No edit data provided" },
+      { status: 400, headers: sbServerClient.headers }
+    );
+  }
+
+  let editData;
+  try {
+    editData = JSON.parse(editDataJson);
+  } catch {
+    return data(
+      { error: "Invalid edit data format" },
+      { status: 400, headers: sbServerClient.headers }
+    );
+  }
+
+  // Check if there are any changes
+  if (Object.keys(editData).length === 0) {
+    return data(
+      { error: "No changes detected" },
+      { status: 400, headers: sbServerClient.headers }
+    );
+  }
+
+  try {
+    // Insert player edit
+    const supabase = sbServerClient.client;
+    const { data: playerEdit, error: submitError } = await supabase
+      .from("player_edits")
+      .insert({
+        player_id: player.id,
+        user_id: userResponse.data.user.id,
+        edit_data: editData,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (submitError) {
+      console.error("Player edit submission error:", submitError);
+      return data(
+        { error: "Failed to submit player edit" },
+        { status: 500, headers: sbServerClient.headers }
+      );
+    }
+
+    // Send Discord notification (non-blocking)
+    try {
+      const notificationData = {
+        id: playerEdit.id,
+        player_name: player.name,
+        player_id: player.id,
+        edit_data: editData,
+        submitter_email: userResponse.data.user.email || "Anonymous",
+      };
+
+      await sendDiscordPlayerEditNotification(context, notificationData);
+    } catch (error) {
+      console.error("Discord notification failed:", error);
+      // Don't fail the submission if Discord notification fails
+    }
+
+    return data(
+      { success: true, message: "Player edit submitted successfully! It will be reviewed by our team." },
+      { headers: sbServerClient.headers }
+    );
+  } catch (error) {
+    console.error("Player edit submission error:", error);
+    return data(
+      { error: "Failed to submit player edit" },
+      { status: 500, headers: sbServerClient.headers }
+    );
+  }
 }
 
 export default function PlayerEdit({ loaderData }: Route.ComponentProps) {

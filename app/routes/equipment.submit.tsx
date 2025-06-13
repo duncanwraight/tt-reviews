@@ -101,55 +101,80 @@ export async function action({ request, context }: Route.ActionArgs) {
     console.log("Base URL:", baseUrl);
     console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
     
-    // Test 1: Try calling our internal API with relative URL
-    console.log("=== TEST 1: Internal API call (relative URL) ===");
-    console.log("Using relative URL: /api/discord/notify");
-    
-    const apiResponse = await fetch("/api/discord/notify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "new_equipment_submission",
-        data: notificationData,
-      }),
-    });
+    // Skip internal API call - use direct Discord webhook instead
+    console.log("=== Using direct Discord webhook (avoiding worker-to-worker call) ===");
 
-    console.log("API response status:", apiResponse.status);
-    console.log("API response ok:", apiResponse.ok);
-    
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      console.error("API error response:", errorText);
-    } else {
-      const successData = await apiResponse.json();
-      console.log("API success response:", successData);
-    }
-
-    // Test 2: Try calling Discord webhook directly
-    console.log("=== TEST 2: Direct Discord webhook call ===");
+    // Call Discord webhook directly with full notification structure
     if (env.DISCORD_WEBHOOK_URL) {
-      console.log("Calling Discord webhook directly...");
+      console.log("Calling Discord webhook directly with full notification...");
+      
+      const embed = {
+        title: "⚙️ Equipment Submission",
+        description: "A new equipment submission has been received and needs moderation.",
+        color: 0x9b59b6, // Purple color
+        fields: [
+          {
+            name: "Equipment Name",
+            value: notificationData.name || "Unknown Equipment",
+            inline: true,
+          },
+          {
+            name: "Manufacturer", 
+            value: notificationData.manufacturer || "Unknown",
+            inline: true,
+          },
+          {
+            name: "Category",
+            value: notificationData.category
+              ? notificationData.category.charAt(0).toUpperCase() + notificationData.category.slice(1)
+              : "Unknown",
+            inline: true,
+          },
+          {
+            name: "Subcategory",
+            value: notificationData.subcategory || "N/A",
+            inline: true,
+          },
+          {
+            name: "Submitted by",
+            value: notificationData.submitter_email || "Anonymous",
+            inline: true,
+          },
+        ],
+        timestamp: new Date().toISOString(),
+      };
+
+      const components = [
+        {
+          type: 1, // Action Row
+          components: [
+            {
+              type: 2, // Button
+              style: 3, // Success/Green
+              label: "Approve Equipment",
+              custom_id: `approve_equipment_${notificationData.id}`,
+            },
+            {
+              type: 2, // Button
+              style: 4, // Danger/Red
+              label: "Reject Equipment", 
+              custom_id: `reject_equipment_${notificationData.id}`,
+            },
+          ],
+        },
+      ];
+
+      const payload = {
+        embeds: [embed],
+        components,
+      };
       
       const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          embeds: [{
-            title: "⚙️ Test Equipment Submission (Direct)",
-            description: `Direct webhook test for ${notificationData.name}`,
-            color: 0x9b59b6,
-            fields: [
-              { name: "Equipment", value: notificationData.name, inline: true },
-              { name: "Manufacturer", value: notificationData.manufacturer, inline: true },
-              { name: "Category", value: notificationData.category, inline: true },
-            ],
-            timestamp: new Date().toISOString(),
-          }]
-        }),
+        body: JSON.stringify(payload),
       });
 
       console.log("Direct Discord response status:", directResponse.status);
@@ -158,6 +183,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (!directResponse.ok) {
         const directErrorText = await directResponse.text();
         console.error("Direct Discord error:", directErrorText);
+      } else {
+        console.log("Discord notification sent successfully!");
       }
     } else {
       console.error("DISCORD_WEBHOOK_URL not available");
