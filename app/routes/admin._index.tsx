@@ -1,6 +1,6 @@
 import type { Route } from "./+types/admin._index";
 import { data } from "react-router";
-import { DatabaseService, createSupabaseClient } from "~/lib/database.server";
+import { DatabaseService, createSupabaseAdminClient } from "~/lib/database.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -14,7 +14,7 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ context }: Route.LoaderArgs) {
   const db = new DatabaseService(context);
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
   // Get counts for dashboard stats
   const [

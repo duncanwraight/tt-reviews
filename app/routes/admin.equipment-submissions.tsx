@@ -1,6 +1,6 @@
 import type { Route } from "./+types/admin.equipment-submissions";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseClient } from "~/lib/database.server";
+import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 
@@ -23,7 +23,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
   const { data: submissions, error } = await supabase
     .from("equipment_submissions")
@@ -32,7 +32,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     .limit(50);
 
   if (error) {
-    console.error("Error fetching equipment submissions:", error);
     return data({ submissions: [], user }, { headers: sbServerClient.headers });
   }
 
@@ -57,9 +56,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
-  const { error } = await supabase
+  // Update submission status
+  const { error: updateError } = await supabase
     .from("equipment_submissions")
     .update({
       status: actionType as "approved" | "rejected",
@@ -69,9 +69,42 @@ export async function action({ request, context }: Route.ActionArgs) {
     })
     .eq("id", submissionId);
 
-  if (error) {
-    console.error("Error updating equipment submission:", error);
+  if (updateError) {
     return data({ error: "Failed to update submission" }, { status: 500, headers: sbServerClient.headers });
+  }
+
+  // If approved, create the equipment record
+  if (actionType === "approved") {
+    // Get the submission details
+    const { data: submission } = await supabase
+      .from("equipment_submissions")
+      .select("*")
+      .eq("id", submissionId)
+      .single();
+
+    if (submission) {
+      // Generate slug from name
+      const slug = submission.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      // Create equipment record
+      const { error: equipmentError } = await supabase
+        .from("equipment")
+        .insert({
+          name: submission.name,
+          slug: slug,
+          manufacturer: submission.manufacturer,
+          category: submission.category,
+          subcategory: submission.subcategory,
+          specifications: submission.specifications,
+        });
+
+      if (equipmentError) {
+        // Don't fail the approval if equipment creation fails
+      }
+    }
   }
 
   return redirect("/admin/equipment-submissions", { headers: sbServerClient.headers });

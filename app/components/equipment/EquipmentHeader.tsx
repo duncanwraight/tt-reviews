@@ -61,11 +61,25 @@ export function EquipmentHeader({
     }
   };
 
+  const imageUrl = equipment.specifications?.image_url as string;
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64">
-          <span className="text-6xl">
+        <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64 overflow-hidden">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={`${equipment.name} by ${equipment.manufacturer}`}
+              className="w-full h-full object-cover rounded-lg"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          <span className={`text-6xl ${imageUrl ? 'hidden' : ''}`}>
             {getCategoryIcon(equipment.category)}
           </span>
         </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
+import { ImageUpload } from "~/components/ui/ImageUpload";
 import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
 
 interface PlayerSubmissionFormProps {}
@@ -68,7 +69,7 @@ export function PlayerSubmissionForm(): JSX.Element {
                 Submit New Player
               </h2>
 
-              <Form method="post" className="space-y-8">
+              <Form method="post" encType="multipart/form-data" className="space-y-8">
                 {/* Hidden field for equipment toggle */}
                 <input
                   type="hidden"
@@ -204,6 +205,20 @@ export function PlayerSubmissionForm(): JSX.Element {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Player Image */}
+              <div className="md:col-span-2">
+                <ImageUpload
+                  name="image"
+                  label="Player Photo (Optional)"
+                  disabled={isLoading}
+                  maxSize={10}
+                  preview={true}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Upload a professional photo of the player. This helps with identification and provides a better user experience.
+                </p>
               </div>
             </div>
           </div>

@@ -7,6 +7,10 @@ routes = [
   { pattern = "tabletennis.reviews", custom_domain = true }
 ]
 
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "tt-reviews-prod"
+
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -23,6 +27,10 @@ ADMIN_EMAILS = "admin@tabletennis.reviews"
 [env.dev]
 host = "tt-reviews.local"
 port = 8787
+
+[[env.dev.r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "tt-reviews-dev"
 
 [env.dev.vars]
 ENVIRONMENT = "development"

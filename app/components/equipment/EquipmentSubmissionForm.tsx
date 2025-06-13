@@ -1,5 +1,6 @@
 import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
+import { ImageUpload } from "~/components/ui/ImageUpload";
 
 export function EquipmentSubmissionForm() {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export function EquipmentSubmissionForm() {
                 Submit New Equipment
               </h2>
 
-              <Form method="post" className="space-y-6">
+              <Form method="post" encType="multipart/form-data" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Equipment Name */}
             <div className="md:col-span-2">
@@ -112,6 +113,20 @@ export function EquipmentSubmissionForm() {
                 <option value="anti">Anti</option>
                 <option value="short_pips">Short Pips</option>
               </select>
+            </div>
+
+            {/* Equipment Image */}
+            <div className="md:col-span-2">
+              <ImageUpload
+                name="image"
+                label="Equipment Image (Optional)"
+                disabled={isLoading}
+                maxSize={10}
+                preview={true}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Upload a clear photo of the equipment. This helps with identification and moderation.
+              </p>
             </div>
 
             {/* Specifications */}

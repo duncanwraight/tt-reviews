@@ -1,6 +1,6 @@
 import type { Route } from "./+types/admin.player-submissions";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseClient } from "~/lib/database.server";
+import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 
@@ -20,7 +20,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
   const { data: submissions, error } = await supabase
     .from("player_submissions")
@@ -54,9 +54,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
-  const { error } = await supabase
+  // Update submission status
+  const { error: updateError } = await supabase
     .from("player_submissions")
     .update({
       status: actionType as "approved" | "rejected",
@@ -66,9 +67,44 @@ export async function action({ request, context }: Route.ActionArgs) {
     })
     .eq("id", submissionId);
 
-  if (error) {
-    console.error("Error updating player submission:", error);
+  if (updateError) {
     return data({ error: "Failed to update submission" }, { status: 500, headers: sbServerClient.headers });
+  }
+
+  // If approved, create the player record
+  if (actionType === "approved") {
+    // Get the submission details
+    const { data: submission } = await supabase
+      .from("player_submissions")
+      .select("*")
+      .eq("id", submissionId)
+      .single();
+
+    if (submission) {
+      // Generate slug from name
+      const slug = submission.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      // Create player record
+      const { error: playerError } = await supabase
+        .from("players")
+        .insert({
+          name: submission.name,
+          slug: slug,
+          highest_rating: submission.highest_rating,
+          active_years: submission.active_years,
+          playing_style: submission.playing_style,
+          birth_country: submission.birth_country,
+          represents: submission.represents,
+          active: true,
+        });
+
+      if (playerError) {
+        // Don't fail the approval if player creation fails
+      }
+    }
   }
 
   return redirect("/admin/player-submissions", { headers: sbServerClient.headers });

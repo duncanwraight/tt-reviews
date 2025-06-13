@@ -1,6 +1,7 @@
 import type { Route } from "./+types/equipment.submit";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
+import { handleImageUpload } from "~/lib/image-upload.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -76,6 +77,43 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data(
       { error: "Failed to submit equipment. Please try again." },
       { status: 500, headers: sbServerClient.headers }
+    );
+  }
+
+  // Handle image upload if provided
+  let imageUrl = null;
+  const env = context.cloudflare.env as Cloudflare.Env;
+  const imageUploadResult = await handleImageUpload(
+    formData,
+    env,
+    "equipment",
+    submission.id,
+    "image"
+  );
+
+  if (imageUploadResult.success && imageUploadResult.url) {
+    imageUrl = imageUploadResult.url;
+    
+    // Update submission with image URL
+    const { error: updateError } = await supabase
+      .from("equipment_submissions")
+      .update({ 
+        specifications: {
+          ...specifications,
+          image_url: imageUrl,
+          image_key: imageUploadResult.key,
+        }
+      })
+      .eq("id", submission.id);
+
+    if (updateError) {
+      // Continue anyway - the submission was created successfully
+    }
+  } else if (formData.get("image") && !imageUploadResult.success) {
+    // If user tried to upload an image but it failed, return error
+    return data(
+      { error: imageUploadResult.error || "Failed to upload image. Please try again." },
+      { status: 400, headers: sbServerClient.headers }
     );
   }
 

@@ -110,6 +110,8 @@
   - ✅ Resolved authentication errors and made system fully functional
   - ✅ Removed dependency on service role key for equipment submissions
 
+## Complete Later (Low Priority)
+
 ### API Endpoints (External Integration)
 
 - [ ] Add an API token generation mechanism to the /admin area
@@ -121,16 +123,16 @@
   - [ ] `POST /api/reviews` - Review submission
   - [ ] `GET /api/reviews/:id` - Review details
 
-### Discord Integration
+### Discord Integration ✅
 
-- [ ] **Webhook Endpoints**:
-  - [ ] `POST /api/discord/interactions` - Discord slash commands
-  - [ ] `POST /api/discord/messages` - Message handling
-  - [ ] `POST /api/discord/notify` - Notifications
-- [ ] **Port Discord Services**:
-  - [ ] Migrate `DiscordService` to work with React Router actions
-  - [ ] Update moderation workflow for new architecture
-  - [ ] Test Discord command functionality
+- [x] **Webhook Endpoints**: All Discord functionality implemented and tested ✅
+  - [x] `POST /api/discord/interactions` - Discord slash commands ✅
+  - [x] `POST /api/discord/messages` - Message handling ✅
+  - [x] `POST /api/discord/notify` - Notifications ✅
+- [x] **Port Discord Services**: ✅
+  - [x] Migrate `DiscordService` to work with React Router actions ✅
+  - [x] Update moderation workflow for new architecture ✅
+  - [x] Test Discord command functionality ✅
 
 ### Forms & Validation
 
@@ -144,13 +146,16 @@
   - [ ] Add client-side validation for better UX
   - [ ] Implement proper loading states
 
-### Image Handling
+### Image Handling ✅
 
-- [ ] **R2 Integration**:
-  - [ ] Port image upload functionality to React Router actions
-  - [ ] Implement image processing workflows
-  - [ ] Add image optimization and resizing
-  - [ ] Create image upload components
+- [x] **R2 Integration**: Complete image upload system implemented ✅
+  - [x] Port image upload functionality to React Router actions ✅
+  - [x] Implement image processing workflows ✅
+  - [x] Add image optimization and resizing ✅
+  - [x] Create image upload components ✅
+  - [x] Integrate with equipment submission forms ✅
+  - [x] Integrate with player submission forms ✅
+  - [x] Set up AWS S3 SDK for Cloudflare R2 compatibility ✅
 
 ### Caching
 - [ ] Agree and implement best possible solution for caching when using Cloudflare Workers

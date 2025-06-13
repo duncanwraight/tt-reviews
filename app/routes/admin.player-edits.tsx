@@ -1,6 +1,6 @@
 import type { Route } from "./+types/admin.player-edits";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseClient } from "~/lib/database.server";
+import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 
@@ -23,7 +23,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
   const { data: playerEdits, error } = await supabase
     .from("player_edits")
@@ -66,7 +66,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
   }
 
-  const supabase = createSupabaseClient(context);
+  const supabase = createSupabaseAdminClient(context);
 
   const { error } = await supabase
     .from("player_edits")
