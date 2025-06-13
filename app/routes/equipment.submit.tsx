@@ -101,11 +101,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     console.log("Base URL:", baseUrl);
     console.log("Environment check - DISCORD_WEBHOOK_URL exists:", !!env.DISCORD_WEBHOOK_URL);
     
-    // Test 1: Try calling our internal API
-    console.log("=== TEST 1: Internal API call ===");
-    console.log("Full URL:", `${baseUrl}/api/discord/notify`);
+    // Test 1: Try calling our internal API with relative URL
+    console.log("=== TEST 1: Internal API call (relative URL) ===");
+    console.log("Using relative URL: /api/discord/notify");
     
-    const apiResponse = await fetch(`${baseUrl}/api/discord/notify`, {
+    const apiResponse = await fetch("/api/discord/notify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

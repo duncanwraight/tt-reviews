@@ -130,7 +130,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
           submitter_email: "User submission", // We don't have email in this context
         };
 
-        fetch(`/api/discord/notify`, {
+        fetch("/api/discord/notify", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
