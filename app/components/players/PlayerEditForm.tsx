@@ -295,6 +295,7 @@ export function PlayerEditForm({ player, env, userId }: PlayerEditFormProps) {
             </button>
           </div>
         </Form>
+      </div>
           </>
         )}
       </RouterFormModalWrapper>
