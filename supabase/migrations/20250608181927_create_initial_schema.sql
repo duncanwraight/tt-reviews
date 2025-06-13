@@ -139,7 +139,8 @@ CREATE POLICY "Allow users to read their own reviews" ON equipment_reviews FOR S
 CREATE POLICY "Allow users to update their own pending reviews" ON equipment_reviews FOR UPDATE USING (auth.uid() = user_id AND status = 'pending');
 
 -- Create storage bucket for images
-INSERT INTO storage.buckets (id, name, public) VALUES ('images', 'images', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('images', 'images', true)
+ON CONFLICT (id) DO NOTHING;
 
 -- Create storage policy for public read access
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'images');
