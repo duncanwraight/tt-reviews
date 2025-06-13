@@ -87,15 +87,18 @@
   - [x] Admin equipment submissions (`/admin/equipment-submissions`) ✅
     - ✅ List view of all equipment submissions with status badges
     - ✅ Detailed specification display and moderation notes
-    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+    - ✅ Action buttons for approve/reject with React Router Forms
+    - ✅ Server-side actions for submission moderation
   - [x] Admin player submissions (`/admin/player-submissions`) ✅
     - ✅ List view of all player submissions with complete player info
     - ✅ Equipment setup display and status management
-    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+    - ✅ Action buttons for approve/reject with React Router Forms
+    - ✅ Server-side actions for submission moderation
   - [x] Admin player edits (`/admin/player-edits`) ✅
     - ✅ List view of all player edit requests with diff display
     - ✅ Integration with players table for context
-    - ✅ Action buttons for approve/reject (UI implemented, actions TODO)
+    - ✅ Action buttons for approve/reject with React Router Forms
+    - ✅ Server-side actions for edit moderation
 
 - [x] **Role-Based Access Control (RBAC)**: ✅
   - ✅ Implemented proper Supabase RBAC following official best practices
@@ -103,6 +106,9 @@
   - ✅ Server-side role checking in admin routes using JWT decoding
   - ✅ Frontend role display in Navigation component (Admin vs Profile)
   - ✅ Production-ready pattern avoiding RLS recursion issues
+  - ✅ Fixed database migration consistency issues between local and production
+  - ✅ Resolved authentication errors and made system fully functional
+  - ✅ Removed dependency on service role key for equipment submissions
 
 ### API Endpoints (External Integration)
 
