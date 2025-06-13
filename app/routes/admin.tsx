@@ -1,54 +1,27 @@
 import { Outlet } from "react-router";
 import type { Route } from "./+types/admin";
 import { getServerClient } from "~/lib/supabase.server";
+import { getUserWithRole } from "~/lib/auth.server";
 import { data, redirect } from "react-router";
 
 import { PageLayout } from "~/components/layout/PageLayout";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const userResponse = await sbServerClient.client.auth.getUser();
+  const user = await getUserWithRole(sbServerClient);
 
-  if (userResponse.error || !userResponse.data.user) {
+  if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 
-  // Check admin role from JWT claims (proper Supabase RBAC pattern)
-  const session = await sbServerClient.client.auth.getSession();
-  let userWithRole = userResponse.data.user;
-
-  if (session.data.session?.access_token) {
-    try {
-      // Decode JWT to get custom claims added by auth hook
-      const payload = JSON.parse(
-        Buffer.from(
-          session.data.session.access_token.split(".")[1],
-          "base64"
-        ).toString()
-      );
-
-      if (payload.user_role !== "admin") {
-        throw redirect("/", {
-          headers: sbServerClient.headers,
-        });
-      }
-
-      // Add role to user object for navigation
-      userWithRole = { ...userWithRole, role: payload.user_role };
-    } catch (error) {
-      throw redirect("/", {
-        headers: sbServerClient.headers,
-      });
-    }
-  } else {
-    throw redirect("/login", {
-      headers: sbServerClient.headers,
-    });
+  // Check admin role for access control
+  if (user.role !== "admin") {
+    throw redirect("/", { headers: sbServerClient.headers });
   }
 
   return data(
     {
-      user: userWithRole,
+      user,
     },
     { headers: sbServerClient.headers }
   );

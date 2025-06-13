@@ -1,5 +1,6 @@
 import type { Route } from "./+types/_index";
 import { getServerClient } from "~/lib/supabase.server";
+import { getUserWithRole } from "~/lib/auth.server";
 import { DatabaseService } from "~/lib/database.server";
 import { data } from "react-router";
 
@@ -57,7 +58,7 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const userResponse = await sbServerClient.client.auth.getUser();
+  const user = await getUserWithRole(sbServerClient);
 
   const db = new DatabaseService(context);
 
@@ -84,7 +85,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return data(
     {
-      user: userResponse?.data?.user || null,
+      user,
       featuredEquipment,
       popularPlayers,
     },

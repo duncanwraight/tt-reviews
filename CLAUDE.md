@@ -204,29 +204,16 @@ This project uses **Supabase RBAC** with JWT claims following official best prac
 **In Route Loaders** (server-side):
 
 ```typescript
-// Decode JWT to get user role
-let userWithRole = userResponse?.data?.user || null;
-if (userWithRole) {
-  const session = await sbServerClient.client.auth.getSession();
-  if (session.data.session?.access_token) {
-    const payload = JSON.parse(
-      Buffer.from(
-        session.data.session.access_token.split(".")[1],
-        "base64"
-      ).toString()
-    );
-    userWithRole = { ...userWithRole, role: payload.user_role || "user" };
-  }
-}
+// Use the utility function for consistent user role handling
+import { getUserWithRole } from "~/lib/auth.server";
+const user = await getUserWithRole(sbServerClient);
 ```
 
 **In Components** (client-side):
 
 ```typescript
-// Check user role from props
-{
-  user?.role === "admin" ? <AdminComponent /> : <RegularComponent />;
-}
+// Access user role from loader data: user.role will be 'admin', 'moderator', or 'user'
+{user?.role === "admin" ? <AdminComponent /> : <RegularComponent />}
 ```
 
 **Role Values**: `'admin'`, `'moderator'`, `'user'` (default)
