@@ -220,9 +220,23 @@ const user = await getUserWithRole(sbServerClient);
 
 ### Managing User Roles
 
-- **Add role**: `INSERT INTO user_roles (user_id, role) VALUES (uuid, 'admin')`
+- **Add role manually**: `INSERT INTO user_roles (user_id, role) VALUES (uuid, 'admin')`
+- **Auto-promotion**: Set `AUTO_ADMIN_EMAILS` environment variable with comma-separated email addresses that should be automatically promoted to admin when they sign up or sign in
 - **Auth hook**: Automatically adds `user_role` claim to JWT tokens
 - **Production**: Enable auth hook in Supabase Dashboard > Authentication > Hooks
+
+#### Auto Admin Promotion
+
+```bash
+# Environment variable for automatic admin promotion
+AUTO_ADMIN_EMAILS=admin@yourcompany.com,moderator@yourcompany.com
+```
+
+This feature automatically promotes specified email addresses to admin role when they access the application. This is secure because:
+- Only emails explicitly listed in the environment variable are promoted
+- Email validation is performed
+- Promotion only happens for authenticated users
+- Existing roles are preserved (won't demote existing admins)
 
 ## React Router v7 File-Based Routing
 

@@ -3,6 +3,10 @@ import { data, redirect, Form } from "react-router";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
+import { createModerationService } from "~/lib/moderation.server";
+import { RejectionModal } from "~/components/ui/RejectionModal";
+import { useState } from "react";
+import type { RejectionCategory } from "~/lib/types";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -13,7 +17,7 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   // Check admin access
   if (!user || user.role !== "admin") {
@@ -22,11 +26,36 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const supabase = createSupabaseAdminClient(context);
 
+  // Get all submissions first
   const { data: submissions, error } = await supabase
     .from("player_submissions")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(50);
+
+  // Then get approvals for each submission manually
+  if (submissions && submissions.length > 0) {
+    const submissionIds = submissions.map(s => s.id);
+    const { data: approvals } = await supabase
+      .from("moderator_approvals")
+      .select("*")
+      .eq("submission_type", "player")
+      .in("submission_id", submissionIds);
+
+    // Group approvals by submission_id
+    const approvalsBySubmission = (approvals || []).reduce((acc, approval) => {
+      if (!acc[approval.submission_id]) {
+        acc[approval.submission_id] = [];
+      }
+      acc[approval.submission_id].push(approval);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Add approvals to each submission
+    submissions.forEach(submission => {
+      submission.moderator_approvals = approvalsBySubmission[submission.id] || [];
+    });
+  }
 
   if (error) {
     console.error("Error fetching player submissions:", error);
@@ -38,7 +67,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   // Check admin access
   if (!user || user.role !== "admin") {
@@ -48,63 +77,74 @@ export async function action({ request, context }: Route.ActionArgs) {
   const formData = await request.formData();
   const submissionId = formData.get("submissionId") as string;
   const actionType = formData.get("action") as string;
-  const moderatorNotes = formData.get("moderatorNotes") as string || null;
+  const moderatorNotes = formData.get("notes") as string || undefined;
+  const rejectionCategory = formData.get("category") as RejectionCategory | null;
+  const rejectionReason = formData.get("reason") as string | null;
 
   if (!submissionId || !actionType) {
     return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
   }
 
   const supabase = createSupabaseAdminClient(context);
+  const moderationService = createModerationService(supabase);
 
-  // Update submission status
-  const { error: updateError } = await supabase
-    .from("player_submissions")
-    .update({
-      status: actionType as "approved" | "rejected",
-      moderator_id: user.id,
-      moderator_notes: moderatorNotes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", submissionId);
-
-  if (updateError) {
-    return data({ error: "Failed to update submission" }, { status: 500, headers: sbServerClient.headers });
-  }
-
-  // If approved, create the player record
+  let result;
   if (actionType === "approved") {
-    // Get the submission details
-    const { data: submission } = await supabase
-      .from("player_submissions")
-      .select("*")
-      .eq("id", submissionId)
-      .single();
+    result = await moderationService.recordApproval(
+      "player",
+      submissionId,
+      user.id,
+      "admin_ui",
+      moderatorNotes
+    );
+    
+    // If this approval results in full approval, create the player record
+    if (result.success && result.newStatus === "approved") {
+      const { data: submission } = await supabase
+        .from("player_submissions")
+        .select("*")
+        .eq("id", submissionId)
+        .single();
 
-    if (submission) {
-      // Generate slug from name
-      const slug = submission.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
+      if (submission) {
+        const slug = submission.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
 
-      // Create player record
-      const { error: playerError } = await supabase
-        .from("players")
-        .insert({
-          name: submission.name,
-          slug: slug,
-          highest_rating: submission.highest_rating,
-          active_years: submission.active_years,
-          playing_style: submission.playing_style,
-          birth_country: submission.birth_country,
-          represents: submission.represents,
-          active: true,
-        });
-
-      if (playerError) {
-        // Don't fail the approval if player creation fails
+        await supabase
+          .from("players")
+          .insert({
+            name: submission.name,
+            slug: slug,
+            highest_rating: submission.highest_rating,
+            active_years: submission.active_years,
+            playing_style: submission.playing_style,
+            birth_country: submission.birth_country,
+            represents: submission.represents,
+            active: true,
+          });
       }
     }
+  } else if (actionType === "rejected") {
+    if (!rejectionCategory || !rejectionReason) {
+      return data({ error: "Rejection requires category and reason" }, { status: 400, headers: sbServerClient.headers });
+    }
+    
+    result = await moderationService.recordRejection(
+      "player",
+      submissionId,
+      user.id,
+      "admin_ui",
+      { category: rejectionCategory, reason: rejectionReason },
+      context.cloudflare?.env?.R2_BUCKET
+    );
+  } else {
+    return data({ error: "Invalid action" }, { status: 400, headers: sbServerClient.headers });
+  }
+
+  if (!result.success) {
+    return data({ error: result.error || "Operation failed" }, { status: 500, headers: sbServerClient.headers });
   }
 
   return redirect("/admin/player-submissions", { headers: sbServerClient.headers });
@@ -114,20 +154,44 @@ export default function AdminPlayerSubmissions({
   loaderData,
 }: Route.ComponentProps) {
   const { submissions, user } = loaderData;
+  const [rejectionModal, setRejectionModal] = useState<{
+    isOpen: boolean;
+    submissionId: string;
+    submissionName: string;
+  }>({ isOpen: false, submissionId: "", submissionName: "" });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, approvalCount?: number) => {
     const baseClasses =
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
     switch (status) {
       case "pending":
-        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+        const pendingText = approvalCount ? `${approvalCount}/2 approvals` : "pending";
+        return { classes: `${baseClasses} bg-yellow-100 text-yellow-800`, text: pendingText };
+      case "awaiting_second_approval":
+        return { classes: `${baseClasses} bg-blue-100 text-blue-800`, text: "1/2 approvals" };
       case "approved":
-        return `${baseClasses} bg-green-100 text-green-800`;
+        return { classes: `${baseClasses} bg-green-100 text-green-800`, text: "approved" };
       case "rejected":
-        return `${baseClasses} bg-red-100 text-red-800`;
+        return { classes: `${baseClasses} bg-red-100 text-red-800`, text: "rejected" };
       default:
-        return `${baseClasses} bg-gray-100 text-gray-800`;
+        return { classes: `${baseClasses} bg-gray-100 text-gray-800`, text: status };
     }
+  };
+
+  const getApprovalCount = (submission: any) => {
+    if (!submission.moderator_approvals) return 0;
+    return submission.moderator_approvals.filter((a: any) => a.action === "approved").length;
+  };
+
+  const canApprove = (submission: any) => {
+    if (submission.status === "approved" || submission.status === "rejected") return false;
+    const approvals = submission.moderator_approvals || [];
+    const userApproval = approvals.find((a: any) => a.moderator_id === user.id && a.action === "approved");
+    return !userApproval;
+  };
+
+  const canReject = (submission: any) => {
+    return submission.status !== "approved" && submission.status !== "rejected";
   };
 
   const getPlayingStyleLabel = (style: string | undefined): string => {
@@ -178,9 +242,14 @@ export default function AdminPlayerSubmissions({
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={getStatusBadge(submission.status)}>
-                        {submission.status}
-                      </span>
+                      {(() => {
+                        const badge = getStatusBadge(submission.status, getApprovalCount(submission));
+                        return (
+                          <span className={badge.classes}>
+                            {badge.text}
+                          </span>
+                        );
+                      })()}
                       <div className="text-sm text-gray-500">
                         {new Date(submission.created_at).toLocaleDateString()}
                       </div>
@@ -257,38 +326,58 @@ export default function AdminPlayerSubmissions({
                     </div>
                   )}
 
+                  {/* Approval History */}
+                  {submission.moderator_approvals && submission.moderator_approvals.length > 0 && (
+                    <div className="mt-3 bg-gray-50 rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">
+                        Approval History:
+                      </h4>
+                      <div className="space-y-1">
+                        {submission.moderator_approvals.map((approval: any, index: number) => (
+                          <div key={index} className="text-sm flex justify-between">
+                            <span className={`font-medium ${
+                              approval.action === "approved" ? "text-green-700" : "text-red-700"
+                            }`}>
+                              {approval.action} by {approval.source}
+                            </span>
+                            <span className="text-gray-500">
+                              {new Date(approval.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-3 flex items-center space-x-3">
-                    {submission.status === "pending" && (
-                      <>
-                        <Form method="post" className="inline">
-                          <input
-                            type="hidden"
-                            name="submissionId"
-                            value={submission.id}
-                          />
-                          <input type="hidden" name="action" value="approved" />
-                          <button
-                            type="submit"
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            Approve
-                          </button>
-                        </Form>
-                        <Form method="post" className="inline">
-                          <input
-                            type="hidden"
-                            name="submissionId"
-                            value={submission.id}
-                          />
-                          <input type="hidden" name="action" value="rejected" />
-                          <button
-                            type="submit"
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            Reject
-                          </button>
-                        </Form>
-                      </>
+                    {canApprove(submission) && (
+                      <Form method="post" className="inline">
+                        <input
+                          type="hidden"
+                          name="submissionId"
+                          value={submission.id}
+                        />
+                        <input type="hidden" name="action" value="approved" />
+                        <button
+                          type="submit"
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          Approve
+                        </button>
+                      </Form>
+                    )}
+                    {canReject(submission) && (
+                      <button
+                        type="button"
+                        onClick={() => setRejectionModal({
+                          isOpen: true,
+                          submissionId: submission.id,
+                          submissionName: submission.name
+                        })}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        Reject
+                      </button>
                     )}
                     <button
                       className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -305,6 +394,14 @@ export default function AdminPlayerSubmissions({
           </ul>
         </div>
       )}
+      
+      <RejectionModal
+        isOpen={rejectionModal.isOpen}
+        onClose={() => setRejectionModal({ isOpen: false, submissionId: "", submissionName: "" })}
+        submissionId={rejectionModal.submissionId}
+        submissionType="player"
+        submissionName={rejectionModal.submissionName}
+      />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { PageLayout } from "~/components/layout/PageLayout";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   return data(
     {

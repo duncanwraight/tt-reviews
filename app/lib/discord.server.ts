@@ -8,7 +8,8 @@ import {
   type EquipmentSubmission,
   type PlayerSubmission,
 } from "./database.server";
-import { ModerationService } from "./moderation.server";
+import { createModerationService, type ModerationService } from "./moderation.server";
+import { createSupabaseAdminClient } from "./database.server";
 
 interface DiscordUser {
   id: string;
@@ -47,10 +48,13 @@ export class DiscordService {
   private dbService: DatabaseService;
   private moderationService: ModerationService;
   private env: Cloudflare.Env;
+  private context: AppLoadContext;
 
   constructor(context: AppLoadContext) {
+    this.context = context;
     this.dbService = new DatabaseService(context);
-    this.moderationService = new ModerationService(context);
+    const supabase = createSupabaseAdminClient(context);
+    this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
   }
 
@@ -82,10 +86,8 @@ export class DiscordService {
       const sig = hexToUint8Array(signature);
 
       // Import the public key
-      const crypto =
-        typeof globalThis !== "undefined" && (globalThis as any).crypto
-          ? (globalThis as any).crypto
-          : eval("require")("node:crypto").webcrypto;
+      // In Cloudflare Workers, crypto is available on globalThis
+      const crypto = globalThis.crypto;
       const key = await crypto.subtle.importKey(
         "raw",
         hexToUint8Array(PUBLIC_KEY),
@@ -244,6 +246,16 @@ export class DiscordService {
     if (customId.startsWith("reject_equipment_")) {
       const submissionId = customId.replace("reject_equipment_", "");
       return await this.handleRejectEquipmentSubmission(submissionId, interaction.user);
+    }
+
+    if (customId.startsWith("approve_player_")) {
+      const submissionId = customId.replace("approve_player_", "");
+      return await this.handleApprovePlayerSubmission(submissionId, interaction.user);
+    }
+
+    if (customId.startsWith("reject_player_")) {
+      const submissionId = customId.replace("reject_player_", "");
+      return await this.handleRejectPlayerSubmission(submissionId, interaction.user);
     }
 
     if (customId.startsWith("approve_")) {
@@ -464,14 +476,26 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
-      const result = await this.moderationService.approvePlayerEdit(editId, user.id);
+      const result = await this.moderationService.recordApproval(
+        "player_edit",
+        editId,
+        user.id,
+        "discord"
+      );
 
       if (result.success) {
+        let message = "Your approval has been recorded.";
+        if (result.newStatus === "approved") {
+          message = "Player edit has been fully approved and changes will be applied.";
+        } else if (result.newStatus === "awaiting_second_approval") {
+          message = "Player edit needs one more approval before changes are applied.";
+        }
+        
         return new Response(
           JSON.stringify({
             type: 4,
             data: {
-              content: `✅ **Player Edit Approved by ${user.username}**\nPlayer edit ${editId}: ${result.message}`,
+              content: `✅ **Player Edit Approved by ${user.username}**\nPlayer edit ${editId}: ${message}`,
             },
           }),
           {
@@ -479,16 +503,11 @@ export class DiscordService {
           }
         );
       } else {
-        let emoji = "⚠️";
-        if (result.status === "error") {
-          emoji = "❌";
-        }
-
         return new Response(
           JSON.stringify({
             type: 4,
             data: {
-              content: `${emoji} **Error**: ${result.message}`,
+              content: `❌ **Error**: ${result.error || "Failed to process approval"}`,
               flags: 64,
             },
           }),
@@ -522,9 +541,20 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
-      const success = await this.moderationService.rejectPlayerEdit(editId, user.id);
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "player_edit",
+        editId,
+        user.id,
+        "discord",
+        {
+          category: "other",
+          reason: `Rejected via Discord by ${user.username}`
+        },
+        this.context.cloudflare?.env?.R2_BUCKET
+      );
 
-      if (success) {
+      if (result.success) {
         return new Response(
           JSON.stringify({
             type: 4,
@@ -541,7 +571,7 @@ export class DiscordService {
           JSON.stringify({
             type: 4,
             data: {
-              content: `❌ **Error**: Failed to reject player edit ${editId}. It may have already been processed.`,
+              content: `❌ **Error**: ${result.error || "Failed to reject player edit"}`,
               flags: 64,
             },
           }),
@@ -575,14 +605,26 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
-      const result = await this.moderationService.approveEquipmentSubmission(submissionId, user.id);
+      const result = await this.moderationService.recordApproval(
+        "equipment",
+        submissionId,
+        user.id,
+        "discord"
+      );
 
       if (result.success) {
+        let message = "Your approval has been recorded.";
+        if (result.newStatus === "approved") {
+          message = "Equipment submission has been fully approved and will be published.";
+        } else if (result.newStatus === "awaiting_second_approval") {
+          message = "Equipment submission needs one more approval before being published.";
+        }
+        
         return new Response(
           JSON.stringify({
             type: 4,
             data: {
-              content: `✅ **Equipment Approved by ${user.username}**\nEquipment submission ${submissionId}: ${result.message}`,
+              content: `✅ **Equipment Approved by ${user.username}**\nEquipment submission ${submissionId}: ${message}`,
             },
           }),
           {
@@ -590,16 +632,11 @@ export class DiscordService {
           }
         );
       } else {
-        let emoji = "⚠️";
-        if (result.status === "error") {
-          emoji = "❌";
-        }
-
         return new Response(
           JSON.stringify({
             type: 4,
             data: {
-              content: `${emoji} **Error**: ${result.message}`,
+              content: `❌ **Error**: ${result.error || "Failed to process approval"}`,
               flags: 64,
             },
           }),
@@ -633,9 +670,20 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
-      const success = await this.moderationService.rejectEquipmentSubmission(submissionId, user.id);
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "equipment",
+        submissionId,
+        user.id,
+        "discord",
+        {
+          category: "other",
+          reason: `Rejected via Discord by ${user.username}`
+        },
+        this.context.cloudflare?.env?.R2_BUCKET
+      );
 
-      if (success) {
+      if (result.success) {
         return new Response(
           JSON.stringify({
             type: 4,
@@ -652,7 +700,7 @@ export class DiscordService {
           JSON.stringify({
             type: 4,
             data: {
-              content: `❌ **Error**: Failed to reject equipment submission`,
+              content: `❌ **Error**: ${result.error || "Failed to reject equipment submission"}`,
               flags: 64,
             },
           }),
@@ -668,6 +716,135 @@ export class DiscordService {
           type: 4,
           data: {
             content: `❌ **Error**: Failed to process equipment submission rejection`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle player submission approval
+   */
+  private async handleApprovePlayerSubmission(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      const result = await this.moderationService.recordApproval(
+        "player",
+        submissionId,
+        user.id,
+        "discord"
+      );
+
+      if (result.success) {
+        let message = "Your approval has been recorded.";
+        if (result.newStatus === "approved") {
+          message = "Player submission has been fully approved and will be published.";
+        } else if (result.newStatus === "awaiting_second_approval") {
+          message = "Player submission needs one more approval before being published.";
+        }
+        
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Player Approved by ${user.username}**\nPlayer submission ${submissionId}: ${message}`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to process approval"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling approve player submission:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player submission approval`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle player submission rejection
+   */
+  private async handleRejectPlayerSubmission(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "player",
+        submissionId,
+        user.id,
+        "discord",
+        {
+          category: "other",
+          reason: `Rejected via Discord by ${user.username}`
+        },
+        this.context.cloudflare?.env?.R2_BUCKET
+      );
+
+      if (result.success) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Player Rejected by ${user.username}**\nPlayer submission ${submissionId} has been rejected and will not be published.`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to reject player submission"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling reject player submission:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player submission rejection`,
             flags: 64,
           },
         }),
@@ -911,6 +1088,92 @@ export class DiscordService {
             style: 4, // Danger/Red
             label: "Reject Equipment",
             custom_id: `reject_equipment_${submissionData.id}`,
+          },
+        ],
+      },
+    ];
+
+    const payload = {
+      embeds: [embed],
+      components,
+    };
+
+    const response = await globalThis.fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return { success: response.ok };
+  }
+
+  /**
+   * Send notification about new player submission
+   */
+  async notifyNewPlayerSubmission(submissionData: any): Promise<any> {
+    const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
+    if (!webhookUrl) {
+      throw new Error("DISCORD_WEBHOOK_URL not configured");
+    }
+
+    const embed = {
+      title: "👤 Player Submission",
+      description: `A new player submission has been received and needs moderation.`,
+      color: 0x2ecc71, // Green color to distinguish from equipment and edits
+      fields: [
+        {
+          name: "Player Name",
+          value: submissionData.name || "Unknown Player",
+          inline: true,
+        },
+        {
+          name: "Highest Rating",
+          value: submissionData.highest_rating || "N/A",
+          inline: true,
+        },
+        {
+          name: "Playing Style",
+          value: submissionData.playing_style
+            ? submissionData.playing_style.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+            : "N/A",
+          inline: true,
+        },
+        {
+          name: "Represents",
+          value: submissionData.represents || "N/A",
+          inline: true,
+        },
+        {
+          name: "Active Years",
+          value: submissionData.active_years || "N/A",
+          inline: true,
+        },
+        {
+          name: "Submitted by",
+          value: submissionData.submitter_email || "Anonymous",
+          inline: true,
+        },
+      ],
+      timestamp: new Date().toISOString(),
+    };
+
+    const components = [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 3, // Success/Green
+            label: "Approve Player",
+            custom_id: `approve_player_${submissionData.id}`,
+          },
+          {
+            type: 2, // Button
+            style: 4, // Danger/Red
+            label: "Reject Player",
+            custom_id: `reject_player_${submissionData.id}`,
           },
         ],
       },

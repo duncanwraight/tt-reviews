@@ -51,7 +51,16 @@ export class ModerationService {
         });
 
       if (error) {
-        return { success: false, error: "Failed to record approval" };
+        console.error("Database error in recordApproval:", error);
+        console.error("Insert data:", {
+          submission_type: submissionType,
+          submission_id: submissionId,
+          moderator_id: moderatorId,
+          source,
+          action: "approved",
+          notes,
+        });
+        return { success: false, error: `Failed to record approval: ${error.message}` };
       }
 
       // Get updated submission status
@@ -59,7 +68,8 @@ export class ModerationService {
       
       return { success: true, newStatus: status };
     } catch (error) {
-      return { success: false, error: "Internal error" };
+      console.error("Exception in recordApproval:", error);
+      return { success: false, error: `Internal error: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
   }
 

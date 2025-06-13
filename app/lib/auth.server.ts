@@ -1,4 +1,7 @@
 // Server-side auth utilities
+import { checkAndPromoteAdmin, getAdminEmails } from "./auto-promote.server";
+import { createSupabaseAdminClient } from "./database.server";
+import type { AppLoadContext } from "react-router";
 
 // Decode JWT payload on server-side
 export function decodeJWTPayload(token: string): any {
@@ -26,13 +29,34 @@ export async function getUserRoleFromSession(
 }
 
 // Get authenticated user with role information for consistent navigation
-export async function getUserWithRole(supabaseServerClient: any) {
+export async function getUserWithRole(supabaseServerClient: any, context?: AppLoadContext) {
   const userResponse = await supabaseServerClient.client.auth.getUser();
   let userWithRole = userResponse?.data?.user || null;
 
   // Add role information if user is logged in
   if (userWithRole) {
     try {
+      // Auto-promote admin emails if context is provided
+      if (context) {
+        const env = context.cloudflare?.env as Record<string, string>;
+        const adminEmails = getAdminEmails(env);
+        
+        if (adminEmails) {
+          const adminClient = createSupabaseAdminClient(context);
+          const wasPromoted = await checkAndPromoteAdmin(
+            adminClient,
+            userWithRole.email,
+            userWithRole.id,
+            adminEmails
+          );
+          
+          // If user was just promoted, they need to re-login to get updated JWT
+          if (wasPromoted) {
+            console.log('🎉 User was auto-promoted to admin! Please log out and back in to see admin features.');
+          }
+        }
+      }
+
       const session = await supabaseServerClient.client.auth.getSession();
       if (session.data.session?.access_token) {
         const payload = decodeJWTPayload(session.data.session.access_token);

@@ -58,7 +58,7 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   const db = new DatabaseService(context);
 

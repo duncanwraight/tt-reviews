@@ -92,8 +92,15 @@ export function FeedbackModal({
         backgroundColor: 'rgba(0, 0, 0, 0.1)',
         zIndex: 9999
       }}
+      onClick={(e) => {
+        // Close on backdrop click for error modals
+        if (e.target === e.currentTarget && type === "error" && onClose) {
+          setIsVisible(false);
+          onClose();
+        }
+      }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 ease-out">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 ease-out relative">
         <div className={`${config.bgColor} ${config.borderColor} border-2 rounded-2xl p-8`}>
           {/* Icon */}
           <div className="flex justify-center mb-6">
@@ -118,11 +125,23 @@ export function FeedbackModal({
             </p>
 
             {/* Actions */}
-            {actions && (
+            {actions ? (
               <div className="flex justify-center space-x-3">
                 {actions}
               </div>
-            )}
+            ) : type === "error" && onClose ? (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    setIsVisible(false);
+                    onClose();
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            ) : null}
 
             {/* Auto-close indicator for success/error */}
             {type !== "loading" && autoClose && (

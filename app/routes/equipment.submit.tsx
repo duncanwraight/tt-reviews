@@ -9,7 +9,7 @@ import { EquipmentSubmissionForm } from "~/components/equipment/EquipmentSubmiss
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
@@ -25,7 +25,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient);
+  const user = await getUserWithRole(sbServerClient, context);
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
