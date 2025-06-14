@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 interface NavigationProps {
   user?: {
@@ -9,51 +9,61 @@ interface NavigationProps {
 }
 
 export function Navigation({ user }: NavigationProps) {
+  const location = useLocation();
+  const isHomepage = location.pathname === "/";
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className={isHomepage 
+      ? "bg-white shadow-sm border-b border-gray-200" 
+      : "bg-gradient-to-r from-purple-600 to-purple-800 shadow-lg"
+    }>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="text-2xl font-bold text-purple-600">
-            TT Reviews
+          <Link to="/" className="flex items-center space-x-2">
+            <span className={`text-3xl font-extrabold tracking-tight ${
+              isHomepage ? "text-purple-600" : "text-white"
+            }`}>
+              TT Reviews
+            </span>
+            <span className="text-xl">🏓</span>
           </Link>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-8">
             <Link
               to="/equipment"
-              className="text-gray-700 hover:text-purple-600 transition-colors"
+              className={`font-medium transition-all duration-200 hover:scale-105 ${
+                isHomepage 
+                  ? "text-gray-700 hover:text-purple-600" 
+                  : "text-purple-100 hover:text-white"
+              }`}
             >
               Equipment
             </Link>
             <Link
               to="/players"
-              className="text-gray-700 hover:text-purple-600 transition-colors"
+              className={`font-medium transition-all duration-200 hover:scale-105 ${
+                isHomepage 
+                  ? "text-gray-700 hover:text-purple-600" 
+                  : "text-purple-100 hover:text-white"
+              }`}
             >
               Players
             </Link>
             {user ? (
               <>
-                <Link
-                  to="/equipment/submit"
-                  className="text-gray-700 hover:text-purple-600 transition-colors"
-                >
-                  Submit Equipment
-                </Link>
-                <Link
-                  to="/players/submit"
-                  className="text-gray-700 hover:text-purple-600 transition-colors"
-                >
-                  Submit Player
-                </Link>
                 {user.role === "admin" ? (
                   <Link
                     to="/admin"
-                    className="text-gray-700 hover:text-purple-600 transition-colors"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg"
                   >
                     Admin
                   </Link>
                 ) : (
                   <Link
                     to="/profile"
-                    className="text-gray-700 hover:text-purple-600 transition-colors"
+                    className={`font-medium transition-all duration-200 hover:scale-105 ${
+                      isHomepage 
+                        ? "text-gray-700 hover:text-purple-600" 
+                        : "text-purple-100 hover:text-white"
+                    }`}
                   >
                     Profile
                   </Link>
@@ -61,7 +71,11 @@ export function Navigation({ user }: NavigationProps) {
                 <form method="post" action="/logout" className="inline">
                   <button
                     type="submit"
-                    className="text-red-600 hover:text-red-800 transition-colors bg-none border-none cursor-pointer"
+                    className={`font-medium transition-all duration-200 hover:scale-105 bg-none border-none cursor-pointer ${
+                      isHomepage 
+                        ? "text-red-600 hover:text-red-800" 
+                        : "text-purple-200 hover:text-white"
+                    }`}
                   >
                     Logout
                   </button>
@@ -70,7 +84,11 @@ export function Navigation({ user }: NavigationProps) {
             ) : (
               <Link
                 to="/login"
-                className="text-purple-600 hover:text-purple-800 transition-colors"
+                className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg ${
+                  isHomepage
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-white text-purple-600 hover:bg-purple-50"
+                }`}
               >
                 Login
               </Link>

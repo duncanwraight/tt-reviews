@@ -1,8 +1,9 @@
 interface PlayersHeaderProps {
   totalPlayers: number;
+  user?: { id: string; email?: string } | null;
 }
 
-export function PlayersHeader({ totalPlayers }: PlayersHeaderProps) {
+export function PlayersHeader({ totalPlayers, user }: PlayersHeaderProps) {
   return (
     <div className="flex justify-between items-end mb-8">
       <div>
@@ -20,14 +21,16 @@ export function PlayersHeader({ totalPlayers }: PlayersHeaderProps) {
           </p>
         )}
       </div>
-      <div className="flex space-x-3">
-        <a
-          href="/players/submit"
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-        >
-          Submit Player
-        </a>
-      </div>
+      {user && (
+        <div className="flex space-x-3">
+          <a
+            href="/players/submit"
+            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
+          >
+            Submit Player
+          </a>
+        </div>
+      )}
     </div>
   );
 }

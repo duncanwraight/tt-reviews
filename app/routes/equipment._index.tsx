@@ -134,19 +134,50 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
     <main>
       <section className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {currentCategory
-                ? `${getCategoryName(currentCategory)} Reviews`
-                : "Equipment Reviews"}
-            </h1>
-            <p className="text-lg text-gray-600">
-              {currentCategory
-                ? `Discover the best ${getCategoryName(
-                    currentCategory
-                  ).toLowerCase()} for your playing style`
-                : "Comprehensive reviews of professional table tennis equipment"}
-            </p>
+          {!user && (
+            <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Help Expand Our Equipment Database</h3>
+                  <p className="text-purple-100">
+                    Create an account or log in to submit new equipment and contribute to our growing community.
+                  </p>
+                </div>
+                <a
+                  href="/login"
+                  className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg whitespace-nowrap"
+                >
+                  Get Started
+                </a>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-between items-end mb-8">
+            <div className="text-center flex-1">
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                {currentCategory
+                  ? `${getCategoryName(currentCategory)} Reviews`
+                  : "Equipment Reviews"}
+              </h1>
+              <p className="text-lg text-gray-600">
+                {currentCategory
+                  ? `Discover the best ${getCategoryName(
+                      currentCategory
+                    ).toLowerCase()} for your playing style`
+                  : "Comprehensive reviews of professional table tennis equipment"}
+              </p>
+            </div>
+            {user && (
+              <div className="flex space-x-3 ml-8">
+                <a
+                  href="/equipment/submit"
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
+                >
+                  Submit Equipment
+                </a>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8">
