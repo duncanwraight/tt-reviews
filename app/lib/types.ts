@@ -25,13 +25,7 @@ export interface Player {
   highest_rating?: string;
   active_years?: string;
   active: boolean;
-  playing_style?:
-    | "attacker"
-    | "all_rounder"
-    | "defender"
-    | "counter_attacker"
-    | "chopper"
-    | "unknown";
+  playing_style?: string; // Now uses configurable categories instead of hardcoded values
   birth_country?: string; // ISO 3166-1 alpha-3 country code for birth country
   represents?: string; // ISO 3166-1 alpha-3 country code for represented country
   created_at: string;

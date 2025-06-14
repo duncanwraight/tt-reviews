@@ -69,13 +69,7 @@ export interface PlayerSubmission {
   name: string;
   highest_rating?: string;
   active_years?: string;
-  playing_style?:
-    | "attacker"
-    | "all_rounder"
-    | "defender"
-    | "counter_attacker"
-    | "chopper"
-    | "unknown";
+  playing_style?: string; // Now uses configurable categories instead of hardcoded values
   birth_country?: string;
   represents?: string;
   equipment_setup?: {
@@ -204,6 +198,7 @@ export class DatabaseService {
 
   async getAllEquipment(options?: {
     category?: string;
+    subcategory?: string;
     limit?: number;
     offset?: number;
     sortBy?: "name" | "created_at" | "manufacturer";
@@ -213,6 +208,10 @@ export class DatabaseService {
 
     if (options?.category) {
       query = query.eq("category", options.category);
+    }
+
+    if (options?.subcategory) {
+      query = query.eq("subcategory", options.subcategory);
     }
 
     const sortBy = options?.sortBy || "created_at";
@@ -278,6 +277,33 @@ export class DatabaseService {
     }));
   }
 
+  async getEquipmentSubcategories(category: string): Promise<
+    { subcategory: string; count: number }[]
+  > {
+    const { data, error } = await this.supabase
+      .from("equipment")
+      .select("subcategory")
+      .eq("category", category)
+      .not("subcategory", "is", null);
+
+    if (error) {
+      console.error("Error fetching equipment subcategories:", error);
+      return [];
+    }
+
+    const subcategoryCount: Record<string, number> = {};
+    data.forEach((item) => {
+      if (item.subcategory) {
+        subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
+      }
+    });
+
+    return Object.entries(subcategoryCount).map(([subcategory, count]) => ({
+      subcategory,
+      count,
+    }));
+  }
+
   // Player methods
   async getPlayer(slug: string): Promise<Player | null> {
     const { data, error } = await this.supabase
@@ -294,7 +320,60 @@ export class DatabaseService {
     return data as Player | null;
   }
 
-  async getAllPlayers(): Promise<Player[]> {
+  async getAllPlayers(options?: {
+    country?: string;
+    playingStyle?: string;
+    gender?: string;
+    active?: boolean;
+    limit?: number;
+    offset?: number;
+    sortBy?: "name" | "created_at" | "highest_rating";
+    sortOrder?: "asc" | "desc";
+  }): Promise<Player[]> {
+    let query = this.supabase.from("players").select("*");
+
+    if (options?.country) {
+      query = query.or(`represents.eq.${options.country},birth_country.eq.${options.country}`);
+    }
+
+    if (options?.playingStyle) {
+      query = query.eq("playing_style", options.playingStyle);
+    }
+
+    if (options?.gender) {
+      query = query.eq("gender", options.gender);
+    }
+
+    if (options?.active !== undefined) {
+      query = query.eq("active", options.active);
+    }
+
+    const sortBy = options?.sortBy || "created_at";
+    const sortOrder = options?.sortOrder || "desc";
+    query = query.order(sortBy, { ascending: sortOrder === "asc" });
+
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+
+    if (options?.offset) {
+      query = query.range(
+        options.offset,
+        options.offset + (options.limit || 10) - 1
+      );
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching players:", error);
+      return [];
+    }
+
+    return (data as Player[]) || [];
+  }
+
+  async getPlayersWithoutFilters(): Promise<Player[]> {
     const { data, error } = await this.supabase
       .from("players")
       .select("*")
@@ -306,6 +385,61 @@ export class DatabaseService {
     }
 
     return (data as Player[]) || [];
+  }
+
+  async getPlayersCount(options?: {
+    country?: string;
+    playingStyle?: string;
+    gender?: string;
+    active?: boolean;
+  }): Promise<number> {
+    let query = this.supabase
+      .from("players")
+      .select("*", { count: "exact", head: true });
+
+    if (options?.country) {
+      query = query.or(`represents.eq.${options.country},birth_country.eq.${options.country}`);
+    }
+
+    if (options?.playingStyle) {
+      query = query.eq("playing_style", options.playingStyle);
+    }
+
+    if (options?.gender) {
+      query = query.eq("gender", options.gender);
+    }
+
+    if (options?.active !== undefined) {
+      query = query.eq("active", options.active);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error("Error counting players:", error);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
+  async getPlayerCountries(): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from("players")
+      .select("represents, birth_country");
+
+    if (error) {
+      console.error("Error fetching player countries:", error);
+      return [];
+    }
+
+    const countries = new Set<string>();
+    data.forEach((player) => {
+      if (player.represents) countries.add(player.represents);
+      if (player.birth_country) countries.add(player.birth_country);
+    });
+
+    return Array.from(countries).sort();
   }
 
   async searchPlayers(query: string): Promise<Player[]> {

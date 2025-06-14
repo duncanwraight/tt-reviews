@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { DiscordIcon } from "./DiscordIcon";
+import { CompactSearchForm } from "./CompactSearchForm";
 
 interface NavigationProps {
   user?: {
@@ -12,6 +13,8 @@ interface NavigationProps {
 export function Navigation({ user }: NavigationProps) {
   const location = useLocation();
   const isHomepage = location.pathname === "/";
+  const showSearch = !isHomepage && location.pathname !== "/search";
+  
   return (
     <nav className={isHomepage 
       ? "bg-white shadow-sm border-b border-gray-200" 
@@ -62,6 +65,9 @@ export function Navigation({ user }: NavigationProps) {
               <DiscordIcon className="w-5 h-5" />
               OOAK
             </a>
+            {showSearch && (
+              <CompactSearchForm isHomepage={isHomepage} />
+            )}
             {user ? (
               <>
                 {user.role === "admin" ? (

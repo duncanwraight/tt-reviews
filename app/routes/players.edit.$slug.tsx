@@ -1,4 +1,4 @@
-import type { Route } from "./+types/players.$slug.edit";
+import type { Route } from "./+types/players.edit.$slug";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
@@ -112,10 +112,18 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     editData.represents = represents || undefined;
   }
 
+  const gender = formData.get("gender") as string;
+  if (gender !== (player.gender || "")) {
+    editData.gender = gender || undefined;
+  }
+
   // Check if there are any changes
   if (Object.keys(editData).length === 0) {
     return data(
-      { error: "No changes detected" },
+      { 
+        success: false, 
+        error: "No changes detected. Please modify at least one field before submitting." 
+      },
       { status: 400, headers: sbServerClient.headers }
     );
   }
@@ -137,13 +145,18 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     if (submitError) {
       console.error("Player edit submission error:", submitError);
       return data(
-        { error: "Failed to submit player edit" },
+        { 
+          success: false, 
+          error: "Failed to submit player edit. Please try again." 
+        },
         { status: 500, headers: sbServerClient.headers }
       );
     }
 
-    // Send Discord notification (non-blocking)
+    // Send Discord notification (non-blocking) - TEMPORARILY DISABLED
     try {
+      // Skip Discord notification for now
+      if (false) {
       const notificationData = {
         id: playerEdit.id,
         player_name: player.name,
@@ -166,6 +179,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         if (editData.playing_style) changes.push(`Style: ${editData.playing_style}`);
         if (editData.birth_country) changes.push(`Birth Country: ${editData.birth_country}`);
         if (editData.represents) changes.push(`Represents: ${editData.represents}`);
+        if (editData.gender) changes.push(`Gender: ${editData.gender === 'M' ? 'Male' : 'Female'}`);
 
         const embed = {
           title: "🏓 Player Edit Submitted",
@@ -229,6 +243,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           console.error("Direct Discord error:", directErrorText);
         }
       }
+      } // End of if (false) block
       
     } catch (error) {
       console.error("Player edit Discord notification failed:", error);
@@ -242,7 +257,10 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   } catch (error) {
     console.error("Player edit submission error:", error);
     return data(
-      { error: "Failed to submit player edit" },
+      { 
+        success: false, 
+        error: "Failed to submit player edit. Please try again." 
+      },
       { status: 500, headers: sbServerClient.headers }
     );
   }
@@ -255,7 +273,7 @@ export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
     { label: player.name, href: `/players/${player.slug}` },
-    { label: "Edit", href: `/players/${player.slug}/edit` },
+    { label: "Edit", href: `/players/edit/${player.slug}` },
   ];
 
   return (

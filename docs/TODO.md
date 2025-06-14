@@ -271,6 +271,33 @@
 
 ## Post-Migration Improvements
 
+### Recent UI/UX Enhancements ✅
+- [x] **Player Page Pagination & Filtering**: Added comprehensive pagination and filtering system for players page ✅
+  - [x] Filter by country and playing style using configurable categories system
+  - [x] Sort by name, creation date, and highest rating
+  - [x] Pagination with 12 players per page
+  - [x] Professional filtering UI with sidebar layout matching equipment page
+  - [x] Dynamic playing styles from database using configurable categories
+  - [x] Fixed hardcoded playing styles to use CategoryService instead of enum values
+- [x] **Equipment Subcategory Search**: Added subcategory filtering for equipment page ✅
+  - [x] Dynamic subcategory display when category is selected (e.g., rubber types: inverted, long pips, anti-spin, short pips)
+  - [x] Subcategory icons and proper naming
+  - [x] Preserved category and subcategory selection in sorting links
+- [x] **Global Search Integration**: Added compact search box to navigation for non-search pages ✅
+  - [x] Appears on all pages except homepage and search page itself
+  - [x] Respects existing design with minimal style impact
+  - [x] Different styling for homepage vs other pages
+- [x] **Breadcrumb System**: Added breadcrumbs to equipment page and improved layout consistency ✅
+  - [x] Dynamic breadcrumbs showing category and subcategory hierarchy
+  - [x] Consistent page width with players page
+  - [x] Proper spacing from navigation bar
+- [x] **Seed Data Enhancement**: Added comprehensive configurable categories to seed.sql ✅
+  - [x] Equipment categories and subcategories with proper categorization
+  - [x] Playing styles compatible with current database constraints
+  - [x] Country categories with flag emojis for major table tennis nations
+  - [x] Rejection categories for moderation workflow
+  - [x] All categories are admin-configurable through the admin interface
+
 ### Features (Previous TODO items)
 
 - [x] Create reusable loading/feedback system for async operations (register, sign in, submit equipment)
@@ -279,8 +306,8 @@
   - E.g. inverted = <1.5mm then each mm up to 2.3, then max
   - Long pips = OX, 0.3mm then each mm up to 1.5
 - [ ] Update Admin area to allow for configuration of almost everything - players, equipment and also categories for everything that requires a category, like sponge thicknesses and types of rubber
-- [ ] On pages where a search bar features, hide the search bar from the top header
-  - E.g. home page, search page
+- [x] On pages where a search bar features, hide the search bar from the top header ✅
+  - [x] Search box added to navigation but hidden on homepage and search page
 - [x] Implement /equipment/category interface
 - [ ] Include images as part of new player submission
 - [ ] Improve the Discord webhook cards

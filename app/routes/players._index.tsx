@@ -6,6 +6,8 @@ import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayersHeader } from "~/components/players/PlayersHeader";
 import { PlayersGrid } from "~/components/players/PlayersGrid";
+import { PlayersPagination } from "~/components/players/PlayersPagination";
+import { createCategoryService } from "~/lib/categories.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,8 +21,42 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const country = url.searchParams.get("country") || undefined;
+  const playingStyle = url.searchParams.get("style") || undefined;
+  const gender = url.searchParams.get("gender") || undefined;
+  const activeOnly = url.searchParams.get("active") === "true" ? true : url.searchParams.get("active") === "false" ? false : undefined;
+  const sortBy = (url.searchParams.get("sort") as "name" | "created_at" | "highest_rating") || "created_at";
+  const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
+  const page = parseInt(url.searchParams.get("page") || "1", 10);
+  const limit = 12; // Players per page
+  const offset = (page - 1) * limit;
+
   const db = new DatabaseService(context);
-  const players = await db.getAllPlayers();
+  const categoryService = createCategoryService(db.supabase);
+  
+  const [players, totalCount, countries, playingStyles] = await Promise.all([
+    db.getAllPlayers({
+      country,
+      playingStyle,
+      gender,
+      active: activeOnly,
+      sortBy,
+      sortOrder,
+      limit,
+      offset,
+    }),
+    db.getPlayersCount({
+      country,
+      playingStyle,
+      gender,
+      active: activeOnly,
+    }),
+    db.getPlayerCountries(),
+    categoryService.getPlayingStyles(),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / limit);
 
   // Check if user is logged in
   const sbServerClient = getServerClient(request, context);
@@ -30,11 +66,27 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return data({
     players,
     user,
+    countries,
+    playingStyles,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalCount,
+      limit,
+    },
+    filters: {
+      country,
+      playingStyle,
+      gender,
+      activeOnly,
+      sortBy,
+      sortOrder,
+    },
   }, { headers: sbServerClient.headers });
 }
 
 export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
-  const { players, user } = loaderData;
+  const { players, user, countries, playingStyles, pagination, filters } = loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -64,8 +116,15 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
         )}
-        <PlayersHeader totalPlayers={players.length} user={user} />
-        <PlayersGrid players={players} />
+        <PlayersHeader 
+          totalPlayers={pagination.totalCount} 
+          user={user} 
+          countries={countries}
+          playingStyles={playingStyles}
+          filters={filters}
+          pagination={pagination}
+          players={players}
+        />
       </PageSection>
     </div>
   );

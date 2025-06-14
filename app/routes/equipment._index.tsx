@@ -5,6 +5,7 @@ import { data } from "react-router";
 import { Link } from "react-router";
 
 import { EquipmentCard } from "~/components/ui/EquipmentCard";
+import { Breadcrumb } from "~/components/ui/Breadcrumb";
 
 interface EquipmentDisplay {
   id: string;
@@ -53,6 +54,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const url = new URL(request.url);
   const category = url.searchParams.get("category");
+  const subcategory = url.searchParams.get("subcategory");
   const sortBy =
     (url.searchParams.get("sort") as "name" | "created_at" | "manufacturer") ||
     "created_at";
@@ -60,16 +62,26 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const db = new DatabaseService(context);
 
-  const [allEquipment, recentReviews, categories] = await Promise.all([
+  const promises = [
     db.getAllEquipment({
       category: category || undefined,
+      subcategory: subcategory || undefined,
       sortBy,
       sortOrder,
       limit: 24,
     }),
     db.getRecentReviews(6),
     db.getEquipmentCategories(),
-  ]);
+  ];
+
+  // Add subcategories if a category is selected
+  if (category) {
+    promises.push(db.getEquipmentSubcategories(category));
+  }
+
+  const results = await Promise.all(promises);
+  const [allEquipment, recentReviews, categories] = results;
+  const subcategories = category ? results[3] as { subcategory: string; count: number }[] : [];
 
   const equipmentDisplay: EquipmentDisplay[] = allEquipment.map(
     (equipment) => ({
@@ -85,7 +97,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipment: equipmentDisplay,
       recentReviews,
       categories,
+      subcategories,
       currentCategory: category,
+      currentSubcategory: subcategory,
       currentSort: sortBy,
       currentOrder: sortOrder,
     },
@@ -99,7 +113,9 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
     equipment,
     recentReviews,
     categories,
+    subcategories,
     currentCategory,
+    currentSubcategory,
     currentSort,
     currentOrder,
   } = loaderData;
@@ -130,10 +146,48 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
     }
   };
 
+  const getSubcategoryName = (subcategory: string) => {
+    switch (subcategory) {
+      case "inverted":
+        return "Inverted";
+      case "long_pips":
+        return "Long Pips";
+      case "anti":
+        return "Anti-Spin";
+      case "short_pips":
+        return "Short Pips";
+      default:
+        return subcategory.charAt(0).toUpperCase() + subcategory.slice(1);
+    }
+  };
+
+  const getSubcategoryIcon = (subcategory: string) => {
+    switch (subcategory) {
+      case "inverted":
+        return "🔴";
+      case "long_pips":
+        return "📍";
+      case "anti":
+        return "⚪";
+      case "short_pips":
+        return "🔵";
+      default:
+        return "⚫";
+    }
+  };
+
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: "Equipment", href: "/equipment" },
+    ...(currentCategory ? [{ label: getCategoryName(currentCategory), href: `/equipment?category=${currentCategory}` }] : []),
+    ...(currentSubcategory ? [{ label: getSubcategoryName(currentSubcategory), href: `/equipment?category=${currentCategory}&subcategory=${currentSubcategory}` }] : []),
+  ];
+
   return (
     <main>
       <section className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Breadcrumb items={breadcrumbItems} />
           {!user && (
             <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
               <div className="flex items-center justify-between">
@@ -156,12 +210,18 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
           <div className="flex justify-between items-end mb-8">
             <div className="text-center flex-1">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                {currentCategory
+                {currentSubcategory
+                  ? `${getSubcategoryName(currentSubcategory)} Reviews`
+                  : currentCategory
                   ? `${getCategoryName(currentCategory)} Reviews`
                   : "Equipment Reviews"}
               </h1>
               <p className="text-lg text-gray-600">
-                {currentCategory
+                {currentSubcategory
+                  ? `Discover the best ${getSubcategoryName(
+                      currentSubcategory
+                    ).toLowerCase()} for your playing style`
+                  : currentCategory
                   ? `Discover the best ${getCategoryName(
                       currentCategory
                     ).toLowerCase()} for your playing style`
@@ -208,7 +268,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                       key={cat.category}
                       to={`/equipment?category=${cat.category}`}
                       className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                        currentCategory === cat.category
+                        currentCategory === cat.category && !currentSubcategory
                           ? "bg-purple-100 text-purple-800 font-medium"
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
@@ -227,15 +287,68 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                 </div>
               </div>
 
+              {/* Subcategories */}
+              {currentCategory && subcategories.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {getCategoryName(currentCategory)} Types
+                  </h3>
+                  <div className="space-y-2">
+                    <Link
+                      to={`/equipment?category=${currentCategory}`}
+                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                        currentCategory && !currentSubcategory
+                          ? "bg-purple-100 text-purple-800 font-medium"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span className="flex items-center">
+                        <span className="mr-3">
+                          {getCategoryIcon(currentCategory)}
+                        </span>
+                        All {getCategoryName(currentCategory)}
+                      </span>
+                      <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                        {categories.find(c => c.category === currentCategory)?.count || 0}
+                      </span>
+                    </Link>
+                    {subcategories.map((subcat) => (
+                      <Link
+                        key={subcat.subcategory}
+                        to={`/equipment?category=${currentCategory}&subcategory=${subcat.subcategory}`}
+                        className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                          currentSubcategory === subcat.subcategory
+                            ? "bg-purple-100 text-purple-800 font-medium"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <span className="flex items-center">
+                          <span className="mr-3">
+                            {getSubcategoryIcon(subcat.subcategory)}
+                          </span>
+                          {getSubcategoryName(subcat.subcategory)}
+                        </span>
+                        <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                          {subcat.count}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Sort By
                 </h3>
                 <div className="space-y-2">
                   <Link
-                    to={`/equipment${
-                      currentCategory ? `?category=${currentCategory}` : ""
-                    }${currentCategory ? "&" : "?"}sort=created_at&order=desc`}
+                    to={`/equipment?${new URLSearchParams({
+                      ...(currentCategory && { category: currentCategory }),
+                      ...(currentSubcategory && { subcategory: currentSubcategory }),
+                      sort: "created_at",
+                      order: "desc"
+                    }).toString()}`}
                     className={`block p-3 rounded-lg transition-colors ${
                       currentSort === "created_at" && currentOrder === "desc"
                         ? "bg-purple-100 text-purple-800 font-medium"
@@ -245,9 +358,12 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     Newest First
                   </Link>
                   <Link
-                    to={`/equipment${
-                      currentCategory ? `?category=${currentCategory}` : ""
-                    }${currentCategory ? "&" : "?"}sort=name&order=asc`}
+                    to={`/equipment?${new URLSearchParams({
+                      ...(currentCategory && { category: currentCategory }),
+                      ...(currentSubcategory && { subcategory: currentSubcategory }),
+                      sort: "name",
+                      order: "asc"
+                    }).toString()}`}
                     className={`block p-3 rounded-lg transition-colors ${
                       currentSort === "name" && currentOrder === "asc"
                         ? "bg-purple-100 text-purple-800 font-medium"
@@ -257,9 +373,12 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     Name A-Z
                   </Link>
                   <Link
-                    to={`/equipment${
-                      currentCategory ? `?category=${currentCategory}` : ""
-                    }${currentCategory ? "&" : "?"}sort=manufacturer&order=asc`}
+                    to={`/equipment?${new URLSearchParams({
+                      ...(currentCategory && { category: currentCategory }),
+                      ...(currentSubcategory && { subcategory: currentSubcategory }),
+                      sort: "manufacturer",
+                      order: "asc"
+                    }).toString()}`}
                     className={`block p-3 rounded-lg transition-colors ${
                       currentSort === "manufacturer" && currentOrder === "asc"
                         ? "bg-purple-100 text-purple-800 font-medium"
@@ -278,7 +397,9 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                   <div className="mb-6 flex items-center justify-between">
                     <p className="text-gray-600">
                       Showing {equipment.length}{" "}
-                      {currentCategory
+                      {currentSubcategory
+                        ? getSubcategoryName(currentSubcategory).toLowerCase()
+                        : currentCategory
                         ? getCategoryName(currentCategory).toLowerCase()
                         : "items"}
                     </p>
@@ -297,7 +418,11 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     No equipment found
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    {currentCategory
+                    {currentSubcategory
+                      ? `No ${getSubcategoryName(
+                          currentSubcategory
+                        ).toLowerCase()} available yet.`
+                      : currentCategory
                       ? `No ${getCategoryName(
                           currentCategory
                         ).toLowerCase()} available yet.`

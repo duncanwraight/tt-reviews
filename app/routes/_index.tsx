@@ -64,7 +64,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const [equipmentWithStats, allPlayers] = await Promise.all([
     db.getPopularEquipment(6),
-    db.getAllPlayers(),
+    db.getPlayersWithoutFilters(),
   ]);
 
   const featuredEquipment: EquipmentDisplay[] = equipmentWithStats.map(
