@@ -27,7 +27,7 @@ export function SearchForm({
           type="text"
           name="q"
           placeholder={placeholder}
-          className="w-full px-6 py-4 text-lg rounded-full border-0 shadow-xl focus:ring-4 focus:ring-purple-300 focus:outline-none text-gray-900 placeholder-gray-500"
+          className="w-full px-6 py-4 text-lg rounded-full border-0 shadow-xl focus:ring-4 focus:ring-purple-300 focus:outline-none text-gray-900 placeholder-gray-400"
         />
         <button
           type="submit"
