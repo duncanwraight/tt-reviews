@@ -557,6 +557,41 @@ export class DatabaseService {
     return (data as PlayerSubmission[]) || [];
   }
 
+  // Equipment with ratings and review counts
+  async getEquipmentWithStats(limit = 10): Promise<(Equipment & { 
+    averageRating?: number; 
+    reviewCount?: number; 
+  })[]> {
+    const { data, error } = await this.supabase.rpc('get_equipment_with_stats', {
+      limit_count: limit
+    });
+
+    if (error) {
+      console.error("Error fetching equipment with stats:", error);
+      // Fallback to basic equipment data
+      return this.getRecentEquipment(limit);
+    }
+
+    return data || [];
+  }
+
+  async getPopularEquipment(limit = 6): Promise<(Equipment & { 
+    averageRating?: number; 
+    reviewCount?: number; 
+  })[]> {
+    const { data, error } = await this.supabase.rpc('get_popular_equipment', {
+      limit_count: limit
+    });
+
+    if (error) {
+      console.error("Error fetching popular equipment:", error);
+      // Fallback to recent equipment
+      return this.getRecentEquipment(limit);
+    }
+
+    return data || [];
+  }
+
   // General search
   async search(query: string): Promise<{
     equipment: Equipment[];

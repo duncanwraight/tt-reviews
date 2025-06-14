@@ -62,26 +62,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const db = new DatabaseService(context);
 
-  const [recentEquipment, allPlayers] = await Promise.all([
-    db.getRecentEquipment(6),
+  const [equipmentWithStats, allPlayers] = await Promise.all([
+    db.getPopularEquipment(6),
     db.getAllPlayers(),
   ]);
 
-  const featuredEquipment: EquipmentDisplay[] = recentEquipment.map(
+  const featuredEquipment: EquipmentDisplay[] = equipmentWithStats.map(
     (equipment) => ({
       ...equipment,
-      rating: 4.2,
-      reviewCount: Math.floor(Math.random() * 20) + 1,
+      rating: equipment.averageRating || undefined,
+      reviewCount: equipment.reviewCount ? Number(equipment.reviewCount) : undefined,
     })
   );
 
   const popularPlayers: PlayerDisplay[] = allPlayers
     .filter((player) => player.active)
     .slice(0, 6)
-    .map((player) => ({
-      ...player,
-      currentSetup: "Professional Setup",
-    }));
+    .map((player) => {
+      // Get the most recent equipment setup
+      const recentSetup = player.equipment_setups?.[0];
+      const currentSetup = recentSetup 
+        ? `${recentSetup.blade_name || 'Professional'} Setup`
+        : "Professional Setup";
+      
+      return {
+        ...player,
+        currentSetup,
+      };
+    });
 
   return data(
     {

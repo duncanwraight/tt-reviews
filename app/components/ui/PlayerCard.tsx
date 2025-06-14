@@ -2,7 +2,9 @@ import { Link } from "react-router";
 import type { Player } from "~/lib/database.server";
 
 interface PlayerCardProps {
-  player: Player;
+  player: Player & {
+    currentSetup?: string;
+  };
 }
 
 export function PlayerCard({ player }: PlayerCardProps) {
@@ -37,6 +39,11 @@ export function PlayerCard({ player }: PlayerCardProps) {
             {player.playing_style && player.playing_style !== "unknown" && (
               <p className="text-sm text-gray-600 mb-2">
                 Style: {getPlayingStyleLabel(player.playing_style)}
+              </p>
+            )}
+            {player.currentSetup && (
+              <p className="text-sm text-gray-600 mb-2">
+                Setup: {player.currentSetup}
               </p>
             )}
           </div>
