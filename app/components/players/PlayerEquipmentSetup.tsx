@@ -186,21 +186,41 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
         </div>
         <div>
           <label
-            htmlFor={`${side}_color`}
+            htmlFor={`${side}_side`}
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Color
+            Side
           </label>
-          <select
-            id={`${side}_color`}
-            name={`${side}_color`}
-            disabled={isSubmitting}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-          >
-            <option value="">Select color</option>
-            <option value="red">Red</option>
-            <option value="black">Black</option>
-          </select>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id={`${side}_forehand`}
+                name={`${side}_side`}
+                value="forehand"
+                disabled={isSubmitting}
+                className="mr-2 text-red-600 focus:ring-red-500"
+              />
+              <label htmlFor={`${side}_forehand`} className="flex items-center text-sm text-gray-700">
+                <span className="text-red-600 mr-1">🔴</span>
+                Forehand
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id={`${side}_backhand`}
+                name={`${side}_side`}
+                value="backhand"
+                disabled={isSubmitting}
+                className="mr-2 text-gray-900 focus:ring-gray-500"
+              />
+              <label htmlFor={`${side}_backhand`} className="flex items-center text-sm text-gray-700">
+                <span className="text-gray-900 mr-1">⚫</span>
+                Backhand
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>

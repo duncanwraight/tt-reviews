@@ -1,6 +1,7 @@
 import type { Route } from "./+types/players.$slug.edit";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
+import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -40,10 +41,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     throw redirect("/players");
   }
 
+  // Load dynamic categories
+  const categoryService = createCategoryService(sbServerClient.client);
+  const playingStyles = await categoryService.getPlayingStyles();
+  const countries = await categoryService.getCountries();
+
   return data(
     {
       user: userResponse.data.user,
       player,
+      playingStyles,
+      countries,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
@@ -241,7 +249,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 }
 
 export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
-  const { user, player, env } = loaderData;
+  const { user, player, env, playingStyles, countries } = loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -265,7 +273,13 @@ export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <PlayerEditForm player={player} env={env} userId={user.id} />
+        <PlayerEditForm 
+          player={player} 
+          env={env} 
+          userId={user.id} 
+          playingStyles={playingStyles}
+          countries={countries}
+        />
       </PageSection>
     </div>
   );

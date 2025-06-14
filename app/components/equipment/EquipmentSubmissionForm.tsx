@@ -1,9 +1,54 @@
 import { Form, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
+import type { CategoryOption } from "~/lib/categories.server";
+import { createBrowserClient } from "@supabase/ssr";
 
-export function EquipmentSubmissionForm() {
+interface EquipmentSubmissionFormProps {
+  categories: CategoryOption[];
+  env: {
+    SUPABASE_URL: string;
+    SUPABASE_ANON_KEY: string;
+  };
+}
+
+export function EquipmentSubmissionForm({ categories, env }: EquipmentSubmissionFormProps) {
   const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [subcategories, setSubcategories] = useState<CategoryOption[]>([]);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+
+  // Load subcategories when category changes
+  useEffect(() => {
+    if (!selectedCategory) {
+      setSubcategories([]);
+      return;
+    }
+
+    const loadSubcategories = async () => {
+      setLoadingSubcategories(true);
+      try {
+        const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+        const { data, error } = await supabase
+          .rpc('get_subcategories_by_parent', { parent_category_value: selectedCategory });
+
+        if (error) {
+          console.error('Error loading subcategories:', error);
+          setSubcategories([]);
+        } else {
+          setSubcategories(data || []);
+        }
+      } catch (error) {
+        console.error('Exception loading subcategories:', error);
+        setSubcategories([]);
+      } finally {
+        setLoadingSubcategories(false);
+      }
+    };
+
+    loadSubcategories();
+  }, [selectedCategory, env]);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -84,36 +129,46 @@ export function EquipmentSubmissionForm() {
                 name="category"
                 required
                 disabled={isLoading}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select category</option>
-                <option value="blade">Blade</option>
-                <option value="rubber">Rubber</option>
-                <option value="ball">Ball</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.value}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* Subcategory (for rubbers) */}
-            <div className="md:col-span-2">
-              <label
-                htmlFor="subcategory"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Subcategory (for rubbers)
-              </label>
-              <select
-                id="subcategory"
-                name="subcategory"
-                disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-              >
-                <option value="">Select subcategory (optional)</option>
-                <option value="inverted">Inverted</option>
-                <option value="long_pips">Long Pips</option>
-                <option value="anti">Anti</option>
-                <option value="short_pips">Short Pips</option>
-              </select>
-            </div>
+            {/* Subcategory */}
+            {selectedCategory && subcategories.length > 0 && (
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="subcategory"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Subcategory
+                </label>
+                <select
+                  id="subcategory"
+                  name="subcategory"
+                  disabled={isLoading || loadingSubcategories}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                >
+                  <option value="">Select subcategory (optional)</option>
+                  {subcategories.map((subcategory) => (
+                    <option key={subcategory.id} value={subcategory.value}>
+                      {subcategory.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingSubcategories && (
+                  <p className="mt-1 text-xs text-gray-500">Loading subcategories...</p>
+                )}
+              </div>
+            )}
 
             {/* Equipment Image */}
             <div className="md:col-span-2">

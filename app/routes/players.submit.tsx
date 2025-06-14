@@ -1,6 +1,7 @@
 import type { Route } from "./+types/players.submit";
 import { getServerClient } from "~/lib/supabase.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
+import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -14,9 +15,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 
+  // Load dynamic categories
+  const categoryService = createCategoryService(sbServerClient.client);
+  const playingStyles = await categoryService.getPlayingStyles();
+  const countries = await categoryService.getCountries();
+
   return data(
     {
       user: userResponse.data.user,
+      playingStyles,
+      countries,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
@@ -72,14 +80,14 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (forehandRubber) {
       equipmentSetup.forehand_rubber_name = forehandRubber;
       equipmentSetup.forehand_thickness = formData.get("forehand_thickness") || null;
-      equipmentSetup.forehand_color = formData.get("forehand_color") || null;
+      equipmentSetup.forehand_side = formData.get("forehand_side") || null;
     }
 
     const backhandRubber = formData.get("backhand_rubber_name");
     if (backhandRubber) {
       equipmentSetup.backhand_rubber_name = backhandRubber;
       equipmentSetup.backhand_thickness = formData.get("backhand_thickness") || null;
-      equipmentSetup.backhand_color = formData.get("backhand_color") || null;
+      equipmentSetup.backhand_side = formData.get("backhand_side") || null;
     }
 
     const sourceType = formData.get("source_type");
@@ -224,7 +232,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
-  const { user, env } = loaderData;
+  const { user, env, playingStyles, countries } = loaderData;
 
   return (
     <PageSection background="white" padding="medium">
@@ -239,7 +247,7 @@ export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <PlayerSubmissionForm />
+        <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} />
       </div>
     </PageSection>
   );

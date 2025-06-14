@@ -3,43 +3,20 @@ import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
 import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
+import type { CategoryOption } from "~/lib/categories.server";
 
-interface PlayerSubmissionFormProps {}
+// Client-side helper function to format country options
+function formatCountryOption(country: CategoryOption): string {
+  return country.flag_emoji ? `${country.flag_emoji} ${country.name}` : country.name;
+}
 
-const COUNTRIES = [
-  { code: "CHN", name: "China" },
-  { code: "JPN", name: "Japan" },
-  { code: "GER", name: "Germany" },
-  { code: "KOR", name: "South Korea" },
-  { code: "SWE", name: "Sweden" },
-  { code: "FRA", name: "France" },
-  { code: "HKG", name: "Hong Kong" },
-  { code: "TPE", name: "Chinese Taipei" },
-  { code: "SGP", name: "Singapore" },
-  { code: "USA", name: "United States" },
-  { code: "BRA", name: "Brazil" },
-  { code: "EGY", name: "Egypt" },
-  { code: "NIG", name: "Nigeria" },
-  { code: "IND", name: "India" },
-  { code: "AUS", name: "Australia" },
-  { code: "POL", name: "Poland" },
-  { code: "ROU", name: "Romania" },
-  { code: "AUT", name: "Austria" },
-  { code: "DEN", name: "Denmark" },
-  { code: "CRO", name: "Croatia" },
-  { code: "SVK", name: "Slovakia" },
-];
+interface PlayerSubmissionFormProps {
+  playingStyles: CategoryOption[];
+  countries: CategoryOption[];
+}
 
-const PLAYING_STYLES = [
-  { value: "attacker", label: "Attacker" },
-  { value: "all_rounder", label: "All-Rounder" },
-  { value: "defender", label: "Defender" },
-  { value: "counter_attacker", label: "Counter-Attacker" },
-  { value: "chopper", label: "Chopper" },
-  { value: "unknown", label: "Unknown" },
-];
 
-export function PlayerSubmissionForm(): JSX.Element {
+export function PlayerSubmissionForm({ playingStyles, countries }: PlayerSubmissionFormProps): JSX.Element {
   const navigate = useNavigate();
   const [includeEquipment, setIncludeEquipment] = useState(false);
 
@@ -153,9 +130,9 @@ export function PlayerSubmissionForm(): JSX.Element {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select playing style</option>
-                  {PLAYING_STYLES.map((style) => (
-                    <option key={style.value} value={style.value}>
-                      {style.label}
+                  {playingStyles.map((style) => (
+                    <option key={style.id} value={style.value}>
+                      {style.name}
                     </option>
                   ))}
                 </select>
@@ -176,9 +153,9 @@ export function PlayerSubmissionForm(): JSX.Element {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select country</option>
-                  {COUNTRIES.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.name}
+                  {countries.map((country) => (
+                    <option key={country.id} value={country.value}>
+                      {formatCountryOption(country)}
                     </option>
                   ))}
                 </select>
@@ -199,9 +176,9 @@ export function PlayerSubmissionForm(): JSX.Element {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Select country</option>
-                  {COUNTRIES.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.name}
+                  {countries.map((country) => (
+                    <option key={`represents-${country.id}`} value={country.value}>
+                      {formatCountryOption(country)}
                     </option>
                   ))}
                 </select>

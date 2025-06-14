@@ -2,6 +2,7 @@ import type { Route } from "./+types/equipment.submit";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
+import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -15,9 +16,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 
+  // Load dynamic categories
+  const categoryService = createCategoryService(sbServerClient.client);
+  const equipmentCategories = await categoryService.getEquipmentCategories();
+
   return data(
     {
       user,
+      equipmentCategories,
+      env: {
+        SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+      },
     },
     { headers: sbServerClient.headers }
   );
@@ -220,7 +230,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
-  const { user } = loaderData;
+  const { user, equipmentCategories, env } = loaderData;
 
   return (
     <PageSection background="white" padding="medium">
@@ -235,7 +245,7 @@ export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <EquipmentSubmissionForm />
+        <EquipmentSubmissionForm categories={equipmentCategories} env={env} />
       </div>
     </PageSection>
   );
