@@ -85,6 +85,9 @@ temp/
 *.d.ts.map
 *.js.map
 
+# TypeScript build cache
+*.tsbuildinfo
+
 # Vite
 .vite/
 

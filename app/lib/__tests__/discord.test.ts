@@ -8,6 +8,7 @@ const createMockContext = () => ({
     env: {
       SUPABASE_URL: process.env.SUPABASE_URL,
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       DISCORD_PUBLIC_KEY: process.env.DISCORD_PUBLIC_KEY || "test_key_placeholder",
       DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL || "https://discord.com/api/webhooks/test",
       DISCORD_ALLOWED_ROLES: process.env.DISCORD_ALLOWED_ROLES || "role_id_1,role_id_2,role_id_3",
@@ -254,9 +255,9 @@ describe("Discord Integration", () => {
       const mockInteraction = {
         type: 3, // Message Component
         data: {
-          custom_id: "approve_equipment_non-existent-id",
+          custom_id: "approve_equipment_12345678-1234-1234-1234-123456789999",
         },
-        user: { id: "test-moderator", username: "TestModerator" },
+        user: { id: "12345678-1234-1234-1234-123456789012", username: "TestModerator" },
         member: { roles: ["role_id_1"] },
         guild_id: "test-guild",
       };
@@ -265,8 +266,8 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      // Should handle non-existent ID gracefully
-      expect(responseData.data.content).toMatch(/Error.*Equipment submission not found/);
+      // Should handle database errors gracefully
+      expect(responseData.data.content).toMatch(/Error.*Failed to record approval/);
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
 
@@ -274,9 +275,9 @@ describe("Discord Integration", () => {
       const mockInteraction = {
         type: 3,
         data: {
-          custom_id: "approve_player_edit_non-existent-id",
+          custom_id: "approve_player_edit_12345678-1234-1234-1234-123456789999",
         },
-        user: { id: "test-moderator", username: "TestModerator" },
+        user: { id: "12345678-1234-1234-1234-123456789012", username: "TestModerator" },
         member: { roles: ["role_id_1"] },
         guild_id: "test-guild",
       };
@@ -285,7 +286,7 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toMatch(/Error.*Player edit not found/);
+      expect(responseData.data.content).toMatch(/Error.*Failed to record approval/);
       expect(responseData.data.flags).toBe(64);
     });
 
