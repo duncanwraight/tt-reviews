@@ -92,8 +92,6 @@ export async function sendDiscordPlayerEditNotification(
       body: JSON.stringify(payload),
     });
 
-    console.log("Player edit Discord notification - Status:", response.status, "OK:", response.ok);
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Discord webhook error:", errorText);

@@ -60,8 +60,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
   }
 
-  console.log("Equipment submissions query result:", { submissions, error, count: submissions?.length });
-
   if (error) {
     console.error("Equipment submissions error:", error);
     return data({ submissions: [], user }, { headers: sbServerClient.headers });
@@ -72,12 +70,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   try {
-    console.log("Admin equipment action started");
-    
     const sbServerClient = getServerClient(request, context);
     const user = await getUserWithRole(sbServerClient, context);
-
-    console.log("User:", { id: user?.id, role: user?.role });
 
     // Check admin access
     if (!user || user.role !== "admin") {
@@ -91,16 +85,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     const rejectionCategory = formData.get("category") as RejectionCategory | null;
     const rejectionReason = formData.get("reason") as string | null;
 
-    console.log("Form data:", { submissionId, actionType, moderatorNotes, rejectionCategory, rejectionReason });
-
     if (!submissionId || !actionType) {
       return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });
     }
 
     const supabase = createSupabaseAdminClient(context);
     const moderationService = createModerationService(supabase);
-    
-    console.log("Created moderation service");
 
   let result;
   if (actionType === "approved") {
@@ -155,14 +145,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: "Invalid action" }, { status: 400, headers: sbServerClient.headers });
   }
 
-  console.log("Moderation result:", result);
-
   if (!result.success) {
     console.error("Moderation failed:", result.error);
     return data({ error: result.error || "Operation failed" }, { status: 500, headers: sbServerClient.headers });
   }
 
-  console.log("Moderation success, redirecting");
   return redirect("/admin/equipment-submissions", { headers: sbServerClient.headers });
   
   } catch (error) {
@@ -180,6 +167,14 @@ export default function AdminEquipmentSubmissions({
     submissionId: string;
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
+
+  // Group submissions by status
+  const pendingSubmissions = submissions.filter(s => 
+    s.status === "pending" || s.status === "awaiting_second_approval"
+  );
+  const processedSubmissions = submissions.filter(s => 
+    s.status === "approved" || s.status === "rejected"
+  );
 
   const getStatusBadge = (status: string, approvalCount?: number) => {
     const baseClasses =
@@ -228,8 +223,200 @@ export default function AdminEquipmentSubmissions({
     }
   };
 
+  const renderSubmissionItem = (submission: any) => (
+    <li key={submission.id}>
+      <div className="px-4 py-4 sm:px-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">
+              {getCategoryIcon(submission.category)}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                {submission.name}
+              </p>
+              <p className="text-sm text-gray-500">
+                by {submission.manufacturer} • {submission.category}
+                {submission.subcategory &&
+                  ` (${submission.subcategory})`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            {(() => {
+              const badge = getStatusBadge(submission.status, getApprovalCount(submission));
+              return (
+                <span className={badge.classes}>
+                  {badge.text}
+                </span>
+              );
+            })()}
+            <div className="text-sm text-gray-500">
+              {new Date(submission.created_at).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+
+        {submission.specifications &&
+          Object.keys(submission.specifications).length > 0 && (
+            <div className="mt-2 text-sm text-gray-600">
+              <strong>Specifications:</strong>
+              <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(submission.specifications).map(
+                  ([key, value]) => (
+                    <span key={key} className="text-xs">
+                      <strong>{key}:</strong> {String(value)}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+        {submission.moderator_notes && (
+          <div className="mt-2 text-sm">
+            <strong className="text-gray-700">
+              Moderator Notes:
+            </strong>
+            <p className="text-gray-600 mt-1">
+              {submission.moderator_notes}
+            </p>
+          </div>
+        )}
+
+        {/* Show rejection details for rejected submissions */}
+        {submission.status === "rejected" && (submission.rejection_reason || submission.rejection_category) && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h5 className="text-sm font-medium text-red-800">
+                  Rejected
+                  {submission.rejection_category && (
+                    <span className="ml-2 text-xs font-normal">
+                      ({submission.rejection_category.replace(/_/g, ' ')})
+                    </span>
+                  )}
+                </h5>
+                {submission.rejection_reason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    {submission.rejection_reason}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approval History */}
+        {submission.moderator_approvals && submission.moderator_approvals.length > 0 && (
+          <div className="mt-3 bg-gray-50 rounded-lg p-3">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">
+              Approval History:
+            </h4>
+            <div className="space-y-1">
+              {submission.moderator_approvals.map((approval: any, index: number) => (
+                <div key={index} className="text-sm flex justify-between">
+                  <span className={`font-medium ${
+                    approval.action === "approved" ? "text-green-700" : "text-red-700"
+                  }`}>
+                    {approval.action} by {approval.source}
+                  </span>
+                  <span className="text-gray-500">
+                    {new Date(approval.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons only for pending submissions */}
+        {(submission.status === "pending" || submission.status === "awaiting_second_approval") && (
+          <div className="mt-3 flex items-center space-x-3">
+            {canApprove(submission) && (
+              <Form method="post" className="inline">
+                <input
+                  type="hidden"
+                  name="submissionId"
+                  value={submission.id}
+                />
+                <input type="hidden" name="action" value="approved" />
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Approve
+                </button>
+              </Form>
+            )}
+            {canReject(submission) && (
+              <button
+                onClick={() =>
+                  setRejectionModal({
+                    isOpen: true,
+                    submissionId: submission.id,
+                    submissionName: submission.name,
+                  })
+                }
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Reject
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+
   return (
     <div className="space-y-6">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">⏳</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-yellow-800">Pending Review</p>
+              <p className="text-2xl font-bold text-yellow-900">{pendingSubmissions.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">✅</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">Approved</p>
+              <p className="text-2xl font-bold text-green-900">
+                {processedSubmissions.filter(s => s.status === "approved").length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">❌</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">Rejected</p>
+              <p className="text-2xl font-bold text-red-900">
+                {processedSubmissions.filter(s => s.status === "rejected").length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">
           Equipment Submissions
@@ -250,135 +437,46 @@ export default function AdminEquipmentSubmissions({
           </p>
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {submissions.map((submission) => (
-              <li key={submission.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-3">
-                        {getCategoryIcon(submission.category)}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {submission.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          by {submission.manufacturer} • {submission.category}
-                          {submission.subcategory &&
-                            ` (${submission.subcategory})`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      {(() => {
-                        const badge = getStatusBadge(submission.status, getApprovalCount(submission));
-                        return (
-                          <span className={badge.classes}>
-                            {badge.text}
-                          </span>
-                        );
-                      })()}
-                      <div className="text-sm text-gray-500">
-                        {new Date(submission.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
+        <div className="space-y-8">
+          {/* Pending Submissions Section */}
+          {pendingSubmissions.length > 0 && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <span className="text-2xl mr-2">⏳</span>
+                  Pending Review ({pendingSubmissions.length})
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Submissions that need moderator approval
+                </p>
+              </div>
+              <div className="bg-white shadow overflow-hidden rounded-md border-l-4 border-yellow-400">
+                <ul className="divide-y divide-gray-200">
+                  {pendingSubmissions.map(renderSubmissionItem)}
+                </ul>
+              </div>
+            </div>
+          )}
 
-                  {submission.specifications &&
-                    Object.keys(submission.specifications).length > 0 && (
-                      <div className="mt-2 text-sm text-gray-600">
-                        <strong>Specifications:</strong>
-                        <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
-                          {Object.entries(submission.specifications).map(
-                            ([key, value]) => (
-                              <span key={key} className="text-xs">
-                                <strong>{key}:</strong> {String(value)}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                  {submission.moderator_notes && (
-                    <div className="mt-2 text-sm">
-                      <strong className="text-gray-700">
-                        Moderator Notes:
-                      </strong>
-                      <p className="text-gray-600 mt-1">
-                        {submission.moderator_notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Approval History */}
-                  {submission.moderator_approvals && submission.moderator_approvals.length > 0 && (
-                    <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">
-                        Approval History:
-                      </h4>
-                      <div className="space-y-1">
-                        {submission.moderator_approvals.map((approval: any, index: number) => (
-                          <div key={index} className="text-sm flex justify-between">
-                            <span className={`font-medium ${
-                              approval.action === "approved" ? "text-green-700" : "text-red-700"
-                            }`}>
-                              {approval.action} by {approval.source}
-                            </span>
-                            <span className="text-gray-500">
-                              {new Date(approval.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center space-x-3">
-                    {canApprove(submission) && (
-                      <Form method="post" className="inline">
-                        <input
-                          type="hidden"
-                          name="submissionId"
-                          value={submission.id}
-                        />
-                        <input type="hidden" name="action" value="approved" />
-                        <button
-                          type="submit"
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          Approve
-                        </button>
-                      </Form>
-                    )}
-                    {canReject(submission) && (
-                      <button
-                        type="button"
-                        onClick={() => setRejectionModal({
-                          isOpen: true,
-                          submissionId: submission.id,
-                          submissionName: submission.name
-                        })}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        Reject
-                      </button>
-                    )}
-                    <button
-                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                      onClick={() => {
-                        /* TODO: Implement view details modal */
-                      }}
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {/* Processed Submissions Section */}
+          {processedSubmissions.length > 0 && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <span className="text-2xl mr-2">📋</span>
+                  Recently Processed ({processedSubmissions.length})
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Submissions that have been approved or rejected
+                </p>
+              </div>
+              <div className="bg-white shadow overflow-hidden rounded-md">
+                <ul className="divide-y divide-gray-200">
+                  {processedSubmissions.map(renderSubmissionItem)}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

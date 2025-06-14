@@ -139,6 +139,14 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
+  // Group edits by status
+  const pendingEdits = playerEdits.filter(e => 
+    e.status === "pending" || e.status === "awaiting_second_approval"
+  );
+  const processedEdits = playerEdits.filter(e => 
+    e.status === "approved" || e.status === "rejected"
+  );
+
   const getStatusBadge = (status: string, approvalCount?: number) => {
     const baseClasses =
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
@@ -184,10 +192,212 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
       .join(", ");
   };
 
+  const renderEditItem = (edit: any) => (
+    <li key={edit.id}>
+      <div className="px-4 py-4 sm:px-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">👤</span>
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                Edit for {edit.players?.name || "Unknown Player"}
+              </p>
+              <p className="text-sm text-gray-500">
+                Changes: {formatEditData(edit.edit_data)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            {(() => {
+              const badge = getStatusBadge(edit.status, getApprovalCount(edit));
+              return (
+                <span className={badge.classes}>
+                  {badge.text}
+                </span>
+              );
+            })()}
+            <div className="text-sm text-gray-500">
+              {new Date(edit.created_at).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 bg-gray-50 rounded-lg p-3">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">
+            Proposed Changes:
+          </h4>
+          <div className="space-y-1">
+            {Object.entries(edit.edit_data).map(([key, value]) => (
+              <div key={key} className="text-sm">
+                <span className="font-medium text-gray-700">
+                  {key
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                  :
+                </span>
+                <span className="ml-2 text-gray-900">
+                  {String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {edit.moderator_notes && (
+          <div className="mt-2 text-sm">
+            <strong className="text-gray-700">
+              Moderator Notes:
+            </strong>
+            <p className="text-gray-600 mt-1">
+              {edit.moderator_notes}
+            </p>
+          </div>
+        )}
+
+        {/* Show rejection details for rejected edits */}
+        {edit.status === "rejected" && (edit.rejection_reason || edit.rejection_category) && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h5 className="text-sm font-medium text-red-800">
+                  Rejected
+                  {edit.rejection_category && (
+                    <span className="ml-2 text-xs font-normal">
+                      ({edit.rejection_category.replace(/_/g, ' ')})
+                    </span>
+                  )}
+                </h5>
+                {edit.rejection_reason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    {edit.rejection_reason}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approval History */}
+        {edit.moderator_approvals && edit.moderator_approvals.length > 0 && (
+          <div className="mt-3 bg-gray-50 rounded-lg p-3">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">
+              Approval History:
+            </h4>
+            <div className="space-y-1">
+              {edit.moderator_approvals.map((approval: any, index: number) => (
+                <div key={index} className="text-sm flex justify-between">
+                  <span className={`font-medium ${
+                    approval.action === "approved" ? "text-green-700" : "text-red-700"
+                  }`}>
+                    {approval.action} by {approval.source}
+                  </span>
+                  <span className="text-gray-500">
+                    {new Date(approval.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons only for pending edits */}
+        {(edit.status === "pending" || edit.status === "awaiting_second_approval") && (
+          <div className="mt-3 flex items-center space-x-3">
+            {canApprove(edit) && (
+              <Form method="post" className="inline">
+                <input
+                  type="hidden"
+                  name="editId"
+                  value={edit.id}
+                />
+                <input type="hidden" name="action" value="approved" />
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Approve
+                </button>
+              </Form>
+            )}
+            {canReject(edit) && (
+              <button
+                type="button"
+                onClick={() => setRejectionModal({
+                  isOpen: true,
+                  submissionId: edit.id,
+                  submissionName: `Edit for ${edit.players?.name || "Unknown Player"}`
+                })}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Reject
+              </button>
+            )}
+            {edit.players?.slug && (
+              <a
+                href={`/players/${edit.players.slug}`}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              >
+                View Player
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+
   return (
     <div className="space-y-6">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">⏳</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-yellow-800">Pending Review</p>
+              <p className="text-2xl font-bold text-yellow-900">{pendingEdits.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">✅</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">Approved</p>
+              <p className="text-2xl font-bold text-green-900">
+                {processedEdits.filter(e => e.status === "approved").length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">❌</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">Rejected</p>
+              <p className="text-2xl font-bold text-red-900">
+                {processedEdits.filter(e => e.status === "rejected").length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Player Edits</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Player Edits
+        </h2>
         <div className="text-sm text-gray-600">
           {playerEdits.length} total edits
         </div>
@@ -204,136 +414,46 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {playerEdits.map((edit) => (
-              <li key={edit.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-3">👤</span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Edit for {edit.players?.name || "Unknown Player"}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Changes: {formatEditData(edit.edit_data)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      {(() => {
-                        const badge = getStatusBadge(edit.status, getApprovalCount(edit));
-                        return (
-                          <span className={badge.classes}>
-                            {badge.text}
-                          </span>
-                        );
-                      })()}
-                      <div className="text-sm text-gray-500">
-                        {new Date(edit.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
+        <div className="space-y-8">
+          {/* Pending Edits Section */}
+          {pendingEdits.length > 0 && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <span className="text-2xl mr-2">⏳</span>
+                  Pending Review ({pendingEdits.length})
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Edits that need moderator approval
+                </p>
+              </div>
+              <div className="bg-white shadow overflow-hidden rounded-md border-l-4 border-yellow-400">
+                <ul className="divide-y divide-gray-200">
+                  {pendingEdits.map(renderEditItem)}
+                </ul>
+              </div>
+            </div>
+          )}
 
-                  <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Proposed Changes:
-                    </h4>
-                    <div className="space-y-1">
-                      {Object.entries(edit.edit_data).map(([key, value]) => (
-                        <div key={key} className="text-sm">
-                          <span className="font-medium text-gray-700">
-                            {key
-                              .replace(/_/g, " ")
-                              .replace(/\b\w/g, (l) => l.toUpperCase())}
-                            :
-                          </span>
-                          <span className="ml-2 text-gray-900">
-                            {String(value)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {edit.moderator_notes && (
-                    <div className="mt-2 text-sm">
-                      <strong className="text-gray-700">
-                        Moderator Notes:
-                      </strong>
-                      <p className="text-gray-600 mt-1">
-                        {edit.moderator_notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Approval History */}
-                  {edit.moderator_approvals && edit.moderator_approvals.length > 0 && (
-                    <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">
-                        Approval History:
-                      </h4>
-                      <div className="space-y-1">
-                        {edit.moderator_approvals.map((approval: any, index: number) => (
-                          <div key={index} className="text-sm flex justify-between">
-                            <span className={`font-medium ${
-                              approval.action === "approved" ? "text-green-700" : "text-red-700"
-                            }`}>
-                              {approval.action} by {approval.source}
-                            </span>
-                            <span className="text-gray-500">
-                              {new Date(approval.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center space-x-3">
-                    {canApprove(edit) && (
-                      <Form method="post" className="inline">
-                        <input
-                          type="hidden"
-                          name="editId"
-                          value={edit.id}
-                        />
-                        <input type="hidden" name="action" value="approved" />
-                        <button
-                          type="submit"
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          Approve
-                        </button>
-                      </Form>
-                    )}
-                    {canReject(edit) && (
-                      <button
-                        type="button"
-                        onClick={() => setRejectionModal({
-                          isOpen: true,
-                          submissionId: edit.id,
-                          submissionName: `Edit for ${edit.players?.name || "Unknown Player"}`
-                        })}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        Reject
-                      </button>
-                    )}
-                    {edit.players?.slug && (
-                      <a
-                        href={`/players/${edit.players.slug}`}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                      >
-                        View Player
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {/* Processed Edits Section */}
+          {processedEdits.length > 0 && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <span className="text-2xl mr-2">📋</span>
+                  Recently Processed ({processedEdits.length})
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Edits that have been approved or rejected
+                </p>
+              </div>
+              <div className="bg-white shadow overflow-hidden rounded-md">
+                <ul className="divide-y divide-gray-200">
+                  {processedEdits.map(renderEditItem)}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

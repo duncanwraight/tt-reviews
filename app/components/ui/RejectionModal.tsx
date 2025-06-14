@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Form } from "react-router";
+import { useState, useEffect, useCallback } from "react";
+import { Form, useActionData, useNavigation } from "react-router";
 import type { RejectionCategory } from "~/lib/types";
 
 interface RejectionModalProps {
@@ -29,6 +29,26 @@ export function RejectionModal({
 }: RejectionModalProps) {
   const [category, setCategory] = useState<RejectionCategory>("other");
   const [reason, setReason] = useState("");
+  const navigation = useNavigation();
+  const actionData = useActionData();
+
+  // Track if we were submitting to detect successful submission
+  const [wasSubmitting, setWasSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      setWasSubmitting(true);
+    } else if (navigation.state === "idle" && wasSubmitting) {
+      // We were submitting and now we're idle - submission completed
+      setWasSubmitting(false);
+      // Use setTimeout to avoid state update during render
+      setTimeout(() => {
+        onClose();
+        setReason(""); // Reset form
+        setCategory("other");
+      }, 0);
+    }
+  }, [navigation.state, wasSubmitting]); // Remove onClose from dependencies
 
   if (!isOpen) return null;
 
@@ -93,10 +113,10 @@ export function RejectionModal({
               </button>
               <button
                 type="submit"
-                disabled={!reason.trim()}
+                disabled={!reason.trim() || navigation.state === "submitting"}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Reject Submission
+                {navigation.state === "submitting" ? "Rejecting..." : "Reject Submission"}
               </button>
             </div>
           </Form>

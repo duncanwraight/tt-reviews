@@ -22,7 +22,7 @@ export function getUserRoleFromSession(env: {
       }
     });
   } catch (error) {
-    console.error("Error getting user role:", error);
+    // Silently handle error
   }
 
   return null;

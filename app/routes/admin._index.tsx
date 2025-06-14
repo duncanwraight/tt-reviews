@@ -35,24 +35,72 @@ export async function loader({ context }: Route.LoaderArgs) {
     supabase.from("players").select("*", { count: "exact", head: true }),
   ]);
 
-  // Get pending items counts
+  // Get detailed status counts for each submission type
   const [
     { count: pendingEquipmentSubmissions },
+    { count: awaitingEquipmentSubmissions },
+    { count: approvedEquipmentSubmissions },
+    { count: rejectedEquipmentSubmissions },
     { count: pendingPlayerSubmissions },
+    { count: awaitingPlayerSubmissions },
+    { count: approvedPlayerSubmissions },
+    { count: rejectedPlayerSubmissions },
     { count: pendingPlayerEdits },
+    { count: awaitingPlayerEdits },
+    { count: approvedPlayerEdits },
+    { count: rejectedPlayerEdits },
   ] = await Promise.all([
+    // Equipment submissions by status
     supabase
       .from("equipment_submissions")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending"),
     supabase
+      .from("equipment_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "awaiting_second_approval"),
+    supabase
+      .from("equipment_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("equipment_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "rejected"),
+    // Player submissions by status
+    supabase
       .from("player_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("player_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "awaiting_second_approval"),
+    supabase
+      .from("player_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("player_submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "rejected"),
+    // Player edits by status
+    supabase
+      .from("player_edits")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending"),
     supabase
       .from("player_edits")
       .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
+      .eq("status", "awaiting_second_approval"),
+    supabase
+      .from("player_edits")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("player_edits")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "rejected"),
   ]);
 
   return data({
@@ -62,9 +110,18 @@ export async function loader({ context }: Route.LoaderArgs) {
       playerEdits: playerEditsCount || 0,
       equipment: equipmentCount || 0,
       players: playersCount || 0,
-      pendingEquipmentSubmissions: pendingEquipmentSubmissions || 0,
-      pendingPlayerSubmissions: pendingPlayerSubmissions || 0,
-      pendingPlayerEdits: pendingPlayerEdits || 0,
+      // Equipment submission status breakdown
+      equipmentPending: (pendingEquipmentSubmissions || 0) + (awaitingEquipmentSubmissions || 0),
+      equipmentApproved: approvedEquipmentSubmissions || 0,
+      equipmentRejected: rejectedEquipmentSubmissions || 0,
+      // Player submission status breakdown
+      playerSubmissionsPending: (pendingPlayerSubmissions || 0) + (awaitingPlayerSubmissions || 0),
+      playerSubmissionsApproved: approvedPlayerSubmissions || 0,
+      playerSubmissionsRejected: rejectedPlayerSubmissions || 0,
+      // Player edits status breakdown
+      playerEditsPending: (pendingPlayerEdits || 0) + (awaitingPlayerEdits || 0),
+      playerEditsApproved: approvedPlayerEdits || 0,
+      playerEditsRejected: rejectedPlayerEdits || 0,
     },
   });
 }
@@ -76,21 +133,27 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
     {
       title: "Equipment Submissions",
       total: stats.equipmentSubmissions,
-      pending: stats.pendingEquipmentSubmissions,
+      pending: stats.equipmentPending,
+      approved: stats.equipmentApproved,
+      rejected: stats.equipmentRejected,
       link: "/admin/equipment-submissions",
       color: "bg-blue-500",
     },
     {
       title: "Player Submissions",
       total: stats.playerSubmissions,
-      pending: stats.pendingPlayerSubmissions,
+      pending: stats.playerSubmissionsPending,
+      approved: stats.playerSubmissionsApproved,
+      rejected: stats.playerSubmissionsRejected,
       link: "/admin/player-submissions",
       color: "bg-green-500",
     },
     {
       title: "Player Edits",
       total: stats.playerEdits,
-      pending: stats.pendingPlayerEdits,
+      pending: stats.playerEditsPending,
+      approved: stats.playerEditsApproved,
+      rejected: stats.playerEditsRejected,
       link: "/admin/player-edits",
       color: "bg-purple-500",
     },
@@ -119,9 +182,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         </h2>
 
         {/* Pending Items Alert */}
-        {stats.pendingEquipmentSubmissions +
-          stats.pendingPlayerSubmissions +
-          stats.pendingPlayerEdits >
+        {stats.equipmentPending +
+          stats.playerSubmissionsPending +
+          stats.playerEditsPending >
           0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
@@ -134,9 +197,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   You have{" "}
-                  {stats.pendingEquipmentSubmissions +
-                    stats.pendingPlayerSubmissions +
-                    stats.pendingPlayerEdits}{" "}
+                  {stats.equipmentPending +
+                    stats.playerSubmissionsPending +
+                    stats.playerEditsPending}{" "}
                   items waiting for review.
                 </div>
               </div>
@@ -148,25 +211,41 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {statCards.map((card, index) => (
             <div key={index} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className={`${card.color} rounded-lg p-3 mr-4`}>
-                  <div className="text-white text-xl font-semibold">
-                    {card.pending}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-600">
+                  {card.title}
+                </h3>
+                <span className="text-2xl font-semibold text-gray-900">
+                  {card.total}
+                </span>
+              </div>
+              
+              {/* Status breakdown with color coding */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                    <span className="text-gray-600">Pending</span>
                   </div>
+                  <span className="font-medium text-yellow-700">{card.pending}</span>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium text-gray-600">
-                    {card.title}
-                  </h3>
-                  <div className="flex items-center mt-1">
-                    <span className="text-2xl font-semibold text-gray-900">
-                      {card.total}
-                    </span>
-                    <span className="text-sm text-gray-500 ml-2">total</span>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-gray-600">Approved</span>
                   </div>
+                  <span className="font-medium text-green-700">{card.approved}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                    <span className="text-gray-600">Rejected</span>
+                  </div>
+                  <span className="font-medium text-red-700">{card.rejected}</span>
                 </div>
               </div>
-              <div className="mt-4">
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
                 <a
                   href={card.link}
                   className="text-sm text-purple-600 hover:text-purple-800 font-medium"
@@ -198,39 +277,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <a
-            href="/admin/equipment-submissions"
-            className="flex items-center justify-center px-4 py-3 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Review Equipment
-          </a>
-          <a
-            href="/admin/player-submissions"
-            className="flex items-center justify-center px-4 py-3 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Review Players
-          </a>
-          <a
-            href="/admin/player-edits"
-            className="flex items-center justify-center px-4 py-3 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Review Edits
-          </a>
-          <a
-            href="/players"
-            className="flex items-center justify-center px-4 py-3 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            View Site
-          </a>
         </div>
       </div>
     </div>

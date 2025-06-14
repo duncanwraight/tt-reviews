@@ -23,8 +23,6 @@ export async function checkAndPromoteAdmin(
   // Check if current user email is in the admin list
   const isAdminEmail = adminEmailList.includes(userEmail.toLowerCase());
   
-  console.log(`Auto-admin check: email=${userEmail}, adminEmails=[${adminEmailList.join(', ')}], isAdmin=${isAdminEmail}`);
-  
   if (!isAdminEmail) {
     return false;
   }
@@ -39,11 +37,8 @@ export async function checkAndPromoteAdmin(
 
     // If already admin, no need to update
     if (existingRole?.role === 'admin') {
-      console.log(`User ${userEmail} already has admin role`);
       return false;
     }
-
-    console.log(`Promoting user ${userEmail} to admin role...`);
 
     let error;
     if (existingRole) {
@@ -68,7 +63,6 @@ export async function checkAndPromoteAdmin(
       console.error('Failed to promote user to admin:', error);
       return false;
     } else {
-      console.log(`Successfully auto-promoted user ${userEmail} to admin role`);
       return true; // Signal that promotion occurred
     }
   } catch (error) {

@@ -52,7 +52,7 @@ export async function getUserWithRole(supabaseServerClient: any, context?: AppLo
           
           // If user was just promoted, they need to re-login to get updated JWT
           if (wasPromoted) {
-            console.log('🎉 User was auto-promoted to admin! Please log out and back in to see admin features.');
+            // User was auto-promoted to admin role
           }
         }
       }
