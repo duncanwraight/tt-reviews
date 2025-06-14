@@ -1,6 +1,7 @@
 import type { Route } from "./+types/equipment.$slug";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
+import { createCategoryService } from "~/lib/categories.server";
 import { data, redirect } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -56,10 +57,20 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     throw redirect("/equipment", { status: 404 });
   }
 
-  const [reviews, usedByPlayers] = await Promise.all([
+  const categoryService = createCategoryService(sbServerClient.client);
+
+  const [reviews, usedByPlayers, ratingCategories, generalRatingCategories] = await Promise.all([
     db.getEquipmentReviews(equipment.id, "approved"),
     [], // TODO: Implement getPlayersUsingEquipment when player setups are available
+    categoryService.getReviewRatingCategories(equipment.subcategory),
+    categoryService.getReviewRatingCategories(), // General categories without parent
   ]);
+
+  // Combine all rating categories
+  const allRatingCategories = [
+    ...generalRatingCategories,
+    ...ratingCategories,
+  ].sort((a, b) => a.display_order - b.display_order);
 
   const averageRating =
     reviews.length > 0
@@ -75,6 +86,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       usedByPlayers,
       averageRating,
       reviewCount: reviews.length,
+      ratingCategories: allRatingCategories,
     },
     { headers: sbServerClient.headers }
   );
@@ -88,6 +100,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     usedByPlayers,
     averageRating,
     reviewCount,
+    ratingCategories,
   } = loaderData;
 
   const breadcrumbItems = [
@@ -116,6 +129,8 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
         reviewCount={reviewCount}
         user={user}
         equipmentName={equipment.name}
+        equipmentSlug={equipment.slug}
+        ratingCategories={ratingCategories}
       />
 
       <RelatedEquipmentSection category={equipment.category} />

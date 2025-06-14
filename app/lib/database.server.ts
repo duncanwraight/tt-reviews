@@ -439,6 +439,34 @@ export class DatabaseService {
     return (data as EquipmentReview[]) || [];
   }
 
+  async getUserReviewForEquipment(equipmentId: string, userId: string): Promise<EquipmentReview | null> {
+    const { data, error } = await this.supabase
+      .from("equipment_reviews")
+      .select(
+        `
+        *,
+        equipment (
+          id,
+          name,
+          slug,
+          manufacturer,
+          category,
+          subcategory
+        )
+      `
+      )
+      .eq("equipment_id", equipmentId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching user review for equipment:", error);
+      return null;
+    }
+
+    return data as EquipmentReview | null;
+  }
+
   // Equipment submission methods
   async submitEquipment(
     submission: Omit<

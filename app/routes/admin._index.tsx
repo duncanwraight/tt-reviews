@@ -21,6 +21,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     { count: equipmentSubmissionsCount },
     { count: playerSubmissionsCount },
     { count: playerEditsCount },
+    { count: equipmentReviewsCount },
     { count: equipmentCount },
     { count: playersCount },
   ] = await Promise.all([
@@ -31,6 +32,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       .from("player_submissions")
       .select("*", { count: "exact", head: true }),
     supabase.from("player_edits").select("*", { count: "exact", head: true }),
+    supabase.from("equipment_reviews").select("*", { count: "exact", head: true }),
     supabase.from("equipment").select("*", { count: "exact", head: true }),
     supabase.from("players").select("*", { count: "exact", head: true }),
   ]);
@@ -49,6 +51,10 @@ export async function loader({ context }: Route.LoaderArgs) {
     { count: awaitingPlayerEdits },
     { count: approvedPlayerEdits },
     { count: rejectedPlayerEdits },
+    { count: pendingEquipmentReviews },
+    { count: awaitingEquipmentReviews },
+    { count: approvedEquipmentReviews },
+    { count: rejectedEquipmentReviews },
   ] = await Promise.all([
     // Equipment submissions by status
     supabase
@@ -101,6 +107,23 @@ export async function loader({ context }: Route.LoaderArgs) {
       .from("player_edits")
       .select("*", { count: "exact", head: true })
       .eq("status", "rejected"),
+    // Equipment reviews by status
+    supabase
+      .from("equipment_reviews")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("equipment_reviews")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "awaiting_second_approval"),
+    supabase
+      .from("equipment_reviews")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("equipment_reviews")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "rejected"),
   ]);
 
   return data({
@@ -108,6 +131,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       equipmentSubmissions: equipmentSubmissionsCount || 0,
       playerSubmissions: playerSubmissionsCount || 0,
       playerEdits: playerEditsCount || 0,
+      equipmentReviews: equipmentReviewsCount || 0,
       equipment: equipmentCount || 0,
       players: playersCount || 0,
       // Equipment submission status breakdown
@@ -122,6 +146,10 @@ export async function loader({ context }: Route.LoaderArgs) {
       playerEditsPending: (pendingPlayerEdits || 0) + (awaitingPlayerEdits || 0),
       playerEditsApproved: approvedPlayerEdits || 0,
       playerEditsRejected: rejectedPlayerEdits || 0,
+      // Equipment reviews status breakdown
+      equipmentReviewsPending: (pendingEquipmentReviews || 0) + (awaitingEquipmentReviews || 0),
+      equipmentReviewsApproved: approvedEquipmentReviews || 0,
+      equipmentReviewsRejected: rejectedEquipmentReviews || 0,
     },
   });
 }
@@ -156,6 +184,15 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       rejected: stats.playerEditsRejected,
       link: "/admin/player-edits",
       color: "bg-purple-500",
+    },
+    {
+      title: "Equipment Reviews",
+      total: stats.equipmentReviews,
+      pending: stats.equipmentReviewsPending,
+      approved: stats.equipmentReviewsApproved,
+      rejected: stats.equipmentReviewsRejected,
+      link: "/admin/equipment-reviews",
+      color: "bg-yellow-500",
     },
   ];
 

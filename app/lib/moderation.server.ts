@@ -17,7 +17,7 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -74,7 +74,7 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -174,8 +174,30 @@ export class ModerationService {
       .slice(0, limit);
   }
 
+  // Convenience methods for equipment reviews
+  async approveEquipmentReview(reviewId: string, moderatorId: string): Promise<ApprovalResult> {
+    return this.recordApproval("equipment_review", reviewId, moderatorId, "admin_ui");
+  }
+
+  async rejectEquipmentReview(
+    reviewId: string, 
+    moderatorId: string, 
+    category: RejectionCategory, 
+    reason: string,
+    r2Bucket?: R2Bucket
+  ): Promise<ApprovalResult> {
+    return this.recordRejection(
+      "equipment_review", 
+      reviewId, 
+      moderatorId, 
+      "admin_ui", 
+      { category, reason },
+      r2Bucket
+    );
+  }
+
   private async getSubmissionStatus(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -189,7 +211,7 @@ export class ModerationService {
   }
 
   private async deleteSubmissionImage(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -220,7 +242,7 @@ export class ModerationService {
     }
   }
 
-  private getTableName(submissionType: "equipment" | "player" | "player_edit"): string {
+  private getTableName(submissionType: "equipment" | "player" | "player_edit" | "equipment_review"): string {
     switch (submissionType) {
       case "equipment":
         return "equipment_submissions";
@@ -228,6 +250,8 @@ export class ModerationService {
         return "player_submissions";
       case "player_edit":
         return "player_edits";
+      case "equipment_review":
+        return "equipment_reviews";
       default:
         throw new Error(`Unknown submission type: ${submissionType}`);
     }

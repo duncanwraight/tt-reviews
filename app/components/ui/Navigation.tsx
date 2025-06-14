@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router";
+import { DiscordIcon } from "./DiscordIcon";
 
 interface NavigationProps {
   user?: {
@@ -47,6 +48,20 @@ export function Navigation({ user }: NavigationProps) {
             >
               Players
             </Link>
+            <a
+              href="https://discord.gg/Yw2hYUdz3g"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`font-medium transition-all duration-200 hover:scale-105 flex items-center gap-2 ${
+                isHomepage 
+                  ? "text-gray-700 hover:text-purple-600" 
+                  : "text-purple-100 hover:text-white"
+              }`}
+              title="Join the OOAK Table Tennis Discord Community"
+            >
+              <DiscordIcon className="w-5 h-5" />
+              OOAK
+            </a>
             {user ? (
               <>
                 {user.role === "admin" ? (

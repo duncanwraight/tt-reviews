@@ -5,7 +5,8 @@ export type CategoryType =
   | 'equipment_subcategory' 
   | 'playing_style'
   | 'country'
-  | 'rejection_category';
+  | 'rejection_category'
+  | 'review_rating_category';
 
 export interface Category {
   id: string;
@@ -104,6 +105,51 @@ export class CategoryService {
    */
   async getRejectionCategories(): Promise<CategoryOption[]> {
     return this.getCategoriesByType('rejection_category');
+  }
+
+  /**
+   * Get review rating categories for specific equipment category/subcategory
+   */
+  async getReviewRatingCategories(equipmentCategoryValue?: string): Promise<CategoryOption[]> {
+    try {
+      let query = this.supabase
+        .from('categories')
+        .select('id, name, value, display_order')
+        .eq('type', 'review_rating_category')
+        .eq('is_active', true);
+
+      if (equipmentCategoryValue) {
+        // First, find the parent category ID by its value
+        const { data: parentCategory } = await this.supabase
+          .from('categories')
+          .select('id')
+          .eq('value', equipmentCategoryValue)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (parentCategory) {
+          query = query.eq('parent_id', parentCategory.id);
+        } else {
+          // If no parent category found, return empty array
+          return [];
+        }
+      } else {
+        // If no category specified, get general categories (no parent)
+        query = query.is('parent_id', null);
+      }
+
+      const { data, error } = await query.order('display_order');
+
+      if (error) {
+        console.error(`Error fetching review rating categories for ${equipmentCategoryValue}:`, error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error(`Exception fetching review rating categories for ${equipmentCategoryValue}:`, error);
+      return [];
+    }
   }
 
   /**
@@ -260,6 +306,8 @@ export function getCategoryTypeDisplayName(type: CategoryType): string {
       return 'Countries';
     case 'rejection_category':
       return 'Rejection Categories';
+    case 'review_rating_category':
+      return 'Review Rating Categories';
     default:
       return type;
   }

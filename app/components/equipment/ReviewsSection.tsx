@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { ReviewCard } from "./ReviewCard";
+import { AverageRatings } from "./AverageRatings";
 
 interface Review {
   id: string;
@@ -21,6 +22,11 @@ interface ReviewsSectionProps {
   reviewCount: number;
   user?: User | null;
   equipmentName: string;
+  equipmentSlug: string;
+  ratingCategories?: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
 export function ReviewsSection({
@@ -28,16 +34,21 @@ export function ReviewsSection({
   reviewCount,
   user,
   equipmentName,
+  equipmentSlug,
+  ratingCategories = [],
 }: ReviewsSectionProps) {
   return (
     <section className="py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ReviewsSectionHeader reviewCount={reviewCount} user={user} />
+        <ReviewsSectionHeader reviewCount={reviewCount} user={user} equipmentSlug={equipmentSlug} />
 
         {reviews.length > 0 ? (
-          <ReviewsList reviews={reviews} />
+          <>
+            <AverageRatings reviews={reviews} ratingCategories={ratingCategories} />
+            <ReviewsList reviews={reviews} />
+          </>
         ) : (
-          <NoReviewsState equipmentName={equipmentName} user={user} />
+          <NoReviewsState equipmentName={equipmentName} user={user} equipmentSlug={equipmentSlug} />
         )}
       </div>
     </section>
@@ -47,26 +58,31 @@ export function ReviewsSection({
 function ReviewsSectionHeader({
   reviewCount,
   user,
+  equipmentSlug,
 }: {
   reviewCount: number;
   user?: User | null;
+  equipmentSlug: string;
 }) {
   return (
     <div className="flex items-center justify-between mb-8">
       <h2 className="text-2xl font-bold text-gray-900">
         Reviews ({reviewCount})
       </h2>
-      <WriteReviewButton user={user} />
+      <WriteReviewButton user={user} equipmentSlug={equipmentSlug} />
     </div>
   );
 }
 
-function WriteReviewButton({ user }: { user?: User | null }) {
+function WriteReviewButton({ user, equipmentSlug }: { user?: User | null; equipmentSlug: string }) {
   if (user) {
     return (
-      <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+      <Link
+        to={`/equipment/review/${equipmentSlug}`}
+        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+      >
         Write a Review
-      </button>
+      </Link>
     );
   }
 
@@ -93,9 +109,11 @@ function ReviewsList({ reviews }: { reviews: Review[] }) {
 function NoReviewsState({
   equipmentName,
   user,
+  equipmentSlug,
 }: {
   equipmentName: string;
   user?: User | null;
+  equipmentSlug: string;
 }) {
   return (
     <div className="text-center py-12">
@@ -106,17 +124,20 @@ function NoReviewsState({
       <p className="text-gray-600 mb-6">
         Be the first to review the {equipmentName}!
       </p>
-      <NoReviewsAction user={user} />
+      <NoReviewsAction user={user} equipmentSlug={equipmentSlug} />
     </div>
   );
 }
 
-function NoReviewsAction({ user }: { user?: User | null }) {
+function NoReviewsAction({ user, equipmentSlug }: { user?: User | null; equipmentSlug: string }) {
   if (user) {
     return (
-      <button className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+      <Link
+        to={`/equipment/review/${equipmentSlug}`}
+        className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+      >
         Write the First Review
-      </button>
+      </Link>
     );
   }
 
