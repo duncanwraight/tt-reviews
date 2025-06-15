@@ -92,6 +92,37 @@ export class SitemapService {
     }));
   }
 
+  // Generate subcategory pages sitemap entries
+  generateSubcategoryPages(
+    categorySubcategories: Array<{ category: string; subcategory: string }>
+  ): SitemapUrl[] {
+    const now = new Date().toISOString();
+    
+    return categorySubcategories.map(({ category, subcategory }) => ({
+      url: `${this.baseUrl}/equipment?category=${encodeURIComponent(category)}&subcategory=${encodeURIComponent(subcategory)}`,
+      lastmod: now,
+      changefreq: "daily" as const,
+      priority: "0.6", // Slightly lower priority than main categories
+    }));
+  }
+
+  // Generate manufacturer-specific pages for popular brands
+  generateManufacturerPages(manufacturers: string[]): SitemapUrl[] {
+    const now = new Date().toISOString();
+    
+    // Only include major manufacturers to avoid too many URLs
+    const popularManufacturers = manufacturers.filter(manufacturer => 
+      ['Butterfly', 'DHS', 'TIBHAR', 'Yasaka', 'STIGA', 'Xiom', 'Donic'].includes(manufacturer)
+    );
+    
+    return popularManufacturers.map(manufacturer => ({
+      url: `${this.baseUrl}/equipment?manufacturer=${encodeURIComponent(manufacturer)}`,
+      lastmod: now,
+      changefreq: "weekly" as const,
+      priority: "0.5",
+    }));
+  }
+
   // Generate equipment review pages (if they exist as separate routes)
   generateEquipmentReviewPages(equipment: Array<{ slug: string; updated_at: string }>): SitemapUrl[] {
     return equipment.map(item => ({

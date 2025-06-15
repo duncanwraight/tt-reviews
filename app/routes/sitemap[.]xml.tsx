@@ -22,12 +22,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const equipmentCategories = [...new Set(allEquipment.map(e => e.category))];
   const categoryPages = sitemapService.generateCategoryPages(equipmentCategories);
 
+  // Get unique category-subcategory combinations for subcategory pages
+  const categorySubcategories = allEquipment
+    .filter(e => e.subcategory) // Only equipment with subcategories
+    .map(e => ({ category: e.category, subcategory: e.subcategory! }))
+    .filter((item, index, arr) => 
+      // Remove duplicates by comparing stringified objects
+      arr.findIndex(other => 
+        other.category === item.category && other.subcategory === item.subcategory
+      ) === index
+    );
+  
+  const subcategoryPages = sitemapService.generateSubcategoryPages(categorySubcategories);
+
+  // Get unique manufacturers for manufacturer pages
+  const equipmentManufacturers = [...new Set(allEquipment.map(e => e.manufacturer))];
+  const manufacturerPages = sitemapService.generateManufacturerPages(equipmentManufacturers);
+
   // Combine all pages
   const allPages = [
     ...staticPages,
     ...playerPages,
     ...equipmentPages,
     ...categoryPages,
+    ...subcategoryPages,
+    ...manufacturerPages,
   ];
 
   // Generate XML sitemap
