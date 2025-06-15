@@ -2,6 +2,7 @@ import type { AppLoadContext, EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
+import { addSecurityHeaders } from "~/lib/security.server";
 
 export default async function handleRequest(
   request: Request,
@@ -36,6 +37,10 @@ export default async function handleRequest(
   }
 
   responseHeaders.set("Content-Type", "text/html");
+  
+  // Add comprehensive security headers
+  addSecurityHeaders(responseHeaders);
+  
   return new Response(body, {
     headers: responseHeaders,
     status: responseStatusCode,

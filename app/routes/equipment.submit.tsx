@@ -4,9 +4,18 @@ import { getUserWithRole } from "~/lib/auth.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
+import { rateLimit, RATE_LIMITS, createRateLimitResponse } from "~/lib/security.server";
 
+import { lazy, Suspense } from "react";
 import { PageSection } from "~/components/layout/PageSection";
-import { EquipmentSubmissionForm } from "~/components/equipment/EquipmentSubmissionForm";
+import { LoadingState } from "~/components/ui/LoadingState";
+
+// Lazy load the form component for better code splitting
+const EquipmentSubmissionForm = lazy(() => 
+  import("~/components/equipment/EquipmentSubmissionForm").then(module => ({
+    default: module.EquipmentSubmissionForm
+  }))
+);
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -34,6 +43,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+  // Apply rate limiting for form submissions
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  if (!rateLimitResult.success) {
+    return createRateLimitResponse(rateLimitResult.resetTime!);
+  }
+
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
@@ -245,7 +260,9 @@ export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <EquipmentSubmissionForm categories={equipmentCategories} env={env} />
+        <Suspense fallback={<LoadingState message="Loading submission form..." />}>
+          <EquipmentSubmissionForm categories={equipmentCategories} env={env} />
+        </Suspense>
       </div>
     </PageSection>
   );

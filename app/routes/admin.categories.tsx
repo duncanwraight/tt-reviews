@@ -1,9 +1,17 @@
 import type { Route } from "./+types/admin.categories";
+import { lazy, Suspense } from "react";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { createCategoryService } from "~/lib/categories.server";
-import { CategoryManager } from "~/components/admin/CategoryManager";
+import { LoadingState } from "~/components/ui/LoadingState";
 import { data, redirect } from "react-router";
+
+// Lazy load the category manager for better code splitting
+const CategoryManager = lazy(() => 
+  import("~/components/admin/CategoryManager").then(module => ({
+    default: module.CategoryManager
+  }))
+);
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -265,58 +273,60 @@ export default function AdminCategories({ loaderData, actionData }: Route.Compon
       )}
 
       {/* Category Type Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Equipment Categories */}
+      <Suspense fallback={<LoadingState message="Loading category management..." />}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Equipment Categories */}
+          <CategoryManager
+            categories={equipmentCategories}
+            type="equipment_category"
+            title="Equipment Categories"
+            description="Categories for equipment types (e.g., Blade, Rubber)"
+            showFlags={false}
+            allowSubcategories={false}
+          />
+
+          {/* Playing Styles */}
+          <CategoryManager
+            categories={playingStyles}
+            type="playing_style"
+            title="Playing Styles"
+            description="Player playing style options"
+            showFlags={false}
+            allowSubcategories={false}
+          />
+
+          {/* Countries */}
+          <CategoryManager
+            categories={countries}
+            type="country"
+            title="Countries"
+            description="Country options with flag emojis"
+            showFlags={true}
+            allowSubcategories={false}
+          />
+
+          {/* Rejection Categories */}
+          <CategoryManager
+            categories={rejectionCategories}
+            type="rejection_category"
+            title="Rejection Categories"
+            description="Reasons for rejecting submissions"
+            showFlags={false}
+            allowSubcategories={false}
+          />
+        </div>
+
+        {/* Equipment Subcategories Section */}
         <CategoryManager
-          categories={equipmentCategories}
-          type="equipment_category"
-          title="Equipment Categories"
-          description="Categories for equipment types (e.g., Blade, Rubber)"
+          categories={equipmentSubcategories}
+          type="equipment_subcategory"
+          title="Equipment Subcategories"
+          description="Subcategories that appear when specific equipment categories are selected (e.g., Rubber types)"
           showFlags={false}
-          allowSubcategories={false}
+          allowSubcategories={true}
+          parentCategories={equipmentCategories}
         />
-
-        {/* Playing Styles */}
-        <CategoryManager
-          categories={playingStyles}
-          type="playing_style"
-          title="Playing Styles"
-          description="Player playing style options"
-          showFlags={false}
-          allowSubcategories={false}
-        />
-
-        {/* Countries */}
-        <CategoryManager
-          categories={countries}
-          type="country"
-          title="Countries"
-          description="Country options with flag emojis"
-          showFlags={true}
-          allowSubcategories={false}
-        />
-
-        {/* Rejection Categories */}
-        <CategoryManager
-          categories={rejectionCategories}
-          type="rejection_category"
-          title="Rejection Categories"
-          description="Reasons for rejecting submissions"
-          showFlags={false}
-          allowSubcategories={false}
-        />
-      </div>
-
-      {/* Equipment Subcategories Section */}
-      <CategoryManager
-        categories={equipmentSubcategories}
-        type="equipment_subcategory"
-        title="Equipment Subcategories"
-        description="Subcategories that appear when specific equipment categories are selected (e.g., Rubber types)"
-        showFlags={false}
-        allowSubcategories={true}
-        parentCategories={equipmentCategories}
-      />
+      </Suspense>
     </div>
   );
 }

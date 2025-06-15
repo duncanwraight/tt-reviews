@@ -3,9 +3,18 @@ import { getServerClient } from "~/lib/supabase.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
+import { rateLimit, RATE_LIMITS, createRateLimitResponse } from "~/lib/security.server";
 
+import { lazy, Suspense } from "react";
 import { PageSection } from "~/components/layout/PageSection";
-import { PlayerSubmissionForm } from "~/components/players/PlayerSubmissionForm";
+import { LoadingState } from "~/components/ui/LoadingState";
+
+// Lazy load the form component for better code splitting
+const PlayerSubmissionForm = lazy(() => 
+  import("~/components/players/PlayerSubmissionForm").then(module => ({
+    default: module.PlayerSubmissionForm
+  }))
+);
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -36,6 +45,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+  // Apply rate limiting for form submissions
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  if (!rateLimitResult.success) {
+    return createRateLimitResponse(rateLimitResult.resetTime!);
+  }
+
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
 
@@ -247,7 +262,9 @@ export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} />
+        <Suspense fallback={<LoadingState message="Loading submission form..." />}>
+          <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} />
+        </Suspense>
       </div>
     </PageSection>
   );
