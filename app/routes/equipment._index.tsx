@@ -5,8 +5,8 @@ import { schemaService } from "~/lib/schema.server";
 import { data } from "react-router";
 import { Link } from "react-router";
 
-import { EquipmentCard } from "~/components/ui/EquipmentCard";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
+import { ComparisonCard } from "~/components/equipment/ComparisonCard";
 
 interface EquipmentDisplay {
   id: string;
@@ -414,6 +414,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                   </Link>
                 </div>
               </div>
+
             </aside>
 
             <div className="flex-1">
@@ -430,9 +431,9 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     </p>
                   </div>
 
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                     {equipment.map((item) => (
-                      <EquipmentCard key={item.id} equipment={item} />
+                      <ComparisonCard key={item.id} equipment={item} />
                     ))}
                   </div>
                 </>

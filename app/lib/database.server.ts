@@ -726,6 +726,58 @@ export class DatabaseService {
     return data || [];
   }
 
+  // Get similar equipment for comparison suggestions
+  async getSimilarEquipment(equipmentId: string, limit = 6): Promise<Equipment[]> {
+    // First get current equipment details
+    const currentEquipment = await this.getEquipmentById(equipmentId);
+    if (!currentEquipment) return [];
+
+    const { data, error } = await this.supabase
+      .from("equipment")
+      .select("*")
+      .eq("category", currentEquipment.category)
+      .neq("id", equipmentId)
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching similar equipment:", error);
+      return [];
+    }
+
+    return (data as Equipment[]) || [];
+  }
+
+  // Get players using specific equipment
+  async getPlayersUsingEquipment(equipmentId: string): Promise<Array<{ id: string; name: string; slug: string }>> {
+    const { data, error } = await this.supabase
+      .from("player_equipment_setups")
+      .select(`
+        players!inner (
+          id,
+          name,
+          slug
+        )
+      `)
+      .or(`blade_id.eq.${equipmentId},forehand_rubber_id.eq.${equipmentId},backhand_rubber_id.eq.${equipmentId}`)
+      .eq("verified", true);
+
+    if (error) {
+      console.error("Error fetching players using equipment:", error);
+      return [];
+    }
+
+    // Extract unique players (remove duplicates if player has multiple setups with same equipment)
+    const uniquePlayers = new Map();
+    data?.forEach((setup: any) => {
+      const player = setup.players;
+      if (player && !uniquePlayers.has(player.id)) {
+        uniquePlayers.set(player.id, player);
+      }
+    });
+
+    return Array.from(uniquePlayers.values());
+  }
+
   // General search
   async search(query: string): Promise<{
     equipment: Equipment[];

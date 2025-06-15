@@ -123,6 +123,67 @@ export class SitemapService {
     }));
   }
 
+  // Generate popular equipment comparison pages for SEO
+  generatePopularComparisonPages(equipment: Array<{ slug: string; name: string; category: string; manufacturer: string }>): SitemapUrl[] {
+    const now = new Date().toISOString();
+    const comparisonUrls: SitemapUrl[] = [];
+    
+    // Define high-value comparisons based on SEO research
+    const popularComparisons = [
+      // Popular rubber comparisons (based on search volume data)
+      { slug1: "tenergy-05", slug2: "dignics-09c", priority: "0.8" },
+      { slug1: "tenergy-05", slug2: "hurricane-3", priority: "0.8" },
+      { slug1: "dignics-09c", slug2: "hurricane-3", priority: "0.7" },
+      { slug1: "tenergy-64", slug2: "tenergy-05", priority: "0.7" },
+      { slug1: "hurricane-3", slug2: "hurricane-3-neo", priority: "0.7" },
+      { slug1: "tenergy-05", slug2: "evolution-mx-p", priority: "0.6" },
+      { slug1: "dignics-05", slug2: "dignics-09c", priority: "0.6" },
+      { slug1: "tenergy-80", slug2: "tenergy-05", priority: "0.6" },
+      
+      // Popular blade comparisons
+      { slug1: "timo-boll-alc", slug2: "viscaria", priority: "0.7" },
+      { slug1: "ma-long-carbon", slug2: "hurricane-long-5", priority: "0.7" },
+      { slug1: "viscaria", slug2: "innerforce-layer-alc", priority: "0.6" },
+      { slug1: "fan-zhendong-alc", slug2: "timo-boll-alc", priority: "0.6" },
+    ];
+    
+    // Filter to only include comparisons where both equipment exist
+    const equipmentSlugs = new Set(equipment.map(eq => eq.slug));
+    const validComparisons = popularComparisons.filter(comp => 
+      equipmentSlugs.has(comp.slug1) && equipmentSlugs.has(comp.slug2)
+    );
+    
+    validComparisons.forEach(({ slug1, slug2, priority }) => {
+      comparisonUrls.push({
+        url: `${this.baseUrl}/equipment/compare/${slug1}-vs-${slug2}`,
+        lastmod: now,
+        changefreq: "weekly" as const,
+        priority,
+      });
+    });
+    
+    // Generate category-based popular comparisons
+    const rubbersByCategory = equipment.filter(eq => eq.category === 'rubber');
+    const bladesByCategory = equipment.filter(eq => eq.category === 'blade');
+    
+    // Add top manufacturer vs manufacturer comparisons for rubbers
+    const butterflyRubbers = rubbersByCategory.filter(r => r.manufacturer === 'Butterfly').slice(0, 3);
+    const dhsRubbers = rubbersByCategory.filter(r => r.manufacturer === 'DHS').slice(0, 3);
+    
+    butterflyRubbers.forEach(butterfly => {
+      dhsRubbers.forEach(dhs => {
+        comparisonUrls.push({
+          url: `${this.baseUrl}/equipment/compare/${butterfly.slug}-vs-${dhs.slug}`,
+          lastmod: now,
+          changefreq: "monthly" as const,
+          priority: "0.5",
+        });
+      });
+    });
+    
+    return comparisonUrls.slice(0, 50); // Limit to prevent sitemap bloat
+  }
+
   // Generate equipment review pages (if they exist as separate routes)
   generateEquipmentReviewPages(equipment: Array<{ slug: string; updated_at: string }>): SitemapUrl[] {
     return equipment.map(item => ({

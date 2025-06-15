@@ -279,6 +279,95 @@ export class SchemaService {
     return JSON.stringify(schema, null, 2);
   }
 
+  // Comparison schema for equipment comparison pages
+  generateComparisonSchema(data: {
+    equipment1: {
+      name: string;
+      slug: string;
+      manufacturer: string;
+      category: string;
+      averageRating?: number | null;
+      reviewCount: number;
+    };
+    equipment2: {
+      name: string;
+      slug: string;
+      manufacturer: string;
+      category: string;
+      averageRating?: number | null;
+      reviewCount: number;
+    };
+    usedByPlayers1: Array<{ name: string; slug: string }>;
+    usedByPlayers2: Array<{ name: string; slug: string }>;
+  }) {
+    return {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: `${data.equipment1.name} vs ${data.equipment2.name} Comparison`,
+      description: `Detailed comparison between ${data.equipment1.name} and ${data.equipment2.name} table tennis equipment`,
+      url: `${this.baseUrl}/equipment/compare/${data.equipment1.slug}-vs-${data.equipment2.slug}`,
+      about: [
+        {
+          "@type": "Product",
+          name: data.equipment1.name,
+          brand: { "@type": "Brand", name: data.equipment1.manufacturer },
+          category: data.equipment1.category,
+          url: `${this.baseUrl}/equipment/${data.equipment1.slug}`,
+          ...(data.equipment1.averageRating && data.equipment1.reviewCount > 0 && {
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: data.equipment1.averageRating,
+              reviewCount: data.equipment1.reviewCount,
+              bestRating: 5,
+              worstRating: 1,
+            }
+          })
+        },
+        {
+          "@type": "Product",
+          name: data.equipment2.name,
+          brand: { "@type": "Brand", name: data.equipment2.manufacturer },
+          category: data.equipment2.category,
+          url: `${this.baseUrl}/equipment/${data.equipment2.slug}`,
+          ...(data.equipment2.averageRating && data.equipment2.reviewCount > 0 && {
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: data.equipment2.averageRating,
+              reviewCount: data.equipment2.reviewCount,
+              bestRating: 5,
+              worstRating: 1,
+            }
+          })
+        }
+      ],
+      mainEntity: {
+        "@type": "ItemList",
+        name: "Equipment Comparison",
+        numberOfItems: 2,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            item: {
+              "@type": "Product",
+              name: data.equipment1.name,
+              url: `${this.baseUrl}/equipment/${data.equipment1.slug}`
+            }
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            item: {
+              "@type": "Product",
+              name: data.equipment2.name,
+              url: `${this.baseUrl}/equipment/${data.equipment2.slug}`
+            }
+          }
+        ]
+      }
+    };
+  }
+
   // Generate multiple schemas as array (for pages with multiple schema types)
   generateMultipleSchemas(schemas: any[]): string {
     return JSON.stringify(schemas, null, 2);

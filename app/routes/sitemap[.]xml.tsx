@@ -39,6 +39,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const equipmentManufacturers = [...new Set(allEquipment.map(e => e.manufacturer))];
   const manufacturerPages = sitemapService.generateManufacturerPages(equipmentManufacturers);
 
+  // Generate popular comparison pages for SEO
+  const comparisonPages = sitemapService.generatePopularComparisonPages(allEquipment);
+
   // Combine all pages
   const allPages = [
     ...staticPages,
@@ -47,6 +50,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ...categoryPages,
     ...subcategoryPages,
     ...manufacturerPages,
+    ...comparisonPages,
   ];
 
   // Generate XML sitemap

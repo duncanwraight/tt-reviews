@@ -10,6 +10,7 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
+import { ComparisonSection } from "~/components/equipment/ComparisonSection";
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.equipment) {
@@ -87,11 +88,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   const categoryService = createCategoryService(sbServerClient.client);
 
-  const [reviews, usedByPlayers, ratingCategories, generalRatingCategories] = await Promise.all([
+  const [reviews, usedByPlayers, ratingCategories, generalRatingCategories, similarEquipment] = await Promise.all([
     db.getEquipmentReviews(equipment.id, "approved"),
-    [], // TODO: Implement getPlayersUsingEquipment when player setups are available
+    db.getPlayersUsingEquipment(equipment.id),
     categoryService.getReviewRatingCategories(equipment.subcategory),
     categoryService.getReviewRatingCategories(), // General categories without parent
+    db.getSimilarEquipment(equipment.id)
   ]);
 
   // Combine all rating categories
@@ -130,6 +132,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       averageRating,
       reviewCount: reviews.length,
       ratingCategories: allRatingCategories,
+      similarEquipment,
       schemaJsonLd,
     },
     { headers: sbServerClient.headers }
@@ -145,6 +148,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     averageRating,
     reviewCount,
     ratingCategories,
+    similarEquipment,
   } = loaderData;
 
   const breadcrumbItems = [
@@ -177,7 +181,21 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
         ratingCategories={ratingCategories}
       />
 
-      <RelatedEquipmentSection category={equipment.category} />
+      <PageSection background="gray-50" padding="medium">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <RelatedEquipmentSection category={equipment.category} />
+            </div>
+            <div>
+              <ComparisonSection 
+                currentEquipment={equipment}
+                similarEquipment={similarEquipment}
+              />
+            </div>
+          </div>
+        </div>
+      </PageSection>
     </>
   );
 }
