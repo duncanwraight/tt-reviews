@@ -33,12 +33,6 @@ export function meta({ data }: Route.MetaArgs) {
     'tournament players'
   ].join(', ');
 
-  // Generate breadcrumb schema
-  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { label: "Home", href: "/" },
-    { label: "Players", href: "/players" }
-  ]);
-
   return [
     { title },
     { name: "description", content: description },
@@ -53,10 +47,8 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Players" },
     { property: "article:section", content: "Player Database" },
-    // Structured data
-    {
-      "script:ld+json": schemaService.toJsonLd(breadcrumbSchema)
-    },
+    // Structured data from loader
+    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
   ];
 }
 
@@ -100,9 +92,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const totalPages = Math.ceil(totalCount / limit);
 
   // Check if user is logged in
-  const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
   const user = userResponse.data.user;
+
+  // Generate breadcrumb schema
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Players", href: "/players" }
+  ]);
+  const schemaJsonLd = schemaService.toJsonLd(breadcrumbSchema);
 
   return data({
     players,
@@ -123,6 +121,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       sortBy,
       sortOrder,
     },
+    schemaJsonLd,
   }, { headers: sbServerClient.headers });
 }
 

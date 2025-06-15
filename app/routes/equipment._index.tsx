@@ -46,12 +46,6 @@ export function meta({ data }: Route.MetaArgs) {
     'tournament equipment'
   ].join(', ');
 
-  // Generate breadcrumb schema
-  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { label: "Home", href: "/" },
-    { label: "Equipment", href: "/equipment" }
-  ]);
-
   return [
     { title },
     { name: "description", content: description },
@@ -66,10 +60,8 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Equipment" },
     { property: "article:section", content: "Equipment Reviews" },
-    // Structured data
-    {
-      "script:ld+json": schemaService.toJsonLd(breadcrumbSchema)
-    },
+    // Structured data from loader
+    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
   ];
 }
 
@@ -116,6 +108,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     })
   );
 
+  // Generate breadcrumb schema
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Equipment", href: "/equipment" }
+  ]);
+  const schemaJsonLd = schemaService.toJsonLd(breadcrumbSchema);
+
   return data(
     {
       user: userResponse?.data?.user || null,
@@ -127,6 +126,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       currentSubcategory: subcategory,
       currentSort: sortBy,
       currentOrder: sortOrder,
+      schemaJsonLd,
     },
     { headers: sbServerClient.headers }
   );

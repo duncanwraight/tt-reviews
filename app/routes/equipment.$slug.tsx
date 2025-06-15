@@ -51,20 +51,6 @@ export function meta({ data }: Route.MetaArgs) {
     'professional equipment'
   ].filter(Boolean).join(', ');
 
-  // Generate structured data schemas
-  const equipmentSchema = schemaService.generateEquipmentSchema({
-    ...equipment,
-    averageRating,
-    reviewCount,
-    reviews
-  });
-  
-  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { label: "Home", href: "/" },
-    { label: "Equipment", href: "/equipment" },
-    { label: equipment.name }
-  ]);
-
   return [
     { title },
     { name: "description", content: description },
@@ -81,10 +67,8 @@ export function meta({ data }: Route.MetaArgs) {
     // Structured data hints for crawlers
     ...(averageRating ? [{ property: "product:rating:value", content: averageRating.toString() }] : []),
     ...(reviewCount ? [{ property: "product:rating:count", content: reviewCount.toString() }] : []),
-    // Structured data
-    {
-      "script:ld+json": schemaService.generateMultipleSchemas([equipmentSchema, breadcrumbSchema])
-    },
+    // Structured data from loader
+    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
   ];
 }
 
@@ -122,6 +106,21 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
         reviews.length
       : 0;
 
+  // Generate structured data schemas
+  const equipmentSchema = schemaService.generateEquipmentSchema({
+    ...equipment,
+    averageRating,
+    reviewCount: reviews.length,
+    reviews
+  });
+  
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Equipment", href: "/equipment" },
+    { label: equipment.name }
+  ]);
+  const schemaJsonLd = schemaService.generateMultipleSchemas([equipmentSchema, breadcrumbSchema]);
+
   return data(
     {
       user: userResponse?.data?.user || null,
@@ -131,6 +130,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       averageRating,
       reviewCount: reviews.length,
       ratingCategories: allRatingCategories,
+      schemaJsonLd,
     },
     { headers: sbServerClient.headers }
   );

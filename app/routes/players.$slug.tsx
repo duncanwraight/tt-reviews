@@ -40,14 +40,6 @@ export function meta({ params, data }: Route.MetaArgs) {
     player.birth_country || player.represents || ''
   ].filter(Boolean).join(', ');
 
-  // Generate structured data schemas
-  const playerSchema = schemaService.generatePlayerSchema(player);
-  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { label: "Home", href: "/" },
-    { label: "Players", href: "/players" },
-    { label: player.name, href: `/players/${player.slug}` }
-  ]);
-
   return [
     { title },
     { name: "description", content: description },
@@ -60,10 +52,8 @@ export function meta({ params, data }: Route.MetaArgs) {
     { name: "author", content: "TT Reviews" },
     { property: "article:author", content: "TT Reviews" },
     { property: "og:site_name", content: "TT Reviews" },
-    // Structured data
-    {
-      "script:ld+json": schemaService.generateMultipleSchemas([playerSchema, breadcrumbSchema])
-    },
+    // Structured data from loader
+    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
   ];
 }
 
@@ -82,11 +72,21 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // Get equipment setups with related equipment data
   const equipmentSetups = await db.getPlayerEquipmentSetups(player.id);
 
+  // Generate structured data schemas
+  const playerSchema = schemaService.generatePlayerSchema(player);
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Players", href: "/players" },
+    { label: player.name, href: `/players/${player.slug}` }
+  ]);
+  const schemaJsonLd = schemaService.generateMultipleSchemas([playerSchema, breadcrumbSchema]);
+
   return data(
     {
       user: userResponse?.data?.user || null,
       player,
       equipmentSetups,
+      schemaJsonLd,
     },
     { headers: sbServerClient.headers }
   );

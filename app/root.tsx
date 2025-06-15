@@ -8,7 +8,6 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
-import { schemaService } from "~/lib/schema.server";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -25,10 +24,34 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // Generate global structured data schemas
-  const organizationSchema = schemaService.generateOrganizationSchema();
-  const websiteSchema = schemaService.generateWebSiteSchema();
-  const globalSchemas = [organizationSchema, websiteSchema];
+  // Global schemas are now generated inline to avoid server-only module issues
+  const globalSchemas = JSON.stringify([
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "TT Reviews",
+      "url": "https://tt-reviews.local",
+      "description": "Professional table tennis equipment reviews and player database",
+      "logo": "https://tt-reviews.local/logo.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "url": "https://tt-reviews.local/contact"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "TT Reviews",
+      "url": "https://tt-reviews.local",
+      "description": "Professional table tennis equipment reviews and player database",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://tt-reviews.local/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  ], null, 2);
 
   return (
     <html lang="en">
@@ -40,9 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Global structured data */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ 
-            __html: schemaService.generateMultipleSchemas(globalSchemas) 
-          }}
+          dangerouslySetInnerHTML={{ __html: globalSchemas }}
         />
       </head>
       <body>
