@@ -141,7 +141,8 @@ export class SchemaService {
   generatePlayerSchema(player: {
     name: string;
     slug: string;
-    country?: string;
+    birth_country?: string;
+    represents?: string;
     playing_style?: string;
     bio?: string;
   }): SchemaPerson {
@@ -151,7 +152,7 @@ export class SchemaService {
       name: player.name,
       url: `${this.baseUrl}/players/${player.slug}`,
       description: player.bio || `Professional table tennis player ${player.name}`,
-      nationality: player.country || undefined,
+      nationality: player.birth_country || player.represents || undefined,
       sport: "Table Tennis",
       knowsAbout: [
         "Table Tennis",

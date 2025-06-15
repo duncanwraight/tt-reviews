@@ -17,7 +17,7 @@ export function meta({ data }: Route.MetaArgs) {
   const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
   
   // Enhanced meta description with player count and value proposition
-  const description = `Explore ${data?.totalPlayers || 'hundreds of'} professional table tennis players. Discover equipment setups, playing styles, and career achievements. Updated ${currentYear}.`;
+  const description = `Explore hundreds of professional table tennis players. Discover equipment setups, playing styles, and career achievements. Updated ${currentYear}.`;
   
   // Enhanced keywords targeting player searches from research
   const keywords = [
@@ -72,8 +72,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const limit = 12; // Players per page
   const offset = (page - 1) * limit;
 
+  const sbServerClient = getServerClient(request, context);
   const db = new DatabaseService(context);
-  const categoryService = createCategoryService(db.supabase);
+  const categoryService = createCategoryService(sbServerClient.client);
   
   const [players, totalCount, countries, playingStyles] = await Promise.all([
     db.getAllPlayers({

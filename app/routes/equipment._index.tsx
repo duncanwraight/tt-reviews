@@ -30,7 +30,7 @@ export function meta({ data }: Route.MetaArgs) {
   const title = `Best Table Tennis Equipment ${currentYear} - Professional Reviews & Comparisons | TT Reviews`;
   
   // Enhanced meta description with current year and value proposition
-  const description = `Discover the best table tennis equipment through ${data?.totalEquipment || 'hundreds of'} professional reviews. Compare blades, rubbers, and balls used by pros. Updated ${currentYear}.`;
+  const description = `Discover the best table tennis equipment through hundreds of professional reviews. Compare blades, rubbers, and balls used by pros. Updated ${currentYear}.`;
   
   // Enhanced keywords targeting high-volume search terms from research
   const keywords = [

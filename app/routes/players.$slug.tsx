@@ -23,7 +23,7 @@ export function meta({ params, data }: Route.MetaArgs) {
   // Enhanced meta description with current equipment details
   const currentSetup = data?.equipmentSetups?.[0];
   const setupDetails = currentSetup 
-    ? `Current setup: ${currentSetup.blade_name || 'Professional blade'} + ${currentSetup.fh_rubber_name || 'FH rubber'} + ${currentSetup.bh_rubber_name || 'BH rubber'}.`
+    ? 'Current professional equipment setup with blade and rubbers.'
     : 'Professional equipment setup.';
   
   const description = `Complete equipment history for ${player.name}. ${setupDetails} Historical changes with sources and tournament usage.`;
@@ -37,7 +37,7 @@ export function meta({ params, data }: Route.MetaArgs) {
     'table tennis equipment',
     'professional player setup',
     player.playing_style || 'professional',
-    player.country || ''
+    player.birth_country || player.represents || ''
   ].filter(Boolean).join(', ');
 
   // Generate structured data schemas
