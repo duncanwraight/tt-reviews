@@ -30,24 +30,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "TT Reviews",
-      "url": "https://tt-reviews.local",
+      "url": "https://tabletennis.reviews",
       "description": "Professional table tennis equipment reviews and player database",
-      "logo": "https://tt-reviews.local/logo.png",
+      "logo": "https://tabletennis.reviews/logo.png",
       "contactPoint": {
         "@type": "ContactPoint",
         "contactType": "customer service",
-        "url": "https://tt-reviews.local/contact"
+        "url": "https://tabletennis.reviews/contact"
       }
     },
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "TT Reviews",
-      "url": "https://tt-reviews.local",
+      "url": "https://tabletennis.reviews",
       "description": "Professional table tennis equipment reviews and player database",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://tt-reviews.local/search?q={search_term_string}",
+        "target": "https://tabletennis.reviews/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }

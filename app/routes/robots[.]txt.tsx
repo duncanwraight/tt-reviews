@@ -1,7 +1,7 @@
 import type { Route } from "./+types/robots[.]txt";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const baseUrl = "https://tt-reviews.local";
+  const baseUrl = "https://tabletennis.reviews";
   
   const robotsTxt = `User-agent: *
 Allow: /

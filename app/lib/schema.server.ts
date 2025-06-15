@@ -97,7 +97,7 @@ export interface SchemaWebSite {
 export class SchemaService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = "https://tt-reviews.local") {
+  constructor(baseUrl: string = "https://tabletennis.reviews") {
     this.baseUrl = baseUrl;
   }
 

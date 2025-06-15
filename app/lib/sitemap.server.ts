@@ -16,7 +16,7 @@ export interface SitemapEntry {
 export class SitemapService {
   public readonly baseUrl: string;
 
-  constructor(baseUrl: string = "https://tt-reviews.local") {
+  constructor(baseUrl: string = "https://tabletennis.reviews") {
     this.baseUrl = baseUrl;
   }
 
