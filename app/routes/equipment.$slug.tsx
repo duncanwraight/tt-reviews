@@ -21,26 +21,51 @@ export function meta({ data }: Route.MetaArgs) {
     ];
   }
 
-  const { equipment } = data;
+  const { equipment, reviews = [], averageRating, usedByPlayers = [] } = data;
+  
+  // Enhanced SEO title pattern based on research
+  const titleSuffix = "Review - Specs, Player Usage & Ratings | TT Reviews";
+  const title = `${equipment.name} ${titleSuffix}`;
+  
+  // Enhanced meta description with review stats and player usage
+  const reviewCount = reviews.length;
+  const ratingText = averageRating ? `avg ${averageRating.toFixed(1)} rating` : 'professional reviews';
+  const playerUsage = usedByPlayers.length > 0 
+    ? ` Used by ${usedByPlayers.slice(0, 3).map(p => p.name).join(', ')}${usedByPlayers.length > 3 ? ' and others' : ''}.`
+    : '';
+  
+  const description = `${equipment.name} by ${equipment.manufacturer} - ${reviewCount} ${ratingText}.${playerUsage} Complete specs and community ratings.`;
+  
+  // Enhanced keywords targeting high-value search terms
+  const keywords = [
+    equipment.name,
+    `${equipment.name} review`,
+    `${equipment.manufacturer} ${equipment.name}`,
+    equipment.manufacturer,
+    equipment.category,
+    equipment.subcategory,
+    `${equipment.category} review`,
+    `best ${equipment.category}`,
+    'table tennis equipment',
+    'professional equipment'
+  ].filter(Boolean).join(', ');
+
   return [
-    { title: `${equipment.name} by ${equipment.manufacturer} | TT Reviews` },
-    {
-      name: "description",
-      content: `Read detailed reviews of the ${equipment.name} ${equipment.category} by ${equipment.manufacturer}. Professional insights and user experiences.`,
-    },
-    {
-      name: "keywords",
-      content: `${equipment.name}, ${equipment.manufacturer}, ${equipment.category}, table tennis equipment, reviews`,
-    },
-    {
-      property: "og:title",
-      content: `${equipment.name} by ${equipment.manufacturer}`,
-    },
-    {
-      property: "og:description",
-      content: `Reviews and details for the ${equipment.name} ${equipment.category}`,
-    },
+    { title },
+    { name: "description", content: description },
+    { name: "keywords", content: keywords },
+    { property: "og:title", content: `${equipment.name} by ${equipment.manufacturer}` },
+    { property: "og:description", content: description },
     { property: "og:type", content: "product" },
+    // Additional SEO meta tags
+    { name: "robots", content: "index, follow" },
+    { name: "author", content: "TT Reviews" },
+    { property: "product:brand", content: equipment.manufacturer },
+    { property: "product:category", content: equipment.category },
+    { property: "og:site_name", content: "TT Reviews" },
+    // Structured data hints for crawlers
+    ...(averageRating ? [{ property: "product:rating:value", content: averageRating.toString() }] : []),
+    ...(reviewCount ? [{ property: "product:rating:count", content: reviewCount.toString() }] : []),
   ];
 }
 

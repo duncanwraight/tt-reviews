@@ -22,29 +22,43 @@ interface CategoryInfo {
   count: number;
 }
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ data }: Route.MetaArgs) {
+  const currentYear = new Date().getFullYear();
+  
+  // Enhanced SEO title pattern based on research
+  const title = `Best Table Tennis Equipment ${currentYear} - Professional Reviews & Comparisons | TT Reviews`;
+  
+  // Enhanced meta description with current year and value proposition
+  const description = `Discover the best table tennis equipment through ${data?.totalEquipment || 'hundreds of'} professional reviews. Compare blades, rubbers, and balls used by pros. Updated ${currentYear}.`;
+  
+  // Enhanced keywords targeting high-volume search terms from research
+  const keywords = [
+    'best table tennis equipment',
+    `table tennis equipment ${currentYear}`,
+    'butterfly tenergy',
+    'dhs hurricane',
+    'table tennis blade reviews',
+    'table tennis rubber reviews',
+    'professional table tennis equipment',
+    'equipment comparison',
+    'ping pong gear',
+    'tournament equipment'
+  ].join(', ');
+
   return [
-    { title: "Table Tennis Equipment Reviews | TT Reviews" },
-    {
-      name: "description",
-      content:
-        "Browse comprehensive reviews of table tennis equipment including blades, rubbers, and balls. Find the perfect gear for your playing style.",
-    },
-    {
-      name: "keywords",
-      content:
-        "table tennis equipment, ping pong gear, blade reviews, rubber reviews, ball reviews, tournament equipment",
-    },
-    {
-      property: "og:title",
-      content: "Table Tennis Equipment Reviews | TT Reviews",
-    },
-    {
-      property: "og:description",
-      content:
-        "Browse comprehensive reviews of table tennis equipment including blades, rubbers, and balls.",
-    },
+    { title },
+    { name: "description", content: description },
+    { name: "keywords", content: keywords },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    // Additional SEO meta tags
+    { name: "robots", content: "index, follow" },
+    { name: "author", content: "TT Reviews" },
+    { property: "og:site_name", content: "TT Reviews" },
+    // Category page specific tags
+    { name: "category", content: "Table Tennis Equipment" },
+    { property: "article:section", content: "Equipment Reviews" },
   ];
 }
 

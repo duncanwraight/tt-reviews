@@ -240,13 +240,39 @@
   - [ ] Test SSR/hydration behavior
   - [ ] Validate Discord integration still works
 
-### SEO & Meta Tags
+### SEO & Meta Tags (Based on SEO-RESEARCH-2025.md)
 
-- [ ] **Meta Functions**:
-  - [ ] Implement dynamic meta tags for all pages
-  - [ ] Port SEO strategy to React Router meta exports
-  - [ ] Add structured data and schema markup
-  - [ ] Create dynamic sitemap generation
+- [ ] **Phase 1: Foundation (Weeks 1-4)**:
+  - [ ] Implement dynamic meta tags for all pages using React Router meta exports
+  - [ ] Add structured data and schema markup (Organization, Person, Product, Review, BreadcrumbList)
+  - [ ] Implement SEO title tag patterns for player, equipment, and category pages
+  - [ ] Create dynamic meta description templates for all page types
+  - [ ] Create equipment comparison page templates
+  - [ ] Establish player equipment evolution tracking
+
+- [ ] **Phase 2: Content Expansion (Weeks 5-12)**:
+  - [ ] Create top 20 equipment review priority list based on search volume data
+  - [ ] Develop educational guide content calendar (beginner guides, equipment selection)
+  - [ ] Implement internal linking automation between players and equipment
+  - [ ] Launch "Equipment Evolution" player profile sections with historical tracking
+  - [ ] Create category landing pages optimized for high-volume keywords
+  - [ ] Add "vs" comparison pages for popular equipment matchups
+
+- [ ] **Phase 3: Advanced Features (Weeks 13-24)**:
+  - [ ] Build dynamic comparison tools for equipment selection
+  - [ ] Create equipment recommendation engine based on playing style
+  - [ ] Implement user-generated content systems for community reviews
+  - [ ] Launch affiliate partnership program with equipment retailers
+  - [ ] Create dynamic sitemap generation for all content pages
+  - [ ] Add tournament equipment tracking and updates
+
+- [ ] **Content Priorities Based on Search Data**:
+  - [ ] "Butterfly Tenergy" series comprehensive reviews (5.4K monthly searches)
+  - [ ] "DHS Hurricane" series reviews and comparisons (3.2K monthly searches)  
+  - [ ] Player equipment pages: Ma Long (2.1K), Fan Zhendong (890), Timo Boll (720)
+  - [ ] Educational guides: "How to choose rubber" (2.8K), "Best beginner blade" (1.5K)
+  - [ ] Technical content: "Long pips vs short pips" (1.2K monthly searches)
+  - [ ] Equipment evolution tracking for top 20 professional players
 
 ### Development Workflow
 

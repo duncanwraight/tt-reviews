@@ -9,14 +9,43 @@ import { PlayersGrid } from "~/components/players/PlayersGrid";
 import { PlayersPagination } from "~/components/players/PlayersPagination";
 import { createCategoryService } from "~/lib/categories.server";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ data }: Route.MetaArgs) {
+  const currentYear = new Date().getFullYear();
+  
+  // Enhanced SEO title pattern based on research
+  const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
+  
+  // Enhanced meta description with player count and value proposition
+  const description = `Explore ${data?.totalPlayers || 'hundreds of'} professional table tennis players. Discover equipment setups, playing styles, and career achievements. Updated ${currentYear}.`;
+  
+  // Enhanced keywords targeting player searches from research
+  const keywords = [
+    'professional table tennis players',
+    'table tennis player database',
+    'ma long equipment',
+    'fan zhendong blade',
+    'table tennis player rankings',
+    'professional player setups',
+    'table tennis equipment used by pros',
+    `table tennis players ${currentYear}`,
+    'ping pong professionals',
+    'tournament players'
+  ].join(', ');
+
   return [
-    { title: "Professional Table Tennis Players | TT Reviews" },
-    {
-      name: "description",
-      content:
-        "Browse professional table tennis players and discover their equipment setups, playing styles, and career achievements.",
-    },
+    { title },
+    { name: "description", content: description },
+    { name: "keywords", content: keywords },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    // Additional SEO meta tags
+    { name: "robots", content: "index, follow" },
+    { name: "author", content: "TT Reviews" },
+    { property: "og:site_name", content: "TT Reviews" },
+    // Category page specific tags
+    { name: "category", content: "Table Tennis Players" },
+    { property: "article:section", content: "Player Database" },
   ];
 }
 

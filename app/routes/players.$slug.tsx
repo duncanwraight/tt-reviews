@@ -15,24 +15,42 @@ export function meta({ params, data }: Route.MetaArgs) {
     ];
   }
 
+  // Enhanced SEO title pattern based on research
+  const titleSuffix = "Equipment Setup & History | Professional Table Tennis Reviews";
+  const title = `${player.name} ${titleSuffix}`;
+  
+  // Enhanced meta description with current equipment details
+  const currentSetup = data?.equipmentSetups?.[0];
+  const setupDetails = currentSetup 
+    ? `Current setup: ${currentSetup.blade_name || 'Professional blade'} + ${currentSetup.fh_rubber_name || 'FH rubber'} + ${currentSetup.bh_rubber_name || 'BH rubber'}.`
+    : 'Professional equipment setup.';
+  
+  const description = `Complete equipment history for ${player.name}. ${setupDetails} Historical changes with sources and tournament usage.`;
+  
+  // Enhanced keywords targeting high-value search terms
+  const keywords = [
+    player.name,
+    `${player.name} equipment`,
+    `${player.name} blade`,
+    `${player.name} rubber`,
+    'table tennis equipment',
+    'professional player setup',
+    player.playing_style || 'professional',
+    player.country || ''
+  ].filter(Boolean).join(', ');
+
   return [
-    { title: `${player.name} Equipment & Setup | TT Reviews` },
-    {
-      name: "description",
-      content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses, with historical changes and sources.`,
-    },
-    {
-      name: "keywords",
-      content: `${player.name}, table tennis equipment, pro player setup, ${
-        player.playing_style || "professional"
-      }`,
-    },
+    { title },
+    { name: "description", content: description },
+    { name: "keywords", content: keywords },
     { property: "og:title", content: `${player.name} Equipment & Setup` },
-    {
-      property: "og:description",
-      content: `Complete equipment setup for ${player.name}. See what blade, forehand and backhand rubbers the pro uses.`,
-    },
+    { property: "og:description", content: description },
     { property: "og:type", content: "profile" },
+    // Additional SEO meta tags
+    { name: "robots", content: "index, follow" },
+    { name: "author", content: "TT Reviews" },
+    { property: "article:author", content: "TT Reviews" },
+    { property: "og:site_name", content: "TT Reviews" },
   ];
 }
 
