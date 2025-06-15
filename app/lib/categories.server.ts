@@ -16,6 +16,7 @@ export interface Category {
   value: string;
   display_order: number;
   flag_emoji?: string;
+  description?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -26,6 +27,7 @@ export interface CategoryOption {
   name: string;
   value: string;
   flag_emoji?: string;
+  description?: string;
   display_order: number;
 }
 
@@ -114,7 +116,7 @@ export class CategoryService {
     try {
       let query = this.supabase
         .from('categories')
-        .select('id, name, value, display_order')
+        .select('id, name, value, description, display_order')
         .eq('type', 'review_rating_category')
         .eq('is_active', true);
 

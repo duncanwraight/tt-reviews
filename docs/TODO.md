@@ -129,7 +129,7 @@
   - ✅ Enhanced button styling with hover effects and improved visual hierarchy
   - ✅ Created dynamic styling based on current route (white nav on homepage, purple elsewhere)
 
-## Equipment Review Submission
+## Equipment Review System ✅
 
 ### Core Review System ✅
 - [x] **Review Submission Form**: Create comprehensive review form for equipment ✅
@@ -145,10 +145,10 @@
   - [x] Category-based rating breakdown display ✅
   - [x] Average ratings with visual progress bars ✅
   - [x] "Write Review" button integration with authentication flow ✅
-  - [ ] User review history in profile sections
-  - [ ] Review moderation system for admins
-  - [ ] Review voting/helpfulness system
-  - [ ] Review filtering and sorting options
+  - [x] User review history in profile sections ✅
+  - [x] Review moderation system for admins ✅
+
+**Note**: Equipment review system is fully functional and production-ready. Above items are optional enhancements.
 
 - [x] **Review Database Schema**: ✅
   - [x] Equipment reviews table exists with proper relationships ✅
@@ -182,16 +182,16 @@
 
 ### Submission System Improvements
 
-- [ ] **User Submission Management**:
-  - [ ] Add submissions section to user profiles showing submission status
-  - [ ] Display rejection reasons and admin feedback in user profiles
-  - [ ] Add submission history with filtering (pending, approved, rejected)
-  - [ ] Show submission progress indicators and timestamps
+- [x] **User Submission Management**:
+  - [x] Add submissions section to user profiles showing submission status
+  - [x] Display rejection reasons and admin feedback in user profiles
+  - [x] Add submission history with filtering (pending, approved, rejected)
+  - [x] Show submission progress indicators and timestamps
 
 - [ ] **Enhanced Moderation Workflow**:
-  - [ ] Require two approvals for submissions (Discord + Admin UI, or two Discord)
-  - [ ] Allow admins to add detailed rejection justifications
-  - [ ] Implement submission status tracking (pending → under_review → approved/rejected)
+  - [x] Require two approvals for submissions (Discord + Admin UI, or two Discord)
+  - [x] Allow admins to add detailed rejection justifications
+  - [x] Implement submission status tracking (pending → under_review → approved/rejected)
   - [ ] Add automatic image cleanup for rejected submissions
   - [ ] Create moderation audit trail for accountability
 
@@ -268,6 +268,17 @@
 - [ ] **Draft Submissions**: Allow users to save incomplete submissions and return to them later
 - [ ] **Submission Appeals**: Allow users to respond to rejection feedback and resubmit with corrections
 - [ ] **Resubmission Workflow**: Enable users to create new submissions based on rejected ones with improvements
+- [ ] Add per-type sponge thicknesses for rubbers
+  - E.g. inverted = <1.5mm then each mm up to 2.3, then max
+  - Long pips = OX, 0.3mm then each mm up to 1.5
+- [ ] Include images as part of new player submission
+- [ ] Improve the Discord webhook cards
+  - More relevant information
+  - Better looking
+  - Better support for multiple results
+  - Our URL cards don't look very good; no image etc. Can we improve this?
+- [ ] Review voting/helpfulness system (optional enhancement)
+- [ ] Review filtering and sorting options (optional enhancement)
 
 ## Post-Migration Improvements
 
@@ -301,20 +312,11 @@
 ### Features (Previous TODO items)
 
 - [x] Create reusable loading/feedback system for async operations (register, sign in, submit equipment)
-- [ ] Add "New Equipment" functionality for logged-in users to submit new equipment
-- [ ] Add per-type sponge thicknesses for rubbers
-  - E.g. inverted = <1.5mm then each mm up to 2.3, then max
-  - Long pips = OX, 0.3mm then each mm up to 1.5
-- [ ] Update Admin area to allow for configuration of almost everything - players, equipment and also categories for everything that requires a category, like sponge thicknesses and types of rubber
+- [x] Add "New Equipment" functionality for logged-in users to submit new equipment
+- [x] Update Admin area to allow for configuration of almost everything - players, equipment and also categories for everything that requires a category, like sponge thicknesses and types of rubber
 - [x] On pages where a search bar features, hide the search bar from the top header ✅
   - [x] Search box added to navigation but hidden on homepage and search page
 - [x] Implement /equipment/category interface
-- [ ] Include images as part of new player submission
-- [ ] Improve the Discord webhook cards
-  - More relevant information
-  - Better looking
-  - Better support for multiple results
-  - Our URL cards don't look very good; no image etc. Can we improve this?
 
 ### Completed (Migrated from archive)
 

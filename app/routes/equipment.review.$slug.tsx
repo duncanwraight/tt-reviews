@@ -185,11 +185,11 @@ export async function action({ params, request, context }: Route.ActionArgs) {
     }
   }
 
-  // Redirect back to equipment page
-  return redirect(`/equipment/${slug}`, { 
-    headers: sbServerClient.headers,
-    status: 302 
-  });
+  // Return success response for modal display
+  return data(
+    { success: true },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function EquipmentReview({ loaderData }: Route.ComponentProps) {

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { Form, useNavigate } from "react-router";
 import { useState } from "react";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
@@ -34,37 +34,6 @@ export function EquipmentReviewForm({
     ...ratingCategories,
   ].sort((a, b) => a.display_order - b.display_order);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    
-    const formData = new FormData(event.currentTarget);
-    
-    // Add overall rating to form data
-    formData.set("overall_rating", overallRating.toString());
-    
-    // Add category ratings to form data
-    Object.entries(categoryRatings).forEach(([category, rating]) => {
-      formData.set(`rating_${category}`, rating.toString());
-    });
-
-    try {
-      const response = await fetch(window.location.pathname, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        navigate(`/equipment/${equipment.slug}`);
-      } else {
-        throw new Error("Failed to submit review");
-      }
-    } catch (error) {
-      console.error("Error submitting review:", error);
-      // The RouterFormModalWrapper will handle error display
-      throw error;
-    }
-  };
-
   const handleCategoryRatingChange = (category: string, rating: number) => {
     setCategoryRatings(prev => ({ ...prev, [category]: rating }));
   };
@@ -79,7 +48,13 @@ export function EquipmentReviewForm({
       successRedirectDelay={3000}
     >
       {({ isLoading }) => (
-        <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-8">
+        <Form method="POST" encType="multipart/form-data" className="space-y-8">
+          {/* Hidden inputs for ratings */}
+          <input type="hidden" name="overall_rating" value={overallRating} />
+          {Object.entries(categoryRatings).map(([category, rating]) => (
+            <input key={category} type="hidden" name={`rating_${category}`} value={rating} />
+          ))}
+
           {/* Equipment Info Header */}
           <div className="bg-gray-50 p-6 rounded-lg">
             <div className="flex items-center gap-4">
@@ -117,6 +92,9 @@ export function EquipmentReviewForm({
                 {overallRating}/10
               </span>
             </div>
+            <p className="text-sm text-gray-500">
+              Rate this equipment from 1 (terrible) to 10 (excellent)
+            </p>
           </div>
 
           {/* Category Ratings */}
@@ -128,8 +106,27 @@ export function EquipmentReviewForm({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {allRatingCategories.map((category) => (
                   <div key={category.value} className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                       {category.name}
+                      {category.description && (
+                        <div className="relative group">
+                          <svg 
+                            className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" 
+                            fill="currentColor" 
+                            viewBox="0 0 20 20"
+                          >
+                            <path 
+                              fillRule="evenodd" 
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" 
+                              clipRule="evenodd" 
+                            />
+                          </svg>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64 text-center z-10">
+                            {category.description}
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      )}
                     </label>
                     <div className="flex items-center gap-4">
                       <RatingInput
@@ -168,10 +165,9 @@ export function EquipmentReviewForm({
           {/* Reviewer Context */}
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900">
-              About You (Optional)
+              About You
             </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Playing Level */}
               <div className="space-y-3">
                 <label htmlFor="playing_level" className="block text-sm font-medium text-gray-700">
@@ -183,7 +179,6 @@ export function EquipmentReviewForm({
                   disabled={isLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50"
                 >
-                  <option value="">Select level</option>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
@@ -202,7 +197,6 @@ export function EquipmentReviewForm({
                   disabled={isLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50"
                 >
-                  <option value="">Select style</option>
                   {playingStyles.map((style) => (
                     <option key={style.value} value={style.value}>
                       {style.name}
@@ -214,7 +208,7 @@ export function EquipmentReviewForm({
               {/* Testing Duration */}
               <div className="space-y-3">
                 <label htmlFor="testing_duration" className="block text-sm font-medium text-gray-700">
-                  How long have you been using this equipment?
+                  Testing Duration
                 </label>
                 <select
                   id="testing_duration"
@@ -222,12 +216,10 @@ export function EquipmentReviewForm({
                   disabled={isLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50"
                 >
-                  <option value="">Select duration</option>
-                  <option value="less_than_1_month">Less than 1 month</option>
-                  <option value="1_3_months">1-3 months</option>
-                  <option value="3_6_months">3-6 months</option>
-                  <option value="6_12_months">6-12 months</option>
-                  <option value="more_than_1_year">More than 1 year</option>
+                  <option value="less_than_week">Less than a week</option>
+                  <option value="week_to_month">1 week - 1 month</option>
+                  <option value="month_to_6months">1 - 6 months</option>
+                  <option value="more_than_6months">More than 6 months</option>
                 </select>
               </div>
             </div>
@@ -238,28 +230,18 @@ export function EquipmentReviewForm({
             <label className="block text-sm font-medium text-gray-700">
               Photo (Optional)
             </label>
-            <ImageUpload
+            <ImageUpload 
               name="image"
-              label="Upload a photo of your equipment setup"
+              env={env}
               disabled={isLoading}
-              maxSize={10}
-              preview={true}
             />
             <p className="text-sm text-gray-500">
-              Share a photo of your equipment setup to help other players visualize your review.
+              Upload a photo of your equipment setup or the equipment in use
             </p>
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => navigate(`/equipment/${equipment.slug}`)}
-              disabled={isLoading}
-              className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
-            >
-              Cancel
-            </button>
+          <div className="pt-6">
             <button
               type="submit"
               disabled={isLoading}
@@ -268,7 +250,7 @@ export function EquipmentReviewForm({
               {isLoading ? "Submitting..." : "Submit Review"}
             </button>
           </div>
-        </form>
+        </Form>
       )}
     </RouterFormModalWrapper>
   );

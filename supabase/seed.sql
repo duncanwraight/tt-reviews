@@ -73,7 +73,66 @@ INSERT INTO categories (type, name, value, display_order, flag_emoji, is_active)
 ('rejection_category', 'Inappropriate Content', 'inappropriate_content', 4, NULL, true),
 ('rejection_category', 'Invalid Data', 'invalid_data', 5, NULL, true),
 ('rejection_category', 'Spam', 'spam', 6, NULL, true),
-('rejection_category', 'Other', 'other', 7, NULL, true);
+('rejection_category', 'Other', 'other', 7, NULL, true),
+
+-- Review rating categories - general (no parent)
+('review_rating_category', 'Value for Money', 'value_for_money', 1, NULL, true),
+('review_rating_category', 'Durability', 'durability', 2, NULL, true);
+
+-- Get parent IDs for equipment subcategories (these will be set after the above insert)
+-- We need to update these with proper parent_id values after initial categories are inserted
+
+-- Inverted rubber specific categories (parent: inverted subcategory)
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Speed', 'speed', NULL, 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin', 'spin', NULL, 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Control', 'control', NULL, 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+-- Anti-spin rubber specific categories (parent: anti subcategory)  
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin Reversal', 'spin_reversal', 'When your opponent plays a topspin shot, how much backspin will this rubber generate? The spin isn''t actually being reversed - it''s being continued - but in comparison to inverted rubbers, your opponent will feel like the spin is being reversed', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Bounce When Blocking', 'bounce_when_blocking', NULL, 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Attacking Capability', 'attacking_capability', 'How easy and effective is it to hit with this rubber?', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+-- Long pips rubber specific categories (parent: long_pips subcategory)
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin Reversal', 'spin_reversal', 'When your opponent plays a topspin shot, how much backspin will this rubber generate? The spin isn''t actually being reversed - it''s being continued - but in comparison to inverted rubbers, your opponent will feel like the spin is being reversed', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin Generation', 'spin_generation', 'How much of your own spin you can put on the ball', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Attacking Capability', 'attacking_capability', 'How easy and effective is it to hit with this rubber?', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+-- Short pips rubber specific categories (parent: short_pips subcategory)
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin Sensitivity', 'spin_sensitivity', 'How much the rubber is affected by incoming spin', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Spin Generation', 'spin_generation', 'How much of your own spin you can put on the ball', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'review_rating_category', 'Speed', 'speed', NULL, 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
 -- Insert equipment (popular blades from revspin.net)
 INSERT INTO equipment (name, slug, category, manufacturer, specifications) VALUES
