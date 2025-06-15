@@ -1,6 +1,7 @@
 import type { Route } from "./+types/equipment._index";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
+import { schemaService } from "~/lib/schema.server";
 import { data } from "react-router";
 import { Link } from "react-router";
 
@@ -45,6 +46,12 @@ export function meta({ data }: Route.MetaArgs) {
     'tournament equipment'
   ].join(', ');
 
+  // Generate breadcrumb schema
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Equipment", href: "/equipment" }
+  ]);
+
   return [
     { title },
     { name: "description", content: description },
@@ -59,6 +66,10 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Equipment" },
     { property: "article:section", content: "Equipment Reviews" },
+    // Structured data
+    {
+      "script:ld+json": schemaService.toJsonLd(breadcrumbSchema)
+    },
   ];
 }
 

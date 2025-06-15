@@ -2,6 +2,7 @@ import type { Route } from "./+types/equipment.$slug";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
+import { schemaService } from "~/lib/schema.server";
 import { data, redirect } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -50,6 +51,20 @@ export function meta({ data }: Route.MetaArgs) {
     'professional equipment'
   ].filter(Boolean).join(', ');
 
+  // Generate structured data schemas
+  const equipmentSchema = schemaService.generateEquipmentSchema({
+    ...equipment,
+    averageRating,
+    reviewCount,
+    reviews
+  });
+  
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Equipment", href: "/equipment" },
+    { label: equipment.name }
+  ]);
+
   return [
     { title },
     { name: "description", content: description },
@@ -66,6 +81,10 @@ export function meta({ data }: Route.MetaArgs) {
     // Structured data hints for crawlers
     ...(averageRating ? [{ property: "product:rating:value", content: averageRating.toString() }] : []),
     ...(reviewCount ? [{ property: "product:rating:count", content: reviewCount.toString() }] : []),
+    // Structured data
+    {
+      "script:ld+json": schemaService.generateMultipleSchemas([equipmentSchema, breadcrumbSchema])
+    },
   ];
 }
 

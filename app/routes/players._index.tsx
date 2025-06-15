@@ -2,6 +2,7 @@ import type { Route } from "./+types/players._index";
 import { data } from "react-router";
 import { DatabaseService } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
+import { schemaService } from "~/lib/schema.server";
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayersHeader } from "~/components/players/PlayersHeader";
@@ -32,6 +33,12 @@ export function meta({ data }: Route.MetaArgs) {
     'tournament players'
   ].join(', ');
 
+  // Generate breadcrumb schema
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Players", href: "/players" }
+  ]);
+
   return [
     { title },
     { name: "description", content: description },
@@ -46,6 +53,10 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Players" },
     { property: "article:section", content: "Player Database" },
+    // Structured data
+    {
+      "script:ld+json": schemaService.toJsonLd(breadcrumbSchema)
+    },
   ];
 }
 

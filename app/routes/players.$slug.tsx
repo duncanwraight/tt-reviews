@@ -2,6 +2,7 @@ import type { Route } from "./+types/players.$slug";
 import { data, redirect } from "react-router";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
+import { schemaService } from "~/lib/schema.server";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
@@ -39,6 +40,14 @@ export function meta({ params, data }: Route.MetaArgs) {
     player.country || ''
   ].filter(Boolean).join(', ');
 
+  // Generate structured data schemas
+  const playerSchema = schemaService.generatePlayerSchema(player);
+  const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
+    { label: "Home", href: "/" },
+    { label: "Players", href: "/players" },
+    { label: player.name, href: `/players/${player.slug}` }
+  ]);
+
   return [
     { title },
     { name: "description", content: description },
@@ -51,6 +60,10 @@ export function meta({ params, data }: Route.MetaArgs) {
     { name: "author", content: "TT Reviews" },
     { property: "article:author", content: "TT Reviews" },
     { property: "og:site_name", content: "TT Reviews" },
+    // Structured data
+    {
+      "script:ld+json": schemaService.generateMultipleSchemas([playerSchema, breadcrumbSchema])
+    },
   ];
 }
 
