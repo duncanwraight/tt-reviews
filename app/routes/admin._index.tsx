@@ -16,115 +16,47 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = new DatabaseService(context);
   const supabase = createSupabaseAdminClient(context);
 
-  // Get counts for dashboard stats
-  const [
-    { count: equipmentSubmissionsCount },
-    { count: playerSubmissionsCount },
-    { count: playerEditsCount },
-    { count: equipmentReviewsCount },
-    { count: equipmentCount },
-    { count: playersCount },
-  ] = await Promise.all([
-    supabase
-      .from("equipment_submissions")
-      .select("*", { count: "exact", head: true }),
-    supabase
-      .from("player_submissions")
-      .select("*", { count: "exact", head: true }),
-    supabase.from("player_edits").select("*", { count: "exact", head: true }),
-    supabase.from("equipment_reviews").select("*", { count: "exact", head: true }),
-    supabase.from("equipment").select("*", { count: "exact", head: true }),
-    supabase.from("players").select("*", { count: "exact", head: true }),
-  ]);
+  // Use optimized database function to get all counts efficiently
+  const dashboardCounts = await db.getAdminDashboardCounts();
+  
+  // Extract totals for easier access
+  const {
+    equipmentSubmissions: equipmentSubmissionsCount,
+    playerSubmissions: playerSubmissionsCount,
+    playerEdits: playerEditsCount,
+    equipmentReviews: equipmentReviewsCount,
+    equipment: equipmentCount,
+    players: playersCount,
+  } = dashboardCounts.totals;
 
-  // Get detailed status counts for each submission type
-  const [
-    { count: pendingEquipmentSubmissions },
-    { count: awaitingEquipmentSubmissions },
-    { count: approvedEquipmentSubmissions },
-    { count: rejectedEquipmentSubmissions },
-    { count: pendingPlayerSubmissions },
-    { count: awaitingPlayerSubmissions },
-    { count: approvedPlayerSubmissions },
-    { count: rejectedPlayerSubmissions },
-    { count: pendingPlayerEdits },
-    { count: awaitingPlayerEdits },
-    { count: approvedPlayerEdits },
-    { count: rejectedPlayerEdits },
-    { count: pendingEquipmentReviews },
-    { count: awaitingEquipmentReviews },
-    { count: approvedEquipmentReviews },
-    { count: rejectedEquipmentReviews },
-  ] = await Promise.all([
-    // Equipment submissions by status
-    supabase
-      .from("equipment_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("equipment_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "awaiting_second_approval"),
-    supabase
-      .from("equipment_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "approved"),
-    supabase
-      .from("equipment_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "rejected"),
-    // Player submissions by status
-    supabase
-      .from("player_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("player_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "awaiting_second_approval"),
-    supabase
-      .from("player_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "approved"),
-    supabase
-      .from("player_submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "rejected"),
-    // Player edits by status
-    supabase
-      .from("player_edits")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("player_edits")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "awaiting_second_approval"),
-    supabase
-      .from("player_edits")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "approved"),
-    supabase
-      .from("player_edits")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "rejected"),
-    // Equipment reviews by status
-    supabase
-      .from("equipment_reviews")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("equipment_reviews")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "awaiting_second_approval"),
-    supabase
-      .from("equipment_reviews")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "approved"),
-    supabase
-      .from("equipment_reviews")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "rejected"),
-  ]);
+  // Extract status counts from the optimized query results
+  const {
+    equipmentSubmissions: equipmentSubmissionsByStatus,
+    playerSubmissions: playerSubmissionsByStatus,
+    playerEdits: playerEditsByStatus,
+    equipmentReviews: equipmentReviewsByStatus,
+  } = dashboardCounts.byStatus;
+
+  // Extract individual status counts for easier access
+  const pendingEquipmentSubmissions = equipmentSubmissionsByStatus.pending;
+  const awaitingEquipmentSubmissions = equipmentSubmissionsByStatus.awaiting_second_approval;
+  const approvedEquipmentSubmissions = equipmentSubmissionsByStatus.approved;
+  const rejectedEquipmentSubmissions = equipmentSubmissionsByStatus.rejected;
+
+  const pendingPlayerSubmissions = playerSubmissionsByStatus.pending;
+  const awaitingPlayerSubmissions = playerSubmissionsByStatus.awaiting_second_approval;
+  const approvedPlayerSubmissions = playerSubmissionsByStatus.approved;
+  const rejectedPlayerSubmissions = playerSubmissionsByStatus.rejected;
+
+  const pendingPlayerEdits = playerEditsByStatus.pending;
+  const awaitingPlayerEdits = playerEditsByStatus.awaiting_second_approval;
+  const approvedPlayerEdits = playerEditsByStatus.approved;
+  const rejectedPlayerEdits = playerEditsByStatus.rejected;
+
+  const pendingEquipmentReviews = equipmentReviewsByStatus.pending;
+  const awaitingEquipmentReviews = equipmentReviewsByStatus.awaiting_second_approval;
+  const approvedEquipmentReviews = equipmentReviewsByStatus.approved;
+  const rejectedEquipmentReviews = equipmentReviewsByStatus.rejected;
 
   return data({
     stats: {

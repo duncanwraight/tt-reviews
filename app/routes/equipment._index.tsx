@@ -73,14 +73,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const category = url.searchParams.get("category");
   const subcategory = url.searchParams.get("subcategory");
   const sortBy =
-    (url.searchParams.get("sort") as "name" | "created_at" | "manufacturer") ||
+    (url.searchParams.get("sort") as "name" | "created_at" | "manufacturer" | "rating") ||
     "created_at";
   const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
 
   const db = new DatabaseService(context);
 
   const promises = [
-    db.getAllEquipment({
+    db.getAllEquipmentWithStats({
       category: category || undefined,
       subcategory: subcategory || undefined,
       sortBy,
@@ -103,8 +103,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const equipmentDisplay: EquipmentDisplay[] = allEquipment.map(
     (equipment) => ({
       ...equipment,
-      rating: 4.2,
-      reviewCount: Math.floor(Math.random() * 20) + 1,
+      rating: equipment.averageRating || undefined,
+      reviewCount: equipment.reviewCount || 0,
     })
   );
 

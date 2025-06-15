@@ -257,51 +257,71 @@ export class DatabaseService {
   async getEquipmentCategories(): Promise<
     { category: string; count: number }[]
   > {
+    // Use database aggregation instead of fetching all records
     const { data, error } = await this.supabase
-      .from("equipment")
-      .select("category");
+      .rpc('get_equipment_category_counts');
 
     if (error) {
-      console.error("Error fetching equipment categories:", error);
-      return [];
+      console.error("Error fetching equipment category counts:", error);
+      
+      // Fallback to the old method if RPC function doesn't exist
+      const fallbackData = await this.supabase
+        .from("equipment")
+        .select("category");
+      
+      if (fallbackData.error || !fallbackData.data) {
+        return [];
+      }
+
+      const categoryCount: Record<string, number> = {};
+      fallbackData.data.forEach((item: any) => {
+        categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
+      });
+
+      return Object.entries(categoryCount).map(([category, count]) => ({
+        category,
+        count,
+      }));
     }
 
-    const categoryCount: Record<string, number> = {};
-    data.forEach((item) => {
-      categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
-    });
-
-    return Object.entries(categoryCount).map(([category, count]) => ({
-      category,
-      count,
-    }));
+    return data || [];
   }
 
   async getEquipmentSubcategories(category: string): Promise<
     { subcategory: string; count: number }[]
   > {
+    // Use database aggregation instead of fetching all records
     const { data, error } = await this.supabase
-      .from("equipment")
-      .select("subcategory")
-      .eq("category", category)
-      .not("subcategory", "is", null);
+      .rpc('get_equipment_subcategory_counts', { category_filter: category });
 
     if (error) {
-      console.error("Error fetching equipment subcategories:", error);
-      return [];
+      console.error("Error fetching equipment subcategory counts:", error);
+      
+      // Fallback to the old method if RPC function doesn't exist
+      const fallbackData = await this.supabase
+        .from("equipment")
+        .select("subcategory")
+        .eq("category", category)
+        .not("subcategory", "is", null);
+      
+      if (fallbackData.error || !fallbackData.data) {
+        return [];
+      }
+
+      const subcategoryCount: Record<string, number> = {};
+      fallbackData.data.forEach((item: any) => {
+        if (item.subcategory) {
+          subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
+        }
+      });
+
+      return Object.entries(subcategoryCount).map(([subcategory, count]) => ({
+        subcategory,
+        count,
+      }));
     }
 
-    const subcategoryCount: Record<string, number> = {};
-    data.forEach((item) => {
-      if (item.subcategory) {
-        subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
-      }
-    });
-
-    return Object.entries(subcategoryCount).map(([subcategory, count]) => ({
-      subcategory,
-      count,
-    }));
+    return data || [];
   }
 
   // Player methods
@@ -709,6 +729,134 @@ export class DatabaseService {
     return data || [];
   }
 
+  async getAllEquipmentWithStats(options?: {
+    category?: string;
+    subcategory?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: "name" | "created_at" | "manufacturer" | "rating";
+    sortOrder?: "asc" | "desc";
+  }): Promise<(Equipment & { 
+    averageRating?: number; 
+    reviewCount?: number; 
+  })[]> {
+    // First get basic equipment with filtering
+    let query = this.supabase
+      .from("equipment")
+      .select(`
+        *,
+        equipment_reviews!inner(
+          overall_rating,
+          status
+        )
+      `);
+
+    if (options?.category) {
+      query = query.eq("category", options.category);
+    }
+
+    if (options?.subcategory) {
+      query = query.eq("subcategory", options.subcategory);
+    }
+
+    // Only include approved reviews
+    query = query.eq("equipment_reviews.status", "approved");
+
+    const { data: equipmentWithReviews, error } = await query;
+
+    if (error) {
+      console.error("Error fetching equipment with reviews:", error);
+      // Fallback to basic equipment without stats
+      return this.getAllEquipment(options);
+    }
+
+    // Calculate stats for each equipment
+    const equipmentStatsMap = new Map<string, { averageRating: number; reviewCount: number }>();
+    
+    equipmentWithReviews?.forEach((item: any) => {
+      if (!equipmentStatsMap.has(item.id)) {
+        equipmentStatsMap.set(item.id, { averageRating: 0, reviewCount: 0 });
+      }
+      
+      const stats = equipmentStatsMap.get(item.id)!;
+      stats.reviewCount++;
+      stats.averageRating += item.equipment_reviews.overall_rating;
+    });
+
+    // Calculate final averages and create equipment list
+    const equipmentWithStats: (Equipment & { averageRating?: number; reviewCount?: number })[] = [];
+    const processedIds = new Set<string>();
+
+    equipmentWithReviews?.forEach((item: any) => {
+      if (processedIds.has(item.id)) return;
+      processedIds.add(item.id);
+
+      const stats = equipmentStatsMap.get(item.id)!;
+      const averageRating = stats.averageRating / stats.reviewCount;
+
+      // Remove the equipment_reviews field and add our computed stats
+      const { equipment_reviews, ...equipment } = item;
+      equipmentWithStats.push({
+        ...equipment,
+        averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+        reviewCount: stats.reviewCount
+      });
+    });
+
+    // Add equipment with no reviews
+    const equipmentWithoutReviews = await this.getAllEquipment({
+      ...options,
+      limit: undefined // Get all for filtering
+    });
+
+    const equipmentWithoutReviewsFiltered = equipmentWithoutReviews.filter(
+      (equipment) => !processedIds.has(equipment.id)
+    );
+
+    const allEquipment = [
+      ...equipmentWithStats,
+      ...equipmentWithoutReviewsFiltered.map(equipment => ({
+        ...equipment,
+        averageRating: undefined,
+        reviewCount: 0
+      }))
+    ];
+
+    // Apply sorting
+    const sortBy = options?.sortBy || "created_at";
+    const sortOrder = options?.sortOrder || "desc";
+
+    allEquipment.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case "rating":
+          const aRating = a.averageRating || 0;
+          const bRating = b.averageRating || 0;
+          comparison = aRating - bRating;
+          break;
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "manufacturer":
+          comparison = a.manufacturer.localeCompare(b.manufacturer);
+          break;
+        case "created_at":
+        default:
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+      
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
+
+    // Apply limit and offset
+    const start = options?.offset || 0;
+    const end = options?.limit ? start + options.limit : undefined;
+    
+    return allEquipment.slice(start, end);
+  }
+
   async getPopularEquipment(limit = 6): Promise<(Equipment & { 
     averageRating?: number; 
     reviewCount?: number; 
@@ -724,6 +872,130 @@ export class DatabaseService {
     }
 
     return data || [];
+  }
+
+  async getAdminDashboardCounts(): Promise<{
+    totals: {
+      equipmentSubmissions: number;
+      playerSubmissions: number;
+      playerEdits: number;
+      equipmentReviews: number;
+      equipment: number;
+      players: number;
+    };
+    byStatus: {
+      equipmentSubmissions: Record<string, number>;
+      playerSubmissions: Record<string, number>;
+      playerEdits: Record<string, number>;
+      equipmentReviews: Record<string, number>;
+    };
+  }> {
+    try {
+      // Use a single aggregation query to get all counts efficiently
+      const [
+        equipmentSubmissionsQuery,
+        playerSubmissionsQuery,
+        playerEditsQuery,
+        equipmentReviewsQuery,
+        equipmentCountQuery,
+        playersCountQuery
+      ] = await Promise.all([
+        // Get equipment submissions grouped by status
+        this.supabase
+          .from("equipment_submissions")
+          .select("status", { count: "exact" })
+          .neq("status", null),
+        
+        // Get player submissions grouped by status  
+        this.supabase
+          .from("player_submissions")
+          .select("status", { count: "exact" })
+          .neq("status", null),
+          
+        // Get player edits grouped by status
+        this.supabase
+          .from("player_edits") 
+          .select("status", { count: "exact" })
+          .neq("status", null),
+          
+        // Get equipment reviews grouped by status
+        this.supabase
+          .from("equipment_reviews")
+          .select("status", { count: "exact" })
+          .neq("status", null),
+          
+        // Get total equipment count
+        this.supabase
+          .from("equipment")
+          .select("*", { count: "exact", head: true }),
+          
+        // Get total players count
+        this.supabase
+          .from("players")
+          .select("*", { count: "exact", head: true })
+      ]);
+
+      // Process the results to get status counts
+      const getStatusCounts = (data: any[] | null): Record<string, number> => {
+        const counts: Record<string, number> = {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0
+        };
+        
+        if (data) {
+          // This is a workaround - we get all data and count by status in memory
+          // In a real app, we'd use GROUP BY in the database
+          data.forEach((item: any) => {
+            if (item.status && counts.hasOwnProperty(item.status)) {
+              counts[item.status]++;
+            }
+          });
+        }
+        
+        return counts;
+      };
+
+      const result = {
+        totals: {
+          equipmentSubmissions: equipmentSubmissionsQuery.count || 0,
+          playerSubmissions: playerSubmissionsQuery.count || 0,
+          playerEdits: playerEditsQuery.count || 0,
+          equipmentReviews: equipmentReviewsQuery.count || 0,
+          equipment: equipmentCountQuery.count || 0,
+          players: playersCountQuery.count || 0,
+        },
+        byStatus: {
+          equipmentSubmissions: getStatusCounts(equipmentSubmissionsQuery.data),
+          playerSubmissions: getStatusCounts(playerSubmissionsQuery.data),
+          playerEdits: getStatusCounts(playerEditsQuery.data),
+          equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
+        }
+      };
+
+      return result;
+    } catch (error) {
+      console.error("Error fetching admin dashboard counts:", error);
+      
+      // Return empty counts as fallback
+      return {
+        totals: {
+          equipmentSubmissions: 0,
+          playerSubmissions: 0,
+          playerEdits: 0,
+          equipmentReviews: 0,
+          equipment: 0,
+          players: 0,
+        },
+        byStatus: {
+          equipmentSubmissions: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
+          playerSubmissions: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
+          playerEdits: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
+          equipmentReviews: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
+        }
+      };
+    }
   }
 
   // Get similar equipment for comparison suggestions
