@@ -1,7 +1,8 @@
 import type { Route } from "./+types/api.images.$";
-import { addApiSecurityHeaders, sanitizeError } from "~/lib/security.server";
 
 export async function loader({ params, context }: Route.LoaderArgs) {
+  const { addApiSecurityHeaders, sanitizeError } = await import("~/lib/security.server");
+  
   const { "*": splat } = params;
   const env = context.cloudflare.env as Cloudflare.Env;
   

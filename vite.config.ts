@@ -22,21 +22,12 @@ export default defineConfig({
           
           // Supabase chunk - authentication and database
           supabase: ['@supabase/supabase-js', '@supabase/ssr'],
-          
-          // UI chunk - common UI components and utilities
-          ui: ['react-hook-form', 'tailwindcss'],
         },
       },
     },
     
-    // Enable compression and minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.log in production
-        drop_debugger: true,
-      },
-    },
+    // Enable minification (uses esbuild by default)
+    minify: true,
     
     // Enable source maps in development
     sourcemap: process.env.NODE_ENV === 'development',

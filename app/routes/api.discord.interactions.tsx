@@ -1,15 +1,17 @@
 import type { Route } from "./+types/api.discord.interactions";
 import { DiscordService } from "~/lib/discord.server";
-import { 
-  createSecureResponse, 
-  sanitizeError, 
-  rateLimit, 
-  RATE_LIMITS,
-  createRateLimitResponse 
-} from "~/lib/security.server";
 
 export async function action({ request, context }: Route.ActionArgs) {
   try {
+    // Import security functions inside server-only action
+    const { 
+      createSecureResponse, 
+      sanitizeError, 
+      rateLimit, 
+      RATE_LIMITS,
+      createRateLimitResponse 
+    } = await import("~/lib/security.server");
+    
     // Apply rate limiting
     const rateLimitResult = await rateLimit(request, RATE_LIMITS.DISCORD_WEBHOOK, context);
     if (!rateLimitResult.success) {
@@ -40,13 +42,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     const interaction = JSON.parse(body);
 
-    const rateLimit = { resetTime: rateLimitResult.resetTime!, remaining: rateLimitResult.remaining! };
+    const rateLimitInfo = { resetTime: rateLimitResult.resetTime!, remaining: rateLimitResult.remaining! };
 
     // Handle ping challenge
     if (interaction.type === 1) {
       return createSecureResponse(
         JSON.stringify({ type: 1 }), 
-        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit }
+        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit: rateLimitInfo }
       );
     }
 
@@ -56,7 +58,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       const responseData = await response.json();
       return createSecureResponse(
         JSON.stringify(responseData), 
-        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit }
+        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit: rateLimitInfo }
       );
     }
 
@@ -66,13 +68,13 @@ export async function action({ request, context }: Route.ActionArgs) {
       const responseData = await response.json();
       return createSecureResponse(
         JSON.stringify(responseData), 
-        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit }
+        { isApi: true, headers: { "Content-Type": "application/json" }, rateLimit: rateLimitInfo }
       );
     }
 
     return createSecureResponse(
       JSON.stringify({ error: "Unknown interaction type" }), 
-      { status: 400, isApi: true, headers: { "Content-Type": "application/json" }, rateLimit }
+      { status: 400, isApi: true, headers: { "Content-Type": "application/json" }, rateLimit: rateLimitInfo }
     );
   } catch (error) {
     const isDevelopment = process.env.NODE_ENV === "development";
@@ -99,6 +101,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 // Only allow POST requests
 export async function loader() {
+  const { createSecureResponse } = await import("~/lib/security.server");
   return createSecureResponse(
     JSON.stringify({ error: "Method not allowed" }), 
     { status: 405, isApi: true, headers: { "Content-Type": "application/json" } }

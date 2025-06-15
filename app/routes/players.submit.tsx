@@ -3,7 +3,6 @@ import { getServerClient } from "~/lib/supabase.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { redirect, data } from "react-router";
-import { rateLimit, RATE_LIMITS, createRateLimitResponse } from "~/lib/security.server";
 
 import { lazy, Suspense } from "react";
 import { PageSection } from "~/components/layout/PageSection";
@@ -45,6 +44,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+  // Import security functions inside server-only action
+  const { rateLimit, RATE_LIMITS, createRateLimitResponse } = await import("~/lib/security.server");
+  
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
   if (!rateLimitResult.success) {
