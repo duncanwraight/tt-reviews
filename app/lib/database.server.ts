@@ -147,7 +147,7 @@ export class DatabaseService {
     fn: () => Promise<{ data: T; error: any }>,
     metadata?: any
   ): Promise<T> {
-    const context = this.context || { requestId: 'unknown' };
+    const context = this.context || { requestId: 'unknown', userId: undefined };
     
     return withDatabaseCorrelation(
       operation,
@@ -186,7 +186,7 @@ export class DatabaseService {
     queryFn: () => Promise<T>,
     metadata?: any
   ): Promise<T> {
-    const context = this.context || { requestId: 'unknown' };
+    const context = this.context || { requestId: 'unknown', userId: undefined };
     
     return withDatabaseCorrelation(
       operation,
