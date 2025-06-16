@@ -90,11 +90,11 @@ export default function Login({ loaderData }: Route.ComponentProps) {
         : "Verifying your credentials...",
       successTitle: isSignup ? "Account Created!" : "Welcome Back!",
       successMessage: isSignup 
-        ? "Account created successfully! You can now sign in with your credentials." 
+        ? "Account created successfully! Please check your email and click the confirmation link before signing in." 
         : "You have been successfully signed in. Redirecting to homepage...",
       errorTitle: "Authentication Failed",
-      successRedirect: () => navigate("/"),
-      successRedirectDelay: isSignup ? 3000 : 2500
+      successRedirect: !isSignup ? () => navigate("/") : undefined,
+      successRedirectDelay: 2000
     });
   };
 

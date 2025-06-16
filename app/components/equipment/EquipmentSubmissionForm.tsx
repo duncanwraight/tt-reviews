@@ -62,7 +62,7 @@ export function EquipmentSubmissionForm({ categories, csrfToken, env }: Equipmen
           successMessage="Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!"
           errorTitle="Submission Failed"
           successRedirect={() => navigate("/equipment")}
-          successRedirectDelay={3000}
+          successRedirectDelay={2000}
           successActions={
             <button
               onClick={() => navigate("/equipment")}

@@ -26,7 +26,7 @@ export function RouterFormModalWrapper({
   successMessage,
   errorTitle = "Submission Failed",
   successRedirect,
-  successRedirectDelay = 2500,
+  successRedirectDelay = 2000,
   successActions,
   className = ""
 }: RouterFormModalWrapperProps) {

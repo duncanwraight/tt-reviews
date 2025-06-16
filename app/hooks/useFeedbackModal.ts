@@ -49,7 +49,7 @@ export function useFeedbackModal() {
       message: options.message,
       onClose: options.onClose,
       autoClose: options.autoClose ?? true,
-      autoCloseDelay: options.autoCloseDelay ?? 3000
+      autoCloseDelay: options.autoCloseDelay ?? 2000
     });
   }, []);
 

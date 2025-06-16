@@ -18,7 +18,7 @@ export function FeedbackModal({
   title,
   message,
   autoClose = true,
-  autoCloseDelay = 3000,
+  autoCloseDelay = 2000,
   onClose,
   actions
 }: FeedbackModalProps) {

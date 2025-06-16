@@ -32,7 +32,7 @@ export function PlayerSubmissionForm({ playingStyles, countries, csrfToken }: Pl
           successMessage="Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!"
           errorTitle="Submission Failed"
           successRedirect={() => navigate("/players")}
-          successRedirectDelay={3000}
+          successRedirectDelay={2000}
           successActions={
             <button
               onClick={() => navigate("/players")}

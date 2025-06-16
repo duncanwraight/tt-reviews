@@ -947,25 +947,25 @@ export class DatabaseService {
         // Get equipment submissions grouped by status
         this.supabase
           .from("equipment_submissions")
-          .select("status", { count: "exact" })
+          .select("status")
           .neq("status", null),
         
         // Get player submissions grouped by status  
         this.supabase
           .from("player_submissions")
-          .select("status", { count: "exact" })
+          .select("status")
           .neq("status", null),
           
         // Get player edits grouped by status
         this.supabase
           .from("player_edits") 
-          .select("status", { count: "exact" })
+          .select("status")
           .neq("status", null),
           
         // Get equipment reviews grouped by status
         this.supabase
           .from("equipment_reviews")
-          .select("status", { count: "exact" })
+          .select("status")
           .neq("status", null),
           
         // Get total equipment count
@@ -1003,10 +1003,10 @@ export class DatabaseService {
 
       const result = {
         totals: {
-          equipmentSubmissions: equipmentSubmissionsQuery.count || 0,
-          playerSubmissions: playerSubmissionsQuery.count || 0,
-          playerEdits: playerEditsQuery.count || 0,
-          equipmentReviews: equipmentReviewsQuery.count || 0,
+          equipmentSubmissions: equipmentSubmissionsQuery.data?.length || 0,
+          playerSubmissions: playerSubmissionsQuery.data?.length || 0,
+          playerEdits: playerEditsQuery.data?.length || 0,
+          equipmentReviews: equipmentReviewsQuery.data?.length || 0,
           equipment: equipmentCountQuery.count || 0,
           players: playersCountQuery.count || 0,
         },

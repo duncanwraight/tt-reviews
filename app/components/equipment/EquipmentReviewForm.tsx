@@ -48,7 +48,7 @@ export function EquipmentReviewForm({
       successTitle="Review Submitted!"
       successMessage="Your review has been submitted and will be reviewed by our team."
       successRedirect={() => navigate(`/equipment/${equipment.slug}`)}
-      successRedirectDelay={3000}
+      successRedirectDelay={2000}
     >
       {({ isLoading }) => (
         <Form method="POST" encType="multipart/form-data" className="space-y-8">
