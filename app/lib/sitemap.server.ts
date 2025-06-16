@@ -16,8 +16,8 @@ export interface SitemapEntry {
 export class SitemapService {
   public readonly baseUrl: string;
 
-  constructor(baseUrl: string = "https://tabletennis.reviews") {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl || process.env.SITE_URL || "https://tabletennis.reviews";
   }
 
   // Generate static pages sitemap entries

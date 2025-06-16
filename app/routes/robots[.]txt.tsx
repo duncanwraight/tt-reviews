@@ -1,7 +1,8 @@
 import type { Route } from "./+types/robots[.]txt";
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const baseUrl = "https://tabletennis.reviews";
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const env = context.cloudflare.env as Record<string, string>;
+  const baseUrl = env.SITE_URL || "https://tabletennis.reviews";
   
   const robotsTxt = `User-agent: *
 Allow: /

@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { memo, useMemo } from "react";
 
 interface EquipmentCardProps {
   equipment: {
@@ -12,7 +13,21 @@ interface EquipmentCardProps {
   };
 }
 
-export function EquipmentCard({ equipment }: EquipmentCardProps) {
+export const EquipmentCard = memo(function EquipmentCard({ equipment }: EquipmentCardProps) {
+  // Memoize the rating display logic to avoid unnecessary recalculations
+  const ratingDisplay = useMemo(() => {
+    if (!equipment.rating || !equipment.reviewCount) return null;
+    
+    return (
+      <div className="flex items-center text-yellow-400">
+        <span className="text-sm mr-1">★</span>
+        <span className="text-sm font-medium text-gray-700">
+          {equipment.rating} ({equipment.reviewCount})
+        </span>
+      </div>
+    );
+  }, [equipment.rating, equipment.reviewCount]);
+
   return (
     <Link
       to={`/equipment/${equipment.slug}`}
@@ -23,14 +38,7 @@ export function EquipmentCard({ equipment }: EquipmentCardProps) {
           <span className="inline-block px-3 py-1 text-xs font-semibold text-purple-800 bg-purple-100 rounded-full capitalize">
             {equipment.category}
           </span>
-          {equipment.rating && equipment.reviewCount && (
-            <div className="flex items-center text-yellow-400">
-              <span className="text-sm mr-1">★</span>
-              <span className="text-sm font-medium text-gray-700">
-                {equipment.rating} ({equipment.reviewCount})
-              </span>
-            </div>
-          )}
+          {ratingDisplay}
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
           {equipment.name}
@@ -44,4 +52,4 @@ export function EquipmentCard({ equipment }: EquipmentCardProps) {
       </div>
     </Link>
   );
-}
+});

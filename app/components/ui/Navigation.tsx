@@ -52,7 +52,7 @@ export function Navigation({ user }: NavigationProps) {
               Players
             </Link>
             <a
-              href="https://discord.gg/Ycp7mKA3Yw"
+              href="https://discord.gg/Ycp7mKA3Yw" // TODO: Move to DISCORD_URL environment variable
               target="_blank"
               rel="noopener noreferrer"
               className={`font-medium transition-all duration-200 hover:scale-105 flex items-center gap-2 ${

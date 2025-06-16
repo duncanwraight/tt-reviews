@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { memo, useMemo, useCallback } from "react";
 import type { Player } from "~/lib/database.server";
 
 interface PlayerCardProps {
@@ -7,11 +8,31 @@ interface PlayerCardProps {
   };
 }
 
-export function PlayerCard({ player }: PlayerCardProps) {
-  const getPlayingStyleLabel = (style: string | undefined) => {
+export const PlayerCard = memo(function PlayerCard({ player }: PlayerCardProps) {
+  // Memoize playing style label transformation to avoid recalculation
+  const getPlayingStyleLabel = useCallback((style: string | undefined) => {
     if (!style || style === "unknown") return "Pro Player";
     return style.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-  };
+  }, []);
+
+  // Memoize formatted date to avoid recalculation
+  const formattedDate = useMemo(() => {
+    return new Date(player.created_at).toLocaleDateString();
+  }, [player.created_at]);
+
+  // Memoize playing style label for this specific player
+  const playingStyleLabel = useMemo(() => {
+    return getPlayingStyleLabel(player.playing_style);
+  }, [getPlayingStyleLabel, player.playing_style]);
+
+  // Memoize status badge styling
+  const statusBadgeClassName = useMemo(() => {
+    return `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+      player.active
+        ? "bg-green-100 text-green-800"
+        : "bg-gray-100 text-gray-800"
+    }`;
+  }, [player.active]);
 
   return (
     <div className="player-card bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
@@ -38,7 +59,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
             )}
             {player.playing_style && player.playing_style !== "unknown" && (
               <p className="text-sm text-gray-600 mb-2">
-                Style: {getPlayingStyleLabel(player.playing_style)}
+                Style: {playingStyleLabel}
               </p>
             )}
             {player.currentSetup && (
@@ -48,13 +69,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
             )}
           </div>
           <div className="ml-4">
-            <span
-              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                player.active
-                  ? "bg-green-100 text-green-800"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
+            <span className={statusBadgeClassName}>
               {player.active ? "Active" : "Retired"}
             </span>
           </div>
@@ -68,10 +83,10 @@ export function PlayerCard({ player }: PlayerCardProps) {
             View Profile →
           </Link>
           <div className="text-xs text-gray-500">
-            Added {new Date(player.created_at).toLocaleDateString()}
+            Added {formattedDate}
           </div>
         </div>
       </div>
     </div>
   );
-}
+});
