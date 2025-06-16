@@ -119,7 +119,9 @@ export default function Index({ loaderData }: Route.ComponentProps) {
       <Navigation user={user} />
       <main>
         <HeroSection />
-        <FeaturedEquipmentSection equipment={featuredEquipment} />
+        {featuredEquipment.length >= 6 && (
+          <FeaturedEquipmentSection equipment={featuredEquipment} />
+        )}
         <PopularPlayersSection players={popularPlayers} />
         <CategoriesSection />
       </main>

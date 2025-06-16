@@ -10,6 +10,8 @@ import { getServerClient } from "~/lib/supabase.server";
 import { createBrowserClient } from "@supabase/ssr";
 import { useAsyncOperationWithModal } from "~/hooks/useAsyncOperationWithModal";
 import { FeedbackModal } from "~/components/ui/FeedbackModal";
+import { Navigation } from "~/components/ui/Navigation";
+import { Footer } from "~/components/ui/Footer";
 
 export const meta: MetaFunction = () => {
   return [
@@ -96,83 +98,157 @@ export default function Login({ loaderData }: Route.ComponentProps) {
     });
   };
 
+  const handleForgotPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+
+    if (!email) {
+      await execute(async () => {
+        throw new Error("Please enter your email address");
+      }, {
+        errorTitle: "Email Required"
+      });
+      return;
+    }
+
+    const supabase = createBrowserClient(
+      env.SUPABASE_URL,
+      env.SUPABASE_ANON_KEY
+    );
+
+    await execute(async () => {
+      const result = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      return result;
+    }, {
+      loadingTitle: "Sending Reset Email",
+      loadingMessage: "Sending password reset instructions...",
+      successTitle: "Reset Email Sent!",
+      successMessage: "Check your email for password reset instructions.",
+      errorTitle: "Reset Failed"
+    });
+  };
+
   return (
-    <div className="p-8 min-w-3/4 w-[500px] mx-auto">
-      <h1 className="text-2xl">TT Reviews - Login</h1>
-
-      <FeedbackModal
-        isOpen={modalState.isOpen}
-        type={modalState.type}
-        title={modalState.title}
-        message={modalState.message}
-        autoClose={modalState.autoClose}
-        autoCloseDelay={modalState.autoCloseDelay}
-        onClose={modalState.onClose || closeModal}
-      />
-
-      <form onSubmit={handleAuth} className="mt-6">
-        <div className="flex flex-col gap-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-2">
-              Email:
-            </label>
-            <input
-              id="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              required
-              disabled={modalState.isOpen && modalState.type === "loading"}
-            />
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      
+      <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <span className="text-6xl mb-4 block">🏓</span>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome to TT Reviews
+            </h1>
+            <p className="text-gray-600">
+              Sign in to your account or create a new one
+            </p>
           </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium mb-2"
-            >
-              Password:
-            </label>
-            <input
-              id="password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              required
-              minLength={6}
-              disabled={modalState.isOpen && modalState.type === "loading"}
+
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <FeedbackModal
+              isOpen={modalState.isOpen}
+              type={modalState.type}
+              title={modalState.title}
+              message={modalState.message}
+              autoClose={modalState.autoClose}
+              autoCloseDelay={modalState.autoCloseDelay}
+              onClose={modalState.onClose || closeModal}
             />
-          </div>
-          <div className="flex gap-4 mt-4">
-            <button
-              type="submit"
-              name="intent"
-              value="login"
-              disabled={modalState.isOpen && modalState.type === "loading"}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Login
-            </button>
-            <button
-              type="submit"
-              name="intent"
-              value="signup"
-              disabled={modalState.isOpen && modalState.type === "loading"}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Sign Up
-            </button>
+
+            <form onSubmit={handleAuth} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  type="email"
+                  name="email"
+                  placeholder="Enter your email"
+                  required
+                  disabled={modalState.isOpen && modalState.type === "loading"}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  type="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  required
+                  minLength={6}
+                  disabled={modalState.isOpen && modalState.type === "loading"}
+                />
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  type="submit"
+                  name="intent"
+                  value="login"
+                  disabled={modalState.isOpen && modalState.type === "loading"}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
+                >
+                  Sign In
+                </button>
+                
+                <button
+                  type="submit"
+                  name="intent"
+                  value="signup"
+                  disabled={modalState.isOpen && modalState.type === "loading"}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
+                >
+                  Create Account
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-6 text-center">
+              <form onSubmit={handleForgotPassword} className="inline">
+                <input type="hidden" name="email" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const emailInput = document.querySelector('input[name="email"]') as HTMLInputElement;
+                    const hiddenInput = e.currentTarget.previousElementSibling as HTMLInputElement;
+                    hiddenInput.value = emailInput?.value || '';
+                    e.currentTarget.closest('form')?.requestSubmit();
+                  }}
+                  className="text-purple-600 hover:text-purple-800 text-sm font-medium transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </form>
+            </div>
+            
+            <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600">
+                New to table tennis equipment reviews?{' '}
+                <Link to="/" className="text-purple-600 hover:text-purple-800 font-medium transition-colors">
+                  Explore our reviews
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
-      </form>
-
-      <div className="mt-8 text-sm text-gray-600">
-        <p>
-          <strong>Test Account:</strong>
-        </p>
-        <p>You can create a new account or use existing credentials.</p>
-      </div>
+      </main>
+      
+      <Footer />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { ComparisonCard } from "~/components/equipment/ComparisonCard";
 import { SafeHtml } from "~/lib/sanitize";
+import { PageSection } from "~/components/layout/PageSection";
 
 interface EquipmentDisplay {
   id: string;
@@ -210,39 +211,39 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
   ];
 
   return (
-    <main>
-      <section className="bg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Breadcrumb items={breadcrumbItems} />
-          {!user && (
-            <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold mb-2">Help Expand Our Equipment Database</h3>
-                  <p className="text-purple-100">
-                    Create an account or log in to submit new equipment and contribute to our growing community.
-                  </p>
-                </div>
-                <a
-                  href="/login"
-                  className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg whitespace-nowrap"
-                >
-                  Get Started
-                </a>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Breadcrumb items={breadcrumbItems} />
+
+      <PageSection>
+        {!user && (
+          <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Help Expand Our Equipment Database</h3>
+                <p className="text-purple-100">
+                  Create an account or log in to submit new equipment and contribute to our growing community.
+                </p>
               </div>
+              <a
+                href="/login"
+                className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg whitespace-nowrap"
+              >
+                Get Started
+              </a>
             </div>
-          )}
+          </div>
+        )}
           
           <div className="flex justify-between items-end mb-8">
-            <div className="text-center flex-1">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
                 {currentSubcategory
                   ? `${getSubcategoryName(currentSubcategory)} Reviews`
                   : currentCategory
                   ? `${getCategoryName(currentCategory)} Reviews`
                   : "Equipment Reviews"}
               </h1>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-gray-600 max-w-3xl">
                 {currentSubcategory
                   ? `Discover the best ${getSubcategoryName(
                       currentSubcategory
@@ -253,9 +254,18 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     ).toLowerCase()} for your playing style`
                   : "Comprehensive reviews of professional table tennis equipment"}
               </p>
+              {equipment.length > 0 && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {equipment.length} item{equipment.length !== 1 ? "s" : ""} {currentSubcategory
+                    ? getSubcategoryName(currentSubcategory).toLowerCase()
+                    : currentCategory
+                    ? getCategoryName(currentCategory).toLowerCase()
+                    : "in our database"}
+                </p>
+              )}
             </div>
             {user && (
-              <div className="flex space-x-3 ml-8">
+              <div className="flex space-x-3">
                 <a
                   href="/equipment/submit"
                   className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
@@ -465,11 +475,10 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
               )}
             </div>
           </div>
-        </div>
-      </section>
+      </PageSection>
 
       {recentReviews.length > 0 && (
-        <section className="py-16 bg-gray-100">
+        <section className="py-16 bg-gray-100 -mx-4 sm:-mx-6 lg:-mx-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -521,6 +530,6 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }
