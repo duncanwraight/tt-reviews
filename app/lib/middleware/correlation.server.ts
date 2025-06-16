@@ -41,7 +41,6 @@ export function withCorrelation<T extends (...args: any[]) => any>(
     const logContext = createLogContext(requestId, {
       ...requestContext,
       route: requestContext.route,
-      userId: undefined, // Will be enhanced later if user is authenticated
     });
 
     // Log request start

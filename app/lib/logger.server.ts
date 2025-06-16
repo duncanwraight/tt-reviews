@@ -98,7 +98,7 @@ class LoggerService {
     
     if (this.isDevelopment) {
       // Human-readable format for development
-      return `[${timestamp}] ${level.toUpperCase()} [${context.requestId ? context.requestId.substring(0, 8) : 'unknown'}] ${message}${
+      return `[${timestamp}] ${level.toUpperCase()} [${context?.requestId?.substring(0, 8) || 'unknown'}] ${message}${
         logEntry.data ? ` ${JSON.stringify(logEntry.data, null, 2)}` : ''
       }`;
     } else {

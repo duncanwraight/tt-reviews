@@ -87,7 +87,7 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       message: 'Client-side error caught by ErrorBoundary',
       context: {
         requestId: this.props.requestId,
-        userId: this.props.userId ? this.props.userId.substring(0, 8) + '...' : undefined,
+        userId: this.props.userId?.substring(0, 8) + '...',
         route: this.props.route || window.location.pathname,
         userAgent: navigator.userAgent,
         url: window.location.href,
