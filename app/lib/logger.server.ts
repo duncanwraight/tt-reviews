@@ -77,16 +77,9 @@ class LoggerService {
       level,
       message,
       context: {
-        ...context,
+        ...(context || {}),
         // Ensure we don't log sensitive information
-        userId: (() => {
-          try {
-            return context.userId ? context.userId.substring(0, 8) + '...' : undefined;
-          } catch (error) {
-            console.error('Error accessing userId in logger:', error, 'context:', context);
-            return undefined;
-          }
-        })(),
+        userId: context?.userId ? context.userId.substring(0, 8) + '...' : undefined,
       },
     };
 
