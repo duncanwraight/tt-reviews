@@ -4,6 +4,7 @@ import { getUserWithRole } from "~/lib/auth.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
+import { sanitizeReviewText } from "~/lib/sanitize";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -128,10 +129,24 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
   // Extract form data
   const overallRating = parseInt(formData.get("overall_rating") as string);
-  const reviewText = formData.get("review_text") as string;
+  const rawReviewText = formData.get("review_text") as string;
   const playingLevel = formData.get("playing_level") as string;
   const styleOfPlay = formData.get("style_of_play") as string;
   const testingDuration = formData.get("testing_duration") as string;
+
+  // Sanitize review text to prevent XSS attacks
+  let reviewText: string | null = null;
+  if (rawReviewText) {
+    try {
+      reviewText = sanitizeReviewText(rawReviewText.trim());
+    } catch (error) {
+      // If sanitization fails (e.g., text too long), return error
+      throw new Response((error as Error).message, { 
+        status: 400, 
+        headers: sbServerClient.headers 
+      });
+    }
+  }
 
   // Extract category ratings
   const categoryRatings: Record<string, number> = {};

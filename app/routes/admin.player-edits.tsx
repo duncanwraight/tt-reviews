@@ -7,6 +7,7 @@ import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
+import { sanitizeAdminContent } from "~/lib/sanitize";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -89,7 +90,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const actionType = formData.get("action") as string;
   const moderatorNotes = formData.get("notes") as string || undefined;
   const rejectionCategory = formData.get("category") as RejectionCategory | null;
-  const rejectionReason = formData.get("reason") as string | null;
+  const rawRejectionReason = formData.get("reason") as string | null;
+
+  // Sanitize rejection reason to prevent XSS attacks
+  const rejectionReason = rawRejectionReason ? sanitizeAdminContent(rawRejectionReason.trim()) : null;
 
   if (!editId || !actionType) {
     return data({ error: "Missing required fields" }, { status: 400, headers: sbServerClient.headers });

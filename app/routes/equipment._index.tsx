@@ -7,6 +7,7 @@ import { Link } from "react-router";
 
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { ComparisonCard } from "~/components/equipment/ComparisonCard";
+import { SafeHtml } from "~/lib/sanitize";
 
 interface EquipmentDisplay {
   id: string;
@@ -508,9 +509,11 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     </p>
                   </Link>
                   {review.review_text && (
-                    <p className="text-gray-700 text-sm line-clamp-3">
-                      {review.review_text}
-                    </p>
+                    <SafeHtml 
+                      content={review.review_text}
+                      profile="review"
+                      className="text-gray-700 text-sm line-clamp-3"
+                    />
                   )}
                 </div>
               ))}

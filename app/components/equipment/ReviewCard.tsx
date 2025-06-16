@@ -1,4 +1,5 @@
 import { RatingStars } from "../ui/RatingStars";
+import { SafeHtml } from "~/lib/sanitize";
 
 interface EquipmentReview {
   id: string;
@@ -82,7 +83,11 @@ export function ReviewCard({ review }: ReviewCardProps) {
 
       {review.review_text && (
         <div className="mb-6">
-          <p className="text-gray-700 leading-relaxed">{review.review_text}</p>
+          <SafeHtml 
+            content={review.review_text}
+            profile="review"
+            className="text-gray-700 leading-relaxed"
+          />
         </div>
       )}
 

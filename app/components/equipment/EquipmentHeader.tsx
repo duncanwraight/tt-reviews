@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
+import { LazyImage } from "../ui/LazyImage";
 
 interface Equipment {
   id: string;
@@ -66,22 +67,18 @@ export function EquipmentHeader({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64 overflow-hidden">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={`${equipment.name} by ${equipment.manufacturer}`}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : null}
-          <span className={`text-6xl ${imageUrl ? 'hidden' : ''}`}>
-            {getCategoryIcon(equipment.category)}
-          </span>
+        <div className="h-64 overflow-hidden">
+          <LazyImage
+            src={imageUrl || ""}
+            alt={`${equipment.name} by ${equipment.manufacturer}`}
+            className="w-full h-full"
+            placeholder="skeleton"
+            fallbackIcon={
+              <span className="text-6xl">
+                {getCategoryIcon(equipment.category)}
+              </span>
+            }
+          />
         </div>
 
         <div>

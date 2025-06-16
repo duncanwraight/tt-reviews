@@ -7,6 +7,7 @@ import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
+import { sanitizeAdminContent } from "~/lib/sanitize";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -106,7 +107,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         break;
       case "reject":
         const rejectionCategory = formData.get("rejectionCategory") as RejectionCategory;
-        const rejectionReason = formData.get("rejectionReason") as string;
+        const rawRejectionReason = formData.get("rejectionReason") as string;
+        
+        // Sanitize rejection reason to prevent XSS attacks
+        const rejectionReason = rawRejectionReason ? sanitizeAdminContent(rawRejectionReason.trim()) : "";
+        
         await moderation.rejectEquipmentReview(
           reviewId, 
           user.id, 

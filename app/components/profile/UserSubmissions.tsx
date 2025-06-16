@@ -1,4 +1,5 @@
 import type { ReviewStatus, RejectionCategory } from "~/lib/types";
+import { SafeHtml } from "~/lib/sanitize";
 
 interface Submission {
   id: string;
@@ -186,9 +187,11 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
                             </span>
                           )}
                         </h5>
-                        <p className="text-sm text-red-700 mt-1">
-                          {submission.rejection_reason}
-                        </p>
+                        <SafeHtml 
+                          content={submission.rejection_reason}
+                          profile="admin"
+                          className="text-sm text-red-700 mt-1"
+                        />
                       </div>
                     </div>
                   </div>

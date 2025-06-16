@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { LazyImage } from "./LazyImage";
 
 interface ImageUploadProps {
   name: string;
@@ -157,11 +158,12 @@ export function ImageUpload({
             <div className="flex items-start space-x-4">
               {/* Image Preview */}
               {previewUrl && (
-                <div className="flex-shrink-0">
-                  <img
+                <div className="flex-shrink-0 w-20 h-20">
+                  <LazyImage
                     src={previewUrl}
                     alt="Preview"
-                    className="h-20 w-20 object-cover rounded-lg border border-gray-200"
+                    className="w-full h-full border border-gray-200"
+                    placeholder="blur"
                   />
                 </div>
               )}
