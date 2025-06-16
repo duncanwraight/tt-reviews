@@ -13,10 +13,9 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // Log 404s as info level, not errors
   const url = new URL(request.url);
   
-  // Common bot paths we can ignore completely
+  // Common bot/scanner paths we can ignore completely
   const botPaths = [
     '/wp-admin/',
     '/wp-login.php',
@@ -27,11 +26,34 @@ export async function loader({ request }: Route.LoaderArgs) {
     '/admin/',
     '/administrator/',
     '/phpmyadmin/',
+    '/cgi-bin/',
+    '/.well-known/',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/favicon.ico',
+  ];
+  
+  // Legitimate app paths that should be logged if missing
+  const appPaths = [
+    '/equipment/',
+    '/players/',
+    '/reviews/',
+    '/admin/',
+    '/profile',
+    '/login',
+    '/signup',
   ];
   
   const isBotRequest = botPaths.some(path => url.pathname.startsWith(path));
+  const isAppPath = appPaths.some(path => url.pathname.startsWith(path));
   
-  if (!isBotRequest) {
+  if (isBotRequest) {
+    // Silently handle bot requests
+  } else if (isAppPath) {
+    // Log app-related 404s as warnings - these might indicate broken links or missing content
+    console.warn(`404 - App content not found: ${url.pathname} (Referrer: ${request.headers.get('referer') || 'none'})`);
+  } else {
+    // Log other 404s as info
     console.info(`404 - Page not found: ${url.pathname}`);
   }
   
