@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { AppLoadContext } from "react-router";
+import { Logger, type LogContext } from "~/lib/logger.server";
+import { withDatabaseCorrelation } from "~/lib/middleware/correlation.server";
 
 // Re-export shared types
 export type { Player, Equipment, PlayerEquipmentSetup } from "./types";
@@ -130,70 +132,117 @@ export function createSupabaseAdminClient(
 // Main database service class
 export class DatabaseService {
   private supabase: SupabaseClient;
+  private context?: LogContext;
 
-  constructor(context: AppLoadContext) {
+  constructor(context: AppLoadContext, logContext?: LogContext) {
     this.supabase = createSupabaseClient(context);
+    this.context = logContext;
+  }
+
+  /**
+   * Execute database operation with logging and performance monitoring
+   */
+  private async withLogging<T>(
+    operation: string,
+    fn: () => Promise<{ data: T; error: any }>,
+    metadata?: any
+  ): Promise<T> {
+    const context = this.context || { requestId: 'unknown' };
+    
+    return withDatabaseCorrelation(
+      operation,
+      async () => {
+        const result = await fn();
+        
+        if (result.error) {
+          Logger.error(
+            `Database operation failed: ${operation}`,
+            context,
+            new Error(result.error.message || 'Database error'),
+            { operation, ...metadata, error_details: result.error }
+          );
+          throw new Error(result.error.message || `Database operation ${operation} failed`);
+        }
+
+        // Log successful operations in debug mode
+        Logger.debug(`Database operation completed: ${operation}`, context, {
+          operation,
+          result_count: Array.isArray(result.data) ? result.data.length : result.data ? 1 : 0,
+          ...metadata,
+        });
+
+        return result.data;
+      },
+      context,
+      metadata
+    );
+  }
+
+  /**
+   * Execute database query with logging (for operations that don't follow standard pattern)
+   */
+  private async executeQuery<T>(
+    operation: string,
+    queryFn: () => Promise<T>,
+    metadata?: any
+  ): Promise<T> {
+    const context = this.context || { requestId: 'unknown' };
+    
+    return withDatabaseCorrelation(
+      operation,
+      queryFn,
+      context,
+      metadata
+    );
   }
 
   // Equipment methods
   async getEquipment(slug: string): Promise<Equipment | null> {
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching equipment:", error);
-      return null;
-    }
-
-    return data as Equipment | null;
+    return this.withLogging(
+      'get_equipment',
+      () => this.supabase
+        .from("equipment")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle(),
+      { slug }
+    ).catch(() => null); // Return null on error for backwards compatibility
   }
 
   async getEquipmentById(id: string): Promise<Equipment | null> {
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching equipment by ID:", error);
-      return null;
-    }
-
-    return data as Equipment | null;
+    return this.withLogging(
+      'get_equipment_by_id',
+      () => this.supabase
+        .from("equipment")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle(),
+      { id }
+    ).catch(() => null);
   }
 
   async searchEquipment(query: string): Promise<Equipment[]> {
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .textSearch("name", query)
-      .limit(10);
-
-    if (error) {
-      console.error("Error searching equipment:", error);
-      return [];
-    }
-
-    return (data as Equipment[]) || [];
+    return this.withLogging(
+      'search_equipment',
+      () => this.supabase
+        .from("equipment")
+        .select("*")
+        .textSearch("name", query)
+        .limit(10),
+      { query, limit: 10 }
+    ).catch(() => []);
   }
 
   async getRecentEquipment(limit = 10): Promise<Equipment[]> {
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error("Error fetching recent equipment:", error);
-      return [];
-    }
-
-    return (data as Equipment[]) || [];
+    return this.withLogging(
+      'get_recent_equipment',
+      () => this.supabase
+        .from("equipment")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      { limit }
+    ).catch(() => []);
   }
 
   async getAllEquipment(options?: {
@@ -204,54 +253,50 @@ export class DatabaseService {
     sortBy?: "name" | "created_at" | "manufacturer";
     sortOrder?: "asc" | "desc";
   }): Promise<Equipment[]> {
-    let query = this.supabase.from("equipment").select("*");
+    return this.withLogging(
+      'get_all_equipment',
+      async () => {
+        let query = this.supabase.from("equipment").select("*");
 
-    if (options?.category) {
-      query = query.eq("category", options.category);
-    }
+        if (options?.category) {
+          query = query.eq("category", options.category);
+        }
 
-    if (options?.subcategory) {
-      query = query.eq("subcategory", options.subcategory);
-    }
+        if (options?.subcategory) {
+          query = query.eq("subcategory", options.subcategory);
+        }
 
-    const sortBy = options?.sortBy || "created_at";
-    const sortOrder = options?.sortOrder || "desc";
-    query = query.order(sortBy, { ascending: sortOrder === "asc" });
+        const sortBy = options?.sortBy || "created_at";
+        const sortOrder = options?.sortOrder || "desc";
+        query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
+        if (options?.limit) {
+          query = query.limit(options.limit);
+        }
 
-    if (options?.offset) {
-      query = query.range(
-        options.offset,
-        options.offset + (options.limit || 10) - 1
-      );
-    }
+        if (options?.offset) {
+          query = query.range(
+            options.offset,
+            options.offset + (options.limit || 10) - 1
+          );
+        }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching equipment:", error);
-      return [];
-    }
-
-    return (data as Equipment[]) || [];
+        return await query;
+      },
+      options
+    ).catch(() => []);
   }
 
   async getEquipmentByCategory(category: string): Promise<Equipment[]> {
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .eq("category", category)
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching equipment by category:", error);
-      return [];
-    }
-
-    return (data as Equipment[]) || [];
+    return this.withLogging(
+      'get_equipment_by_category',
+      () => this.supabase
+        .from("equipment")
+        .select("*")
+        .eq("category", category)
+        .order("name", { ascending: true }),
+      { category }
+    ).catch(() => []);
   }
 
   async getEquipmentCategories(): Promise<
@@ -507,35 +552,34 @@ export class DatabaseService {
     equipmentId: string,
     status: "approved" | "all" = "approved"
   ): Promise<EquipmentReview[]> {
-    let query = this.supabase
-      .from("equipment_reviews")
-      .select(
-        `
-        *,
-        equipment (
-          id,
-          name,
-          manufacturer,
-          category,
-          subcategory
-        )
-      `
-      )
-      .eq("equipment_id", equipmentId)
-      .order("created_at", { ascending: false });
+    return this.withLogging(
+      'get_equipment_reviews',
+      async () => {
+        let query = this.supabase
+          .from("equipment_reviews")
+          .select(
+            `
+            *,
+            equipment (
+              id,
+              name,
+              manufacturer,
+              category,
+              subcategory
+            )
+          `
+          )
+          .eq("equipment_id", equipmentId)
+          .order("created_at", { ascending: false });
 
-    if (status === "approved") {
-      query = query.eq("status", "approved");
-    }
+        if (status === "approved") {
+          query = query.eq("status", "approved");
+        }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching reviews:", error);
-      return [];
-    }
-
-    return (data as EquipmentReview[]) || [];
+        return await query;
+      },
+      { equipmentId, status }
+    ).catch(() => []);
   }
 
   async getRecentReviews(limit = 10): Promise<EquipmentReview[]> {
@@ -1000,54 +1044,57 @@ export class DatabaseService {
 
   // Get similar equipment for comparison suggestions
   async getSimilarEquipment(equipmentId: string, limit = 6): Promise<Equipment[]> {
-    // First get current equipment details
-    const currentEquipment = await this.getEquipmentById(equipmentId);
-    if (!currentEquipment) return [];
+    return this.withLogging(
+      'get_similar_equipment',
+      async () => {
+        // First get current equipment details
+        const currentEquipment = await this.getEquipmentById(equipmentId);
+        if (!currentEquipment) return { data: [], error: null };
 
-    const { data, error } = await this.supabase
-      .from("equipment")
-      .select("*")
-      .eq("category", currentEquipment.category)
-      .neq("id", equipmentId)
-      .limit(limit);
-
-    if (error) {
-      console.error("Error fetching similar equipment:", error);
-      return [];
-    }
-
-    return (data as Equipment[]) || [];
+        return await this.supabase
+          .from("equipment")
+          .select("*")
+          .eq("category", currentEquipment.category)
+          .neq("id", equipmentId)
+          .limit(limit);
+      },
+      { equipmentId, limit }
+    ).catch(() => []);
   }
 
   // Get players using specific equipment
   async getPlayersUsingEquipment(equipmentId: string): Promise<Array<{ id: string; name: string; slug: string }>> {
-    const { data, error } = await this.supabase
-      .from("player_equipment_setups")
-      .select(`
-        players!inner (
-          id,
-          name,
-          slug
-        )
-      `)
-      .or(`blade_id.eq.${equipmentId},forehand_rubber_id.eq.${equipmentId},backhand_rubber_id.eq.${equipmentId}`)
-      .eq("verified", true);
-
-    if (error) {
-      console.error("Error fetching players using equipment:", error);
-      return [];
-    }
-
-    // Extract unique players (remove duplicates if player has multiple setups with same equipment)
-    const uniquePlayers = new Map();
-    data?.forEach((setup: any) => {
-      const player = setup.players;
-      if (player && !uniquePlayers.has(player.id)) {
-        uniquePlayers.set(player.id, player);
-      }
-    });
-
-    return Array.from(uniquePlayers.values());
+    return this.withLogging(
+      'get_players_using_equipment',
+      async () => {
+        const result = await this.supabase
+          .from("player_equipment_setups")
+          .select(`
+            players!inner (
+              id,
+              name,
+              slug
+            )
+          `)
+          .or(`blade_id.eq.${equipmentId},forehand_rubber_id.eq.${equipmentId},backhand_rubber_id.eq.${equipmentId}`)
+          .eq("verified", true);
+        
+        if (result.data) {
+          // Extract unique players (remove duplicates if player has multiple setups with same equipment)
+          const uniquePlayers = new Map();
+          result.data.forEach((setup: any) => {
+            const player = setup.players;
+            if (player && !uniquePlayers.has(player.id)) {
+              uniquePlayers.set(player.id, player);
+            }
+          });
+          return { data: Array.from(uniquePlayers.values()), error: result.error };
+        }
+        
+        return result;
+      },
+      { equipmentId }
+    ).catch(() => []);
   }
 
   // General search

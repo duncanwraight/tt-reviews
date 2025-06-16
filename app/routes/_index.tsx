@@ -3,6 +3,7 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { DatabaseService } from "~/lib/database.server";
 import { data } from "react-router";
+import { withLoaderCorrelation, enhanceContextWithUser, logUserAction } from "~/lib/middleware/correlation.server";
 
 import { Navigation } from "~/components/ui/Navigation";
 import { HeroSection } from "~/components/sections/HeroSection";
@@ -56,11 +57,14 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request, context }: Route.LoaderArgs) {
+export const loader = withLoaderCorrelation(async ({ request, context, logContext }: Route.LoaderArgs & { logContext: any }) => {
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
-  const db = new DatabaseService(context);
+  // Enhance log context with user information
+  const enhancedContext = enhanceContextWithUser(logContext, user);
+
+  const db = new DatabaseService(context, enhancedContext);
 
   const [equipmentWithStats, allPlayers] = await Promise.all([
     db.getPopularEquipment(6),
@@ -91,6 +95,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       };
     });
 
+  // Log user action for analytics
+  logUserAction('view_homepage', enhancedContext, {
+    featured_equipment_count: featuredEquipment.length,
+    popular_players_count: popularPlayers.length,
+  });
+
   return data(
     {
       user,
@@ -99,7 +109,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     },
     { headers: sbServerClient.headers }
   );
-}
+});
 
 export default function Index({ loaderData }: Route.ComponentProps) {
   const { user, featuredEquipment, popularPlayers } = loaderData;

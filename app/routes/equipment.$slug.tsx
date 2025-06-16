@@ -4,6 +4,7 @@ import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { schemaService } from "~/lib/schema.server";
 import { data, redirect } from "react-router";
+import { withLoaderCorrelation, enhanceContextWithUser, logUserAction } from "~/lib/middleware/correlation.server";
 
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
@@ -73,18 +74,34 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params, request, context }: Route.LoaderArgs) {
+export const loader = withLoaderCorrelation(async ({ params, request, context, logContext }: Route.LoaderArgs & { logContext: any }) => {
   const { slug } = params;
+  
+  // Get user for context enhancement
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
+  const user = userResponse.data?.user;
 
-  const db = new DatabaseService(context);
+  // Enhance log context with user information
+  const enhancedContext = enhanceContextWithUser(logContext, user);
+
+  // Create database service with logging context
+  const db = new DatabaseService(context, enhancedContext);
 
   const equipment = await db.getEquipment(slug);
 
   if (!equipment) {
     throw redirect("/equipment", { status: 404 });
   }
+
+  // Log user action for analytics
+  logUserAction('view_equipment', enhancedContext, {
+    equipment_id: equipment.id,
+    equipment_name: equipment.name,
+    manufacturer: equipment.manufacturer,
+    category: equipment.category,
+    subcategory: equipment.subcategory,
+  });
 
   const categoryService = createCategoryService(sbServerClient.client);
 
@@ -137,7 +154,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     },
     { headers: sbServerClient.headers }
   );
-}
+});
 
 export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
   const {
