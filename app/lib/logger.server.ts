@@ -79,7 +79,14 @@ class LoggerService {
       context: {
         ...context,
         // Ensure we don't log sensitive information
-        userId: context.userId ? context.userId.substring(0, 8) + '...' : undefined,
+        userId: (() => {
+          try {
+            return context.userId ? context.userId.substring(0, 8) + '...' : undefined;
+          } catch (error) {
+            console.error('Error accessing userId in logger:', error, 'context:', context);
+            return undefined;
+          }
+        })(),
       },
     };
 
