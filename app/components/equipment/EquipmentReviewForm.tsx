@@ -3,6 +3,7 @@ import { useState } from "react";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
 import { RatingInput } from "~/components/ui/RatingInput";
+import { CSRFToken } from "~/components/ui/CSRFToken";
 import type { CategoryOption } from "~/lib/categories.server";
 import type { Equipment } from "~/lib/types";
 
@@ -11,6 +12,7 @@ interface EquipmentReviewFormProps {
   playingStyles: CategoryOption[];
   ratingCategories: CategoryOption[];
   generalRatingCategories: CategoryOption[];
+  csrfToken: string;
   env: {
     SUPABASE_URL: string;
     SUPABASE_ANON_KEY: string;
@@ -22,6 +24,7 @@ export function EquipmentReviewForm({
   playingStyles,
   ratingCategories,
   generalRatingCategories,
+  csrfToken,
   env,
 }: EquipmentReviewFormProps) {
   const navigate = useNavigate();
@@ -49,6 +52,9 @@ export function EquipmentReviewForm({
     >
       {({ isLoading }) => (
         <Form method="POST" encType="multipart/form-data" className="space-y-8">
+          {/* CSRF Token */}
+          <CSRFToken token={csrfToken} />
+          
           {/* Hidden inputs for ratings */}
           <input type="hidden" name="overall_rating" value={overallRating} />
           {Object.entries(categoryRatings).map(([category, rating]) => (

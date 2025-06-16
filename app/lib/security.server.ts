@@ -2,6 +2,8 @@
  * Security utilities for server-side operations
  */
 
+import { validateCSRFFromRequest, requiresCSRFProtection } from "./csrf.server";
+
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
   maxRequests: number; // Maximum requests per window
@@ -214,6 +216,40 @@ export function createRateLimitResponse(resetTime: number): Response {
     }), 
     { 
       status: 429, 
+      headers: {
+        ...Object.fromEntries(headers.entries()),
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+}
+
+/**
+ * Validate CSRF token for requests that require protection
+ */
+export async function validateCSRF(
+  request: Request,
+  userId?: string
+): Promise<{ valid: boolean; error?: string }> {
+  // Check if request requires CSRF protection
+  if (!requiresCSRFProtection(request)) {
+    return { valid: true };
+  }
+
+  return await validateCSRFFromRequest(request, userId);
+}
+
+/**
+ * Create a CSRF validation failed response
+ */
+export function createCSRFFailureResponse(error: string = "Invalid CSRF token"): Response {
+  const headers = new Headers();
+  addSecurityHeaders(headers);
+  
+  return new Response(
+    JSON.stringify({ error }), 
+    { 
+      status: 403, 
       headers: {
         ...Object.fromEntries(headers.entries()),
         'Content-Type': 'application/json'

@@ -28,10 +28,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const categoryService = createCategoryService(sbServerClient.client);
   const equipmentCategories = await categoryService.getEquipmentCategories();
 
+  // Generate CSRF token for form submission
+  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, user.id);
+
   return data(
     {
       user,
       equipmentCategories,
+      csrfToken,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
@@ -43,7 +49,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { rateLimit, RATE_LIMITS, createRateLimitResponse } = await import("~/lib/security.server");
+  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
   
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
@@ -56,6 +62,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Validate CSRF token
+  const csrfValidation = await validateCSRF(request, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -247,7 +259,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
-  const { user, equipmentCategories, env } = loaderData;
+  const { user, equipmentCategories, csrfToken, env } = loaderData;
 
   return (
     <PageSection background="white" padding="medium">
@@ -263,7 +275,7 @@ export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
         </div>
 
         <Suspense fallback={<LoadingState message="Loading submission form..." />}>
-          <EquipmentSubmissionForm categories={equipmentCategories} env={env} />
+          <EquipmentSubmissionForm categories={equipmentCategories} csrfToken={csrfToken} env={env} />
         </Suspense>
       </div>
     </PageSection>

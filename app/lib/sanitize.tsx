@@ -1,4 +1,3 @@
-import DOMPurify from "isomorphic-dompurify";
 import { memo } from "react";
 
 /**
@@ -6,39 +5,21 @@ import { memo } from "react";
  */
 export const sanitizationProfiles = {
   // For review text - allows basic formatting
-  review: {
-    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'strong', 'em', 'u', 'ul', 'ol', 'li'],
-    ALLOWED_ATTR: [],
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
-  },
+  review: ['p', 'br', 'b', 'i', 'strong', 'em', 'u'],
   
   // For rejection reasons and admin feedback - more restrictive
-  admin: {
-    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'strong', 'em'],
-    ALLOWED_ATTR: [],
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'img', 'a'],
-    FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
-  },
+  admin: ['p', 'br', 'b', 'i', 'strong', 'em'],
   
   // For player descriptions and equipment specs - minimal formatting
-  description: {
-    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'strong', 'em'],
-    ALLOWED_ATTR: [],
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'img'],
-    FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
-  },
+  description: ['p', 'br', 'b', 'i', 'strong', 'em'],
   
   // For plain text - strips all HTML
-  plain: {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-    KEEP_CONTENT: true,
-  }
+  plain: []
 } as const;
 
 /**
- * Sanitize HTML content based on profile
+ * Lightweight HTML sanitizer for edge environments
+ * Removes dangerous elements and attributes while preserving safe formatting
  */
 export function sanitizeHtml(
   content: string, 
@@ -49,11 +30,54 @@ export function sanitizeHtml(
   }
 
   try {
-    return DOMPurify.sanitize(content, sanitizationProfiles[profile]);
+    // Strip all HTML for plain profile
+    if (profile === 'plain') {
+      return content.replace(/<[^>]*>/g, '').trim();
+    }
+
+    const allowedTags = sanitizationProfiles[profile];
+    
+    // Remove script, style, and other dangerous tags completely
+    let sanitized = content
+      .replace(/<script[^>]*>.*?<\/script>/gis, '')
+      .replace(/<style[^>]*>.*?<\/style>/gis, '')
+      .replace(/<iframe[^>]*>.*?<\/iframe>/gis, '')
+      .replace(/<object[^>]*>.*?<\/object>/gis, '')
+      .replace(/<embed[^>]*>.*?<\/embed>/gis, '')
+      .replace(/<form[^>]*>.*?<\/form>/gis, '')
+      .replace(/<input[^>]*>/gi, '')
+      .replace(/<textarea[^>]*>.*?<\/textarea>/gis, '')
+      .replace(/<select[^>]*>.*?<\/select>/gis, '');
+
+    // Remove all event handlers and javascript: links
+    sanitized = sanitized
+      .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/\s*javascript\s*:/gi, '')
+      .replace(/\s*data\s*:/gi, '')
+      .replace(/\s*vbscript\s*:/gi, '');
+
+    // If no tags are allowed, strip all HTML
+    if (allowedTags.length === 0) {
+      return sanitized.replace(/<[^>]*>/g, '').trim();
+    }
+
+    // Remove any tags not in the allowed list
+    const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
+    sanitized = sanitized.replace(tagRegex, (match, tagName) => {
+      const lowerTagName = tagName.toLowerCase();
+      if (allowedTags.includes(lowerTagName as any)) {
+        // Keep only the tag name, strip all attributes for security
+        const isClosing = match.startsWith('</');
+        return isClosing ? `</${lowerTagName}>` : `<${lowerTagName}>`;
+      }
+      return ''; // Remove disallowed tags
+    });
+
+    return sanitized.trim();
   } catch (error) {
     console.error('Error sanitizing HTML:', error);
     // Fallback to plain text if sanitization fails
-    return DOMPurify.sanitize(content, sanitizationProfiles.plain);
+    return content.replace(/<[^>]*>/g, '').trim();
   }
 }
 

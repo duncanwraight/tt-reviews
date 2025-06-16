@@ -28,11 +28,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const playingStyles = await categoryService.getPlayingStyles();
   const countries = await categoryService.getCountries();
 
+  // Generate CSRF token for form submission
+  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, userResponse.data.user.id);
+
   return data(
     {
       user: userResponse.data.user,
       playingStyles,
       countries,
+      csrfToken,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
@@ -45,7 +51,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { rateLimit, RATE_LIMITS, createRateLimitResponse } = await import("~/lib/security.server");
+  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
   
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
@@ -58,6 +64,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (userResponse.error || !userResponse.data.user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Validate CSRF token
+  const csrfValidation = await validateCSRF(request, userResponse.data.user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -249,7 +261,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
-  const { user, env, playingStyles, countries } = loaderData;
+  const { user, env, playingStyles, countries, csrfToken } = loaderData;
 
   return (
     <PageSection background="white" padding="medium">
@@ -265,7 +277,7 @@ export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
         </div>
 
         <Suspense fallback={<LoadingState message="Loading submission form..." />}>
-          <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} />
+          <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} csrfToken={csrfToken} />
         </Suspense>
       </div>
     </PageSection>

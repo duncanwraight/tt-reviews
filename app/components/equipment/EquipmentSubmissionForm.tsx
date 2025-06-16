@@ -2,18 +2,20 @@ import { Form, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
+import { CSRFToken } from "~/components/ui/CSRFToken";
 import type { CategoryOption } from "~/lib/categories.server";
 import { createBrowserClient } from "@supabase/ssr";
 
 interface EquipmentSubmissionFormProps {
   categories: CategoryOption[];
+  csrfToken: string;
   env: {
     SUPABASE_URL: string;
     SUPABASE_ANON_KEY: string;
   };
 }
 
-export function EquipmentSubmissionForm({ categories, env }: EquipmentSubmissionFormProps) {
+export function EquipmentSubmissionForm({ categories, csrfToken, env }: EquipmentSubmissionFormProps) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [subcategories, setSubcategories] = useState<CategoryOption[]>([]);
@@ -77,6 +79,8 @@ export function EquipmentSubmissionForm({ categories, env }: EquipmentSubmission
               </h2>
 
               <Form method="post" encType="multipart/form-data" className="space-y-6">
+                <CSRFToken token={csrfToken} />
+                
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Equipment Name */}
             <div className="md:col-span-2">

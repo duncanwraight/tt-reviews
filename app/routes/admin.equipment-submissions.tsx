@@ -63,20 +63,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   if (error) {
     console.error("Equipment submissions error:", error);
-    return data({ submissions: [], user }, { headers: sbServerClient.headers });
+    return data({ submissions: [], user, csrfToken: "" }, { headers: sbServerClient.headers });
   }
 
-  return data({ submissions: submissions || [], user }, { headers: sbServerClient.headers });
+  // Generate CSRF token for admin actions
+  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, user.id);
+
+  return data({ submissions: submissions || [], user, csrfToken }, { headers: sbServerClient.headers });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   try {
+    // Import security functions inside server-only action
+    const { validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+    
     const sbServerClient = getServerClient(request, context);
     const user = await getUserWithRole(sbServerClient, context);
 
     // Check admin access
     if (!user || user.role !== "admin") {
       throw redirect("/", { headers: sbServerClient.headers });
+    }
+
+    // Validate CSRF token for admin actions
+    const csrfValidation = await validateCSRF(request, user.id);
+    if (!csrfValidation.valid) {
+      return createCSRFFailureResponse(csrfValidation.error);
     }
 
     const formData = await request.formData();
@@ -165,7 +179,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function AdminEquipmentSubmissions({
   loaderData,
 }: Route.ComponentProps) {
-  const { submissions, user } = loaderData;
+  const { submissions, user, csrfToken } = loaderData;
   const [rejectionModal, setRejectionModal] = useState<{
     isOpen: boolean;
     submissionId: string;
@@ -344,6 +358,7 @@ export default function AdminEquipmentSubmissions({
           <div className="mt-3 flex items-center space-x-3">
             {canApprove(submission) && (
               <Form method="post" className="inline">
+                <input type="hidden" name="_csrf" value={csrfToken} />
                 <input
                   type="hidden"
                   name="submissionId"
@@ -490,6 +505,7 @@ export default function AdminEquipmentSubmissions({
         submissionId={rejectionModal.submissionId}
         submissionType="equipment"
         submissionName={rejectionModal.submissionName}
+        csrfToken={csrfToken}
       />
     </div>
   );

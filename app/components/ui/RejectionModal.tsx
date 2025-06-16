@@ -8,6 +8,7 @@ interface RejectionModalProps {
   submissionId: string;
   submissionType: "equipment" | "player" | "player_edit";
   submissionName: string;
+  csrfToken: string;
 }
 
 const REJECTION_CATEGORIES: Array<{ value: RejectionCategory; label: string }> = [
@@ -26,6 +27,7 @@ export function RejectionModal({
   submissionId,
   submissionType,
   submissionName,
+  csrfToken,
 }: RejectionModalProps) {
   const [category, setCategory] = useState<RejectionCategory>("other");
   const [reason, setReason] = useState("");
@@ -64,6 +66,7 @@ export function RejectionModal({
           </p>
 
           <Form method="post" className="space-y-4">
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="submissionId" value={submissionId} />
             <input type="hidden" name="action" value="rejected" />
             

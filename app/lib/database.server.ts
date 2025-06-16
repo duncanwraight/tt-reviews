@@ -257,71 +257,71 @@ export class DatabaseService {
   async getEquipmentCategories(): Promise<
     { category: string; count: number }[]
   > {
-    // Use database aggregation instead of fetching all records
-    const { data, error } = await this.supabase
+    // Try database aggregation function first, but fallback silently if not available
+    const { data: rpcData, error: rpcError } = await this.supabase
       .rpc('get_equipment_category_counts');
 
-    if (error) {
-      console.error("Error fetching equipment category counts:", error);
-      
-      // Fallback to the old method if RPC function doesn't exist
-      const fallbackData = await this.supabase
-        .from("equipment")
-        .select("category");
-      
-      if (fallbackData.error || !fallbackData.data) {
-        return [];
-      }
-
-      const categoryCount: Record<string, number> = {};
-      fallbackData.data.forEach((item: any) => {
-        categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
-      });
-
-      return Object.entries(categoryCount).map(([category, count]) => ({
-        category,
-        count,
-      }));
+    // If RPC function exists and works, use it
+    if (!rpcError && rpcData) {
+      return rpcData || [];
     }
 
-    return data || [];
+    // Silently fallback to manual aggregation (don't log error for missing function)
+    const { data: fallbackData, error: fallbackError } = await this.supabase
+      .from("equipment")
+      .select("category");
+    
+    if (fallbackError || !fallbackData) {
+      console.error("Error fetching equipment categories:", fallbackError);
+      return [];
+    }
+
+    const categoryCount: Record<string, number> = {};
+    fallbackData.forEach((item: any) => {
+      categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
+    });
+
+    return Object.entries(categoryCount).map(([category, count]) => ({
+      category,
+      count,
+    }));
   }
 
   async getEquipmentSubcategories(category: string): Promise<
     { subcategory: string; count: number }[]
   > {
-    // Use database aggregation instead of fetching all records
-    const { data, error } = await this.supabase
+    // Try database aggregation function first, but fallback silently if not available
+    const { data: rpcData, error: rpcError } = await this.supabase
       .rpc('get_equipment_subcategory_counts', { category_filter: category });
 
-    if (error) {
-      console.error("Error fetching equipment subcategory counts:", error);
-      
-      // Fallback to the old method if RPC function doesn't exist
-      const fallbackData = await this.supabase
-        .from("equipment")
-        .select("subcategory")
-        .eq("category", category)
-        .not("subcategory", "is", null);
-      
-      if (fallbackData.error || !fallbackData.data) {
-        return [];
-      }
-
-      const subcategoryCount: Record<string, number> = {};
-      fallbackData.data.forEach((item: any) => {
-        if (item.subcategory) {
-          subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
-        }
-      });
-
-      return Object.entries(subcategoryCount).map(([subcategory, count]) => ({
-        subcategory,
-        count,
-      }));
+    // If RPC function exists and works, use it
+    if (!rpcError && rpcData) {
+      return rpcData || [];
     }
 
-    return data || [];
+    // Silently fallback to manual aggregation (don't log error for missing function)
+    const { data: fallbackData, error: fallbackError } = await this.supabase
+      .from("equipment")
+      .select("subcategory")
+      .eq("category", category)
+      .not("subcategory", "is", null);
+    
+    if (fallbackError || !fallbackData) {
+      console.error("Error fetching equipment subcategories:", fallbackError);
+      return [];
+    }
+
+    const subcategoryCount: Record<string, number> = {};
+    fallbackData.forEach((item: any) => {
+      if (item.subcategory) {
+        subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
+      }
+    });
+
+    return Object.entries(subcategoryCount).map(([subcategory, count]) => ({
+      subcategory,
+      count,
+    }));
   }
 
   // Player methods

@@ -70,19 +70,33 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   if (error) {
     console.error("Error fetching player edits:", error);
-    return data({ playerEdits: [], user }, { headers: sbServerClient.headers });
+    return data({ playerEdits: [], user, csrfToken: "" }, { headers: sbServerClient.headers });
   }
 
-  return data({ playerEdits: playerEdits || [], user }, { headers: sbServerClient.headers });
+  // Generate CSRF token for admin actions
+  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, user.id);
+
+  return data({ playerEdits: playerEdits || [], user, csrfToken }, { headers: sbServerClient.headers });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+  // Import security functions inside server-only action
+  const { validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+  
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
   // Check admin access
   if (!user || user.role !== "admin") {
     throw redirect("/", { headers: sbServerClient.headers });
+  }
+
+  // Validate CSRF token for admin actions
+  const csrfValidation = await validateCSRF(request, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -136,7 +150,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
-  const { playerEdits, user } = loaderData;
+  const { playerEdits, user, csrfToken } = loaderData;
   const [rejectionModal, setRejectionModal] = useState<{
     isOpen: boolean;
     submissionId: string;
@@ -314,6 +328,7 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
           <div className="mt-3 flex items-center space-x-3">
             {canApprove(edit) && (
               <Form method="post" className="inline">
+                <input type="hidden" name="_csrf" value={csrfToken} />
                 <input
                   type="hidden"
                   name="editId"
@@ -467,6 +482,7 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
         submissionId={rejectionModal.submissionId}
         submissionType="player_edit"
         submissionName={rejectionModal.submissionName}
+        csrfToken={csrfToken}
       />
     </div>
   );

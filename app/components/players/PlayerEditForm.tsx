@@ -1,5 +1,6 @@
 import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
+import { CSRFToken } from "~/components/ui/CSRFToken";
 import type { Player } from "~/lib/database.server";
 import type { CategoryOption } from "~/lib/categories.server";
 
@@ -17,10 +18,11 @@ interface PlayerEditFormProps {
   userId: string;
   playingStyles: CategoryOption[];
   countries: CategoryOption[];
+  csrfToken: string;
 }
 
 
-export function PlayerEditForm({ player, env, userId, playingStyles, countries }: PlayerEditFormProps) {
+export function PlayerEditForm({ player, env, userId, playingStyles, countries, csrfToken }: PlayerEditFormProps) {
   const navigate = useNavigate();
 
   return (
@@ -115,6 +117,8 @@ export function PlayerEditForm({ player, env, userId, playingStyles, countries }
         </h2>
 
         <Form method="post" className="space-y-6">
+          <CSRFToken token={csrfToken} />
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Player Name */}
             <div className="md:col-span-2">

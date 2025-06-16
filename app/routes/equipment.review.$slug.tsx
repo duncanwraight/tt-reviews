@@ -5,6 +5,8 @@ import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { sanitizeReviewText } from "~/lib/sanitize";
+import { generateCSRFToken, getSessionId } from "~/lib/csrf.server";
+import { validateCSRF, createCSRFFailureResponse } from "~/lib/security.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -83,6 +85,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // Also get general rating categories (those without parent_id)
   const generalRatingCategories = await categoryService.getReviewRatingCategories();
 
+  // Generate CSRF token for form protection
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, user.id);
+
   return data(
     {
       user,
@@ -90,6 +96,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       playingStyles,
       ratingCategories,
       generalRatingCategories,
+      csrfToken,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
@@ -106,6 +113,13 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Validate CSRF token
+  const csrfValidation = await validateCSRF(request, user.id);
+  if (!csrfValidation.valid) {
+    console.warn(`CSRF validation failed for user ${user.id}:`, csrfValidation.error);
+    throw createCSRFFailureResponse(csrfValidation.error);
   }
 
   const db = new DatabaseService(context);
@@ -214,6 +228,7 @@ export default function EquipmentReview({ loaderData }: Route.ComponentProps) {
     playingStyles,
     ratingCategories,
     generalRatingCategories,
+    csrfToken,
     env,
   } = loaderData;
 
@@ -249,6 +264,7 @@ export default function EquipmentReview({ loaderData }: Route.ComponentProps) {
             playingStyles={playingStyles}
             ratingCategories={ratingCategories}
             generalRatingCategories={generalRatingCategories}
+            csrfToken={csrfToken}
             env={env}
           />
         </div>

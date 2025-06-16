@@ -46,12 +46,18 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const playingStyles = await categoryService.getPlayingStyles();
   const countries = await categoryService.getCountries();
 
+  // Generate CSRF token for form submission
+  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
+  const sessionId = getSessionId(request) || 'anonymous';
+  const csrfToken = generateCSRFToken(sessionId, userResponse.data.user.id);
+
   return data(
     {
       user: userResponse.data.user,
       player,
       playingStyles,
       countries,
+      csrfToken,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
@@ -63,11 +69,26 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context, params }: Route.ActionArgs) {
+  // Import security functions inside server-only action
+  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+  
+  // Apply rate limiting for form submissions
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  if (!rateLimitResult.success) {
+    return createRateLimitResponse(rateLimitResult.resetTime!);
+  }
+
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();
 
   if (userResponse.error || !userResponse.data.user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Validate CSRF token
+  const csrfValidation = await validateCSRF(request, userResponse.data.user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const db = new DatabaseService(context);
@@ -267,7 +288,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 }
 
 export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
-  const { user, player, env, playingStyles, countries } = loaderData;
+  const { user, player, env, playingStyles, countries, csrfToken } = loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -297,6 +318,7 @@ export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
           userId={user.id} 
           playingStyles={playingStyles}
           countries={countries}
+          csrfToken={csrfToken}
         />
       </PageSection>
     </div>

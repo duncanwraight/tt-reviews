@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
+import { CSRFToken } from "~/components/ui/CSRFToken";
 import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
 import type { CategoryOption } from "~/lib/categories.server";
 
@@ -13,10 +14,11 @@ function formatCountryOption(country: CategoryOption): string {
 interface PlayerSubmissionFormProps {
   playingStyles: CategoryOption[];
   countries: CategoryOption[];
+  csrfToken: string;
 }
 
 
-export function PlayerSubmissionForm({ playingStyles, countries }: PlayerSubmissionFormProps): JSX.Element {
+export function PlayerSubmissionForm({ playingStyles, countries, csrfToken }: PlayerSubmissionFormProps): JSX.Element {
   const navigate = useNavigate();
   const [includeEquipment, setIncludeEquipment] = useState(false);
 
@@ -47,6 +49,8 @@ export function PlayerSubmissionForm({ playingStyles, countries }: PlayerSubmiss
               </h2>
 
               <Form method="post" encType="multipart/form-data" className="space-y-8">
+                <CSRFToken token={csrfToken} />
+                
                 {/* Hidden field for equipment toggle */}
                 <input
                   type="hidden"
