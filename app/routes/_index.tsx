@@ -62,7 +62,7 @@ export const loader = withLoaderCorrelation(async ({ request, context, logContex
   const user = await getUserWithRole(sbServerClient, context);
 
   // Enhance log context with user information
-  const enhancedContext = user ? enhanceContextWithUser(logContext, user) : logContext;
+  const enhancedContext = (user && user.id) ? enhanceContextWithUser(logContext, user) : logContext;
 
   const db = new DatabaseService(context, enhancedContext);
 

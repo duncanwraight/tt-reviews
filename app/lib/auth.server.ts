@@ -33,6 +33,12 @@ export async function getUserWithRole(supabaseServerClient: any, context?: AppLo
   const userResponse = await supabaseServerClient.client.auth.getUser();
   let userWithRole = userResponse?.data?.user || null;
 
+  // Ensure user has required properties
+  if (userWithRole && !userWithRole.id) {
+    console.error("User object missing id property:", userWithRole);
+    return null;
+  }
+
   // Add role information if user is logged in
   if (userWithRole) {
     try {
@@ -65,6 +71,11 @@ export async function getUserWithRole(supabaseServerClient: any, context?: AppLo
     } catch (error) {
       // If JWT decode fails, just use user without role
       console.error("Error decoding JWT for role:", error);
+      // Still return the user if it has valid id, just without role
+      if (userWithRole && userWithRole.id) {
+        return { ...userWithRole, role: "user" };
+      }
+      return null;
     }
   }
 
