@@ -79,7 +79,7 @@ class LoggerService {
       context: {
         ...context,
         // Ensure we don't log sensitive information
-        userId: context.userId?.substring(0, 8) + '...' || undefined,
+        userId: context.userId ? context.userId.substring(0, 8) + '...' : undefined,
       },
     };
 
