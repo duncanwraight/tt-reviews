@@ -98,7 +98,7 @@ export function enhanceContextWithUser(
   context: LogContext,
   user: { id: string; email?: string; role?: string } | null
 ): LogContext {
-  if (!user) {
+  if (!user || !user.id) {
     return context;
   }
 
