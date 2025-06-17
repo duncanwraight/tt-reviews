@@ -95,15 +95,22 @@ export const RATE_LIMITS = {
   DISCORD_WEBHOOK: { windowMs: 10 * 1000, maxRequests: 20 }, // 20 requests per 10 seconds
 } as const;
 
-export function addSecurityHeaders(headers: Headers) {
+export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
   // Content Security Policy - Progressive enhancement approach
+  // Default to checking NODE_ENV, but allow override from context
+  const isDevMode = isDevelopment ?? (process.env.NODE_ENV === "development" || process.env.ENVIRONMENT === "development");
+  
+  const connectSrc = isDevMode
+    ? "'self' https://*.supabase.co wss://*.supabase.co http://tt-reviews.local:54321 http://localhost:54321"
+    : "'self' https://*.supabase.co wss://*.supabase.co";
+
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Allow inline scripts for React hydration
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src 'self' fonts.gstatic.com",
     "img-src 'self' data: https: blob:", // Allow external images and data URIs
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co", // Supabase API
+    `connect-src ${connectSrc}`, // Supabase API + local development
     "media-src 'self'",
     "object-src 'none'",
     "frame-src 'none'",
@@ -125,8 +132,7 @@ export function addSecurityHeaders(headers: Headers) {
   );
 
   // HSTS - Only add in production with HTTPS
-  const isProduction = process.env.NODE_ENV === "production";
-  if (isProduction) {
+  if (!isDevMode) {
     headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload"
@@ -134,7 +140,7 @@ export function addSecurityHeaders(headers: Headers) {
   }
 }
 
-export function addApiSecurityHeaders(headers: Headers) {
+export function addApiSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
   // API-specific security headers (less restrictive CSP for JSON responses)
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
@@ -142,8 +148,8 @@ export function addApiSecurityHeaders(headers: Headers) {
   headers.set("X-XSS-Protection", "1; mode=block");
 
   // HSTS - Only add in production with HTTPS
-  const isProduction = process.env.NODE_ENV === "production";
-  if (isProduction) {
+  const isDevMode = isDevelopment ?? (process.env.NODE_ENV === "development" || process.env.ENVIRONMENT === "development");
+  if (!isDevMode) {
     headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload"
@@ -197,14 +203,15 @@ export function createSecureResponse(
   init?: ResponseInit & {
     isApi?: boolean;
     rateLimit?: { resetTime: number; remaining: number };
+    isDevelopment?: boolean;
   }
 ): Response {
   const headers = new Headers(init?.headers);
 
   if (init?.isApi) {
-    addApiSecurityHeaders(headers);
+    addApiSecurityHeaders(headers, init.isDevelopment);
   } else {
-    addSecurityHeaders(headers);
+    addSecurityHeaders(headers, init.isDevelopment);
   }
 
   // Add rate limiting headers if provided
