@@ -753,3 +753,72 @@ INSERT INTO player_footage (player_id, url, title, platform, active) VALUES
 ((SELECT id FROM players WHERE slug = 'tomokazu-harimoto'), 'https://youtube.com/watch?v=example4', 'Tomokazu HARIMOTO Highlights', 'youtube', true),
 ((SELECT id FROM players WHERE slug = 'dimitrij-ovtcharov'), 'https://youtube.com/watch?v=example5', 'Dimitrij OVTCHAROV Forehand Analysis', 'youtube', true);
 
+-- Insert site content (text snippets used across the application)
+INSERT INTO site_content (key, content, description, category) VALUES
+-- Homepage Hero & Main Sections
+('homepage.hero.subtitle', 'Discover the gear that powers professional players', 'Main hero section subtitle on homepage', 'homepage'),
+('homepage.featured_equipment.subtitle', 'Professional-grade equipment trusted by top players', 'Featured Equipment section description', 'homepage'),
+('homepage.popular_players.subtitle', 'Explore setups used by professional players', 'Popular Players section description', 'homepage'),
+('homepage.categories.subtitle', 'Explore different types of table tennis equipment', 'Equipment Categories section description', 'homepage'),
+('homepage.categories.blade.description', 'The foundation of your game. Discover blades for every playing style.', 'Blade category description in homepage categories', 'homepage'),
+('homepage.categories.inverted_rubber.description', 'Most popular rubber type offering great spin and control for all skill levels.', 'Inverted rubber category description', 'homepage'),
+('homepage.categories.long_pips.description', 'Defensive rubber that reverses spin and creates unpredictable effects.', 'Long pips category description', 'homepage'),
+('homepage.categories.short_pips.description', 'Fast attacking rubber with minimal spin for aggressive close-to-table play.', 'Short pips category description', 'homepage'),
+('homepage.categories.anti_spin.description', 'Specialized rubber that neutralizes opponent''s spin for control-based play.', 'Anti-spin category description', 'homepage'),
+
+-- Equipment Pages
+('equipment.page.description', 'Comprehensive reviews of professional table tennis equipment', 'Main description for equipment index page', 'equipment'),
+('equipment.expand_database.title', 'Help Expand Our Equipment Database', 'Title for equipment submission CTA section', 'equipment'),
+('equipment.expand_database.description', 'Create an account or log in to submit new equipment and contribute to our growing community.', 'Description encouraging equipment submissions', 'equipment'),
+('equipment.recent_reviews.subtitle', 'Latest equipment reviews from our community', 'Subtitle for recent reviews section on equipment page', 'equipment'),
+('equipment.submit.description', 'Help expand our equipment database by submitting new table tennis equipment.', 'Description on equipment submission form page', 'equipment'),
+('equipment.submit.upload_help', 'Upload a clear photo of the equipment. This helps with identification and moderation.', 'Help text for image upload in equipment form', 'equipment'),
+('equipment.submit.specifications_placeholder', 'Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)', 'Placeholder text for specifications field', 'equipment'),
+('equipment.submit.loading_message', 'Please wait while we submit your equipment to our database...', 'Loading message during equipment submission', 'equipment'),
+('equipment.submit.success_message', 'Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after equipment submission', 'equipment'),
+
+-- Player Database
+('players.page.description', 'Discover the equipment setups and playing styles of professional table tennis players from around the world. Learn what gear the pros use to dominate at the highest level.', 'Main description for players index page', 'players'),
+('players.expand_database.title', 'Help Expand Our Player Database', 'Title for player submission CTA section', 'players'),
+('players.expand_database.description', 'Create an account or log in to submit a new player and contribute to our growing community.', 'Description encouraging player submissions', 'players'),
+('players.submit.description', 'Help expand our player database by submitting professional table tennis players.', 'Description on player submission form page', 'players'),
+('players.submit.loading_message', 'Please wait while we submit the player to our database...', 'Loading message during player submission', 'players'),
+('players.submit.success_message', 'Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after player submission', 'players'),
+
+-- Search & Discovery
+('search.landing.description', 'Search our comprehensive database of equipment reviews and professional player setups. Find the perfect gear for your playing style.', 'Description on search landing page', 'search'),
+('search.no_results.description', 'We couldn''t find anything matching your search. Try adjusting your search terms or browse our categories below.', 'Description shown when no search results found', 'search'),
+('search.popular_searches.label', 'Popular searches:', 'Label for popular searches section', 'search'),
+
+-- Authentication & Onboarding
+('login.welcome_subtitle', 'Sign in to your account or create a new one', 'Subtitle on login page welcome section', 'auth'),
+('login.explore_prompt', 'New to table tennis equipment reviews?', 'Text prompting new users to explore on login page', 'auth'),
+('login.explore_description', 'Explore our reviews and discover the gear used by professional players.', 'Description encouraging exploration for new users', 'auth'),
+
+-- Form Help Text & Guidance
+('forms.subcategory_help', 'Select subcategory (optional)', 'Help text for subcategory selection in forms', 'forms'),
+('forms.equipment_specifications_help', 'Include any technical specifications, ratings, or notable features of this equipment.', 'Help text for equipment specifications field', 'forms'),
+('forms.player_biography_help', 'Include career highlights, playing achievements, and notable information about this player.', 'Help text for player biography field', 'forms'),
+('forms.image_upload_general_help', 'Upload a clear, high-quality image. This helps with identification and approval.', 'General help text for image uploads', 'forms'),
+
+-- Footer
+('footer.tagline', 'Your trusted source for table tennis equipment reviews and player information', 'Main tagline in footer', 'footer'),
+
+-- Equipment Review System
+('equipment.reviews.empty_state', 'No reviews yet for this equipment. Be the first to share your experience!', 'Message shown when equipment has no reviews', 'equipment'),
+('equipment.reviews.section_subtitle', 'Read what players think about this equipment', 'Subtitle for reviews section on equipment detail pages', 'equipment'),
+('equipment.write_review.description', 'Share your experience with this equipment to help other players make informed decisions.', 'Description encouraging users to write reviews', 'equipment'),
+
+-- Profile & User Content
+('profile.page_description', 'Manage your account and review your contribution history', 'Description for user profile page', 'profile'),
+('profile.submissions.empty_state', 'You haven''t submitted any equipment or players yet. Start contributing to help grow our database!', 'Message when user has no submissions', 'profile'),
+('profile.reviews.empty_state', 'You haven''t written any reviews yet. Share your equipment experiences to help other players!', 'Message when user has no reviews', 'profile'),
+
+-- Comparison System
+('equipment.comparison.description', 'Compare equipment side-by-side to find the perfect gear for your playing style and preferences.', 'Description for equipment comparison feature', 'equipment'),
+('equipment.comparison.empty_state', 'Add equipment to compare their specifications, reviews, and ratings side-by-side.', 'Message when comparison is empty', 'equipment'),
+
+-- Category Landing Pages
+('categories.blade.landing_description', 'Discover professional table tennis blades used by top players. Find the perfect blade for your playing style and skill level.', 'Description for blade category landing pages', 'categories'),
+('categories.rubber.landing_description', 'Explore table tennis rubbers trusted by professionals. Compare different rubber types to enhance your game.', 'Description for rubber category landing pages', 'categories');
+

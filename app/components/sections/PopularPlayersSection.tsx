@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { PlayerCard } from "../ui/PlayerCard";
+import { useContent } from "~/hooks/useContent";
 
 interface PlayerDisplay {
   id: string;
@@ -15,6 +16,8 @@ interface PopularPlayersSectionProps {
 }
 
 export function PopularPlayersSection({ players }: PopularPlayersSectionProps) {
+  const { content } = useContent();
+
   return (
     <section className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,7 +26,7 @@ export function PopularPlayersSection({ players }: PopularPlayersSectionProps) {
             Popular Players
           </h2>
           <p className="text-lg text-gray-600">
-            Explore setups used by professional players
+            {content("homepage.popular_players.subtitle")}
           </p>
         </div>
 

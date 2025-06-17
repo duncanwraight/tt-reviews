@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { AppLoadContext } from "react-router";
 import { Logger, type LogContext } from "~/lib/logger.server";
 import { withDatabaseCorrelation } from "~/lib/middleware/correlation.server";
+import { ContentService } from "~/lib/content.server";
 
 // Re-export shared types
 export type { Player, Equipment, PlayerEquipmentSetup } from "./types";
@@ -133,10 +134,12 @@ export function createSupabaseAdminClient(
 export class DatabaseService {
   private supabase: SupabaseClient;
   private context?: LogContext;
+  public content: ContentService;
 
   constructor(context: AppLoadContext, logContext?: LogContext) {
     this.supabase = createSupabaseClient(context);
     this.context = logContext;
+    this.content = new ContentService(this.supabase);
   }
 
   /**

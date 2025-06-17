@@ -10,12 +10,23 @@ import {
 import type { Route } from "./+types/root";
 import { data } from "react-router";
 import "./app.css";
+import { DatabaseService } from "./lib/database.server";
+import { withDatabaseCorrelation } from "./lib/middleware/correlation.server";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const env = context.cloudflare.env as Record<string, string>;
   const siteUrl = env.SITE_URL || "https://tabletennis.reviews";
 
-  return data({ siteUrl });
+  // Load site content for global access
+  const siteContent = await withDatabaseCorrelation(
+    "root_loader",
+    async logContext => {
+      const db = new DatabaseService(context, logContext);
+      return await db.content.getAllContent();
+    }
+  ).catch(() => ({})); // Fallback to empty object if content loading fails
+
+  return data({ siteUrl, siteContent });
 }
 
 export const links: Route.LinksFunction = () => [

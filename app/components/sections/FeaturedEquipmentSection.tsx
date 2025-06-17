@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { EquipmentCard } from "../ui/EquipmentCard";
+import { useContent } from "~/hooks/useContent";
 
 interface EquipmentDisplay {
   id: string;
@@ -18,6 +19,8 @@ interface FeaturedEquipmentSectionProps {
 export function FeaturedEquipmentSection({
   equipment,
 }: FeaturedEquipmentSectionProps) {
+  const { content } = useContent();
+
   return (
     <section className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,7 +29,7 @@ export function FeaturedEquipmentSection({
             Featured Equipment
           </h2>
           <p className="text-lg text-gray-600">
-            Professional-grade equipment trusted by top players
+            {content("homepage.featured_equipment.subtitle")}
           </p>
         </div>
 
