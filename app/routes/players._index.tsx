@@ -9,6 +9,7 @@ import { PlayersHeader } from "~/components/players/PlayersHeader";
 import { PlayersGrid } from "~/components/players/PlayersGrid";
 import { PlayersPagination } from "~/components/players/PlayersPagination";
 import { createCategoryService } from "~/lib/categories.server";
+import { useContent } from "~/hooks/useContent";
 
 export function meta({ data }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
@@ -141,6 +142,8 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
   const { players, user, countries, playingStyles, pagination, filters } =
     loaderData;
 
+  const { content } = useContent();
+
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
@@ -156,11 +159,10 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold mb-2">
-                  Help Expand Our Player Database
+                  {content("players.expand_database.title", "Help Expand Our Player Database")}
                 </h3>
                 <p className="text-purple-100">
-                  Create an account or log in to submit a new player and
-                  contribute to our growing community.
+                  {content("players.expand_database.description", "Create an account or log in to submit a new player and contribute to our growing community.")}
                 </p>
               </div>
               <a

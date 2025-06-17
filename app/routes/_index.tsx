@@ -75,9 +75,10 @@ export const loader = withLoaderCorrelation(
 
     const db = new DatabaseService(context, enhancedContext);
 
-    const [equipmentWithStats, allPlayers] = await Promise.all([
+    const [equipmentWithStats, allPlayers, siteContent] = await Promise.all([
       db.getPopularEquipment(6),
       db.getPlayersWithoutFilters(),
+      db.content.getAllContent(),
     ]);
 
     const featuredEquipment: EquipmentDisplay[] = equipmentWithStats.map(
@@ -117,6 +118,7 @@ export const loader = withLoaderCorrelation(
         user,
         featuredEquipment,
         popularPlayers,
+        siteContent,
       },
       { headers: sbServerClient.headers }
     );
@@ -124,7 +126,7 @@ export const loader = withLoaderCorrelation(
 );
 
 export default function Index({ loaderData }: Route.ComponentProps) {
-  const { user, featuredEquipment, popularPlayers } = loaderData;
+  const { user, featuredEquipment, popularPlayers, siteContent } = loaderData;
 
   return (
     <div className="min-h-screen bg-gray-50">

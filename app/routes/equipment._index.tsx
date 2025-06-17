@@ -4,6 +4,7 @@ import { DatabaseService } from "~/lib/database.server";
 import { schemaService } from "~/lib/schema.server";
 import { data } from "react-router";
 import { Link } from "react-router";
+import { useContent } from "~/hooks/useContent";
 
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { ComparisonCard } from "~/components/equipment/ComparisonCard";
@@ -150,6 +151,8 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
     currentOrder,
   } = loaderData;
 
+  const { content } = useContent();
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case "blade":
@@ -237,11 +240,10 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold mb-2">
-                  Help Expand Our Equipment Database
+                  {content("equipment.expand_database.title", "Help Expand Our Equipment Database")}
                 </h3>
                 <p className="text-purple-100">
-                  Create an account or log in to submit new equipment and
-                  contribute to our growing community.
+                  {content("equipment.expand_database.description", "Create an account or log in to submit new equipment and contribute to our growing community.")}
                 </p>
               </div>
               <a
@@ -272,7 +274,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                   ? `Discover the best ${getCategoryName(
                       currentCategory
                     ).toLowerCase()} for your playing style`
-                  : "Comprehensive reviews of professional table tennis equipment"}
+                  : content("equipment.page.description", "Comprehensive reviews of professional table tennis equipment")}
             </p>
             {equipment.length > 0 && (
               <p className="text-sm text-gray-500 mt-2">

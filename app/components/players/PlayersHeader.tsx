@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useContent } from "~/hooks/useContent";
 import { PlayersGrid } from "./PlayersGrid";
 import { PlayersPagination } from "./PlayersPagination";
 import { CountrySearch } from "./CountrySearch";
@@ -62,6 +63,7 @@ export function PlayersHeader({
   pagination,
   players,
 }: PlayersHeaderProps) {
+  const { content } = useContent();
   const buildFilterUrl = (newFilters: Partial<typeof filters>) => {
     const params = new URLSearchParams();
 
@@ -91,9 +93,7 @@ export function PlayersHeader({
             Professional Players
           </h1>
           <p className="text-lg text-gray-600 max-w-3xl">
-            Discover the equipment setups and playing styles of professional
-            table tennis players from around the world. Learn what gear the pros
-            use to dominate at the highest level.
+            {content("players.page.description", "Discover the equipment setups and playing styles of professional table tennis players from around the world. Learn what gear the pros use to dominate at the highest level.")}
           </p>
           {totalPlayers > 0 && (
             <p className="text-sm text-gray-500 mt-2">
