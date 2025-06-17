@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getLogger } from "./logger.server";
+import { Logger } from "./logger.server";
 
 export interface SiteContent {
   id: string;
@@ -26,7 +26,7 @@ export interface UpdateSiteContentData {
 
 export class ContentService {
   private supabase: SupabaseClient;
-  private logger = getLogger();
+  private logger = Logger;
   private contentCache: Map<string, string> = new Map();
   private cacheExpiry: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
