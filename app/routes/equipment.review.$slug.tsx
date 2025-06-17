@@ -109,10 +109,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       generalRatingCategories,
       csrfToken,
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
-          .SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
-          .SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env).SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -166,7 +164,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const env = context.cloudflare.env as Record<string, string>;
+  const env = context.cloudflare.env as Cloudflare.Env;
 
   // Extract form data
   const overallRating = parseInt(formData.get("overall_rating") as string);

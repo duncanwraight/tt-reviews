@@ -4,7 +4,7 @@ import { DiscordService } from "~/lib/discord.server";
 export async function loader({ context }: Route.LoaderArgs) {
   // Only allow this in development
   const env = context.cloudflare.env as Cloudflare.Env;
-  if (env.NODE_ENV === "production") {
+  if (env.ENVIRONMENT === "production") {
     return Response.json(
       { error: "Not available in production" },
       { status: 404 }
@@ -23,7 +23,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   // Only allow this in development
   const env = context.cloudflare.env as Cloudflare.Env;
-  if (env.NODE_ENV === "production") {
+  if (env.ENVIRONMENT === "production") {
     return Response.json(
       { error: "Not available in production" },
       { status: 404 }

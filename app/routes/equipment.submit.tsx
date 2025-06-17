@@ -40,10 +40,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipmentCategories,
       csrfToken,
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
-          .SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
-          .SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env).SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }

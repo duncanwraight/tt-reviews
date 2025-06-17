@@ -5,7 +5,7 @@
  * to the logging service for better debugging and monitoring.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { isRouteErrorResponse } from "react-router";
 
 interface ErrorBoundaryState {
@@ -102,7 +102,7 @@ export class EnhancedErrorBoundary extends Component<
       error: {
         name: error.name,
         message: error.message,
-        stack: error.stack,
+        stack: error.stack || undefined,
         componentStack: errorInfo.componentStack,
       },
       metadata: {
@@ -147,7 +147,7 @@ export class EnhancedErrorBoundary extends Component<
         error: {
           name: error.name,
           message: error.message,
-          stack: error.stack,
+          stack: error.stack || undefined,
         },
         errorInfo: {
           componentStack: errorInfo.componentStack,

@@ -191,12 +191,12 @@ export default function EquipmentComparison({
   } = loaderData;
 
   const breadcrumbs = [
-    { name: "Equipment", href: "/equipment" },
+    { label: "Equipment", href: "/equipment" },
     {
-      name: equipment1.category,
+      label: equipment1.category,
       href: `/equipment?category=${equipment1.category}`,
     },
-    { name: `${equipment1.name} vs ${equipment2.name}`, href: "" },
+    { label: `${equipment1.name} vs ${equipment2.name}`, href: "" },
   ];
 
   return (

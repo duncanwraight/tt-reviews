@@ -23,7 +23,7 @@ export function useAsyncOperation(options: AsyncOperationOptions = {}) {
     successMessage: null,
   });
 
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const reset = useCallback(() => {
     setState({
