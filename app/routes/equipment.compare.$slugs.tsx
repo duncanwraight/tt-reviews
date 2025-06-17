@@ -82,14 +82,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   });
 
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { name: "Equipment", url: "/equipment" },
+    { label: "Equipment", href: "/equipment" },
     {
-      name: `${equipment1.category}`,
-      url: `/equipment?category=${equipment1.category}`,
+      label: `${equipment1.category}`,
+      href: `/equipment?category=${equipment1.category}`,
     },
     {
-      name: `${equipment1.name} vs ${equipment2.name}`,
-      url: `/equipment/compare/${slugsParam}`,
+      label: `${equipment1.name} vs ${equipment2.name}`,
+      href: `/equipment/compare/${slugsParam}`,
     },
   ]);
 
