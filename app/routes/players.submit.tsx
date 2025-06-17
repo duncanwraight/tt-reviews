@@ -2,6 +2,7 @@ import type { Route } from "./+types/players.submit";
 import { getServerClient } from "~/lib/supabase.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { createCategoryService } from "~/lib/categories.server";
+import { DiscordService } from "~/lib/discord.server";
 import { redirect, data } from "react-router";
 
 import { lazy, Suspense } from "react";
@@ -52,6 +53,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
   const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+  
+  // Get request correlation ID for logging
+  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
   
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
@@ -185,73 +189,18 @@ export async function action({ request, context }: Route.ActionArgs) {
     const notificationData = {
       id: playerSubmission.id,
       name: playerSubmission.name,
+      highest_rating: playerSubmission.highest_rating,
+      playing_style: playerSubmission.playing_style,
+      represents: playerSubmission.represents,
+      active_years: playerSubmission.active_years,
       submitter_email: userResponse.data.user.email || "Anonymous",
     };
 
-    // Get environment variables
-    const env = context.cloudflare.env as Cloudflare.Env;
-    
-    // Use direct Discord webhook (avoiding worker-to-worker call)
-    if (env.DISCORD_WEBHOOK_URL) {
-      const embed = {
-        title: "👤 Player Submission",
-        description: "A new player submission has been received and needs moderation.",
-        color: 0x2ecc71, // Green color to distinguish from equipment
-        fields: [
-          {
-            name: "Player Name",
-            value: notificationData.name || "Unknown Player",
-            inline: true,
-          },
-          {
-            name: "Submitted by",
-            value: notificationData.submitter_email || "Anonymous",
-            inline: true,
-          },
-        ],
-        timestamp: new Date().toISOString(),
-      };
-
-      const components = [
-        {
-          type: 1, // Action Row
-          components: [
-            {
-              type: 2, // Button
-              style: 3, // Success/Green
-              label: "Approve Player",
-              custom_id: `approve_player_${notificationData.id}`,
-            },
-            {
-              type: 2, // Button
-              style: 4, // Danger/Red
-              label: "Reject Player",
-              custom_id: `reject_player_${notificationData.id}`,
-            },
-          ],
-        },
-      ];
-
-      const payload = {
-        embeds: [embed],
-        components,
-      };
-      
-      const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!directResponse.ok) {
-        const directErrorText = await directResponse.text();
-        console.error("Direct Discord error:", directErrorText);
-      }
-    }
+    const discordService = new DiscordService(context);
+    await discordService.notifyNewPlayerSubmission(notificationData, requestId);
   } catch (error) {
-    console.error("Player submission Discord notification failed:", error);
+    // Discord notification failure should not block the submission
+    // Error logging is handled by the Discord service
   }
 
   return data(

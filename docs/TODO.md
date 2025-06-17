@@ -457,3 +457,81 @@
 - [ ] **Edge Caching**: Configure Cloudflare Cache API for dynamic content
 - [ ] **Browser Caching**: Optimize cache headers for dynamic pages
 - [ ] Agree and implement best possible solution for caching when using Cloudflare Workers
+
+## Recent Fixes & Improvements (2025-01-16)
+
+### Authentication & User Experience ✅
+- [x] **Mobile Navigation**: Added responsive hamburger menu for mobile devices ✅
+  - [x] Collapsible navigation with clean mobile layout
+  - [x] Search functionality included in mobile menu
+  - [x] Consistent styling across homepage and other pages
+- [x] **Login Page Redesign**: Complete visual overhaul to match site design ✅
+  - [x] Modern card-based layout with proper branding
+  - [x] Added "Forgot Password" functionality with email reset
+  - [x] Removed test account references
+  - [x] Updated signup flow messaging for email confirmation
+- [x] **Email Confirmation Flow**: Fixed signup/confirmation user experience ✅
+  - [x] Updated signup success message to mention email confirmation requirement
+  - [x] Removed automatic redirect for signups until email confirmed
+  - [x] Created `/auth/callback` and `/auth/confirm` routes for email confirmations
+  - [x] Added proper success/error handling with branded confirmation pages
+
+### Page Layout & Consistency ✅
+- [x] **Equipment Page Layout**: Fixed layout consistency with Players page ✅
+  - [x] Corrected breadcrumb positioning and alignment
+  - [x] Updated header text alignment (left-aligned vs center-aligned)
+  - [x] Consistent typography hierarchy and spacing
+  - [x] Added item count display matching Players page pattern
+- [x] **Featured Equipment Conditional**: Added logic to hide Featured Equipment section when insufficient content ✅
+  - [x] Only displays when 6+ reviewed equipment items are available
+  - [x] Cleaner homepage layout when database has insufficient content
+
+### Admin Dashboard Fixes ✅
+- [x] **Dashboard Count Display Bug**: Fixed admin dashboard showing incorrect counts ✅
+  - [x] Fixed equipment reviews showing 0 when reviews actually exist
+  - [x] Corrected data fetching logic in `getAdminDashboardCounts()` method
+  - [x] Fixed status breakdown calculations for all submission types
+
+### Modal & UI Consistency ✅
+- [x] **Standardized Modal Durations**: Made all modal auto-close delays consistent at 2 seconds ✅
+  - [x] Updated 6 different components and hooks
+  - [x] More responsive and modern user experience
+  - [x] Consistent timing across login, submissions, and reviews
+
+## Current Issues (Priority: High)
+
+### Discord Integration Issues
+- [ ] **Discord Webhook Notifications Not Working**: Fix broken Discord notifications for new submissions ✅
+  - [ ] Debug webhook delivery failures
+  - [ ] Verify webhook URL configuration
+  - [ ] Test notification payload format
+  - [ ] Check environment variable configuration
+  - [ ] Validate Discord webhook permissions and setup
+
+### Authentication Flow Improvements
+- [ ] **Fix Signup Modal Message**: Update signup success modal to mention email confirmation ✅
+  - [ ] The signup modal still shows generic success message instead of "check your email"
+  - [ ] Ensure modal message matches the updated text from login page
+  - [ ] Verify modal displays: "Please check your email and click the confirmation link before signing in"
+
+- [ ] **Password Reset Landing Pages**: Create branded password reset confirmation pages ✅
+  - [ ] Add `/auth/reset-password` route for password reset confirmation
+  - [ ] Handle password reset tokens and provide user feedback
+  - [ ] Match design patterns from email confirmation pages
+  - [ ] Add proper success/error messaging for password reset flow
+  - [ ] Update Supabase email template redirect URLs for password resets
+
+- [ ] **Enhanced Error Handling for Auth Pages**: Implement proper error handling for auth callbacks ✅
+  - [ ] Add URL hash parameter error detection using `window.location.hash`
+  - [ ] Handle 4xx errors with user-friendly error messages
+  - [ ] Implement error handling in `/auth/callback` and `/auth/confirm` routes
+  - [ ] Add error boundary components for auth-related failures
+  - [ ] Use Supabase suggested pattern:
+    ```javascript
+    const params = new URLSearchParams(window.location.hash.slice())
+    if (params.get('error_code').startsWith('4')) {
+      // show error message if error is a 4xx error
+      window.alert(params.get('error_description'))
+    }
+    ```
+  - [ ] Replace `window.alert` with branded error display components

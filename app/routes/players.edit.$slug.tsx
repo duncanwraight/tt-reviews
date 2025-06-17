@@ -2,6 +2,7 @@ import type { Route } from "./+types/players.edit.$slug";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
+import { DiscordService } from "~/lib/discord.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -71,6 +72,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 export async function action({ request, context, params }: Route.ActionArgs) {
   // Import security functions inside server-only action
   const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+  
+  // Get request correlation ID for logging
+  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
   
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
@@ -174,10 +178,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       );
     }
 
-    // Send Discord notification (non-blocking) - TEMPORARILY DISABLED
+    // Send Discord notification (non-blocking)
     try {
-      // Skip Discord notification for now
-      if (false) {
       const notificationData = {
         id: playerEdit.id,
         player_name: player.name,
@@ -186,89 +188,11 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         submitter_email: userResponse.data.user.email || "Anonymous",
       };
 
-      // Get environment variables
-      const env = context.cloudflare.env as Cloudflare.Env;
-      
-      // Use direct Discord webhook (avoiding worker-to-worker call)
-      if (env.DISCORD_WEBHOOK_URL) {
-        
-        // Create a summary of the changes
-        const changes = [];
-        if (editData.name) changes.push(`Name: ${editData.name}`);
-        if (editData.highest_rating) changes.push(`Rating: ${editData.highest_rating}`);
-        if (editData.active_years) changes.push(`Active: ${editData.active_years}`);
-        if (editData.playing_style) changes.push(`Style: ${editData.playing_style}`);
-        if (editData.birth_country) changes.push(`Birth Country: ${editData.birth_country}`);
-        if (editData.represents) changes.push(`Represents: ${editData.represents}`);
-        if (editData.gender) changes.push(`Gender: ${editData.gender === 'M' ? 'Male' : 'Female'}`);
-
-        const embed = {
-          title: "🏓 Player Edit Submitted",
-          description: "A player information update has been submitted and needs moderation.",
-          color: 0xe67e22, // Orange color to distinguish from reviews
-          fields: [
-            {
-              name: "Player",
-              value: notificationData.player_name || "Unknown Player",
-              inline: true,
-            },
-            {
-              name: "Submitted by",
-              value: notificationData.submitter_email || "Anonymous",
-              inline: true,
-            },
-            {
-              name: "Changes",
-              value: changes.length > 0 ? changes.join("\n") : "No changes specified",
-              inline: false,
-            },
-          ],
-          timestamp: new Date().toISOString(),
-        };
-
-        const components = [
-          {
-            type: 1, // Action Row
-            components: [
-              {
-                type: 2, // Button
-                style: 3, // Success/Green
-                label: "Approve Edit",
-                custom_id: `approve_player_edit_${notificationData.id}`,
-              },
-              {
-                type: 2, // Button
-                style: 4, // Danger/Red
-                label: "Reject Edit",
-                custom_id: `reject_player_edit_${notificationData.id}`,
-              },
-            ],
-          },
-        ];
-
-        const payload = {
-          embeds: [embed],
-          components,
-        };
-        
-        const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!directResponse.ok) {
-          const directErrorText = await directResponse.text();
-          console.error("Direct Discord error:", directErrorText);
-        }
-      }
-      } // End of if (false) block
-      
+      const discordService = new DiscordService(context);
+      await discordService.notifyNewPlayerEdit(notificationData, requestId);
     } catch (error) {
-      console.error("Player edit Discord notification failed:", error);
-      // Don't fail the submission if Discord notification fails
+      // Discord notification failure should not block the submission
+      // Error logging is handled by the Discord service
     }
 
     return data(

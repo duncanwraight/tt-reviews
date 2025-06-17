@@ -3,6 +3,7 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { handleImageUpload } from "~/lib/image-upload.server";
 import { createCategoryService } from "~/lib/categories.server";
+import { DiscordService } from "~/lib/discord.server";
 import { redirect, data } from "react-router";
 
 import { lazy, Suspense } from "react";
@@ -50,6 +51,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
   const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
+  
+  // Get request correlation ID for logging
+  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
   
   // Apply rate limiting for form submissions
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
@@ -167,89 +171,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       submitter_email: user.email,
     };
 
-    // Get environment variables
-    const env = context.cloudflare.env as Cloudflare.Env;
-    
-    // Use direct Discord webhook (avoiding worker-to-worker call)
-    if (env.DISCORD_WEBHOOK_URL) {
-      
-      const embed = {
-        title: "⚙️ Equipment Submission",
-        description: "A new equipment submission has been received and needs moderation.",
-        color: 0x9b59b6, // Purple color
-        fields: [
-          {
-            name: "Equipment Name",
-            value: notificationData.name || "Unknown Equipment",
-            inline: true,
-          },
-          {
-            name: "Manufacturer", 
-            value: notificationData.manufacturer || "Unknown",
-            inline: true,
-          },
-          {
-            name: "Category",
-            value: notificationData.category
-              ? notificationData.category.charAt(0).toUpperCase() + notificationData.category.slice(1)
-              : "Unknown",
-            inline: true,
-          },
-          {
-            name: "Subcategory",
-            value: notificationData.subcategory || "N/A",
-            inline: true,
-          },
-          {
-            name: "Submitted by",
-            value: notificationData.submitter_email || "Anonymous",
-            inline: true,
-          },
-        ],
-        timestamp: new Date().toISOString(),
-      };
-
-      const components = [
-        {
-          type: 1, // Action Row
-          components: [
-            {
-              type: 2, // Button
-              style: 3, // Success/Green
-              label: "Approve Equipment",
-              custom_id: `approve_equipment_${notificationData.id}`,
-            },
-            {
-              type: 2, // Button
-              style: 4, // Danger/Red
-              label: "Reject Equipment", 
-              custom_id: `reject_equipment_${notificationData.id}`,
-            },
-          ],
-        },
-      ];
-
-      const payload = {
-        embeds: [embed],
-        components,
-      };
-      
-      const directResponse = await fetch(env.DISCORD_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!directResponse.ok) {
-        const directErrorText = await directResponse.text();
-        console.error("Direct Discord error:", directErrorText);
-      }
-    }
-    
+    const discordService = new DiscordService(context);
+    await discordService.notifyNewEquipmentSubmission(notificationData, requestId);
   } catch (error) {
-    console.error("Discord notification failed:", error);
+    // Discord notification failure should not block the submission
+    // Error logging is handled by the Discord service
   }
 
   return data(

@@ -10,6 +10,7 @@ import {
 } from "./database.server";
 import { createModerationService, type ModerationService } from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
+import { Logger, createLogContext, type LogContext } from "./logger.server";
 
 interface DiscordUser {
   id: string;
@@ -49,6 +50,7 @@ export class DiscordService {
   private moderationService: ModerationService;
   private env: Cloudflare.Env;
   private context: AppLoadContext;
+  private logger = Logger.child({ service: 'discord' });
 
   constructor(context: AppLoadContext) {
     this.context = context;
@@ -56,6 +58,56 @@ export class DiscordService {
     const supabase = createSupabaseAdminClient(context);
     this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
+  }
+
+  /**
+   * Validate Discord webhook configuration and environment
+   */
+  private validateWebhookConfig(logContext: LogContext): { isValid: boolean; webhookUrl?: string; issues: string[] } {
+    const issues: string[] = [];
+    let webhookUrl: string | undefined;
+
+    // Check if webhook URL is configured
+    if (!this.env.DISCORD_WEBHOOK_URL) {
+      issues.push("DISCORD_WEBHOOK_URL environment variable not set");
+    } else {
+      webhookUrl = this.env.DISCORD_WEBHOOK_URL;
+      
+      // Check for placeholder values
+      if (webhookUrl.includes('your_webhook_url_here') || webhookUrl.includes('placeholder')) {
+        issues.push("DISCORD_WEBHOOK_URL appears to be a placeholder value");
+      }
+      
+      // Validate URL format
+      try {
+        const url = new URL(webhookUrl);
+        if (!url.hostname.includes('discord.com') && !url.hostname.includes('discordapp.com')) {
+          issues.push("DISCORD_WEBHOOK_URL does not appear to be a valid Discord webhook URL");
+        }
+        if (!url.pathname.includes('/webhooks/')) {
+          issues.push("DISCORD_WEBHOOK_URL path does not contain '/webhooks/' segment");
+        }
+      } catch (error) {
+        issues.push(`DISCORD_WEBHOOK_URL is not a valid URL: ${(error as Error).message}`);
+      }
+    }
+
+    // Check for other required environment variables
+    if (!this.env.SITE_URL) {
+      issues.push("SITE_URL environment variable not set (needed for Discord embed links)");
+    }
+
+    const isValid = issues.length === 0;
+    
+    this.logger.debug("Discord webhook configuration validation", logContext, {
+      isValid,
+      hasWebhookUrl: !!webhookUrl,
+      hasSiteUrl: !!this.env.SITE_URL,
+      issues,
+      webhookDomain: webhookUrl ? new URL(webhookUrl).hostname : null
+    });
+
+    return { isValid, webhookUrl, issues };
   }
 
   /**
@@ -876,318 +928,650 @@ export class DiscordService {
   /**
    * Send notification about new review submission
    */
-  async notifyNewReview(reviewData: any): Promise<any> {
-    const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl) {
-      throw new Error("DISCORD_WEBHOOK_URL not configured");
-    }
-
-    const embed = {
-      title: "🆕 New Review Submitted",
-      description: `A new review has been submitted and needs moderation.`,
-      color: 0x3498db,
-      fields: [
-        {
-          name: "Equipment",
-          value: reviewData.equipment_name || "Unknown",
-          inline: true,
-        },
-        {
-          name: "Rating",
-          value: `${reviewData.overall_rating}/10`,
-          inline: true,
-        },
-        {
-          name: "Reviewer",
-          value: reviewData.reviewer_name || "Anonymous",
-          inline: true,
-        },
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const components = [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: "Approve",
-            custom_id: `approve_${reviewData.id}`,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: "Reject",
-            custom_id: `reject_${reviewData.id}`,
-          },
-        ],
-      },
-    ];
-
-    const payload = {
-      embeds: [embed],
-      components,
-    };
-
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  async notifyNewReview(reviewData: any, requestId: string = 'unknown'): Promise<any> {
+    const logContext = createLogContext(requestId, { 
+      operation: 'discord_webhook',
+      submissionType: 'review',
+      submissionId: reviewData.id 
     });
 
-    return { success: response.ok };
+    return this.logger.timeOperation(
+      'discord_webhook_review',
+      async () => {
+        this.logger.info("Attempting to send Discord webhook for review submission", logContext, {
+          reviewId: reviewData.id,
+          equipmentName: reviewData.equipment_name,
+          overallRating: reviewData.overall_rating,
+          reviewerName: reviewData.reviewer_name
+        });
+
+        // Validate configuration
+        const config = this.validateWebhookConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
+          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
+            issues: config.issues,
+            reviewId: reviewData.id
+          });
+          throw error;
+        }
+
+        const embed = {
+          title: "🆕 New Review Submitted",
+          description: `A new review has been submitted and needs moderation.`,
+          color: 0x3498db,
+          fields: [
+            {
+              name: "Equipment",
+              value: reviewData.equipment_name || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Rating",
+              value: `${reviewData.overall_rating}/10`,
+              inline: true,
+            },
+            {
+              name: "Reviewer",
+              value: reviewData.reviewer_name || "Anonymous",
+              inline: true,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Success/Green
+                label: "Approve",
+                custom_id: `approve_${reviewData.id}`,
+              },
+              {
+                type: 2, // Button
+                style: 4, // Danger/Red
+                label: "Reject",
+                custom_id: `reject_${reviewData.id}`,
+              },
+            ],
+          },
+        ];
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+
+        const payloadSize = JSON.stringify(payload).length;
+        this.logger.debug("Prepared Discord webhook payload", logContext, {
+          payloadSize,
+          embedFieldCount: embed.fields.length,
+          componentCount: components[0].components.length,
+          webhookDomain: new URL(config.webhookUrl!).hostname
+        });
+
+        // Send webhook request
+        try {
+          const response = await globalThis.fetch(config.webhookUrl!, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "tt-reviews-bot/1.0"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          if (success) {
+            this.logger.info("Discord webhook sent successfully", logContext, {
+              status: response.status,
+              statusText: response.statusText,
+              reviewId: reviewData.id,
+              payloadSize,
+              responseSize: responseText.length
+            });
+
+            this.logger.metric("discord_webhook_success", 1, logContext, {
+              submissionType: 'review',
+              payloadSize
+            });
+          } else {
+            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+              status: response.status,
+              statusText: response.statusText,
+              responseBody: responseText,
+              reviewId: reviewData.id,
+              payloadSize,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+
+            this.logger.metric("discord_webhook_failure", 1, logContext, {
+              submissionType: 'review',
+              errorStatus: response.status,
+              payloadSize
+            });
+          }
+
+          return { success, status: response.status, response: responseText };
+        } catch (error) {
+          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
+            reviewId: reviewData.id,
+            payloadSize,
+            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          });
+
+          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+            submissionType: 'review',
+            errorType: (error as Error).name
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
   }
 
   /**
    * Send notification about new player edit submission
    */
-  async notifyNewPlayerEdit(editData: any): Promise<any> {
-    const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl) {
-      throw new Error("DISCORD_WEBHOOK_URL not configured");
-    }
-
-    // Create a summary of the changes
-    const changes = [];
-    if (editData.edit_data.name) changes.push(`Name: ${editData.edit_data.name}`);
-    if (editData.edit_data.highest_rating)
-      changes.push(`Rating: ${editData.edit_data.highest_rating}`);
-    if (editData.edit_data.active_years)
-      changes.push(`Active: ${editData.edit_data.active_years}`);
-    if (editData.edit_data.active !== undefined)
-      changes.push(`Status: ${editData.edit_data.active ? "Active" : "Inactive"}`);
-
-    const embed = {
-      title: "🏓 Player Edit Submitted",
-      description: `A player information update has been submitted and needs moderation.`,
-      color: 0xe67e22, // Orange color to distinguish from reviews
-      fields: [
-        {
-          name: "Player",
-          value: editData.player_name || "Unknown Player",
-          inline: true,
-        },
-        {
-          name: "Submitted by",
-          value: editData.submitter_email || "Anonymous",
-          inline: true,
-        },
-        {
-          name: "Changes",
-          value: changes.length > 0 ? changes.join("\n") : "No changes specified",
-          inline: false,
-        },
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const components = [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: "Approve Edit",
-            custom_id: `approve_player_edit_${editData.id}`,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: "Reject Edit",
-            custom_id: `reject_player_edit_${editData.id}`,
-          },
-        ],
-      },
-    ];
-
-    const payload = {
-      embeds: [embed],
-      components,
-    };
-
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  async notifyNewPlayerEdit(editData: any, requestId: string = 'unknown'): Promise<any> {
+    const logContext = createLogContext(requestId, { 
+      operation: 'discord_webhook',
+      submissionType: 'player_edit',
+      submissionId: editData.id 
     });
 
-    return { success: response.ok };
+    return this.logger.timeOperation(
+      'discord_webhook_player_edit',
+      async () => {
+        this.logger.info("Attempting to send Discord webhook for player edit", logContext, {
+          editId: editData.id,
+          playerName: editData.player_name,
+          submitterEmail: editData.submitter_email,
+          changeCount: Object.keys(editData.edit_data || {}).length
+        });
+
+        // Validate configuration
+        const config = this.validateWebhookConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
+          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
+            issues: config.issues,
+            editId: editData.id
+          });
+          throw error;
+        }
+
+        // Create a summary of the changes
+        const changes = [];
+        if (editData.edit_data.name) changes.push(`Name: ${editData.edit_data.name}`);
+        if (editData.edit_data.highest_rating)
+          changes.push(`Rating: ${editData.edit_data.highest_rating}`);
+        if (editData.edit_data.active_years)
+          changes.push(`Active: ${editData.edit_data.active_years}`);
+        if (editData.edit_data.active !== undefined)
+          changes.push(`Status: ${editData.edit_data.active ? "Active" : "Inactive"}`);
+
+        const embed = {
+          title: "🏓 Player Edit Submitted",
+          description: `A player information update has been submitted and needs moderation.`,
+          color: 0xe67e22, // Orange color to distinguish from reviews
+          fields: [
+            {
+              name: "Player",
+              value: editData.player_name || "Unknown Player",
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: editData.submitter_email || "Anonymous",
+              inline: true,
+            },
+            {
+              name: "Changes",
+              value: changes.length > 0 ? changes.join("\n") : "No changes specified",
+              inline: false,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Success/Green
+                label: "Approve Edit",
+                custom_id: `approve_player_edit_${editData.id}`,
+              },
+              {
+                type: 2, // Button
+                style: 4, // Danger/Red
+                label: "Reject Edit",
+                custom_id: `reject_player_edit_${editData.id}`,
+              },
+            ],
+          },
+        ];
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+
+        const payloadSize = JSON.stringify(payload).length;
+        this.logger.debug("Prepared Discord webhook payload", logContext, {
+          payloadSize,
+          embedFieldCount: embed.fields.length,
+          componentCount: components[0].components.length,
+          changesCount: changes.length,
+          webhookDomain: new URL(config.webhookUrl!).hostname
+        });
+
+        // Send webhook request
+        try {
+          const response = await globalThis.fetch(config.webhookUrl!, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "tt-reviews-bot/1.0"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          if (success) {
+            this.logger.info("Discord webhook sent successfully", logContext, {
+              status: response.status,
+              statusText: response.statusText,
+              editId: editData.id,
+              payloadSize,
+              responseSize: responseText.length
+            });
+
+            this.logger.metric("discord_webhook_success", 1, logContext, {
+              submissionType: 'player_edit',
+              payloadSize
+            });
+          } else {
+            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+              status: response.status,
+              statusText: response.statusText,
+              responseBody: responseText,
+              editId: editData.id,
+              payloadSize,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+
+            this.logger.metric("discord_webhook_failure", 1, logContext, {
+              submissionType: 'player_edit',
+              errorStatus: response.status,
+              payloadSize
+            });
+          }
+
+          return { success, status: response.status, response: responseText };
+        } catch (error) {
+          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
+            editId: editData.id,
+            payloadSize,
+            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          });
+
+          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+            submissionType: 'player_edit',
+            errorType: (error as Error).name
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
   }
 
   /**
    * Send notification about new equipment submission
    */
-  async notifyNewEquipmentSubmission(submissionData: any): Promise<any> {
-    const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl) {
-      console.error("DISCORD_WEBHOOK_URL not configured");
-      throw new Error("DISCORD_WEBHOOK_URL not configured");
-    }
-
-    const embed = {
-      title: "⚙️ Equipment Submission",
-      description: `A new equipment submission has been received and needs moderation.`,
-      color: 0x9b59b6, // Purple color to distinguish from reviews and player edits
-      fields: [
-        {
-          name: "Equipment Name",
-          value: submissionData.name || "Unknown Equipment",
-          inline: true,
-        },
-        {
-          name: "Manufacturer",
-          value: submissionData.manufacturer || "Unknown",
-          inline: true,
-        },
-        {
-          name: "Category",
-          value: submissionData.category
-            ? submissionData.category.charAt(0).toUpperCase() +
-              submissionData.category.slice(1)
-            : "Unknown",
-          inline: true,
-        },
-        {
-          name: "Subcategory",
-          value: submissionData.subcategory || "N/A",
-          inline: true,
-        },
-        {
-          name: "Submitted by",
-          value: submissionData.submitter_email || "Anonymous",
-          inline: true,
-        },
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const components = [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: "Approve Equipment",
-            custom_id: `approve_equipment_${submissionData.id}`,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: "Reject Equipment",
-            custom_id: `reject_equipment_${submissionData.id}`,
-          },
-        ],
-      },
-    ];
-
-    const payload = {
-      embeds: [embed],
-      components,
-    };
-
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  async notifyNewEquipmentSubmission(submissionData: any, requestId: string = 'unknown'): Promise<any> {
+    const logContext = createLogContext(requestId, { 
+      operation: 'discord_webhook',
+      submissionType: 'equipment',
+      submissionId: submissionData.id 
     });
 
-    return { success: response.ok };
+    return this.logger.timeOperation(
+      'discord_webhook_equipment_submission',
+      async () => {
+        this.logger.info("Attempting to send Discord webhook for equipment submission", logContext, {
+          submissionId: submissionData.id,
+          equipmentName: submissionData.name,
+          manufacturer: submissionData.manufacturer,
+          submitterEmail: submissionData.submitter_email
+        });
+
+        // Validate configuration
+        const config = this.validateWebhookConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
+          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
+            issues: config.issues,
+            submissionId: submissionData.id
+          });
+          throw error;
+        }
+
+        const embed = {
+          title: "⚙️ Equipment Submission",
+          description: `A new equipment submission has been received and needs moderation.`,
+          color: 0x9b59b6, // Purple color to distinguish from reviews and player edits
+          fields: [
+            {
+              name: "Equipment Name",
+              value: submissionData.name || "Unknown Equipment",
+              inline: true,
+            },
+            {
+              name: "Manufacturer",
+              value: submissionData.manufacturer || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Category",
+              value: submissionData.category
+                ? submissionData.category.charAt(0).toUpperCase() +
+                  submissionData.category.slice(1)
+                : "Unknown",
+              inline: true,
+            },
+            {
+              name: "Subcategory",
+              value: submissionData.subcategory || "N/A",
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: submissionData.submitter_email || "Anonymous",
+              inline: true,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Success/Green
+                label: "Approve Equipment",
+                custom_id: `approve_equipment_${submissionData.id}`,
+              },
+              {
+                type: 2, // Button
+                style: 4, // Danger/Red
+                label: "Reject Equipment",
+                custom_id: `reject_equipment_${submissionData.id}`,
+              },
+            ],
+          },
+        ];
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+
+        const payloadSize = JSON.stringify(payload).length;
+        this.logger.debug("Prepared Discord webhook payload", logContext, {
+          payloadSize,
+          embedFieldCount: embed.fields.length,
+          componentCount: components[0].components.length,
+          webhookDomain: new URL(config.webhookUrl!).hostname
+        });
+
+        // Send webhook request
+        try {
+          const response = await globalThis.fetch(config.webhookUrl!, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "tt-reviews-bot/1.0"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          if (success) {
+            this.logger.info("Discord webhook sent successfully", logContext, {
+              status: response.status,
+              statusText: response.statusText,
+              submissionId: submissionData.id,
+              payloadSize,
+              responseSize: responseText.length
+            });
+
+            this.logger.metric("discord_webhook_success", 1, logContext, {
+              submissionType: 'equipment',
+              payloadSize
+            });
+          } else {
+            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+              status: response.status,
+              statusText: response.statusText,
+              responseBody: responseText,
+              submissionId: submissionData.id,
+              payloadSize,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+
+            this.logger.metric("discord_webhook_failure", 1, logContext, {
+              submissionType: 'equipment',
+              errorStatus: response.status,
+              payloadSize
+            });
+          }
+
+          return { success, status: response.status, response: responseText };
+        } catch (error) {
+          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
+            submissionId: submissionData.id,
+            payloadSize,
+            webhookUrl: config.webhookUrl!.substring(0, 50) + '...' // Log partial URL for debugging
+          });
+
+          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+            submissionType: 'equipment',
+            errorType: (error as Error).name
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
   }
 
   /**
    * Send notification about new player submission
    */
-  async notifyNewPlayerSubmission(submissionData: any): Promise<any> {
-    const webhookUrl = this.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl) {
-      throw new Error("DISCORD_WEBHOOK_URL not configured");
-    }
-
-    const embed = {
-      title: "👤 Player Submission",
-      description: `A new player submission has been received and needs moderation.`,
-      color: 0x2ecc71, // Green color to distinguish from equipment and edits
-      fields: [
-        {
-          name: "Player Name",
-          value: submissionData.name || "Unknown Player",
-          inline: true,
-        },
-        {
-          name: "Highest Rating",
-          value: submissionData.highest_rating || "N/A",
-          inline: true,
-        },
-        {
-          name: "Playing Style",
-          value: submissionData.playing_style
-            ? submissionData.playing_style.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-            : "N/A",
-          inline: true,
-        },
-        {
-          name: "Represents",
-          value: submissionData.represents || "N/A",
-          inline: true,
-        },
-        {
-          name: "Active Years",
-          value: submissionData.active_years || "N/A",
-          inline: true,
-        },
-        {
-          name: "Submitted by",
-          value: submissionData.submitter_email || "Anonymous",
-          inline: true,
-        },
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const components = [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: "Approve Player",
-            custom_id: `approve_player_${submissionData.id}`,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: "Reject Player",
-            custom_id: `reject_player_${submissionData.id}`,
-          },
-        ],
-      },
-    ];
-
-    const payload = {
-      embeds: [embed],
-      components,
-    };
-
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  async notifyNewPlayerSubmission(submissionData: any, requestId: string = 'unknown'): Promise<any> {
+    const logContext = createLogContext(requestId, { 
+      operation: 'discord_webhook',
+      submissionType: 'player',
+      submissionId: submissionData.id 
     });
 
-    return { success: response.ok };
+    return this.logger.timeOperation(
+      'discord_webhook_player_submission',
+      async () => {
+        this.logger.info("Attempting to send Discord webhook for player submission", logContext, {
+          submissionId: submissionData.id,
+          playerName: submissionData.name,
+          playingStyle: submissionData.playing_style,
+          submitterEmail: submissionData.submitter_email
+        });
+
+        // Validate configuration
+        const config = this.validateWebhookConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
+          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
+            issues: config.issues,
+            submissionId: submissionData.id
+          });
+          throw error;
+        }
+
+        const embed = {
+          title: "👤 Player Submission",
+          description: `A new player submission has been received and needs moderation.`,
+          color: 0x2ecc71, // Green color to distinguish from equipment and edits
+          fields: [
+            {
+              name: "Player Name",
+              value: submissionData.name || "Unknown Player",
+              inline: true,
+            },
+            {
+              name: "Highest Rating",
+              value: submissionData.highest_rating || "N/A",
+              inline: true,
+            },
+            {
+              name: "Playing Style",
+              value: submissionData.playing_style
+                ? submissionData.playing_style.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+                : "N/A",
+              inline: true,
+            },
+            {
+              name: "Represents",
+              value: submissionData.represents || "N/A",
+              inline: true,
+            },
+            {
+              name: "Active Years",
+              value: submissionData.active_years || "N/A",
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: submissionData.submitter_email || "Anonymous",
+              inline: true,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Success/Green
+                label: "Approve Player",
+                custom_id: `approve_player_${submissionData.id}`,
+              },
+              {
+                type: 2, // Button
+                style: 4, // Danger/Red
+                label: "Reject Player",
+                custom_id: `reject_player_${submissionData.id}`,
+              },
+            ],
+          },
+        ];
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+
+        const payloadSize = JSON.stringify(payload).length;
+        this.logger.debug("Prepared Discord webhook payload", logContext, {
+          payloadSize,
+          embedFieldCount: embed.fields.length,
+          componentCount: components[0].components.length,
+          webhookDomain: new URL(config.webhookUrl!).hostname
+        });
+
+        // Send webhook request
+        try {
+          const response = await globalThis.fetch(config.webhookUrl!, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "tt-reviews-bot/1.0"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          if (success) {
+            this.logger.info("Discord webhook sent successfully", logContext, {
+              status: response.status,
+              statusText: response.statusText,
+              submissionId: submissionData.id,
+              payloadSize,
+              responseSize: responseText.length
+            });
+
+            this.logger.metric("discord_webhook_success", 1, logContext, {
+              submissionType: 'player',
+              payloadSize
+            });
+          } else {
+            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+              status: response.status,
+              statusText: response.statusText,
+              responseBody: responseText,
+              submissionId: submissionData.id,
+              payloadSize,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+
+            this.logger.metric("discord_webhook_failure", 1, logContext, {
+              submissionType: 'player',
+              errorStatus: response.status,
+              payloadSize
+            });
+          }
+
+          return { success, status: response.status, response: responseText };
+        } catch (error) {
+          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
+            submissionId: submissionData.id,
+            payloadSize,
+            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          });
+
+          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+            submissionType: 'player',
+            errorType: (error as Error).name
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
   }
 
   /**
