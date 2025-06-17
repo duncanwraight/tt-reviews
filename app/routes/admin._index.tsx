@@ -1,6 +1,9 @@
 import type { Route } from "./+types/admin._index";
 import { data } from "react-router";
-import { DatabaseService, createSupabaseAdminClient } from "~/lib/database.server";
+import {
+  DatabaseService,
+  createSupabaseAdminClient,
+} from "~/lib/database.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -18,7 +21,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   // Use optimized database function to get all counts efficiently
   const dashboardCounts = await db.getAdminDashboardCounts();
-  
+
   // Extract totals for easier access
   const {
     equipmentSubmissions: equipmentSubmissionsCount,
@@ -39,12 +42,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   // Extract individual status counts for easier access
   const pendingEquipmentSubmissions = equipmentSubmissionsByStatus.pending;
-  const awaitingEquipmentSubmissions = equipmentSubmissionsByStatus.awaiting_second_approval;
+  const awaitingEquipmentSubmissions =
+    equipmentSubmissionsByStatus.awaiting_second_approval;
   const approvedEquipmentSubmissions = equipmentSubmissionsByStatus.approved;
   const rejectedEquipmentSubmissions = equipmentSubmissionsByStatus.rejected;
 
   const pendingPlayerSubmissions = playerSubmissionsByStatus.pending;
-  const awaitingPlayerSubmissions = playerSubmissionsByStatus.awaiting_second_approval;
+  const awaitingPlayerSubmissions =
+    playerSubmissionsByStatus.awaiting_second_approval;
   const approvedPlayerSubmissions = playerSubmissionsByStatus.approved;
   const rejectedPlayerSubmissions = playerSubmissionsByStatus.rejected;
 
@@ -54,7 +59,8 @@ export async function loader({ context }: Route.LoaderArgs) {
   const rejectedPlayerEdits = playerEditsByStatus.rejected;
 
   const pendingEquipmentReviews = equipmentReviewsByStatus.pending;
-  const awaitingEquipmentReviews = equipmentReviewsByStatus.awaiting_second_approval;
+  const awaitingEquipmentReviews =
+    equipmentReviewsByStatus.awaiting_second_approval;
   const approvedEquipmentReviews = equipmentReviewsByStatus.approved;
   const rejectedEquipmentReviews = equipmentReviewsByStatus.rejected;
 
@@ -67,19 +73,24 @@ export async function loader({ context }: Route.LoaderArgs) {
       equipment: equipmentCount || 0,
       players: playersCount || 0,
       // Equipment submission status breakdown
-      equipmentPending: (pendingEquipmentSubmissions || 0) + (awaitingEquipmentSubmissions || 0),
+      equipmentPending:
+        (pendingEquipmentSubmissions || 0) +
+        (awaitingEquipmentSubmissions || 0),
       equipmentApproved: approvedEquipmentSubmissions || 0,
       equipmentRejected: rejectedEquipmentSubmissions || 0,
       // Player submission status breakdown
-      playerSubmissionsPending: (pendingPlayerSubmissions || 0) + (awaitingPlayerSubmissions || 0),
+      playerSubmissionsPending:
+        (pendingPlayerSubmissions || 0) + (awaitingPlayerSubmissions || 0),
       playerSubmissionsApproved: approvedPlayerSubmissions || 0,
       playerSubmissionsRejected: rejectedPlayerSubmissions || 0,
       // Player edits status breakdown
-      playerEditsPending: (pendingPlayerEdits || 0) + (awaitingPlayerEdits || 0),
+      playerEditsPending:
+        (pendingPlayerEdits || 0) + (awaitingPlayerEdits || 0),
       playerEditsApproved: approvedPlayerEdits || 0,
       playerEditsRejected: rejectedPlayerEdits || 0,
       // Equipment reviews status breakdown
-      equipmentReviewsPending: (pendingEquipmentReviews || 0) + (awaitingEquipmentReviews || 0),
+      equipmentReviewsPending:
+        (pendingEquipmentReviews || 0) + (awaitingEquipmentReviews || 0),
       equipmentReviewsApproved: approvedEquipmentReviews || 0,
       equipmentReviewsRejected: rejectedEquipmentReviews || 0,
     },
@@ -188,7 +199,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   {card.total}
                 </span>
               </div>
-              
+
               {/* Status breakdown with color coding */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -196,21 +207,27 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                     <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
                     <span className="text-gray-600">Pending</span>
                   </div>
-                  <span className="font-medium text-yellow-700">{card.pending}</span>
+                  <span className="font-medium text-yellow-700">
+                    {card.pending}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-gray-600">Approved</span>
                   </div>
-                  <span className="font-medium text-green-700">{card.approved}</span>
+                  <span className="font-medium text-green-700">
+                    {card.approved}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                     <span className="text-gray-600">Rejected</span>
                   </div>
-                  <span className="font-medium text-red-700">{card.rejected}</span>
+                  <span className="font-medium text-red-700">
+                    {card.rejected}
+                  </span>
                 </div>
               </div>
 

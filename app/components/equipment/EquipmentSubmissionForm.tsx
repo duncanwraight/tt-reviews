@@ -15,7 +15,11 @@ interface EquipmentSubmissionFormProps {
   };
 }
 
-export function EquipmentSubmissionForm({ categories, csrfToken, env }: EquipmentSubmissionFormProps) {
+export function EquipmentSubmissionForm({
+  categories,
+  csrfToken,
+  env,
+}: EquipmentSubmissionFormProps) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [subcategories, setSubcategories] = useState<CategoryOption[]>([]);
@@ -31,18 +35,23 @@ export function EquipmentSubmissionForm({ categories, csrfToken, env }: Equipmen
     const loadSubcategories = async () => {
       setLoadingSubcategories(true);
       try {
-        const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-        const { data, error } = await supabase
-          .rpc('get_subcategories_by_parent', { parent_category_value: selectedCategory });
+        const supabase = createBrowserClient(
+          env.SUPABASE_URL,
+          env.SUPABASE_ANON_KEY
+        );
+        const { data, error } = await supabase.rpc(
+          "get_subcategories_by_parent",
+          { parent_category_value: selectedCategory }
+        );
 
         if (error) {
-          console.error('Error loading subcategories:', error);
+          console.error("Error loading subcategories:", error);
           setSubcategories([]);
         } else {
           setSubcategories(data || []);
         }
       } catch (error) {
-        console.error('Exception loading subcategories:', error);
+        console.error("Exception loading subcategories:", error);
         setSubcategories([]);
       } finally {
         setLoadingSubcategories(false);
@@ -78,151 +87,161 @@ export function EquipmentSubmissionForm({ categories, csrfToken, env }: Equipmen
                 Submit New Equipment
               </h2>
 
-              <Form method="post" encType="multipart/form-data" className="space-y-6">
+              <Form
+                method="post"
+                encType="multipart/form-data"
+                className="space-y-6"
+              >
                 <CSRFToken token={csrfToken} />
-                
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Equipment Name */}
-            <div className="md:col-span-2">
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Equipment Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                required
-                disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="e.g., Hurricane 3"
-              />
-            </div>
 
-            {/* Manufacturer */}
-            <div>
-              <label
-                htmlFor="manufacturer"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Manufacturer *
-              </label>
-              <input
-                type="text"
-                id="manufacturer"
-                name="manufacturer"
-                required
-                disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="e.g., DHS, Butterfly, Yasaka"
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Equipment Name */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Equipment Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      required
+                      disabled={isLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                      placeholder="e.g., Hurricane 3"
+                    />
+                  </div>
 
-            {/* Category */}
-            <div>
-              <label
-                htmlFor="category"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Category *
-              </label>
-              <select
-                id="category"
-                name="category"
-                required
-                disabled={isLoading}
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-              >
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.value}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                  {/* Manufacturer */}
+                  <div>
+                    <label
+                      htmlFor="manufacturer"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Manufacturer *
+                    </label>
+                    <input
+                      type="text"
+                      id="manufacturer"
+                      name="manufacturer"
+                      required
+                      disabled={isLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                      placeholder="e.g., DHS, Butterfly, Yasaka"
+                    />
+                  </div>
 
-            {/* Subcategory */}
-            {selectedCategory && subcategories.length > 0 && (
-              <div className="md:col-span-2">
-                <label
-                  htmlFor="subcategory"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Subcategory
-                </label>
-                <select
-                  id="subcategory"
-                  name="subcategory"
-                  disabled={isLoading || loadingSubcategories}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                >
-                  <option value="">Select subcategory (optional)</option>
-                  {subcategories.map((subcategory) => (
-                    <option key={subcategory.id} value={subcategory.value}>
-                      {subcategory.name}
-                    </option>
-                  ))}
-                </select>
-                {loadingSubcategories && (
-                  <p className="mt-1 text-xs text-gray-500">Loading subcategories...</p>
-                )}
-              </div>
-            )}
+                  {/* Category */}
+                  <div>
+                    <label
+                      htmlFor="category"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Category *
+                    </label>
+                    <select
+                      id="category"
+                      name="category"
+                      required
+                      disabled={isLoading}
+                      value={selectedCategory}
+                      onChange={e => setSelectedCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(category => (
+                        <option key={category.id} value={category.value}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* Equipment Image */}
-            <div className="md:col-span-2">
-              <ImageUpload
-                name="image"
-                label="Equipment Image (Optional)"
-                disabled={isLoading}
-                maxSize={10}
-                preview={true}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Upload a clear photo of the equipment. This helps with identification and moderation.
-              </p>
-            </div>
+                  {/* Subcategory */}
+                  {selectedCategory && subcategories.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label
+                        htmlFor="subcategory"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Subcategory
+                      </label>
+                      <select
+                        id="subcategory"
+                        name="subcategory"
+                        disabled={isLoading || loadingSubcategories}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                      >
+                        <option value="">Select subcategory (optional)</option>
+                        {subcategories.map(subcategory => (
+                          <option
+                            key={subcategory.id}
+                            value={subcategory.value}
+                          >
+                            {subcategory.name}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingSubcategories && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Loading subcategories...
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-            {/* Specifications */}
-            <div className="md:col-span-2">
-              <label
-                htmlFor="specifications"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Additional Specifications (Optional)
-              </label>
-              <textarea
-                id="specifications"
-                name="specifications"
-                rows={4}
-                disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)"
-              />
-            </div>
-          </div>
+                  {/* Equipment Image */}
+                  <div className="md:col-span-2">
+                    <ImageUpload
+                      name="image"
+                      label="Equipment Image (Optional)"
+                      disabled={isLoading}
+                      maxSize={10}
+                      preview={true}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Upload a clear photo of the equipment. This helps with
+                      identification and moderation.
+                    </p>
+                  </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end space-x-3">
-            <a
-              href="/equipment"
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              Cancel
-            </a>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Submitting..." : "Submit Equipment"}
-            </button>
-          </div>
+                  {/* Specifications */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="specifications"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Additional Specifications (Optional)
+                    </label>
+                    <textarea
+                      id="specifications"
+                      name="specifications"
+                      rows={4}
+                      disabled={isLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                      placeholder="Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end space-x-3">
+                  <a
+                    href="/equipment"
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    Cancel
+                  </a>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? "Submitting..." : "Submit Equipment"}
+                  </button>
+                </div>
               </Form>
             </>
           )}

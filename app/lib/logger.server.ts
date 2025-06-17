@@ -1,6 +1,6 @@
 /**
  * Structured Logging Service for Cloudflare Workers
- * 
+ *
  * Provides centralized logging with request correlation, performance metrics,
  * and proper log levels for development vs production environments.
  */
@@ -31,17 +31,17 @@ export interface LogMetadata {
   performance?: {
     operation: string;
     duration: number;
-    unit: 'ms';
+    unit: "ms";
   };
 }
 
 export enum LogLevel {
-  DEBUG = 'debug',
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error',
-  METRIC = 'metric',
-  PERFORMANCE = 'performance',
+  DEBUG = "debug",
+  INFO = "info",
+  WARN = "warn",
+  ERROR = "error",
+  METRIC = "metric",
+  PERFORMANCE = "performance",
 }
 
 class LoggerService {
@@ -50,9 +50,10 @@ class LoggerService {
 
   constructor() {
     // Determine environment from globalThis or default to production
-    this.isDevelopment = globalThis.process?.env?.NODE_ENV === 'development' || 
-                        globalThis.ENVIRONMENT === 'development';
-    
+    this.isDevelopment =
+      globalThis.process?.env?.NODE_ENV === "development" ||
+      globalThis.ENVIRONMENT === "development";
+
     // Set log level based on environment
     this.logLevel = this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
   }
@@ -61,17 +62,29 @@ class LoggerService {
    * Check if a log level should be output based on current configuration
    */
   private shouldLog(level: LogLevel): boolean {
-    const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.METRIC, LogLevel.PERFORMANCE];
+    const levels = [
+      LogLevel.DEBUG,
+      LogLevel.INFO,
+      LogLevel.WARN,
+      LogLevel.ERROR,
+      LogLevel.METRIC,
+      LogLevel.PERFORMANCE,
+    ];
     const currentLevelIndex = levels.indexOf(this.logLevel);
     const requestedLevelIndex = levels.indexOf(level);
-    
+
     return requestedLevelIndex >= currentLevelIndex;
   }
 
   /**
    * Create structured log entry
    */
-  private createLogEntry(level: LogLevel, message: string, context: LogContext, data?: any): LogMetadata {
+  private createLogEntry(
+    level: LogLevel,
+    message: string,
+    context: LogContext,
+    data?: any
+  ): LogMetadata {
     const logEntry: LogMetadata = {
       timestamp: new Date().toISOString(),
       level,
@@ -79,7 +92,9 @@ class LoggerService {
       context: {
         ...(context || {}),
         // Ensure we don't log sensitive information
-        userId: context?.userId ? context.userId.substring(0, 8) + '...' : undefined,
+        userId: context?.userId
+          ? context.userId.substring(0, 8) + "..."
+          : undefined,
       },
     };
 
@@ -95,11 +110,11 @@ class LoggerService {
    */
   private formatLogEntry(logEntry: LogMetadata): string {
     const { timestamp, level, message, context } = logEntry;
-    
+
     if (this.isDevelopment) {
       // Human-readable format for development
-      return `[${timestamp}] ${level.toUpperCase()} [${context?.requestId?.substring(0, 8) || 'unknown'}] ${message}${
-        logEntry.data ? ` ${JSON.stringify(logEntry.data, null, 2)}` : ''
+      return `[${timestamp}] ${level.toUpperCase()} [${context?.requestId?.substring(0, 8) || "unknown"}] ${message}${
+        logEntry.data ? ` ${JSON.stringify(logEntry.data, null, 2)}` : ""
       }`;
     } else {
       // Structured JSON for production
@@ -175,8 +190,13 @@ class LoggerService {
    * Log error messages with optional Error object
    */
   error(message: string, context: LogContext, error?: Error, data?: any): void {
-    const logEntry = this.createLogEntry(LogLevel.ERROR, message, context, data);
-    
+    const logEntry = this.createLogEntry(
+      LogLevel.ERROR,
+      message,
+      context,
+      data
+    );
+
     if (error) {
       logEntry.error = {
         name: error.name,
@@ -192,32 +212,57 @@ class LoggerService {
    * Log debug messages (only in development)
    */
   debug(message: string, context: LogContext, data?: any): void {
-    const logEntry = this.createLogEntry(LogLevel.DEBUG, message, context, data);
+    const logEntry = this.createLogEntry(
+      LogLevel.DEBUG,
+      message,
+      context,
+      data
+    );
     this.output(logEntry);
   }
 
   /**
    * Log business metrics and events
    */
-  metric(metric: string, value: number, context: LogContext, metadata?: any): void {
-    const logEntry = this.createLogEntry(LogLevel.METRIC, `Metric: ${metric}`, context, {
-      metric,
-      value,
-      ...metadata,
-    });
+  metric(
+    metric: string,
+    value: number,
+    context: LogContext,
+    metadata?: any
+  ): void {
+    const logEntry = this.createLogEntry(
+      LogLevel.METRIC,
+      `Metric: ${metric}`,
+      context,
+      {
+        metric,
+        value,
+        ...metadata,
+      }
+    );
     this.output(logEntry);
   }
 
   /**
    * Log performance measurements
    */
-  performance(operation: string, duration: number, context: LogContext, metadata?: any): void {
-    const logEntry = this.createLogEntry(LogLevel.PERFORMANCE, `Performance: ${operation}`, context, metadata);
-    
+  performance(
+    operation: string,
+    duration: number,
+    context: LogContext,
+    metadata?: any
+  ): void {
+    const logEntry = this.createLogEntry(
+      LogLevel.PERFORMANCE,
+      `Performance: ${operation}`,
+      context,
+      metadata
+    );
+
     logEntry.performance = {
       operation,
       duration,
-      unit: 'ms' as const,
+      unit: "ms" as const,
     };
 
     this.output(logEntry);
@@ -245,7 +290,7 @@ class LoggerService {
     metadata?: any
   ): Promise<T> {
     const startTime = Date.now();
-    
+
     try {
       this.debug(`Starting operation: ${operation}`, context, metadata);
       const result = await fn();
@@ -292,12 +337,27 @@ class ChildLogger {
     this.parent.debug(message, this.mergeContext(context), data);
   }
 
-  metric(metric: string, value: number, context: LogContext, metadata?: any): void {
+  metric(
+    metric: string,
+    value: number,
+    context: LogContext,
+    metadata?: any
+  ): void {
     this.parent.metric(metric, value, this.mergeContext(context), metadata);
   }
 
-  performance(operation: string, duration: number, context: LogContext, metadata?: any): void {
-    this.parent.performance(operation, duration, this.mergeContext(context), metadata);
+  performance(
+    operation: string,
+    duration: number,
+    context: LogContext,
+    metadata?: any
+  ): void {
+    this.parent.performance(
+      operation,
+      duration,
+      this.mergeContext(context),
+      metadata
+    );
   }
 
   async timeOperation<T>(
@@ -306,7 +366,12 @@ class ChildLogger {
     context: LogContext,
     metadata?: any
   ): Promise<T> {
-    return this.parent.timeOperation(operation, fn, this.mergeContext(context), metadata);
+    return this.parent.timeOperation(
+      operation,
+      fn,
+      this.mergeContext(context),
+      metadata
+    );
   }
 }
 
@@ -314,7 +379,10 @@ class ChildLogger {
 export const Logger = new LoggerService();
 
 // Export utility functions
-export function createLogContext(requestId: string, additionalContext?: Partial<LogContext>): LogContext {
+export function createLogContext(
+  requestId: string,
+  additionalContext?: Partial<LogContext>
+): LogContext {
   return {
     requestId,
     ...additionalContext,
@@ -325,9 +393,10 @@ export function extractRequestContext(request: Request): Partial<LogContext> {
   return {
     method: request.method,
     route: new URL(request.url).pathname,
-    userAgent: request.headers.get('user-agent') || undefined,
-    ip: request.headers.get('cf-connecting-ip') || 
-        request.headers.get('x-forwarded-for') || 
-        undefined,
+    userAgent: request.headers.get("user-agent") || undefined,
+    ip:
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      undefined,
   };
 }

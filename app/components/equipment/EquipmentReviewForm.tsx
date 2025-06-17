@@ -29,7 +29,9 @@ export function EquipmentReviewForm({
 }: EquipmentReviewFormProps) {
   const navigate = useNavigate();
   const [overallRating, setOverallRating] = useState<number>(5);
-  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
+  const [categoryRatings, setCategoryRatings] = useState<
+    Record<string, number>
+  >({});
 
   // Combine all rating categories (general + equipment-specific)
   const allRatingCategories = [
@@ -54,11 +56,16 @@ export function EquipmentReviewForm({
         <Form method="POST" encType="multipart/form-data" className="space-y-8">
           {/* CSRF Token */}
           <CSRFToken token={csrfToken} />
-          
+
           {/* Hidden inputs for ratings */}
           <input type="hidden" name="overall_rating" value={overallRating} />
           {Object.entries(categoryRatings).map(([category, rating]) => (
-            <input key={category} type="hidden" name={`rating_${category}`} value={rating} />
+            <input
+              key={category}
+              type="hidden"
+              name={`rating_${category}`}
+              value={rating}
+            />
           ))}
 
           {/* Equipment Info Header */}
@@ -94,9 +101,7 @@ export function EquipmentReviewForm({
                 onChange={setOverallRating}
                 disabled={isLoading}
               />
-              <span className="text-sm text-gray-600">
-                {overallRating}/10
-              </span>
+              <span className="text-sm text-gray-600">{overallRating}/10</span>
             </div>
             <p className="text-sm text-gray-500">
               Rate this equipment from 1 (terrible) to 10 (excellent)
@@ -110,21 +115,21 @@ export function EquipmentReviewForm({
                 Detailed Ratings
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {allRatingCategories.map((category) => (
+                {allRatingCategories.map(category => (
                   <div key={category.value} className="space-y-3">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                       {category.name}
                       {category.description && (
                         <div className="relative group">
-                          <svg 
-                            className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" 
-                            fill="currentColor" 
+                          <svg
+                            className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help"
+                            fill="currentColor"
                             viewBox="0 0 20 20"
                           >
-                            <path 
-                              fillRule="evenodd" 
-                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" 
-                              clipRule="evenodd" 
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                              clipRule="evenodd"
                             />
                           </svg>
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64 text-center z-10">
@@ -137,7 +142,9 @@ export function EquipmentReviewForm({
                     <div className="flex items-center gap-4">
                       <RatingInput
                         value={categoryRatings[category.value] || 5}
-                        onChange={(rating) => handleCategoryRatingChange(category.value, rating)}
+                        onChange={rating =>
+                          handleCategoryRatingChange(category.value, rating)
+                        }
                         disabled={isLoading}
                       />
                       <span className="text-sm text-gray-600">
@@ -152,7 +159,10 @@ export function EquipmentReviewForm({
 
           {/* Review Text */}
           <div className="space-y-3">
-            <label htmlFor="review_text" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="review_text"
+              className="block text-sm font-medium text-gray-700"
+            >
               Your Review
             </label>
             <textarea
@@ -164,19 +174,21 @@ export function EquipmentReviewForm({
               placeholder="Share your detailed experience with this equipment..."
             />
             <p className="text-sm text-gray-500">
-              Tell others about your experience: How does it perform? What do you like or dislike about it?
+              Tell others about your experience: How does it perform? What do
+              you like or dislike about it?
             </p>
           </div>
 
           {/* Reviewer Context */}
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              About You
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">About You</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Playing Level */}
               <div className="space-y-3">
-                <label htmlFor="playing_level" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="playing_level"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Playing Level
                 </label>
                 <select
@@ -194,7 +206,10 @@ export function EquipmentReviewForm({
 
               {/* Playing Style */}
               <div className="space-y-3">
-                <label htmlFor="style_of_play" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="style_of_play"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Playing Style
                 </label>
                 <select
@@ -203,7 +218,7 @@ export function EquipmentReviewForm({
                   disabled={isLoading}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50"
                 >
-                  {playingStyles.map((style) => (
+                  {playingStyles.map(style => (
                     <option key={style.value} value={style.value}>
                       {style.name}
                     </option>
@@ -213,7 +228,10 @@ export function EquipmentReviewForm({
 
               {/* Testing Duration */}
               <div className="space-y-3">
-                <label htmlFor="testing_duration" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="testing_duration"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Testing Duration
                 </label>
                 <select
@@ -236,11 +254,7 @@ export function EquipmentReviewForm({
             <label className="block text-sm font-medium text-gray-700">
               Photo (Optional)
             </label>
-            <ImageUpload 
-              name="image"
-              env={env}
-              disabled={isLoading}
-            />
+            <ImageUpload name="image" env={env} disabled={isLoading} />
             <p className="text-sm text-gray-500">
               Upload a photo of your equipment setup or the equipment in use
             </p>

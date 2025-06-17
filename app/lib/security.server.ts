@@ -27,36 +27,42 @@ export async function rateLimit(
   config: RateLimitConfig,
   context?: any
 ): Promise<{ success: boolean; resetTime?: number; remaining?: number }> {
-  const key = config.keyGenerator ? config.keyGenerator(request) : getClientIP(request);
+  const key = config.keyGenerator
+    ? config.keyGenerator(request)
+    : getClientIP(request);
   const now = Date.now();
   const windowStart = now - config.windowMs;
-  
+
   // Clean up old entries
   for (const [entryKey, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(entryKey);
     }
   }
-  
+
   const entry = rateLimitStore.get(key);
-  
+
   if (!entry || entry.resetTime < now) {
     // First request in window or window expired
     const resetTime = now + config.windowMs;
     rateLimitStore.set(key, { count: 1, resetTime });
     return { success: true, resetTime, remaining: config.maxRequests - 1 };
   }
-  
+
   if (entry.count >= config.maxRequests) {
     // Rate limit exceeded
     return { success: false, resetTime: entry.resetTime, remaining: 0 };
   }
-  
+
   // Increment count
   entry.count++;
   rateLimitStore.set(key, entry);
-  
-  return { success: true, resetTime: entry.resetTime, remaining: config.maxRequests - entry.count };
+
+  return {
+    success: true,
+    resetTime: entry.resetTime,
+    remaining: config.maxRequests - entry.count,
+  };
 }
 
 /**
@@ -64,18 +70,18 @@ export async function rateLimit(
  */
 function getClientIP(request: Request): string {
   // Check Cloudflare headers first
-  const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
   if (cfConnectingIp) return cfConnectingIp;
-  
+
   // Check other common headers
-  const xForwardedFor = request.headers.get('x-forwarded-for');
-  if (xForwardedFor) return xForwardedFor.split(',')[0].trim();
-  
-  const xRealIp = request.headers.get('x-real-ip');
+  const xForwardedFor = request.headers.get("x-forwarded-for");
+  if (xForwardedFor) return xForwardedFor.split(",")[0].trim();
+
+  const xRealIp = request.headers.get("x-real-ip");
   if (xRealIp) return xRealIp;
-  
+
   // Fallback to a default
-  return 'unknown';
+  return "unknown";
 }
 
 /**
@@ -103,22 +109,28 @@ export function addSecurityHeaders(headers: Headers) {
     "frame-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "upgrade-insecure-requests"
-  ].join('; ');
-  
+    "upgrade-insecure-requests",
+  ].join("; ");
+
   headers.set("Content-Security-Policy", csp);
-  
+
   // Additional security headers
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-XSS-Protection", "1; mode=block");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-  
+  headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=()"
+  );
+
   // HSTS - Only add in production with HTTPS
   const isProduction = process.env.NODE_ENV === "production";
   if (isProduction) {
-    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
   }
 }
 
@@ -128,18 +140,24 @@ export function addApiSecurityHeaders(headers: Headers) {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-XSS-Protection", "1; mode=block");
-  
+
   // HSTS - Only add in production with HTTPS
   const isProduction = process.env.NODE_ENV === "production";
   if (isProduction) {
-    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
   }
 }
 
 /**
  * Sanitize error messages for production to prevent information leakage
  */
-export function sanitizeError(error: unknown, isDevelopment: boolean = false): string {
+export function sanitizeError(
+  error: unknown,
+  isDevelopment: boolean = false
+): string {
   if (isDevelopment) {
     // In development, show full error details
     if (error instanceof Error) {
@@ -147,24 +165,28 @@ export function sanitizeError(error: unknown, isDevelopment: boolean = false): s
     }
     return String(error);
   }
-  
+
   // In production, return generic error messages
   if (error instanceof Error) {
     // Only show safe error messages
     const safeErrors = [
-      'Not found',
-      'Unauthorized',
-      'Forbidden',
-      'Bad request',
-      'Validation failed'
+      "Not found",
+      "Unauthorized",
+      "Forbidden",
+      "Bad request",
+      "Validation failed",
     ];
-    
-    if (safeErrors.some(safe => error.message.toLowerCase().includes(safe.toLowerCase()))) {
+
+    if (
+      safeErrors.some(safe =>
+        error.message.toLowerCase().includes(safe.toLowerCase())
+      )
+    ) {
       return error.message;
     }
   }
-  
-  return 'An unexpected error occurred';
+
+  return "An unexpected error occurred";
 }
 
 /**
@@ -172,26 +194,29 @@ export function sanitizeError(error: unknown, isDevelopment: boolean = false): s
  */
 export function createSecureResponse(
   body: BodyInit | null,
-  init?: ResponseInit & { 
+  init?: ResponseInit & {
     isApi?: boolean;
     rateLimit?: { resetTime: number; remaining: number };
   }
 ): Response {
   const headers = new Headers(init?.headers);
-  
+
   if (init?.isApi) {
     addApiSecurityHeaders(headers);
   } else {
     addSecurityHeaders(headers);
   }
-  
+
   // Add rate limiting headers if provided
   if (init?.rateLimit) {
-    headers.set('X-RateLimit-Limit', String(init.rateLimit.remaining + 1));
-    headers.set('X-RateLimit-Remaining', String(init.rateLimit.remaining));
-    headers.set('X-RateLimit-Reset', String(Math.ceil(init.rateLimit.resetTime / 1000)));
+    headers.set("X-RateLimit-Limit", String(init.rateLimit.remaining + 1));
+    headers.set("X-RateLimit-Remaining", String(init.rateLimit.remaining));
+    headers.set(
+      "X-RateLimit-Reset",
+      String(Math.ceil(init.rateLimit.resetTime / 1000))
+    );
   }
-  
+
   return new Response(body, {
     ...init,
     headers,
@@ -204,22 +229,25 @@ export function createSecureResponse(
 export function createRateLimitResponse(resetTime: number): Response {
   const headers = new Headers();
   addApiSecurityHeaders(headers);
-  headers.set('X-RateLimit-Limit', '0');
-  headers.set('X-RateLimit-Remaining', '0');
-  headers.set('X-RateLimit-Reset', String(Math.ceil(resetTime / 1000)));
-  headers.set('Retry-After', String(Math.ceil((resetTime - Date.now()) / 1000)));
-  
+  headers.set("X-RateLimit-Limit", "0");
+  headers.set("X-RateLimit-Remaining", "0");
+  headers.set("X-RateLimit-Reset", String(Math.ceil(resetTime / 1000)));
+  headers.set(
+    "Retry-After",
+    String(Math.ceil((resetTime - Date.now()) / 1000))
+  );
+
   return new Response(
-    JSON.stringify({ 
-      error: 'Rate limit exceeded', 
-      retryAfter: Math.ceil((resetTime - Date.now()) / 1000) 
-    }), 
-    { 
-      status: 429, 
+    JSON.stringify({
+      error: "Rate limit exceeded",
+      retryAfter: Math.ceil((resetTime - Date.now()) / 1000),
+    }),
+    {
+      status: 429,
       headers: {
         ...Object.fromEntries(headers.entries()),
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     }
   );
 }
@@ -242,18 +270,17 @@ export async function validateCSRF(
 /**
  * Create a CSRF validation failed response
  */
-export function createCSRFFailureResponse(error: string = "Invalid CSRF token"): Response {
+export function createCSRFFailureResponse(
+  error: string = "Invalid CSRF token"
+): Response {
   const headers = new Headers();
   addSecurityHeaders(headers);
-  
-  return new Response(
-    JSON.stringify({ error }), 
-    { 
-      status: 403, 
-      headers: {
-        ...Object.fromEntries(headers.entries()),
-        'Content-Type': 'application/json'
-      }
-    }
-  );
+
+  return new Response(JSON.stringify({ error }), {
+    status: 403,
+    headers: {
+      ...Object.fromEntries(headers.entries()),
+      "Content-Type": "application/json",
+    },
+  });
 }

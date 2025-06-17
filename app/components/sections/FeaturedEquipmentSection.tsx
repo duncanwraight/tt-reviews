@@ -31,7 +31,7 @@ export function FeaturedEquipmentSection({
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {equipment.map((item) => (
+          {equipment.map(item => (
             <EquipmentCard key={item.id} equipment={item} />
           ))}
         </div>

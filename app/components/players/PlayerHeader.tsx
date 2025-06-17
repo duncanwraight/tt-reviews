@@ -35,7 +35,7 @@ function getCountryFlag(countryCode: string): string {
 
 function getPlayingStyleLabel(style: string | undefined): string {
   if (!style || style === "unknown") return "";
-  return style.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return style.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 }
 
 export function PlayerHeader({

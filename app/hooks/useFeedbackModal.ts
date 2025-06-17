@@ -26,30 +26,33 @@ export function useFeedbackModal() {
     message: "",
     onClose: undefined,
     autoClose: false,
-    autoCloseDelay: 0
+    autoCloseDelay: 0,
   });
 
-  const showLoading = useCallback((options: Pick<ModalOptions, "title" | "message">) => {
-    setModalState({
-      isOpen: true,
-      type: "loading",
-      title: options.title,
-      message: options.message,
-      onClose: undefined,
-      autoClose: false,
-      autoCloseDelay: 0
-    });
-  }, []);
+  const showLoading = useCallback(
+    (options: Pick<ModalOptions, "title" | "message">) => {
+      setModalState({
+        isOpen: true,
+        type: "loading",
+        title: options.title,
+        message: options.message,
+        onClose: undefined,
+        autoClose: false,
+        autoCloseDelay: 0,
+      });
+    },
+    []
+  );
 
   const showSuccess = useCallback((options: ModalOptions) => {
     setModalState({
       isOpen: true,
-      type: "success", 
+      type: "success",
       title: options.title,
       message: options.message,
       onClose: options.onClose,
       autoClose: options.autoClose ?? true,
-      autoCloseDelay: options.autoCloseDelay ?? 2000
+      autoCloseDelay: options.autoCloseDelay ?? 2000,
     });
   }, []);
 
@@ -61,7 +64,7 @@ export function useFeedbackModal() {
       message: options.message,
       onClose: options.onClose,
       autoClose: options.autoClose ?? false,
-      autoCloseDelay: options.autoCloseDelay ?? 0
+      autoCloseDelay: options.autoCloseDelay ?? 0,
     });
   }, []);
 
@@ -74,6 +77,6 @@ export function useFeedbackModal() {
     showLoading,
     showSuccess,
     showError,
-    closeModal
+    closeModal,
   };
 }

@@ -29,7 +29,10 @@ export async function getUserRoleFromSession(
 }
 
 // Get authenticated user with role information for consistent navigation
-export async function getUserWithRole(supabaseServerClient: any, context?: AppLoadContext) {
+export async function getUserWithRole(
+  supabaseServerClient: any,
+  context?: AppLoadContext
+) {
   const userResponse = await supabaseServerClient.client.auth.getUser();
   let userWithRole = userResponse?.data?.user || null;
 
@@ -40,7 +43,7 @@ export async function getUserWithRole(supabaseServerClient: any, context?: AppLo
       if (context) {
         const env = context.cloudflare?.env as Record<string, string>;
         const adminEmails = getAdminEmails(env);
-        
+
         if (adminEmails) {
           const adminClient = createSupabaseAdminClient(context);
           const wasPromoted = await checkAndPromoteAdmin(
@@ -49,7 +52,7 @@ export async function getUserWithRole(supabaseServerClient: any, context?: AppLo
             userWithRole.id,
             adminEmails
           );
-          
+
           // If user was just promoted, they need to re-login to get updated JWT
           if (wasPromoted) {
             // User was auto-promoted to admin role

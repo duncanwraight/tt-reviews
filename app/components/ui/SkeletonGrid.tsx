@@ -34,11 +34,7 @@ export const SkeletonGrid = memo(function SkeletonGrid({
   return (
     <div className={`grid ${getGridClassName()} gap-6 ${className}`}>
       {Array.from({ length: count }, (_, index) => (
-        <SkeletonCard
-          key={index}
-          type={type}
-          showImage={showImages}
-        />
+        <SkeletonCard key={index} type={type} showImage={showImages} />
       ))}
     </div>
   );

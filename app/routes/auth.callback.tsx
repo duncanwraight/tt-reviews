@@ -30,47 +30,96 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
   const { env } = loaderData;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const code = searchParams.get('code');
-      const error = searchParams.get('error');
-      const error_description = searchParams.get('error_description');
+      // Check for errors in URL hash first (Supabase recommended pattern)
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const hashError = hashParams.get("error");
+      const hashErrorCode = hashParams.get("error_code");
+      const hashErrorDescription = hashParams.get("error_description");
 
+      // Check for errors in search params (fallback)
+      const code = searchParams.get("code");
+      const error = searchParams.get("error");
+      const error_description = searchParams.get("error_description");
+
+      // Handle hash-based errors (common for auth flows)
+      if (hashError) {
+        setStatus("error");
+        // Show more user-friendly messages for 4xx errors
+        if (hashErrorCode && hashErrorCode.startsWith("4")) {
+          if (hashErrorCode === "401") {
+            setMessage(
+              "Your confirmation link has expired. Please request a new confirmation email."
+            );
+          } else if (hashErrorCode === "404") {
+            setMessage(
+              "Invalid confirmation link. Please check your email or request a new confirmation."
+            );
+          } else {
+            setMessage(
+              hashErrorDescription ||
+                "Confirmation failed. Please try again or request a new confirmation email."
+            );
+          }
+        } else {
+          setMessage(
+            hashErrorDescription ||
+              hashError ||
+              "Authentication failed. Please try again."
+          );
+        }
+        return;
+      }
+
+      // Handle search param errors (fallback)
       if (error) {
-        setStatus('error');
+        setStatus("error");
         setMessage(error_description || error);
         return;
       }
 
       if (!code) {
-        setStatus('error');
-        setMessage('No authorization code found. Please try the confirmation link again.');
+        setStatus("error");
+        setMessage(
+          "No authorization code found. Please try the confirmation link again."
+        );
         return;
       }
 
-      const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      const supabase = createBrowserClient(
+        env.SUPABASE_URL,
+        env.SUPABASE_ANON_KEY
+      );
 
       try {
-        const { error: authError } = await supabase.auth.exchangeCodeForSession(code);
+        const { error: authError } =
+          await supabase.auth.exchangeCodeForSession(code);
 
         if (authError) {
-          setStatus('error');
+          setStatus("error");
           setMessage(authError.message);
         } else {
-          setStatus('success');
-          setMessage('Your email has been confirmed and you are now signed in!');
-          
+          setStatus("success");
+          setMessage(
+            "Your email has been confirmed and you are now signed in!"
+          );
+
           // Redirect to homepage after 2 seconds
           setTimeout(() => {
-            navigate('/');
+            navigate("/");
           }, 2000);
         }
       } catch (error) {
-        setStatus('error');
-        setMessage('Something went wrong during confirmation. Please try again.');
+        setStatus("error");
+        setMessage(
+          "Something went wrong during confirmation. Please try again."
+        );
       }
     };
 
@@ -80,11 +129,11 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            {status === 'loading' && (
+            {status === "loading" && (
               <>
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -95,40 +144,36 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
                 </p>
               </>
             )}
-            
-            {status === 'success' && (
+
+            {status === "success" && (
               <>
                 <span className="text-6xl mb-4 block">🎉</span>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Welcome to TT Reviews!
                 </h1>
-                <p className="text-gray-600 mb-4">
-                  {message}
-                </p>
+                <p className="text-gray-600 mb-4">{message}</p>
                 <p className="text-sm text-gray-500">
                   Redirecting to homepage in 2 seconds...
                 </p>
               </>
             )}
-            
-            {status === 'error' && (
+
+            {status === "error" && (
               <>
                 <span className="text-6xl mb-4 block">❌</span>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Confirmation Failed
                 </h1>
-                <p className="text-gray-600 mb-6">
-                  {message}
-                </p>
+                <p className="text-gray-600 mb-6">{message}</p>
                 <div className="space-y-3">
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate("/login")}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02] shadow-lg"
                   >
                     Go to Login
                   </button>
                   <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate("/")}
                     className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02]"
                   >
                     Back to Homepage
@@ -139,7 +184,7 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

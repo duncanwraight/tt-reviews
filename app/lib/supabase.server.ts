@@ -13,7 +13,7 @@ export const getServerClient = (request: Request, context: AppLoadContext) => {
         getAll() {
           const cookies =
             parseCookieHeader(request.headers.get("Cookie") ?? "") ?? [];
-          return cookies.map((cookie) => ({
+          return cookies.map(cookie => ({
             name: cookie.name,
             value: cookie.value || "",
           }));

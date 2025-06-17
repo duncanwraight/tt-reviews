@@ -233,6 +233,7 @@ AUTO_ADMIN_EMAILS=admin@yourcompany.com,moderator@yourcompany.com
 ```
 
 This feature automatically promotes specified email addresses to admin role when they access the application. This is secure because:
+
 - Only emails explicitly listed in the environment variable are promoted
 - Email validation is performed
 - Promotion only happens for authenticated users

@@ -1,6 +1,6 @@
 /**
  * CSRF Token Component
- * 
+ *
  * Automatically includes CSRF token as hidden input in forms
  */
 
@@ -9,11 +9,5 @@ interface CSRFTokenProps {
 }
 
 export function CSRFToken({ token }: CSRFTokenProps) {
-  return (
-    <input
-      type="hidden"
-      name="_csrf"
-      value={token}
-    />
-  );
+  return <input type="hidden" name="_csrf" value={token} />;
 }

@@ -1,17 +1,17 @@
 // Shared types that can be used by both client and server components
 
-export type ReviewStatus = 
-  | "pending" 
-  | "under_review" 
-  | "awaiting_second_approval" 
-  | "approved" 
+export type ReviewStatus =
+  | "pending"
+  | "under_review"
+  | "awaiting_second_approval"
+  | "approved"
   | "rejected";
 
 export type ApprovalSource = "admin_ui" | "discord";
 
-export type RejectionCategory = 
+export type RejectionCategory =
   | "duplicate"
-  | "insufficient_info" 
+  | "insufficient_info"
   | "poor_image_quality"
   | "inappropriate_content"
   | "invalid_data"

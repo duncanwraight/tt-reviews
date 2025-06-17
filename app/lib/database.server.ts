@@ -147,27 +147,33 @@ export class DatabaseService {
     fn: () => Promise<{ data: T; error: any }>,
     metadata?: any
   ): Promise<T> {
-    const context = this.context || { requestId: 'unknown' };
-    
+    const context = this.context || { requestId: "unknown" };
+
     return withDatabaseCorrelation(
       operation,
       async () => {
         const result = await fn();
-        
+
         if (result.error) {
           Logger.error(
             `Database operation failed: ${operation}`,
             context,
-            new Error(result.error.message || 'Database error'),
+            new Error(result.error.message || "Database error"),
             { operation, ...metadata, error_details: result.error }
           );
-          throw new Error(result.error.message || `Database operation ${operation} failed`);
+          throw new Error(
+            result.error.message || `Database operation ${operation} failed`
+          );
         }
 
         // Log successful operations in debug mode
         Logger.debug(`Database operation completed: ${operation}`, context, {
           operation,
-          result_count: Array.isArray(result.data) ? result.data.length : result.data ? 1 : 0,
+          result_count: Array.isArray(result.data)
+            ? result.data.length
+            : result.data
+              ? 1
+              : 0,
           ...metadata,
         });
 
@@ -186,61 +192,56 @@ export class DatabaseService {
     queryFn: () => Promise<T>,
     metadata?: any
   ): Promise<T> {
-    const context = this.context || { requestId: 'unknown' };
-    
-    return withDatabaseCorrelation(
-      operation,
-      queryFn,
-      context,
-      metadata
-    );
+    const context = this.context || { requestId: "unknown" };
+
+    return withDatabaseCorrelation(operation, queryFn, context, metadata);
   }
 
   // Equipment methods
   async getEquipment(slug: string): Promise<Equipment | null> {
     return this.withLogging(
-      'get_equipment',
-      () => this.supabase
-        .from("equipment")
-        .select("*")
-        .eq("slug", slug)
-        .maybeSingle(),
+      "get_equipment",
+      () =>
+        this.supabase
+          .from("equipment")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle(),
       { slug }
     ).catch(() => null); // Return null on error for backwards compatibility
   }
 
   async getEquipmentById(id: string): Promise<Equipment | null> {
     return this.withLogging(
-      'get_equipment_by_id',
-      () => this.supabase
-        .from("equipment")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle(),
+      "get_equipment_by_id",
+      () =>
+        this.supabase.from("equipment").select("*").eq("id", id).maybeSingle(),
       { id }
     ).catch(() => null);
   }
 
   async searchEquipment(query: string): Promise<Equipment[]> {
     return this.withLogging(
-      'search_equipment',
-      () => this.supabase
-        .from("equipment")
-        .select("*")
-        .textSearch("name", query)
-        .limit(10),
+      "search_equipment",
+      () =>
+        this.supabase
+          .from("equipment")
+          .select("*")
+          .textSearch("name", query)
+          .limit(10),
       { query, limit: 10 }
     ).catch(() => []);
   }
 
   async getRecentEquipment(limit = 10): Promise<Equipment[]> {
     return this.withLogging(
-      'get_recent_equipment',
-      () => this.supabase
-        .from("equipment")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit),
+      "get_recent_equipment",
+      () =>
+        this.supabase
+          .from("equipment")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(limit),
       { limit }
     ).catch(() => []);
   }
@@ -254,7 +255,7 @@ export class DatabaseService {
     sortOrder?: "asc" | "desc";
   }): Promise<Equipment[]> {
     return this.withLogging(
-      'get_all_equipment',
+      "get_all_equipment",
       async () => {
         let query = this.supabase.from("equipment").select("*");
 
@@ -289,12 +290,13 @@ export class DatabaseService {
 
   async getEquipmentByCategory(category: string): Promise<Equipment[]> {
     return this.withLogging(
-      'get_equipment_by_category',
-      () => this.supabase
-        .from("equipment")
-        .select("*")
-        .eq("category", category)
-        .order("name", { ascending: true }),
+      "get_equipment_by_category",
+      () =>
+        this.supabase
+          .from("equipment")
+          .select("*")
+          .eq("category", category)
+          .order("name", { ascending: true }),
       { category }
     ).catch(() => []);
   }
@@ -303,8 +305,9 @@ export class DatabaseService {
     { category: string; count: number }[]
   > {
     // Try database aggregation function first, but fallback silently if not available
-    const { data: rpcData, error: rpcError } = await this.supabase
-      .rpc('get_equipment_category_counts');
+    const { data: rpcData, error: rpcError } = await this.supabase.rpc(
+      "get_equipment_category_counts"
+    );
 
     // If RPC function exists and works, use it
     if (!rpcError && rpcData) {
@@ -315,7 +318,7 @@ export class DatabaseService {
     const { data: fallbackData, error: fallbackError } = await this.supabase
       .from("equipment")
       .select("category");
-    
+
     if (fallbackError || !fallbackData) {
       console.error("Error fetching equipment categories:", fallbackError);
       return [];
@@ -332,12 +335,14 @@ export class DatabaseService {
     }));
   }
 
-  async getEquipmentSubcategories(category: string): Promise<
-    { subcategory: string; count: number }[]
-  > {
+  async getEquipmentSubcategories(
+    category: string
+  ): Promise<{ subcategory: string; count: number }[]> {
     // Try database aggregation function first, but fallback silently if not available
-    const { data: rpcData, error: rpcError } = await this.supabase
-      .rpc('get_equipment_subcategory_counts', { category_filter: category });
+    const { data: rpcData, error: rpcError } = await this.supabase.rpc(
+      "get_equipment_subcategory_counts",
+      { category_filter: category }
+    );
 
     // If RPC function exists and works, use it
     if (!rpcError && rpcData) {
@@ -350,7 +355,7 @@ export class DatabaseService {
       .select("subcategory")
       .eq("category", category)
       .not("subcategory", "is", null);
-    
+
     if (fallbackError || !fallbackData) {
       console.error("Error fetching equipment subcategories:", fallbackError);
       return [];
@@ -359,7 +364,8 @@ export class DatabaseService {
     const subcategoryCount: Record<string, number> = {};
     fallbackData.forEach((item: any) => {
       if (item.subcategory) {
-        subcategoryCount[item.subcategory] = (subcategoryCount[item.subcategory] || 0) + 1;
+        subcategoryCount[item.subcategory] =
+          (subcategoryCount[item.subcategory] || 0) + 1;
       }
     });
 
@@ -398,7 +404,9 @@ export class DatabaseService {
     let query = this.supabase.from("players").select("*");
 
     if (options?.country) {
-      query = query.or(`represents.eq.${options.country},birth_country.eq.${options.country}`);
+      query = query.or(
+        `represents.eq.${options.country},birth_country.eq.${options.country}`
+      );
     }
 
     if (options?.playingStyle) {
@@ -463,7 +471,9 @@ export class DatabaseService {
       .select("*", { count: "exact", head: true });
 
     if (options?.country) {
-      query = query.or(`represents.eq.${options.country},birth_country.eq.${options.country}`);
+      query = query.or(
+        `represents.eq.${options.country},birth_country.eq.${options.country}`
+      );
     }
 
     if (options?.playingStyle) {
@@ -499,7 +509,7 @@ export class DatabaseService {
     }
 
     const countries = new Set<string>();
-    data.forEach((player) => {
+    data.forEach(player => {
       if (player.represents) countries.add(player.represents);
       if (player.birth_country) countries.add(player.birth_country);
     });
@@ -553,7 +563,7 @@ export class DatabaseService {
     status: "approved" | "all" = "approved"
   ): Promise<EquipmentReview[]> {
     return this.withLogging(
-      'get_equipment_reviews',
+      "get_equipment_reviews",
       async () => {
         let query = this.supabase
           .from("equipment_reviews")
@@ -637,7 +647,10 @@ export class DatabaseService {
     return (data as EquipmentReview[]) || [];
   }
 
-  async getUserReviewForEquipment(equipmentId: string, userId: string): Promise<EquipmentReview | null> {
+  async getUserReviewForEquipment(
+    equipmentId: string,
+    userId: string
+  ): Promise<EquipmentReview | null> {
     const { data, error } = await this.supabase
       .from("equipment_reviews")
       .select(
@@ -756,13 +769,18 @@ export class DatabaseService {
   }
 
   // Equipment with ratings and review counts
-  async getEquipmentWithStats(limit = 10): Promise<(Equipment & { 
-    averageRating?: number; 
-    reviewCount?: number; 
-  })[]> {
-    const { data, error } = await this.supabase.rpc('get_equipment_with_stats', {
-      limit_count: limit
-    });
+  async getEquipmentWithStats(limit = 10): Promise<
+    (Equipment & {
+      averageRating?: number;
+      reviewCount?: number;
+    })[]
+  > {
+    const { data, error } = await this.supabase.rpc(
+      "get_equipment_with_stats",
+      {
+        limit_count: limit,
+      }
+    );
 
     if (error) {
       console.error("Error fetching equipment with stats:", error);
@@ -780,14 +798,14 @@ export class DatabaseService {
     offset?: number;
     sortBy?: "name" | "created_at" | "manufacturer" | "rating";
     sortOrder?: "asc" | "desc";
-  }): Promise<(Equipment & { 
-    averageRating?: number; 
-    reviewCount?: number; 
-  })[]> {
+  }): Promise<
+    (Equipment & {
+      averageRating?: number;
+      reviewCount?: number;
+    })[]
+  > {
     // First get basic equipment with filtering
-    let query = this.supabase
-      .from("equipment")
-      .select(`
+    let query = this.supabase.from("equipment").select(`
         *,
         equipment_reviews!inner(
           overall_rating,
@@ -815,20 +833,26 @@ export class DatabaseService {
     }
 
     // Calculate stats for each equipment
-    const equipmentStatsMap = new Map<string, { averageRating: number; reviewCount: number }>();
-    
+    const equipmentStatsMap = new Map<
+      string,
+      { averageRating: number; reviewCount: number }
+    >();
+
     equipmentWithReviews?.forEach((item: any) => {
       if (!equipmentStatsMap.has(item.id)) {
         equipmentStatsMap.set(item.id, { averageRating: 0, reviewCount: 0 });
       }
-      
+
       const stats = equipmentStatsMap.get(item.id)!;
       stats.reviewCount++;
       stats.averageRating += item.equipment_reviews.overall_rating;
     });
 
     // Calculate final averages and create equipment list
-    const equipmentWithStats: (Equipment & { averageRating?: number; reviewCount?: number })[] = [];
+    const equipmentWithStats: (Equipment & {
+      averageRating?: number;
+      reviewCount?: number;
+    })[] = [];
     const processedIds = new Set<string>();
 
     equipmentWithReviews?.forEach((item: any) => {
@@ -843,18 +867,18 @@ export class DatabaseService {
       equipmentWithStats.push({
         ...equipment,
         averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-        reviewCount: stats.reviewCount
+        reviewCount: stats.reviewCount,
       });
     });
 
     // Add equipment with no reviews
     const equipmentWithoutReviews = await this.getAllEquipment({
       ...options,
-      limit: undefined // Get all for filtering
+      limit: undefined, // Get all for filtering
     });
 
     const equipmentWithoutReviewsFiltered = equipmentWithoutReviews.filter(
-      (equipment) => !processedIds.has(equipment.id)
+      equipment => !processedIds.has(equipment.id)
     );
 
     const allEquipment = [
@@ -862,8 +886,8 @@ export class DatabaseService {
       ...equipmentWithoutReviewsFiltered.map(equipment => ({
         ...equipment,
         averageRating: undefined,
-        reviewCount: 0
-      }))
+        reviewCount: 0,
+      })),
     ];
 
     // Apply sorting
@@ -872,7 +896,7 @@ export class DatabaseService {
 
     allEquipment.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case "rating":
           const aRating = a.averageRating || 0;
@@ -887,26 +911,29 @@ export class DatabaseService {
           break;
         case "created_at":
         default:
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          comparison =
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
       }
-      
+
       return sortOrder === "desc" ? -comparison : comparison;
     });
 
     // Apply limit and offset
     const start = options?.offset || 0;
     const end = options?.limit ? start + options.limit : undefined;
-    
+
     return allEquipment.slice(start, end);
   }
 
-  async getPopularEquipment(limit = 6): Promise<(Equipment & { 
-    averageRating?: number; 
-    reviewCount?: number; 
-  })[]> {
-    const { data, error } = await this.supabase.rpc('get_popular_equipment', {
-      limit_count: limit
+  async getPopularEquipment(limit = 6): Promise<
+    (Equipment & {
+      averageRating?: number;
+      reviewCount?: number;
+    })[]
+  > {
+    const { data, error } = await this.supabase.rpc("get_popular_equipment", {
+      limit_count: limit,
     });
 
     if (error) {
@@ -942,41 +969,38 @@ export class DatabaseService {
         playerEditsQuery,
         equipmentReviewsQuery,
         equipmentCountQuery,
-        playersCountQuery
+        playersCountQuery,
       ] = await Promise.all([
         // Get equipment submissions grouped by status
         this.supabase
           .from("equipment_submissions")
           .select("status")
           .neq("status", null),
-        
-        // Get player submissions grouped by status  
+
+        // Get player submissions grouped by status
         this.supabase
           .from("player_submissions")
           .select("status")
           .neq("status", null),
-          
+
         // Get player edits grouped by status
-        this.supabase
-          .from("player_edits") 
-          .select("status")
-          .neq("status", null),
-          
+        this.supabase.from("player_edits").select("status").neq("status", null),
+
         // Get equipment reviews grouped by status
         this.supabase
           .from("equipment_reviews")
           .select("status")
           .neq("status", null),
-          
+
         // Get total equipment count
         this.supabase
           .from("equipment")
           .select("*", { count: "exact", head: true }),
-          
+
         // Get total players count
         this.supabase
           .from("players")
-          .select("*", { count: "exact", head: true })
+          .select("*", { count: "exact", head: true }),
       ]);
 
       // Process the results to get status counts
@@ -985,9 +1009,9 @@ export class DatabaseService {
           pending: 0,
           awaiting_second_approval: 0,
           approved: 0,
-          rejected: 0
+          rejected: 0,
         };
-        
+
         if (data) {
           // This is a workaround - we get all data and count by status in memory
           // In a real app, we'd use GROUP BY in the database
@@ -997,7 +1021,7 @@ export class DatabaseService {
             }
           });
         }
-        
+
         return counts;
       };
 
@@ -1015,13 +1039,13 @@ export class DatabaseService {
           playerSubmissions: getStatusCounts(playerSubmissionsQuery.data),
           playerEdits: getStatusCounts(playerEditsQuery.data),
           equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
-        }
+        },
       };
 
       return result;
     } catch (error) {
       console.error("Error fetching admin dashboard counts:", error);
-      
+
       // Return empty counts as fallback
       return {
         totals: {
@@ -1033,19 +1057,42 @@ export class DatabaseService {
           players: 0,
         },
         byStatus: {
-          equipmentSubmissions: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
-          playerSubmissions: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
-          playerEdits: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
-          equipmentReviews: { pending: 0, awaiting_second_approval: 0, approved: 0, rejected: 0 },
-        }
+          equipmentSubmissions: {
+            pending: 0,
+            awaiting_second_approval: 0,
+            approved: 0,
+            rejected: 0,
+          },
+          playerSubmissions: {
+            pending: 0,
+            awaiting_second_approval: 0,
+            approved: 0,
+            rejected: 0,
+          },
+          playerEdits: {
+            pending: 0,
+            awaiting_second_approval: 0,
+            approved: 0,
+            rejected: 0,
+          },
+          equipmentReviews: {
+            pending: 0,
+            awaiting_second_approval: 0,
+            approved: 0,
+            rejected: 0,
+          },
+        },
       };
     }
   }
 
   // Get similar equipment for comparison suggestions
-  async getSimilarEquipment(equipmentId: string, limit = 6): Promise<Equipment[]> {
+  async getSimilarEquipment(
+    equipmentId: string,
+    limit = 6
+  ): Promise<Equipment[]> {
     return this.withLogging(
-      'get_similar_equipment',
+      "get_similar_equipment",
       async () => {
         // First get current equipment details
         const currentEquipment = await this.getEquipmentById(equipmentId);
@@ -1063,22 +1110,28 @@ export class DatabaseService {
   }
 
   // Get players using specific equipment
-  async getPlayersUsingEquipment(equipmentId: string): Promise<Array<{ id: string; name: string; slug: string }>> {
+  async getPlayersUsingEquipment(
+    equipmentId: string
+  ): Promise<Array<{ id: string; name: string; slug: string }>> {
     return this.withLogging(
-      'get_players_using_equipment',
+      "get_players_using_equipment",
       async () => {
         const result = await this.supabase
           .from("player_equipment_setups")
-          .select(`
+          .select(
+            `
             players!inner (
               id,
               name,
               slug
             )
-          `)
-          .or(`blade_id.eq.${equipmentId},forehand_rubber_id.eq.${equipmentId},backhand_rubber_id.eq.${equipmentId}`)
+          `
+          )
+          .or(
+            `blade_id.eq.${equipmentId},forehand_rubber_id.eq.${equipmentId},backhand_rubber_id.eq.${equipmentId}`
+          )
           .eq("verified", true);
-        
+
         if (result.data) {
           // Extract unique players (remove duplicates if player has multiple setups with same equipment)
           const uniquePlayers = new Map();
@@ -1088,9 +1141,12 @@ export class DatabaseService {
               uniquePlayers.set(player.id, player);
             }
           });
-          return { data: Array.from(uniquePlayers.values()), error: result.error };
+          return {
+            data: Array.from(uniquePlayers.values()),
+            error: result.error,
+          };
         }
-        
+
         return result;
       },
       { equipmentId }

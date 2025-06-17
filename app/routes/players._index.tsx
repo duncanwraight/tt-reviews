@@ -12,26 +12,26 @@ import { createCategoryService } from "~/lib/categories.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
-  
+
   // Enhanced SEO title pattern based on research
   const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
-  
+
   // Enhanced meta description with player count and value proposition
   const description = `Explore hundreds of professional table tennis players. Discover equipment setups, playing styles, and career achievements. Updated ${currentYear}.`;
-  
+
   // Enhanced keywords targeting player searches from research
   const keywords = [
-    'professional table tennis players',
-    'table tennis player database',
-    'ma long equipment',
-    'fan zhendong blade',
-    'table tennis player rankings',
-    'professional player setups',
-    'table tennis equipment used by pros',
+    "professional table tennis players",
+    "table tennis player database",
+    "ma long equipment",
+    "fan zhendong blade",
+    "table tennis player rankings",
+    "professional player setups",
+    "table tennis equipment used by pros",
     `table tennis players ${currentYear}`,
-    'ping pong professionals',
-    'tournament players'
-  ].join(', ');
+    "ping pong professionals",
+    "tournament players",
+  ].join(", ");
 
   return [
     { title },
@@ -57,8 +57,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const country = url.searchParams.get("country") || undefined;
   const playingStyle = url.searchParams.get("style") || undefined;
   const gender = url.searchParams.get("gender") || undefined;
-  const activeOnly = url.searchParams.get("active") === "true" ? true : url.searchParams.get("active") === "false" ? false : undefined;
-  const sortBy = (url.searchParams.get("sort") as "name" | "created_at" | "highest_rating") || "created_at";
+  const activeOnly =
+    url.searchParams.get("active") === "true"
+      ? true
+      : url.searchParams.get("active") === "false"
+        ? false
+        : undefined;
+  const sortBy =
+    (url.searchParams.get("sort") as
+      | "name"
+      | "created_at"
+      | "highest_rating") || "created_at";
   const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
   const page = parseInt(url.searchParams.get("page") || "1", 10);
   const limit = 12; // Players per page
@@ -67,7 +76,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const db = new DatabaseService(context);
   const categoryService = createCategoryService(sbServerClient.client);
-  
+
   const [players, totalCount, countries, playingStyles] = await Promise.all([
     db.getAllPlayers({
       country,
@@ -98,35 +107,39 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Generate breadcrumb schema
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
-    { label: "Players", href: "/players" }
+    { label: "Players", href: "/players" },
   ]);
   const schemaJsonLd = schemaService.toJsonLd(breadcrumbSchema);
 
-  return data({
-    players,
-    user,
-    countries,
-    playingStyles,
-    pagination: {
-      currentPage: page,
-      totalPages,
-      totalCount,
-      limit,
+  return data(
+    {
+      players,
+      user,
+      countries,
+      playingStyles,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+      },
+      filters: {
+        country,
+        playingStyle,
+        gender,
+        activeOnly,
+        sortBy,
+        sortOrder,
+      },
+      schemaJsonLd,
     },
-    filters: {
-      country,
-      playingStyle,
-      gender,
-      activeOnly,
-      sortBy,
-      sortOrder,
-    },
-    schemaJsonLd,
-  }, { headers: sbServerClient.headers });
+    { headers: sbServerClient.headers }
+  );
 }
 
 export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
-  const { players, user, countries, playingStyles, pagination, filters } = loaderData;
+  const { players, user, countries, playingStyles, pagination, filters } =
+    loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -142,9 +155,12 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
           <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold mb-2">Help Expand Our Player Database</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  Help Expand Our Player Database
+                </h3>
                 <p className="text-purple-100">
-                  Create an account or log in to submit a new player and contribute to our growing community.
+                  Create an account or log in to submit a new player and
+                  contribute to our growing community.
                 </p>
               </div>
               <a
@@ -156,9 +172,9 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
         )}
-        <PlayersHeader 
-          totalPlayers={pagination.totalCount} 
-          user={user} 
+        <PlayersHeader
+          totalPlayers={pagination.totalCount}
+          user={user}
           countries={countries}
           playingStyles={playingStyles}
           filters={filters}

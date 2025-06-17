@@ -25,7 +25,7 @@ export function PlayerEquipmentSetup({
           type="checkbox"
           id="include_equipment"
           checked={includeEquipment}
-          onChange={(e) => onToggleEquipment(e.target.checked)}
+          onChange={e => onToggleEquipment(e.target.checked)}
           disabled={isSubmitting}
           className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
         />
@@ -109,7 +109,7 @@ export function PlayerEquipmentSetup({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select source type</option>
-                {SOURCE_TYPES.map((type) => (
+                {SOURCE_TYPES.map(type => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -201,7 +201,10 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
                 disabled={isSubmitting}
                 className="mr-2 text-red-600 focus:ring-red-500"
               />
-              <label htmlFor={`${side}_forehand`} className="flex items-center text-sm text-gray-700">
+              <label
+                htmlFor={`${side}_forehand`}
+                className="flex items-center text-sm text-gray-700"
+              >
                 <span className="text-red-600 mr-1">🔴</span>
                 Forehand
               </label>
@@ -215,7 +218,10 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
                 disabled={isSubmitting}
                 className="mr-2 text-gray-900 focus:ring-gray-500"
               />
-              <label htmlFor={`${side}_backhand`} className="flex items-center text-sm text-gray-700">
+              <label
+                htmlFor={`${side}_backhand`}
+                className="flex items-center text-sm text-gray-700"
+              >
                 <span className="text-gray-900 mr-1">⚫</span>
                 Backhand
               </label>

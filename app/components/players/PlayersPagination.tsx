@@ -16,17 +16,21 @@ interface PlayersPaginationProps {
   };
 }
 
-export function PlayersPagination({ pagination, filters }: PlayersPaginationProps) {
+export function PlayersPagination({
+  pagination,
+  filters,
+}: PlayersPaginationProps) {
   const buildPageUrl = (page: number) => {
     const params = new URLSearchParams();
-    
+
     if (filters.country) params.set("country", filters.country);
     if (filters.playingStyle) params.set("style", filters.playingStyle);
-    if (filters.activeOnly !== undefined) params.set("active", filters.activeOnly.toString());
+    if (filters.activeOnly !== undefined)
+      params.set("active", filters.activeOnly.toString());
     if (filters.sortBy !== "created_at") params.set("sort", filters.sortBy);
     if (filters.sortOrder !== "desc") params.set("order", filters.sortOrder);
     if (page !== 1) params.set("page", page.toString());
-    
+
     return `/players?${params.toString()}`;
   };
 
@@ -46,7 +50,11 @@ export function PlayersPagination({ pagination, filters }: PlayersPaginationProp
   }
 
   // Show pages around current page
-  for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+  for (
+    let i = Math.max(1, currentPage - 2);
+    i <= Math.min(totalPages, currentPage + 2);
+    i++
+  ) {
     pages.push(i);
   }
 
@@ -74,7 +82,10 @@ export function PlayersPagination({ pagination, filters }: PlayersPaginationProp
       {pages.map((page, index) => {
         if (page === "...") {
           return (
-            <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm font-medium text-gray-700">
+            <span
+              key={`ellipsis-${index}`}
+              className="px-3 py-2 text-sm font-medium text-gray-700"
+            >
               ...
             </span>
           );

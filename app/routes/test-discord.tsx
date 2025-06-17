@@ -5,7 +5,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   // Only allow this in development
   const env = context.cloudflare.env as Cloudflare.Env;
   if (env.NODE_ENV === "production") {
-    return Response.json({ error: "Not available in production" }, { status: 404 });
+    return Response.json(
+      { error: "Not available in production" },
+      { status: 404 }
+    );
   }
 
   return Response.json({
@@ -21,7 +24,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   // Only allow this in development
   const env = context.cloudflare.env as Cloudflare.Env;
   if (env.NODE_ENV === "production") {
-    return Response.json({ error: "Not available in production" }, { status: 404 });
+    return Response.json(
+      { error: "Not available in production" },
+      { status: 404 }
+    );
   }
 
   try {
@@ -31,14 +37,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     // Test different Discord integration features
     if (body.test === "notification") {
       // Test equipment notification
-      const notificationResult = await discordService.notifyNewEquipmentSubmission({
-        id: "test-123",
-        name: "Test Equipment",
-        manufacturer: "Test Manufacturer",
-        category: "blade",
-        subcategory: null,
-        submitter_email: "test@example.com",
-      });
+      const notificationResult =
+        await discordService.notifyNewEquipmentSubmission({
+          id: "test-123",
+          name: "Test Equipment",
+          manufacturer: "Test Manufacturer",
+          category: "blade",
+          subcategory: null,
+          submitter_email: "test@example.com",
+        });
 
       return Response.json({
         success: true,
@@ -84,7 +91,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         guild_id: "test-guild",
       };
 
-      const response = await discordService.handleMessageComponent(mockInteraction);
+      const response =
+        await discordService.handleMessageComponent(mockInteraction);
       const responseData = await response.json();
 
       return Response.json({
@@ -121,12 +129,20 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     return Response.json({
       error: "Unknown test type",
-      availableTests: ["notification", "slash_command", "button_interaction", "player_search"],
+      availableTests: [
+        "notification",
+        "slash_command",
+        "button_interaction",
+        "player_search",
+      ],
     });
   } catch (error) {
     console.error("Discord test error:", error);
     return Response.json(
-      { error: "Test failed", details: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Test failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
@@ -136,17 +152,20 @@ export default function TestDiscord() {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6">Discord Integration Test</h1>
-      
+
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
         <p className="text-yellow-800">
-          <strong>Note:</strong> This test endpoint is only available in development mode.
-          It allows testing Discord integration functionality without making actual Discord API calls.
+          <strong>Note:</strong> This test endpoint is only available in
+          development mode. It allows testing Discord integration functionality
+          without making actual Discord API calls.
         </p>
       </div>
 
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Test Equipment Notification</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Test Equipment Notification
+          </h2>
           <button
             onClick={() => testDiscordFeature("notification")}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -156,7 +175,9 @@ export default function TestDiscord() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Test Equipment Search Command</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Test Equipment Search Command
+          </h2>
           <button
             onClick={() => testDiscordFeature("slash_command")}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
@@ -166,7 +187,9 @@ export default function TestDiscord() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Test Player Search Command</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Test Player Search Command
+          </h2>
           <button
             onClick={() => testDiscordFeature("player_search")}
             className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
@@ -176,7 +199,9 @@ export default function TestDiscord() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Test Button Interaction</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Test Button Interaction
+          </h2>
           <button
             onClick={() => testDiscordFeature("button_interaction")}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"

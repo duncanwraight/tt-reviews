@@ -25,13 +25,19 @@ export async function action({ request, context }: Route.ActionArgs) {
         break;
       default:
         console.error("Unknown notification type:", type);
-        return Response.json({ error: "Unknown notification type" }, { status: 400 });
+        return Response.json(
+          { error: "Unknown notification type" },
+          { status: 400 }
+        );
     }
 
     return Response.json({ success: true, result });
   } catch (error) {
     console.error("Discord notification error:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace"
+    );
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

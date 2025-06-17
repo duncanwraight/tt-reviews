@@ -20,17 +20,17 @@ export function FeedbackModal({
   autoClose = true,
   autoCloseDelay = 2000,
   onClose,
-  actions
+  actions,
 }: FeedbackModalProps) {
   const [isVisible, setIsVisible] = useState(isOpen);
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     // Create or get modal root
-    let root = document.getElementById('modal-root');
+    let root = document.getElementById("modal-root");
     if (!root) {
-      root = document.createElement('div');
-      root.id = 'modal-root';
+      root = document.createElement("div");
+      root.id = "modal-root";
       document.body.appendChild(root);
     }
     setModalRoot(root);
@@ -61,38 +61,38 @@ export function FeedbackModal({
       messageColor: "text-green-700",
       iconColor: "text-green-600",
       icon: "✓",
-      iconBg: "bg-green-100"
+      iconBg: "bg-green-100",
     },
     error: {
       bgColor: "bg-red-50",
-      borderColor: "border-red-200", 
+      borderColor: "border-red-200",
       titleColor: "text-red-800",
       messageColor: "text-red-700",
       iconColor: "text-red-600",
       icon: "✕",
-      iconBg: "bg-red-100"
+      iconBg: "bg-red-100",
     },
     loading: {
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
-      titleColor: "text-blue-800", 
+      titleColor: "text-blue-800",
       messageColor: "text-blue-700",
       iconColor: "text-blue-600",
       icon: "",
-      iconBg: "bg-blue-100"
-    }
+      iconBg: "bg-blue-100",
+    },
   };
 
   const config = typeConfig[type];
 
   const modalContent = (
-    <div 
+    <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
-        zIndex: 9999
+      style={{
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
+        zIndex: 9999,
       }}
-      onClick={(e) => {
+      onClick={e => {
         // Close on backdrop click for error modals
         if (e.target === e.currentTarget && type === "error" && onClose) {
           setIsVisible(false);
@@ -101,12 +101,18 @@ export function FeedbackModal({
       }}
     >
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 ease-out relative">
-        <div className={`${config.bgColor} ${config.borderColor} border-2 rounded-2xl p-8`}>
+        <div
+          className={`${config.bgColor} ${config.borderColor} border-2 rounded-2xl p-8`}
+        >
           {/* Icon */}
           <div className="flex justify-center mb-6">
-            <div className={`${config.iconBg} w-16 h-16 rounded-full flex items-center justify-center`}>
+            <div
+              className={`${config.iconBg} w-16 h-16 rounded-full flex items-center justify-center`}
+            >
               {type === "loading" ? (
-                <div className={`w-8 h-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600`} />
+                <div
+                  className={`w-8 h-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600`}
+                />
               ) : (
                 <span className={`${config.iconColor} text-3xl font-bold`}>
                   {config.icon}
@@ -120,15 +126,15 @@ export function FeedbackModal({
             <h3 className={`${config.titleColor} text-2xl font-bold mb-3`}>
               {title}
             </h3>
-            <p className={`${config.messageColor} text-lg leading-relaxed mb-6`}>
+            <p
+              className={`${config.messageColor} text-lg leading-relaxed mb-6`}
+            >
               {message}
             </p>
 
             {/* Actions */}
             {actions ? (
-              <div className="flex justify-center space-x-3">
-                {actions}
-              </div>
+              <div className="flex justify-center space-x-3">{actions}</div>
             ) : type === "error" && onClose ? (
               <div className="flex justify-center">
                 <button
@@ -146,7 +152,8 @@ export function FeedbackModal({
             {/* Auto-close indicator for success/error */}
             {type !== "loading" && autoClose && (
               <div className="mt-4 text-sm text-gray-500">
-                This dialog will close automatically in {autoCloseDelay / 1000} seconds
+                This dialog will close automatically in {autoCloseDelay / 1000}{" "}
+                seconds
               </div>
             )}
           </div>

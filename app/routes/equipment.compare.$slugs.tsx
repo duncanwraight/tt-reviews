@@ -17,74 +17,101 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // Parse equipment slugs from URL parameter (format: "slug1-vs-slug2")
   const slugsParam = params.slugs;
-  if (!slugsParam || !slugsParam.includes('-vs-')) {
-    throw redirect('/equipment', { headers: sbServerClient.headers });
+  if (!slugsParam || !slugsParam.includes("-vs-")) {
+    throw redirect("/equipment", { headers: sbServerClient.headers });
   }
 
-  const [slug1, slug2] = slugsParam.split('-vs-');
+  const [slug1, slug2] = slugsParam.split("-vs-");
   if (!slug1 || !slug2) {
-    throw redirect('/equipment', { headers: sbServerClient.headers });
+    throw redirect("/equipment", { headers: sbServerClient.headers });
   }
 
   // Fetch both equipment items
   const [equipment1, equipment2] = await Promise.all([
     db.getEquipment(slug1),
-    db.getEquipment(slug2)
+    db.getEquipment(slug2),
   ]);
 
   if (!equipment1 || !equipment2) {
-    throw redirect('/equipment', { headers: sbServerClient.headers });
+    throw redirect("/equipment", { headers: sbServerClient.headers });
   }
 
   // Ensure equipment are comparable (same category)
   if (equipment1.category !== equipment2.category) {
-    throw redirect(`/equipment/${equipment1.slug}`, { headers: sbServerClient.headers });
+    throw redirect(`/equipment/${equipment1.slug}`, {
+      headers: sbServerClient.headers,
+    });
   }
 
   // Get reviews and ratings for both equipment
-  const [reviews1, reviews2, usedByPlayers1, usedByPlayers2] = await Promise.all([
-    db.getEquipmentReviews(equipment1.id),
-    db.getEquipmentReviews(equipment2.id),
-    db.getPlayersUsingEquipment(equipment1.id),
-    db.getPlayersUsingEquipment(equipment2.id)
-  ]);
+  const [reviews1, reviews2, usedByPlayers1, usedByPlayers2] =
+    await Promise.all([
+      db.getEquipmentReviews(equipment1.id),
+      db.getEquipmentReviews(equipment2.id),
+      db.getPlayersUsingEquipment(equipment1.id),
+      db.getPlayersUsingEquipment(equipment2.id),
+    ]);
 
   // Calculate average ratings
-  const averageRating1 = reviews1.length > 0 
-    ? reviews1.reduce((sum, review) => sum + review.overall_rating, 0) / reviews1.length 
-    : null;
-  
-  const averageRating2 = reviews2.length > 0 
-    ? reviews2.reduce((sum, review) => sum + review.overall_rating, 0) / reviews2.length 
-    : null;
+  const averageRating1 =
+    reviews1.length > 0
+      ? reviews1.reduce((sum, review) => sum + review.overall_rating, 0) /
+        reviews1.length
+      : null;
+
+  const averageRating2 =
+    reviews2.length > 0
+      ? reviews2.reduce((sum, review) => sum + review.overall_rating, 0) /
+        reviews2.length
+      : null;
 
   // Generate structured data for comparison
   const comparisonSchema = schemaService.generateComparisonSchema({
-    equipment1: { ...equipment1, averageRating: averageRating1, reviewCount: reviews1.length },
-    equipment2: { ...equipment2, averageRating: averageRating2, reviewCount: reviews2.length },
+    equipment1: {
+      ...equipment1,
+      averageRating: averageRating1,
+      reviewCount: reviews1.length,
+    },
+    equipment2: {
+      ...equipment2,
+      averageRating: averageRating2,
+      reviewCount: reviews2.length,
+    },
     usedByPlayers1,
-    usedByPlayers2
+    usedByPlayers2,
   });
 
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
-    { name: 'Equipment', url: '/equipment' },
-    { name: `${equipment1.category}`, url: `/equipment?category=${equipment1.category}` },
-    { name: `${equipment1.name} vs ${equipment2.name}`, url: `/equipment/compare/${slugsParam}` }
+    { name: "Equipment", url: "/equipment" },
+    {
+      name: `${equipment1.category}`,
+      url: `/equipment?category=${equipment1.category}`,
+    },
+    {
+      name: `${equipment1.name} vs ${equipment2.name}`,
+      url: `/equipment/compare/${slugsParam}`,
+    },
   ]);
 
-  const schemaJsonLd = schemaService.generateMultipleSchemas([comparisonSchema, breadcrumbSchema]);
+  const schemaJsonLd = schemaService.generateMultipleSchemas([
+    comparisonSchema,
+    breadcrumbSchema,
+  ]);
 
-  return data({
-    equipment1,
-    equipment2,
-    reviews1,
-    reviews2,
-    averageRating1,
-    averageRating2,
-    usedByPlayers1,
-    usedByPlayers2,
-    schemaJsonLd,
-  }, { headers: sbServerClient.headers });
+  return data(
+    {
+      equipment1,
+      equipment2,
+      reviews1,
+      reviews2,
+      averageRating1,
+      averageRating2,
+      usedByPlayers1,
+      usedByPlayers2,
+      schemaJsonLd,
+    },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export function meta({ data }: Route.MetaArgs) {
@@ -98,17 +125,28 @@ export function meta({ data }: Route.MetaArgs) {
     ];
   }
 
-  const { equipment1, equipment2, reviews1 = [], reviews2 = [], averageRating1, averageRating2 } = data;
-  
+  const {
+    equipment1,
+    equipment2,
+    reviews1 = [],
+    reviews2 = [],
+    averageRating1,
+    averageRating2,
+  } = data;
+
   // Enhanced SEO title pattern for comparison pages
   const title = `${equipment1.name} vs ${equipment2.name} - Detailed Comparison | TT Reviews`;
-  
+
   // Enhanced meta description with comparison highlights
-  const rating1Text = averageRating1 ? `${averageRating1.toFixed(1)}/5` : 'unrated';
-  const rating2Text = averageRating2 ? `${averageRating2.toFixed(1)}/5` : 'unrated';
-  
+  const rating1Text = averageRating1
+    ? `${averageRating1.toFixed(1)}/5`
+    : "unrated";
+  const rating2Text = averageRating2
+    ? `${averageRating2.toFixed(1)}/5`
+    : "unrated";
+
   const description = `Compare ${equipment1.name} (${rating1Text}, ${reviews1.length} reviews) vs ${equipment2.name} (${rating2Text}, ${reviews2.length} reviews). Detailed specs, pro usage, and community ratings comparison.`;
-  
+
   // Enhanced keywords for comparison targeting
   const keywords = [
     `${equipment1.name} vs ${equipment2.name}`,
@@ -118,9 +156,9 @@ export function meta({ data }: Route.MetaArgs) {
     `${equipment1.manufacturer} vs ${equipment2.manufacturer}`,
     `best ${equipment1.category}`,
     `${equipment1.category} comparison`,
-    'table tennis equipment comparison',
-    'professional table tennis equipment'
-  ].join(', ');
+    "table tennis equipment comparison",
+    "professional table tennis equipment",
+  ].join(", ");
 
   return [
     { title },
@@ -138,22 +176,27 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export default function EquipmentComparison({ loaderData }: Route.ComponentProps) {
-  const { 
-    equipment1, 
-    equipment2, 
-    reviews1, 
-    reviews2, 
-    averageRating1, 
+export default function EquipmentComparison({
+  loaderData,
+}: Route.ComponentProps) {
+  const {
+    equipment1,
+    equipment2,
+    reviews1,
+    reviews2,
+    averageRating1,
     averageRating2,
     usedByPlayers1,
-    usedByPlayers2
+    usedByPlayers2,
   } = loaderData;
 
   const breadcrumbs = [
-    { name: 'Equipment', href: '/equipment' },
-    { name: equipment1.category, href: `/equipment?category=${equipment1.category}` },
-    { name: `${equipment1.name} vs ${equipment2.name}`, href: '' }
+    { name: "Equipment", href: "/equipment" },
+    {
+      name: equipment1.category,
+      href: `/equipment?category=${equipment1.category}`,
+    },
+    { name: `${equipment1.name} vs ${equipment2.name}`, href: "" },
   ];
 
   return (
@@ -161,8 +204,8 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
       <PageSection className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={breadcrumbs} />
-          
-          <ComparisonHeader 
+
+          <ComparisonHeader
             equipment1={equipment1}
             equipment2={equipment2}
             averageRating1={averageRating1}
@@ -173,7 +216,7 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-8">
             <div className="lg:col-span-8">
-              <ComparisonTable 
+              <ComparisonTable
                 equipment1={equipment1}
                 equipment2={equipment2}
                 reviews1={reviews1}
@@ -188,13 +231,15 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Professional Usage
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">{equipment1.name}</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {equipment1.name}
+                    </h4>
                     {usedByPlayers1.length > 0 ? (
                       <div className="space-y-1">
-                        {usedByPlayers1.slice(0, 5).map((player) => (
+                        {usedByPlayers1.slice(0, 5).map(player => (
                           <Link
                             key={player.id}
                             to={`/players/${player.slug}`}
@@ -210,15 +255,19 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">No professional usage tracked</p>
+                      <p className="text-sm text-gray-500">
+                        No professional usage tracked
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">{equipment2.name}</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {equipment2.name}
+                    </h4>
                     {usedByPlayers2.length > 0 ? (
                       <div className="space-y-1">
-                        {usedByPlayers2.slice(0, 5).map((player) => (
+                        {usedByPlayers2.slice(0, 5).map(player => (
                           <Link
                             key={player.id}
                             to={`/players/${player.slug}`}
@@ -234,7 +283,9 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">No professional usage tracked</p>
+                      <p className="text-sm text-gray-500">
+                        No professional usage tracked
+                      </p>
                     )}
                   </div>
                 </div>
@@ -268,7 +319,7 @@ export default function EquipmentComparison({ loaderData }: Route.ComponentProps
             </div>
           </div>
 
-          <ComparisonConclusion 
+          <ComparisonConclusion
             equipment1={equipment1}
             equipment2={equipment2}
             averageRating1={averageRating1}

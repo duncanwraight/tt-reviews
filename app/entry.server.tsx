@@ -37,10 +37,10 @@ export default async function handleRequest(
   }
 
   responseHeaders.set("Content-Type", "text/html");
-  
+
   // Add comprehensive security headers
   addSecurityHeaders(responseHeaders);
-  
+
   return new Response(body, {
     headers: responseHeaders,
     status: responseStatusCode,

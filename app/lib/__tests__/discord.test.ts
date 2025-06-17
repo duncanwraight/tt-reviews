@@ -3,19 +3,24 @@ import { DiscordService } from "../discord.server";
 import { DatabaseService } from "../database.server";
 
 // Mock AppLoadContext for testing
-const createMockContext = () => ({
-  cloudflare: {
-    env: {
-      SUPABASE_URL: process.env.SUPABASE_URL,
-      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      DISCORD_PUBLIC_KEY: process.env.DISCORD_PUBLIC_KEY || "test_key_placeholder",
-      DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL || "https://discord.com/api/webhooks/test",
-      DISCORD_ALLOWED_ROLES: process.env.DISCORD_ALLOWED_ROLES || "role_id_1,role_id_2,role_id_3",
-      SITE_URL: process.env.SITE_URL || "https://tt-reviews.local",
+const createMockContext = () =>
+  ({
+    cloudflare: {
+      env: {
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        DISCORD_PUBLIC_KEY:
+          process.env.DISCORD_PUBLIC_KEY || "test_key_placeholder",
+        DISCORD_WEBHOOK_URL:
+          process.env.DISCORD_WEBHOOK_URL ||
+          "https://discord.com/api/webhooks/test",
+        DISCORD_ALLOWED_ROLES:
+          process.env.DISCORD_ALLOWED_ROLES || "role_id_1,role_id_2,role_id_3",
+        SITE_URL: process.env.SITE_URL || "https://tt-reviews.local",
+      },
     },
-  },
-} as any);
+  }) as any;
 
 describe("Discord Integration", () => {
   let discordService: DiscordService;
@@ -48,7 +53,8 @@ describe("Discord Integration", () => {
       };
 
       try {
-        const result = await discordService.notifyNewEquipmentSubmission(mockSubmissionData);
+        const result =
+          await discordService.notifyNewEquipmentSubmission(mockSubmissionData);
 
         expect(result.success).toBe(true);
         expect(capturedPayload).toBeDefined();
@@ -73,7 +79,7 @@ describe("Discord Integration", () => {
               inline: true,
             }),
             expect.objectContaining({
-              name: "Manufacturer", 
+              name: "Manufacturer",
               value: "Test Manufacturer",
               inline: true,
             }),
@@ -97,13 +103,17 @@ describe("Discord Integration", () => {
         expect(approveButton.type).toBe(2); // Button
         expect(approveButton.style).toBe(3); // Success/Green
         expect(approveButton.label).toBe("Approve Equipment");
-        expect(approveButton.custom_id).toBe("approve_equipment_test-equipment-123");
+        expect(approveButton.custom_id).toBe(
+          "approve_equipment_test-equipment-123"
+        );
 
         const rejectButton = actionRow.components[1];
         expect(rejectButton.type).toBe(2); // Button
         expect(rejectButton.style).toBe(4); // Danger/Red
         expect(rejectButton.label).toBe("Reject Equipment");
-        expect(rejectButton.custom_id).toBe("reject_equipment_test-equipment-123");
+        expect(rejectButton.custom_id).toBe(
+          "reject_equipment_test-equipment-123"
+        );
       } finally {
         global.fetch = originalFetch;
       }
@@ -141,15 +151,21 @@ describe("Discord Integration", () => {
         expect(embed).toHaveProperty("color", 0xe67e22); // Orange color
 
         // Validate changes field
-        const changesField = embed.fields.find((field: any) => field.name === "Changes");
+        const changesField = embed.fields.find(
+          (field: any) => field.name === "Changes"
+        );
         expect(changesField).toBeDefined();
         expect(changesField.value).toContain("Name: Updated Player Name");
         expect(changesField.value).toContain("Rating: 3000+");
 
         // Validate action buttons with correct custom_id format
         const actionRow = capturedPayload.components[0];
-        expect(actionRow.components[0].custom_id).toBe("approve_player_edit_test-edit-123");
-        expect(actionRow.components[1].custom_id).toBe("reject_player_edit_test-edit-123");
+        expect(actionRow.components[0].custom_id).toBe(
+          "approve_player_edit_test-edit-123"
+        );
+        expect(actionRow.components[1].custom_id).toBe(
+          "reject_player_edit_test-edit-123"
+        );
       } finally {
         global.fetch = originalFetch;
       }
@@ -206,7 +222,9 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toMatch(/Player Search Results|No players found/);
+      expect(responseData.data.content).toMatch(
+        /Player Search Results|No players found/
+      );
     });
 
     it("should reject commands from users without proper roles", async () => {
@@ -225,7 +243,9 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toBe("❌ You do not have permission to use this command.");
+      expect(responseData.data.content).toBe(
+        "❌ You do not have permission to use this command."
+      );
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
 
@@ -245,7 +265,9 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toContain("Please provide a search query");
+      expect(responseData.data.content).toContain(
+        "Please provide a search query"
+      );
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
   });
@@ -257,17 +279,23 @@ describe("Discord Integration", () => {
         data: {
           custom_id: "approve_equipment_12345678-1234-1234-1234-123456789999",
         },
-        user: { id: "12345678-1234-1234-1234-123456789012", username: "TestModerator" },
+        user: {
+          id: "12345678-1234-1234-1234-123456789012",
+          username: "TestModerator",
+        },
         member: { roles: ["role_id_1"] },
         guild_id: "test-guild",
       };
 
-      const response = await discordService.handleMessageComponent(mockInteraction);
+      const response =
+        await discordService.handleMessageComponent(mockInteraction);
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
       // Should handle database errors gracefully
-      expect(responseData.data.content).toMatch(/Error.*Failed to record approval/);
+      expect(responseData.data.content).toMatch(
+        /Error.*Failed to record approval/
+      );
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
 
@@ -277,16 +305,22 @@ describe("Discord Integration", () => {
         data: {
           custom_id: "approve_player_edit_12345678-1234-1234-1234-123456789999",
         },
-        user: { id: "12345678-1234-1234-1234-123456789012", username: "TestModerator" },
+        user: {
+          id: "12345678-1234-1234-1234-123456789012",
+          username: "TestModerator",
+        },
         member: { roles: ["role_id_1"] },
         guild_id: "test-guild",
       };
 
-      const response = await discordService.handleMessageComponent(mockInteraction);
+      const response =
+        await discordService.handleMessageComponent(mockInteraction);
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toMatch(/Error.*Failed to record approval/);
+      expect(responseData.data.content).toMatch(
+        /Error.*Failed to record approval/
+      );
       expect(responseData.data.flags).toBe(64);
     });
 
@@ -301,11 +335,14 @@ describe("Discord Integration", () => {
         guild_id: "test-guild",
       };
 
-      const response = await discordService.handleMessageComponent(mockInteraction);
+      const response =
+        await discordService.handleMessageComponent(mockInteraction);
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toBe("❌ You do not have permission to use this command.");
+      expect(responseData.data.content).toBe(
+        "❌ You do not have permission to use this command."
+      );
       expect(responseData.data.flags).toBe(64);
     });
 
@@ -320,7 +357,8 @@ describe("Discord Integration", () => {
         guild_id: "test-guild",
       };
 
-      const response = await discordService.handleMessageComponent(mockInteraction);
+      const response =
+        await discordService.handleMessageComponent(mockInteraction);
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
@@ -336,7 +374,9 @@ describe("Discord Integration", () => {
         data: {}, // Add empty data object to avoid the error
       };
 
-      const response = await discordService.handleSlashCommand(mockPingInteraction as any);
+      const response = await discordService.handleSlashCommand(
+        mockPingInteraction as any
+      );
       const responseData = await response.json();
 
       expect(responseData).toEqual({ type: 1 }); // Pong
@@ -352,9 +392,11 @@ describe("Discord Integration", () => {
       };
 
       const result = await discordService.handlePrefixCommand(mockMessage);
-      
+
       expect(result).toBeDefined();
-      expect(result.content).toMatch(/Equipment Search Results|No equipment found/);
+      expect(result.content).toMatch(
+        /Equipment Search Results|No equipment found/
+      );
     });
 
     it("should handle player prefix command", async () => {
@@ -365,7 +407,7 @@ describe("Discord Integration", () => {
       };
 
       const result = await discordService.handlePrefixCommand(mockMessage);
-      
+
       expect(result).toBeDefined();
       expect(result.content).toMatch(/Player Search Results|No players found/);
     });
@@ -389,9 +431,11 @@ describe("Discord Integration", () => {
       };
 
       const result = await discordService.handlePrefixCommand(mockMessage);
-      
+
       expect(result).toBeDefined();
-      expect(result.content).toBe("❌ You do not have permission to use this command.");
+      expect(result.content).toBe(
+        "❌ You do not have permission to use this command."
+      );
     });
   });
 });

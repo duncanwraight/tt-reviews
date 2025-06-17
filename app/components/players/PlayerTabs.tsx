@@ -79,7 +79,7 @@ export function PlayerTabs({
     <>
       <section className="tabs bg-white border-b border-gray-200">
         <div className="tab-nav flex max-w-7xl mx-auto px-4">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               className={`px-6 py-4 font-medium border-b-2 hover:text-gray-900 hover:border-gray-300 focus:outline-none ${

@@ -7,24 +7,28 @@ This test suite validates both "push" (notifications to Discord) and "pull" (com
 ## Test Coverage
 
 ### Push Functionality (Notifications to Discord)
+
 - **Equipment Submission Notifications**: Validates Discord embed structure, fields, colors, and action buttons
 - **Player Edit Notifications**: Tests change summary generation and button interactions
 - **JSON Structure Validation**: Ensures payloads match Discord API requirements
 
 ### Pull Functionality (Commands from Discord)
+
 - **Equipment Search**: Tests `/equipment` slash command with real database
-- **Player Search**: Tests `/player` slash command with real database  
+- **Player Search**: Tests `/player` slash command with real database
 - **Prefix Commands**: Tests `!equipment` and `!player` commands
 - **Permission Validation**: Ensures only authorized Discord roles can use commands
 - **Error Handling**: Tests empty queries, unknown commands, unauthorized access
 
 ### Button Interactions (Moderation)
+
 - **Equipment Approval/Rejection**: Tests moderation button functionality
 - **Player Edit Approval/Rejection**: Tests player edit moderation
 - **Permission Checks**: Ensures only authorized users can moderate
 - **Database Integration**: Tests actual moderation actions against database
 
 ### Protocol Compliance
+
 - **Discord Ping/Pong**: Tests Discord verification handshake
 - **Response Formats**: Validates all responses match Discord interaction response types
 
@@ -67,8 +71,9 @@ npm run test -- --watch
 ## Test Results
 
 All 15 tests pass, covering:
+
 - 2 Push functionality tests
-- 4 Pull functionality tests  
+- 4 Pull functionality tests
 - 4 Button interaction tests
 - 1 Discord protocol test
 - 4 Prefix command tests

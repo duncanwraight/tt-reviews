@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ApprovalSource, RejectionCategory, ModeratorApproval } from "./types";
+import type {
+  ApprovalSource,
+  RejectionCategory,
+  ModeratorApproval,
+} from "./types";
 import { deleteImageFromR2Native } from "./r2-native.server";
 
 export interface ApprovalResult {
@@ -35,20 +39,21 @@ export class ModerationService {
         .maybeSingle();
 
       if (existingApproval) {
-        return { success: false, error: "You have already approved this submission" };
+        return {
+          success: false,
+          error: "You have already approved this submission",
+        };
       }
 
       // Record the approval
-      const { error } = await this.supabase
-        .from("moderator_approvals")
-        .insert({
-          submission_type: submissionType,
-          submission_id: submissionId,
-          moderator_id: moderatorId,
-          source,
-          action: "approved",
-          notes,
-        });
+      const { error } = await this.supabase.from("moderator_approvals").insert({
+        submission_type: submissionType,
+        submission_id: submissionId,
+        moderator_id: moderatorId,
+        source,
+        action: "approved",
+        notes,
+      });
 
       if (error) {
         console.error("Database error in recordApproval:", error);
@@ -60,16 +65,25 @@ export class ModerationService {
           action: "approved",
           notes,
         });
-        return { success: false, error: `Failed to record approval: ${error.message}` };
+        return {
+          success: false,
+          error: `Failed to record approval: ${error.message}`,
+        };
       }
 
       // Get updated submission status
-      const status = await this.getSubmissionStatus(submissionType, submissionId);
-      
+      const status = await this.getSubmissionStatus(
+        submissionType,
+        submissionId
+      );
+
       return { success: true, newStatus: status };
     } catch (error) {
       console.error("Exception in recordApproval:", error);
-      return { success: false, error: `Internal error: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      return {
+        success: false,
+        error: `Internal error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
     }
   }
 
@@ -83,17 +97,15 @@ export class ModerationService {
   ): Promise<ApprovalResult> {
     try {
       // Record the rejection
-      const { error } = await this.supabase
-        .from("moderator_approvals")
-        .insert({
-          submission_type: submissionType,
-          submission_id: submissionId,
-          moderator_id: moderatorId,
-          source,
-          action: "rejected",
-          rejection_category: rejectionData.category,
-          rejection_reason: rejectionData.reason,
-        });
+      const { error } = await this.supabase.from("moderator_approvals").insert({
+        submission_type: submissionType,
+        submission_id: submissionId,
+        moderator_id: moderatorId,
+        source,
+        action: "rejected",
+        rejection_category: rejectionData.category,
+        rejection_reason: rejectionData.reason,
+      });
 
       if (error) {
         return { success: false, error: "Failed to record rejection" };
@@ -139,58 +151,79 @@ export class ModerationService {
   }
 
   async getUserSubmissions(userId: string, limit: number = 20) {
-    const [equipmentSubmissions, playerSubmissions, playerEdits] = await Promise.all([
-      this.supabase
-        .from("equipment_submissions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(limit),
-      
-      this.supabase
-        .from("player_submissions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(limit),
-      
-      this.supabase
-        .from("player_edits")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(limit),
-    ]);
+    const [equipmentSubmissions, playerSubmissions, playerEdits] =
+      await Promise.all([
+        this.supabase
+          .from("equipment_submissions")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+
+        this.supabase
+          .from("player_submissions")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+
+        this.supabase
+          .from("player_edits")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+      ]);
 
     const allSubmissions = [
-      ...(equipmentSubmissions.data || []).map(s => ({ ...s, type: "equipment" as const })),
-      ...(playerSubmissions.data || []).map(s => ({ ...s, type: "player" as const })),
-      ...(playerEdits.data || []).map(s => ({ ...s, type: "player_edit" as const })),
+      ...(equipmentSubmissions.data || []).map(s => ({
+        ...s,
+        type: "equipment" as const,
+      })),
+      ...(playerSubmissions.data || []).map(s => ({
+        ...s,
+        type: "player" as const,
+      })),
+      ...(playerEdits.data || []).map(s => ({
+        ...s,
+        type: "player_edit" as const,
+      })),
     ];
 
     // Sort by creation date and limit
     return allSubmissions
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
       .slice(0, limit);
   }
 
   // Convenience methods for equipment reviews
-  async approveEquipmentReview(reviewId: string, moderatorId: string): Promise<ApprovalResult> {
-    return this.recordApproval("equipment_review", reviewId, moderatorId, "admin_ui");
+  async approveEquipmentReview(
+    reviewId: string,
+    moderatorId: string
+  ): Promise<ApprovalResult> {
+    return this.recordApproval(
+      "equipment_review",
+      reviewId,
+      moderatorId,
+      "admin_ui"
+    );
   }
 
   async rejectEquipmentReview(
-    reviewId: string, 
-    moderatorId: string, 
-    category: RejectionCategory, 
+    reviewId: string,
+    moderatorId: string,
+    category: RejectionCategory,
     reason: string,
     r2Bucket?: R2Bucket
   ): Promise<ApprovalResult> {
     return this.recordRejection(
-      "equipment_review", 
-      reviewId, 
-      moderatorId, 
-      "admin_ui", 
+      "equipment_review",
+      reviewId,
+      moderatorId,
+      "admin_ui",
       { category, reason },
       r2Bucket
     );
@@ -227,8 +260,11 @@ export class ModerationService {
 
       // Get image key from submission data
       let imageKey: string | null = null;
-      
-      if (submissionType === "equipment" && submission.specifications?.image_key) {
+
+      if (
+        submissionType === "equipment" &&
+        submission.specifications?.image_key
+      ) {
         imageKey = submission.specifications.image_key;
       } else if (submission.image_key) {
         imageKey = submission.image_key;
@@ -242,7 +278,9 @@ export class ModerationService {
     }
   }
 
-  private getTableName(submissionType: "equipment" | "player" | "player_edit" | "equipment_review"): string {
+  private getTableName(
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review"
+  ): string {
     switch (submissionType) {
       case "equipment":
         return "equipment_submissions";
@@ -258,6 +296,8 @@ export class ModerationService {
   }
 }
 
-export function createModerationService(supabase: SupabaseClient): ModerationService {
+export function createModerationService(
+  supabase: SupabaseClient
+): ModerationService {
   return new ModerationService(supabase);
 }

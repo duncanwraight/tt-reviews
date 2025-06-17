@@ -14,49 +14,51 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  
+
   // Common bot/scanner paths we can ignore completely
   const botPaths = [
-    '/wp-admin/',
-    '/wp-login.php',
-    '/wp-content/',
-    '/xmlrpc.php',
-    '/wp-includes/',
-    '/.env',
-    '/admin/',
-    '/administrator/',
-    '/phpmyadmin/',
-    '/cgi-bin/',
-    '/.well-known/',
-    '/robots.txt',
-    '/sitemap.xml',
-    '/favicon.ico',
+    "/wp-admin/",
+    "/wp-login.php",
+    "/wp-content/",
+    "/xmlrpc.php",
+    "/wp-includes/",
+    "/.env",
+    "/admin/",
+    "/administrator/",
+    "/phpmyadmin/",
+    "/cgi-bin/",
+    "/.well-known/",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/favicon.ico",
   ];
-  
+
   // Legitimate app paths that should be logged if missing
   const appPaths = [
-    '/equipment/',
-    '/players/',
-    '/reviews/',
-    '/admin/',
-    '/profile',
-    '/login',
-    '/signup',
+    "/equipment/",
+    "/players/",
+    "/reviews/",
+    "/admin/",
+    "/profile",
+    "/login",
+    "/signup",
   ];
-  
+
   const isBotRequest = botPaths.some(path => url.pathname.startsWith(path));
   const isAppPath = appPaths.some(path => url.pathname.startsWith(path));
-  
+
   if (isBotRequest) {
     // Silently handle bot requests
   } else if (isAppPath) {
     // Log app-related 404s as warnings - these might indicate broken links or missing content
-    console.warn(`404 - App content not found: ${url.pathname} (Referrer: ${request.headers.get('referer') || 'none'})`);
+    console.warn(
+      `404 - App content not found: ${url.pathname} (Referrer: ${request.headers.get("referer") || "none"})`
+    );
   } else {
     // Log other 404s as info
     console.info(`404 - Page not found: ${url.pathname}`);
   }
-  
+
   // Return 404 response
   throw new Response("Not Found", { status: 404 });
 }
@@ -64,7 +66,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function NotFound() {
   return (
     <main className="pt-16 p-4 container mx-auto">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">404 - Page Not Found</h1>
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        404 - Page Not Found
+      </h1>
       <p className="text-gray-600 mb-6">
         The requested page could not be found.
       </p>

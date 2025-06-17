@@ -13,11 +13,13 @@ interface EquipmentCardProps {
   };
 }
 
-export const EquipmentCard = memo(function EquipmentCard({ equipment }: EquipmentCardProps) {
+export const EquipmentCard = memo(function EquipmentCard({
+  equipment,
+}: EquipmentCardProps) {
   // Memoize the rating display logic to avoid unnecessary recalculations
   const ratingDisplay = useMemo(() => {
     if (!equipment.rating || !equipment.reviewCount) return null;
-    
+
     return (
       <div className="flex items-center text-yellow-400">
         <span className="text-sm mr-1">★</span>

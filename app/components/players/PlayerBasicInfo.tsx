@@ -113,7 +113,7 @@ export function PlayerBasicInfo({ isSubmitting }: PlayerBasicInfoProps) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
           >
             <option value="">Select playing style</option>
-            {PLAYING_STYLES.map((style) => (
+            {PLAYING_STYLES.map(style => (
               <option key={style.value} value={style.value}>
                 {style.label}
               </option>
@@ -136,7 +136,7 @@ export function PlayerBasicInfo({ isSubmitting }: PlayerBasicInfoProps) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
           >
             <option value="">Select country</option>
-            {COUNTRIES.map((country) => (
+            {COUNTRIES.map(country => (
               <option key={country.code} value={country.code}>
                 {country.name}
               </option>
@@ -159,7 +159,7 @@ export function PlayerBasicInfo({ isSubmitting }: PlayerBasicInfoProps) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
           >
             <option value="">Select country</option>
-            {COUNTRIES.map((country) => (
+            {COUNTRIES.map(country => (
               <option key={country.code} value={country.code}>
                 {country.name}
               </option>

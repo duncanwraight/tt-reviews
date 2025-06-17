@@ -27,26 +27,26 @@ interface CategoryInfo {
 
 export function meta({ data }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
-  
+
   // Enhanced SEO title pattern based on research
   const title = `Best Table Tennis Equipment ${currentYear} - Professional Reviews & Comparisons | TT Reviews`;
-  
+
   // Enhanced meta description with current year and value proposition
   const description = `Discover the best table tennis equipment through hundreds of professional reviews. Compare blades, rubbers, and balls used by pros. Updated ${currentYear}.`;
-  
+
   // Enhanced keywords targeting high-volume search terms from research
   const keywords = [
-    'best table tennis equipment',
+    "best table tennis equipment",
     `table tennis equipment ${currentYear}`,
-    'butterfly tenergy',
-    'dhs hurricane',
-    'table tennis blade reviews',
-    'table tennis rubber reviews',
-    'professional table tennis equipment',
-    'equipment comparison',
-    'ping pong gear',
-    'tournament equipment'
-  ].join(', ');
+    "butterfly tenergy",
+    "dhs hurricane",
+    "table tennis blade reviews",
+    "table tennis rubber reviews",
+    "professional table tennis equipment",
+    "equipment comparison",
+    "ping pong gear",
+    "tournament equipment",
+  ].join(", ");
 
   return [
     { title },
@@ -75,8 +75,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const category = url.searchParams.get("category");
   const subcategory = url.searchParams.get("subcategory");
   const sortBy =
-    (url.searchParams.get("sort") as "name" | "created_at" | "manufacturer" | "rating") ||
-    "created_at";
+    (url.searchParams.get("sort") as
+      | "name"
+      | "created_at"
+      | "manufacturer"
+      | "rating") || "created_at";
   const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
 
   const db = new DatabaseService(context);
@@ -100,20 +103,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const results = await Promise.all(promises);
   const [allEquipment, recentReviews, categories] = results;
-  const subcategories = category ? results[3] as { subcategory: string; count: number }[] : [];
+  const subcategories = category
+    ? (results[3] as { subcategory: string; count: number }[])
+    : [];
 
-  const equipmentDisplay: EquipmentDisplay[] = allEquipment.map(
-    (equipment) => ({
-      ...equipment,
-      rating: equipment.averageRating || undefined,
-      reviewCount: equipment.reviewCount || 0,
-    })
-  );
+  const equipmentDisplay: EquipmentDisplay[] = allEquipment.map(equipment => ({
+    ...equipment,
+    rating: equipment.averageRating || undefined,
+    reviewCount: equipment.reviewCount || 0,
+  }));
 
   // Generate breadcrumb schema
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
-    { label: "Equipment", href: "/equipment" }
+    { label: "Equipment", href: "/equipment" },
   ]);
   const schemaJsonLd = schemaService.toJsonLd(breadcrumbSchema);
 
@@ -206,8 +209,22 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Equipment", href: "/equipment" },
-    ...(currentCategory ? [{ label: getCategoryName(currentCategory), href: `/equipment?category=${currentCategory}` }] : []),
-    ...(currentSubcategory ? [{ label: getSubcategoryName(currentSubcategory), href: `/equipment?category=${currentCategory}&subcategory=${currentSubcategory}` }] : []),
+    ...(currentCategory
+      ? [
+          {
+            label: getCategoryName(currentCategory),
+            href: `/equipment?category=${currentCategory}`,
+          },
+        ]
+      : []),
+    ...(currentSubcategory
+      ? [
+          {
+            label: getSubcategoryName(currentSubcategory),
+            href: `/equipment?category=${currentCategory}&subcategory=${currentSubcategory}`,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -219,9 +236,12 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
           <div className="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold mb-2">Help Expand Our Equipment Database</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  Help Expand Our Equipment Database
+                </h3>
                 <p className="text-purple-100">
-                  Create an account or log in to submit new equipment and contribute to our growing community.
+                  Create an account or log in to submit new equipment and
+                  contribute to our growing community.
                 </p>
               </div>
               <a
@@ -233,248 +253,255 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
         )}
-          
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                {currentSubcategory
-                  ? `${getSubcategoryName(currentSubcategory)} Reviews`
-                  : currentCategory
+
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {currentSubcategory
+                ? `${getSubcategoryName(currentSubcategory)} Reviews`
+                : currentCategory
                   ? `${getCategoryName(currentCategory)} Reviews`
                   : "Equipment Reviews"}
-              </h1>
-              <p className="text-lg text-gray-600 max-w-3xl">
-                {currentSubcategory
-                  ? `Discover the best ${getSubcategoryName(
-                      currentSubcategory
-                    ).toLowerCase()} for your playing style`
-                  : currentCategory
+            </h1>
+            <p className="text-lg text-gray-600 max-w-3xl">
+              {currentSubcategory
+                ? `Discover the best ${getSubcategoryName(
+                    currentSubcategory
+                  ).toLowerCase()} for your playing style`
+                : currentCategory
                   ? `Discover the best ${getCategoryName(
                       currentCategory
                     ).toLowerCase()} for your playing style`
                   : "Comprehensive reviews of professional table tennis equipment"}
-              </p>
-              {equipment.length > 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  {equipment.length} item{equipment.length !== 1 ? "s" : ""} {currentSubcategory
-                    ? getSubcategoryName(currentSubcategory).toLowerCase()
-                    : currentCategory
+            </p>
+            {equipment.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                {equipment.length} item{equipment.length !== 1 ? "s" : ""}{" "}
+                {currentSubcategory
+                  ? getSubcategoryName(currentSubcategory).toLowerCase()
+                  : currentCategory
                     ? getCategoryName(currentCategory).toLowerCase()
                     : "in our database"}
-                </p>
-              )}
-            </div>
-            {user && (
-              <div className="flex space-x-3">
-                <a
-                  href="/equipment/submit"
-                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
-                >
-                  Submit Equipment
-                </a>
-              </div>
+              </p>
             )}
           </div>
+          {user && (
+            <div className="flex space-x-3">
+              <a
+                href="/equipment/submit"
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
+              >
+                Submit Equipment
+              </a>
+            </div>
+          )}
+        </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
-            <aside className="lg:w-64 flex-shrink-0">
-              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Categories
-                </h3>
-                <div className="space-y-2">
+        <div className="flex flex-col lg:flex-row gap-8">
+          <aside className="lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Categories
+              </h3>
+              <div className="space-y-2">
+                <Link
+                  to="/equipment"
+                  className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                    !currentCategory
+                      ? "bg-purple-100 text-purple-800 font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-3">📋</span>
+                    All Equipment
+                  </span>
+                  <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                    {categories.reduce((sum, cat) => sum + cat.count, 0)}
+                  </span>
+                </Link>
+                {categories.map(cat => (
                   <Link
-                    to="/equipment"
+                    key={cat.category}
+                    to={`/equipment?category=${cat.category}`}
                     className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                      !currentCategory
+                      currentCategory === cat.category && !currentSubcategory
                         ? "bg-purple-100 text-purple-800 font-medium"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     <span className="flex items-center">
-                      <span className="mr-3">📋</span>
-                      All Equipment
+                      <span className="mr-3">
+                        {getCategoryIcon(cat.category)}
+                      </span>
+                      {getCategoryName(cat.category)}
                     </span>
                     <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
-                      {categories.reduce((sum, cat) => sum + cat.count, 0)}
+                      {cat.count}
                     </span>
                   </Link>
-                  {categories.map((cat) => (
+                ))}
+              </div>
+            </div>
+
+            {/* Subcategories */}
+            {currentCategory && subcategories.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {getCategoryName(currentCategory)} Types
+                </h3>
+                <div className="space-y-2">
+                  <Link
+                    to={`/equipment?category=${currentCategory}`}
+                    className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                      currentCategory && !currentSubcategory
+                        ? "bg-purple-100 text-purple-800 font-medium"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className="flex items-center">
+                      <span className="mr-3">
+                        {getCategoryIcon(currentCategory)}
+                      </span>
+                      All {getCategoryName(currentCategory)}
+                    </span>
+                    <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                      {categories.find(c => c.category === currentCategory)
+                        ?.count || 0}
+                    </span>
+                  </Link>
+                  {subcategories.map(subcat => (
                     <Link
-                      key={cat.category}
-                      to={`/equipment?category=${cat.category}`}
+                      key={subcat.subcategory}
+                      to={`/equipment?category=${currentCategory}&subcategory=${subcat.subcategory}`}
                       className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                        currentCategory === cat.category && !currentSubcategory
+                        currentSubcategory === subcat.subcategory
                           ? "bg-purple-100 text-purple-800 font-medium"
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
                       <span className="flex items-center">
                         <span className="mr-3">
-                          {getCategoryIcon(cat.category)}
+                          {getSubcategoryIcon(subcat.subcategory)}
                         </span>
-                        {getCategoryName(cat.category)}
+                        {getSubcategoryName(subcat.subcategory)}
                       </span>
                       <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
-                        {cat.count}
+                        {subcat.count}
                       </span>
                     </Link>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Subcategories */}
-              {currentCategory && subcategories.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    {getCategoryName(currentCategory)} Types
-                  </h3>
-                  <div className="space-y-2">
-                    <Link
-                      to={`/equipment?category=${currentCategory}`}
-                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                        currentCategory && !currentSubcategory
-                          ? "bg-purple-100 text-purple-800 font-medium"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      <span className="flex items-center">
-                        <span className="mr-3">
-                          {getCategoryIcon(currentCategory)}
-                        </span>
-                        All {getCategoryName(currentCategory)}
-                      </span>
-                      <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
-                        {categories.find(c => c.category === currentCategory)?.count || 0}
-                      </span>
-                    </Link>
-                    {subcategories.map((subcat) => (
-                      <Link
-                        key={subcat.subcategory}
-                        to={`/equipment?category=${currentCategory}&subcategory=${subcat.subcategory}`}
-                        className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                          currentSubcategory === subcat.subcategory
-                            ? "bg-purple-100 text-purple-800 font-medium"
-                            : "text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <span className="flex items-center">
-                          <span className="mr-3">
-                            {getSubcategoryIcon(subcat.subcategory)}
-                          </span>
-                          {getSubcategoryName(subcat.subcategory)}
-                        </span>
-                        <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
-                          {subcat.count}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Sort By
-                </h3>
-                <div className="space-y-2">
-                  <Link
-                    to={`/equipment?${new URLSearchParams({
-                      ...(currentCategory && { category: currentCategory }),
-                      ...(currentSubcategory && { subcategory: currentSubcategory }),
-                      sort: "created_at",
-                      order: "desc"
-                    }).toString()}`}
-                    className={`block p-3 rounded-lg transition-colors ${
-                      currentSort === "created_at" && currentOrder === "desc"
-                        ? "bg-purple-100 text-purple-800 font-medium"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Newest First
-                  </Link>
-                  <Link
-                    to={`/equipment?${new URLSearchParams({
-                      ...(currentCategory && { category: currentCategory }),
-                      ...(currentSubcategory && { subcategory: currentSubcategory }),
-                      sort: "name",
-                      order: "asc"
-                    }).toString()}`}
-                    className={`block p-3 rounded-lg transition-colors ${
-                      currentSort === "name" && currentOrder === "asc"
-                        ? "bg-purple-100 text-purple-800 font-medium"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Name A-Z
-                  </Link>
-                  <Link
-                    to={`/equipment?${new URLSearchParams({
-                      ...(currentCategory && { category: currentCategory }),
-                      ...(currentSubcategory && { subcategory: currentSubcategory }),
-                      sort: "manufacturer",
-                      order: "asc"
-                    }).toString()}`}
-                    className={`block p-3 rounded-lg transition-colors ${
-                      currentSort === "manufacturer" && currentOrder === "asc"
-                        ? "bg-purple-100 text-purple-800 font-medium"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Manufacturer
-                  </Link>
-                </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Sort By
+              </h3>
+              <div className="space-y-2">
+                <Link
+                  to={`/equipment?${new URLSearchParams({
+                    ...(currentCategory && { category: currentCategory }),
+                    ...(currentSubcategory && {
+                      subcategory: currentSubcategory,
+                    }),
+                    sort: "created_at",
+                    order: "desc",
+                  }).toString()}`}
+                  className={`block p-3 rounded-lg transition-colors ${
+                    currentSort === "created_at" && currentOrder === "desc"
+                      ? "bg-purple-100 text-purple-800 font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Newest First
+                </Link>
+                <Link
+                  to={`/equipment?${new URLSearchParams({
+                    ...(currentCategory && { category: currentCategory }),
+                    ...(currentSubcategory && {
+                      subcategory: currentSubcategory,
+                    }),
+                    sort: "name",
+                    order: "asc",
+                  }).toString()}`}
+                  className={`block p-3 rounded-lg transition-colors ${
+                    currentSort === "name" && currentOrder === "asc"
+                      ? "bg-purple-100 text-purple-800 font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Name A-Z
+                </Link>
+                <Link
+                  to={`/equipment?${new URLSearchParams({
+                    ...(currentCategory && { category: currentCategory }),
+                    ...(currentSubcategory && {
+                      subcategory: currentSubcategory,
+                    }),
+                    sort: "manufacturer",
+                    order: "asc",
+                  }).toString()}`}
+                  className={`block p-3 rounded-lg transition-colors ${
+                    currentSort === "manufacturer" && currentOrder === "asc"
+                      ? "bg-purple-100 text-purple-800 font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Manufacturer
+                </Link>
               </div>
+            </div>
+          </aside>
 
-            </aside>
-
-            <div className="flex-1">
-              {equipment.length > 0 ? (
-                <>
-                  <div className="mb-6 flex items-center justify-between">
-                    <p className="text-gray-600">
-                      Showing {equipment.length}{" "}
-                      {currentSubcategory
-                        ? getSubcategoryName(currentSubcategory).toLowerCase()
-                        : currentCategory
+          <div className="flex-1">
+            {equipment.length > 0 ? (
+              <>
+                <div className="mb-6 flex items-center justify-between">
+                  <p className="text-gray-600">
+                    Showing {equipment.length}{" "}
+                    {currentSubcategory
+                      ? getSubcategoryName(currentSubcategory).toLowerCase()
+                      : currentCategory
                         ? getCategoryName(currentCategory).toLowerCase()
                         : "items"}
-                    </p>
-                  </div>
+                  </p>
+                </div>
 
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                    {equipment.map((item) => (
-                      <ComparisonCard key={item.id} equipment={item} />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🔍</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    No equipment found
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {currentSubcategory
-                      ? `No ${getSubcategoryName(
-                          currentSubcategory
-                        ).toLowerCase()} available yet.`
-                      : currentCategory
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                  {equipment.map(item => (
+                    <ComparisonCard key={item.id} equipment={item} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No equipment found
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {currentSubcategory
+                    ? `No ${getSubcategoryName(
+                        currentSubcategory
+                      ).toLowerCase()} available yet.`
+                    : currentCategory
                       ? `No ${getCategoryName(
                           currentCategory
                         ).toLowerCase()} available yet.`
                       : "No equipment available yet."}
-                  </p>
-                  <Link
-                    to="/equipment"
-                    className="inline-flex items-center px-4 py-2 border border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white transition-colors"
-                  >
-                    View All Equipment
-                  </Link>
-                </div>
-              )}
-            </div>
+                </p>
+                <Link
+                  to="/equipment"
+                  className="inline-flex items-center px-4 py-2 border border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white transition-colors"
+                >
+                  View All Equipment
+                </Link>
+              </div>
+            )}
           </div>
+        </div>
       </PageSection>
 
       {recentReviews.length > 0 && (
@@ -490,7 +517,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {recentReviews.map((review) => (
+              {recentReviews.map(review => (
                 <div
                   key={review.id}
                   className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
@@ -518,7 +545,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                     </p>
                   </Link>
                   {review.review_text && (
-                    <SafeHtml 
+                    <SafeHtml
                       content={review.review_text}
                       profile="review"
                       className="text-gray-700 text-sm line-clamp-3"

@@ -25,7 +25,7 @@ export function ResultsSection({
       </div>
 
       <div className="results-grid grid grid-cols-1 md:grid-cols-2 gap-6">
-        {items.map((item) => (
+        {items.map(item => (
           <ResultCard key={item.id || item.slug} item={item} type={type} />
         ))}
       </div>

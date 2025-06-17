@@ -101,6 +101,7 @@
     - ✅ Server-side actions for edit moderation
 
 - [x] **Role-Based Access Control (RBAC)**: ✅
+
   - ✅ Implemented proper Supabase RBAC following official best practices
   - ✅ Created user_roles table with auth hook for JWT claims
   - ✅ Server-side role checking in admin routes using JWT decoding
@@ -111,6 +112,7 @@
   - ✅ Removed dependency on service role key for equipment submissions
 
 - [x] **Configurable Categories System**: ✅
+
   - ✅ Created comprehensive database schema with RLS policies for category management
   - ✅ Built CategoryService class for CRUD operations on categories
   - ✅ Added full admin interface for managing all category types
@@ -132,7 +134,9 @@
 ## Equipment Review System ✅
 
 ### Core Review System ✅
+
 - [x] **Review Submission Form**: Create comprehensive review form for equipment ✅
+
   - [x] Multi-section form with dynamic rating categories based on equipment type ✅
   - [x] Configurable rating system (Speed, Spin, Control for inverted; Disruption, Block Quality for anti-spin, etc.) ✅
   - [x] Text review with reviewer context (playing level, style, testing duration) ✅
@@ -183,12 +187,14 @@
 ### Submission System Improvements
 
 - [x] **User Submission Management**:
+
   - [x] Add submissions section to user profiles showing submission status
   - [x] Display rejection reasons and admin feedback in user profiles
   - [x] Add submission history with filtering (pending, approved, rejected)
   - [x] Show submission progress indicators and timestamps
 
 - [ ] **Enhanced Moderation Workflow**:
+
   - [x] Require two approvals for submissions (Discord + Admin UI, or two Discord)
   - [x] Allow admins to add detailed rejection justifications
   - [x] Implement submission status tracking (pending → under_review → approved/rejected)
@@ -225,12 +231,14 @@
   - [x] Set up AWS S3 SDK for Cloudflare R2 compatibility ✅
 
 ### Caching
+
 - [ ] Agree and implement best possible solution for caching when using Cloudflare Workers
   - Our application is very read-heavy, with content that won't be changing regularly
 
 ### Performance
-  - [ ] Add error boundaries for better UX
-  - [ ] Test bundle size and loading performance
+
+- [ ] Add error boundaries for better UX
+- [ ] Test bundle size and loading performance
 
 ### Testing & Quality
 
@@ -245,6 +253,7 @@
 **🎯 SEO FOUNDATION COMPLETE**: All technical SEO infrastructure is now in place. The site is fully optimized for search engines with comprehensive meta tags, structured data, dynamic sitemaps, and comparison functionality. Focus can now shift to content creation and optimization.
 
 - [x] **Phase 1: Foundation (Weeks 1-4)** ✅ **COMPLETED**:
+
   - [x] Implement dynamic meta tags for all pages using React Router meta exports ✅
   - [x] Add structured data and schema markup (Organization, Person, Product, Review, BreadcrumbList) ✅
   - [x] Implement SEO title tag patterns for player, equipment, and category pages ✅
@@ -256,6 +265,7 @@
   - [x] **BONUS**: Popular comparison routes integrated into sitemap (50+ high-value URLs) ✅
 
 - [ ] **Phase 2: Content Expansion (Weeks 5-12)**:
+
   - [ ] Create top 20 equipment review priority list based on search volume data
   - [ ] Develop educational guide content calendar (beginner guides, equipment selection)
   - [ ] Implement internal linking automation between players and equipment
@@ -264,6 +274,7 @@
   - [x] Add "vs" comparison pages for popular equipment matchups ✅
 
 - [ ] **Phase 3: Advanced Features (Weeks 13-24)**:
+
   - [x] Build dynamic comparison tools for equipment selection ✅
   - [ ] Create equipment recommendation engine based on playing style
   - [ ] Implement user-generated content systems for community reviews
@@ -273,7 +284,7 @@
 
 - [ ] **Content Priorities Based on Search Data**:
   - [ ] "Butterfly Tenergy" series comprehensive reviews (5.4K monthly searches)
-  - [ ] "DHS Hurricane" series reviews and comparisons (3.2K monthly searches)  
+  - [ ] "DHS Hurricane" series reviews and comparisons (3.2K monthly searches)
   - [ ] Player equipment pages: Ma Long (2.1K), Fan Zhendong (890), Timo Boll (720)
   - [ ] Educational guides: "How to choose rubber" (2.8K), "Best beginner blade" (1.5K)
   - [ ] Technical content: "Long pips vs short pips" (1.2K monthly searches)
@@ -292,6 +303,7 @@
 ## Post-Live Improvements
 
 ### Quality Control & User Experience
+
 - [ ] **Duplicate Detection**: Check for existing equipment/players before allowing submission to prevent duplicates
 - [ ] **Enhanced Validation**: Verify manufacturer names against known databases, validate country codes, check rating ranges
 - [ ] **Submission Guidelines**: Interactive guide showing what makes a good submission with examples and best practices
@@ -314,6 +326,7 @@
 ## Post-Migration Improvements
 
 ### Recent UI/UX Enhancements ✅
+
 - [x] **Player Page Pagination & Filtering**: Added comprehensive pagination and filtering system for players page ✅
   - [x] Filter by country and playing style using configurable categories system
   - [x] Sort by name, creation date, and highest rating
@@ -358,18 +371,21 @@
 ## Security ✅ (Priority: High)
 
 ### Critical Security Issues (Week 1) ✅
+
 - [x] **Security Headers**: Implement comprehensive security headers (CSP, X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy) ✅
 - [x] **Rate Limiting**: Add rate limiting to API endpoints and form submissions to prevent abuse ✅
 - [x] **Error Handling**: Fix error information leakage in production (remove stack traces, sanitize error messages) ✅
 
 ### Medium Priority Security (Week 2-3) ✅
+
 - [x] **Input Sanitization**: Implement DOMPurify for user-generated content sanitization ✅
 - [x] **CSRF Protection**: Add explicit CSRF token protection for sensitive operations ✅
 - [ ] **Audit Logging**: Add audit logging for admin actions and security events
 
-## Observability & Monitoring ✅ (Priority: High) 
+## Observability & Monitoring ✅ (Priority: High)
 
 ### Phase 1: Foundation (COMPLETED) ✅
+
 - [x] **Structured Logging Service**: Create centralized logger for Cloudflare Workers ✅
   - [x] Implement structured JSON logging format with request correlation ✅
   - [x] Add performance metric tracking for operations ✅
@@ -390,6 +406,7 @@
 **✅ PHASE 1 COMPLETE**: Comprehensive observability infrastructure is now operational with structured logging, request correlation, performance monitoring, and error tracking across the entire React Router v7 application. Production logs show detailed performance metrics, user actions, and database operation timing.
 
 ### Phase 2: Monitoring (Week 2 - ~4 hours)
+
 - [ ] **Performance Monitoring**: Track critical operations
   - [ ] Database query performance and error rates
   - [ ] Image upload pipeline timing and success rates
@@ -406,6 +423,7 @@
   - [ ] Logpush for centralized log forwarding
 
 ### Phase 3: Advanced Observability (Week 3 - ~6 hours)
+
 - [ ] **Real-time Alerting**: Set up proactive notifications
   - [ ] Error rate thresholds (>5% in 5-minute window)
   - [ ] Performance degradation alerts (>2s average response time)
@@ -422,6 +440,7 @@
   - [ ] Performance bottleneck identification
 
 ### Security Validation (Week 4)
+
 - [ ] Check all code for security vulnerabilities in new React Router architecture
 - [ ] Run a penetration test on production application with new frontend
 - [x] Validate CSRF protection works correctly ✅
@@ -430,16 +449,19 @@
 ## Performance Optimization ✅ (Priority: High)
 
 ### Critical Performance Issues (Week 1-2) ✅
+
 - [x] **Code Splitting**: Implement code splitting and lazy loading for routes and components ✅
 - [x] **Database Optimization**: Implement database query caching and aggregation for performance (fix N+1 queries) ✅
 - [x] **React Optimizations**: Add React.memo, useMemo, and useCallback optimizations to card components ✅
 
 ### Medium Priority Performance (Week 3) ✅
+
 - [x] **Image Optimization**: Add image lazy loading and skeleton loading states ✅
 - [ ] **Bundle Analysis**: Implement bundle size monitoring and analysis
 - [ ] **Virtual Scrolling**: Implement virtual scrolling for large equipment/player lists
 
 ### Low Priority Performance (Week 4)
+
 - [ ] **Performance Monitoring**: Implement performance monitoring with web vitals and bundle analysis
 - [ ] **Service Worker**: Implement service worker for offline functionality
 - [ ] Add error boundaries for better UX
@@ -448,11 +470,13 @@
 ## Caching Strategy (Priority: Medium)
 
 ### Application-Level Caching (Week 2-3)
+
 - [ ] **Cloudflare KV Caching**: Implement Cloudflare KV caching for frequently accessed data
 - [ ] **Database Result Caching**: Cache expensive database queries (equipment stats, player ratings)
 - [ ] **API Response Caching**: Cache search results and listing pages
 
 ### Advanced Caching (Week 4)
+
 - [ ] **Stale-While-Revalidate**: Implement SWR patterns for better UX
 - [ ] **Edge Caching**: Configure Cloudflare Cache API for dynamic content
 - [ ] **Browser Caching**: Optimize cache headers for dynamic pages
@@ -461,6 +485,7 @@
 ## Recent Fixes & Improvements (2025-01-16)
 
 ### Authentication & User Experience ✅
+
 - [x] **Mobile Navigation**: Added responsive hamburger menu for mobile devices ✅
   - [x] Collapsible navigation with clean mobile layout
   - [x] Search functionality included in mobile menu
@@ -477,6 +502,7 @@
   - [x] Added proper success/error handling with branded confirmation pages
 
 ### Page Layout & Consistency ✅
+
 - [x] **Equipment Page Layout**: Fixed layout consistency with Players page ✅
   - [x] Corrected breadcrumb positioning and alignment
   - [x] Updated header text alignment (left-aligned vs center-aligned)
@@ -487,12 +513,14 @@
   - [x] Cleaner homepage layout when database has insufficient content
 
 ### Admin Dashboard Fixes ✅
+
 - [x] **Dashboard Count Display Bug**: Fixed admin dashboard showing incorrect counts ✅
   - [x] Fixed equipment reviews showing 0 when reviews actually exist
   - [x] Corrected data fetching logic in `getAdminDashboardCounts()` method
   - [x] Fixed status breakdown calculations for all submission types
 
 ### Modal & UI Consistency ✅
+
 - [x] **Standardized Modal Durations**: Made all modal auto-close delays consistent at 2 seconds ✅
   - [x] Updated 6 different components and hooks
   - [x] More responsive and modern user experience
@@ -501,6 +529,7 @@
 ## Current Issues (Priority: High)
 
 ### Discord Integration Issues
+
 - [ ] **Discord Webhook Notifications Not Working**: Fix broken Discord notifications for new submissions ✅
   - [ ] Debug webhook delivery failures
   - [ ] Verify webhook URL configuration
@@ -509,12 +538,15 @@
   - [ ] Validate Discord webhook permissions and setup
 
 ### Authentication Flow Improvements
+
 - [ ] **Fix Signup Modal Message**: Update signup success modal to mention email confirmation ✅
+
   - [ ] The signup modal still shows generic success message instead of "check your email"
   - [ ] Ensure modal message matches the updated text from login page
   - [ ] Verify modal displays: "Please check your email and click the confirmation link before signing in"
 
 - [ ] **Password Reset Landing Pages**: Create branded password reset confirmation pages ✅
+
   - [ ] Add `/auth/reset-password` route for password reset confirmation
   - [ ] Handle password reset tokens and provide user feedback
   - [ ] Match design patterns from email confirmation pages
@@ -528,10 +560,10 @@
   - [ ] Add error boundary components for auth-related failures
   - [ ] Use Supabase suggested pattern:
     ```javascript
-    const params = new URLSearchParams(window.location.hash.slice())
-    if (params.get('error_code').startsWith('4')) {
+    const params = new URLSearchParams(window.location.hash.slice());
+    if (params.get("error_code").startsWith("4")) {
       // show error message if error is a 4xx error
-      window.alert(params.get('error_description'))
+      window.alert(params.get("error_description"));
     }
     ```
   - [ ] Replace `window.alert` with branded error display components

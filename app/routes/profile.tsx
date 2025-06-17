@@ -1,6 +1,9 @@
 import type { Route } from "./+types/profile";
 import { getServerClient } from "~/lib/supabase.server";
-import { DatabaseService, createSupabaseAdminClient } from "~/lib/database.server";
+import {
+  DatabaseService,
+  createSupabaseAdminClient,
+} from "~/lib/database.server";
 import { createModerationService } from "~/lib/moderation.server";
 import { redirect, data } from "react-router";
 
@@ -22,11 +25,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Fetch user reviews and submissions
   const dbService = new DatabaseService(context);
   const userReviews = await dbService.getUserReviews(userResponse.data.user.id);
-  
+
   // Fetch user submissions
   const adminSupabase = createSupabaseAdminClient(context);
   const moderationService = createModerationService(adminSupabase);
-  const userSubmissions = await moderationService.getUserSubmissions(userResponse.data.user.id);
+  const userSubmissions = await moderationService.getUserSubmissions(
+    userResponse.data.user.id
+  );
 
   return data(
     {
@@ -60,7 +65,7 @@ export default function Profile({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <ProfileInfo user={user} />
-              
+
               {/* Content sections */}
               <UserReviews reviews={reviews} />
               <UserSubmissions submissions={submissions} />

@@ -1,4 +1,7 @@
-import { handleImageUploadNative, type ImageUploadResult } from "./r2-native.server";
+import {
+  handleImageUploadNative,
+  type ImageUploadResult,
+} from "./r2-native.server";
 
 export type { ImageUploadResult };
 
@@ -17,4 +20,3 @@ export async function handleImageUpload(
     fieldName
   );
 }
-

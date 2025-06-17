@@ -4,10 +4,7 @@ import { FeedbackMessage } from "./FeedbackMessage";
 import { useEffect } from "react";
 
 interface RouterFormWrapperProps {
-  children: (props: {
-    isLoading: boolean;
-    actionData: any;
-  }) => React.ReactNode;
+  children: (props: { isLoading: boolean; actionData: any }) => React.ReactNode;
   loadingMessage?: string;
   successRedirect?: () => void;
   successRedirectDelay?: number;
@@ -21,7 +18,7 @@ export function RouterFormWrapper({
   successRedirect,
   successRedirectDelay = 2000,
   successActions,
-  className = ""
+  className = "",
 }: RouterFormWrapperProps) {
   const actionData = useActionData();
   const navigation = useNavigation();
@@ -58,18 +55,15 @@ export function RouterFormWrapper({
       )}
 
       {/* Loading State */}
-      {isLoading && (
-        <LoadingState 
-          message={loadingMessage}
-          size="md"
-        />
-      )}
+      {isLoading && <LoadingState message={loadingMessage} size="md" />}
 
       {/* Form Content */}
-      {!isLoading && !actionData?.success && children({
-        isLoading,
-        actionData
-      })}
+      {!isLoading &&
+        !actionData?.success &&
+        children({
+          isLoading,
+          actionData,
+        })}
     </div>
   );
 }

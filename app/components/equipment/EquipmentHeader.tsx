@@ -115,7 +115,7 @@ export function EquipmentHeader({
                 Used by Professional Players
               </h3>
               <div className="flex flex-wrap gap-3">
-                {usedByPlayers.map((player) => (
+                {usedByPlayers.map(player => (
                   <Link
                     key={player.slug}
                     to={`/players/${player.slug}`}
@@ -124,7 +124,7 @@ export function EquipmentHeader({
                   >
                     {player.name
                       .split(" ")
-                      .map((n) => n[0])
+                      .map(n => n[0])
                       .join("")
                       .substring(0, 2)}
                   </Link>

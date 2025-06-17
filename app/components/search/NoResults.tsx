@@ -34,7 +34,7 @@ export function NoResults({ query }: NoResultsProps) {
               "Ma Long",
               "Stiga Clipper",
               "TSP Curl",
-            ].map((suggestion) => (
+            ].map(suggestion => (
               <button
                 key={suggestion}
                 className="suggestion-tag bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-700 px-4 py-2 rounded-full text-sm transition-colors"

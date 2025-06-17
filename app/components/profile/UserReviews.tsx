@@ -57,7 +57,7 @@ export function UserReviews({ reviews }: UserReviewsProps) {
         </span>
       </div>
       <div className="space-y-4">
-        {reviews.map((review) => (
+        {reviews.map(review => (
           <div key={review.id} className="border border-gray-200 rounded-lg">
             {review.equipment && (
               <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 rounded-t-lg">

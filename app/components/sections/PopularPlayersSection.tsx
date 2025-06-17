@@ -28,7 +28,7 @@ export function PopularPlayersSection({ players }: PopularPlayersSectionProps) {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {players.map((player) => (
+          {players.map(player => (
             <PlayerCard key={player.id} player={player} />
           ))}
         </div>

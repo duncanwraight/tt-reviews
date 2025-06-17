@@ -14,7 +14,7 @@ import "./app.css";
 export async function loader({ context }: Route.LoaderArgs) {
   const env = context.cloudflare.env as Record<string, string>;
   const siteUrl = env.SITE_URL || "https://tabletennis.reviews";
-  
+
   return data({ siteUrl });
 }
 
@@ -34,35 +34,41 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: React.ReactNode }) {
   // TODO: Get siteUrl from context when available in Layout component
   const siteUrl = "https://tabletennis.reviews"; // Will be made dynamic via context
-  
+
   // Global schemas are now generated inline to avoid server-only module issues
-  const globalSchemas = JSON.stringify([
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "TT Reviews",
-      "url": siteUrl,
-      "description": "Professional table tennis equipment reviews and player database",
-      "logo": `${siteUrl}/logo.png`,
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer service",
-        "url": `${siteUrl}/contact`
-      }
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "TT Reviews",
-      "url": siteUrl,
-      "description": "Professional table tennis equipment reviews and player database",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": `${siteUrl}/search?q={search_term_string}`,
-        "query-input": "required name=search_term_string"
-      }
-    }
-  ], null, 2);
+  const globalSchemas = JSON.stringify(
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: "TT Reviews",
+        url: siteUrl,
+        description:
+          "Professional table tennis equipment reviews and player database",
+        logo: `${siteUrl}/logo.png`,
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          url: `${siteUrl}/contact`,
+        },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "TT Reviews",
+        url: siteUrl,
+        description:
+          "Professional table tennis equipment reviews and player database",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${siteUrl}/search?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+    null,
+    2
+  );
 
   return (
     <html lang="en">

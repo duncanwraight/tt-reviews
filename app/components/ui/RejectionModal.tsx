@@ -11,15 +11,16 @@ interface RejectionModalProps {
   csrfToken: string;
 }
 
-const REJECTION_CATEGORIES: Array<{ value: RejectionCategory; label: string }> = [
-  { value: "duplicate", label: "Duplicate Entry" },
-  { value: "insufficient_info", label: "Insufficient Information" },
-  { value: "poor_image_quality", label: "Poor Image Quality" },
-  { value: "inappropriate_content", label: "Inappropriate Content" },
-  { value: "invalid_data", label: "Invalid Data" },
-  { value: "spam", label: "Spam" },
-  { value: "other", label: "Other" },
-];
+const REJECTION_CATEGORIES: Array<{ value: RejectionCategory; label: string }> =
+  [
+    { value: "duplicate", label: "Duplicate Entry" },
+    { value: "insufficient_info", label: "Insufficient Information" },
+    { value: "poor_image_quality", label: "Poor Image Quality" },
+    { value: "inappropriate_content", label: "Inappropriate Content" },
+    { value: "invalid_data", label: "Invalid Data" },
+    { value: "spam", label: "Spam" },
+    { value: "other", label: "Other" },
+  ];
 
 export function RejectionModal({
   isOpen,
@@ -69,20 +70,23 @@ export function RejectionModal({
             <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="submissionId" value={submissionId} />
             <input type="hidden" name="action" value="rejected" />
-            
+
             <div className="text-left">
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="category"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Rejection Category *
               </label>
               <select
                 id="category"
                 name="category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value as RejectionCategory)}
+                onChange={e => setCategory(e.target.value as RejectionCategory)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               >
-                {REJECTION_CATEGORIES.map((cat) => (
+                {REJECTION_CATEGORIES.map(cat => (
                   <option key={cat.value} value={cat.value}>
                     {cat.label}
                   </option>
@@ -91,14 +95,17 @@ export function RejectionModal({
             </div>
 
             <div className="text-left">
-              <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="reason"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Detailed Reason *
               </label>
               <textarea
                 id="reason"
                 name="reason"
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={e => setReason(e.target.value)}
                 required
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
@@ -119,7 +126,9 @@ export function RejectionModal({
                 disabled={!reason.trim() || navigation.state === "submitting"}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {navigation.state === "submitting" ? "Rejecting..." : "Reject Submission"}
+                {navigation.state === "submitting"
+                  ? "Rejecting..."
+                  : "Reject Submission"}
               </button>
             </div>
           </Form>

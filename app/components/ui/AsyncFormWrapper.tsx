@@ -1,11 +1,17 @@
 import { LoadingState } from "./LoadingState";
 import { FeedbackMessage } from "./FeedbackMessage";
-import { useAsyncOperation, type AsyncOperationOptions } from "~/hooks/useAsyncOperation";
+import {
+  useAsyncOperation,
+  type AsyncOperationOptions,
+} from "~/hooks/useAsyncOperation";
 
 interface AsyncFormWrapperProps {
   children: (props: {
     isLoading: boolean;
-    execute: (operation: () => Promise<any>, options?: Partial<AsyncOperationOptions>) => Promise<any>;
+    execute: (
+      operation: () => Promise<any>,
+      options?: Partial<AsyncOperationOptions>
+    ) => Promise<any>;
     reset: () => void;
   }) => React.ReactNode;
   loadingMessage?: string;
@@ -17,7 +23,7 @@ export function AsyncFormWrapper({
   children,
   loadingMessage = "Processing...",
   loadingOverlay = false,
-  className = ""
+  className = "",
 }: AsyncFormWrapperProps) {
   const { state, execute, reset } = useAsyncOperation();
 
@@ -36,27 +42,21 @@ export function AsyncFormWrapper({
 
       {/* Error Message */}
       {state.error && (
-        <FeedbackMessage
-          type="error"
-          message={state.error}
-          onClose={reset}
-        />
+        <FeedbackMessage type="error" message={state.error} onClose={reset} />
       )}
 
       {/* Loading State */}
       {state.isLoading && (
-        <LoadingState 
-          message={loadingMessage}
-          overlay={loadingOverlay}
-        />
+        <LoadingState message={loadingMessage} overlay={loadingOverlay} />
       )}
 
       {/* Form Content */}
-      {!state.isLoading && children({
-        isLoading: state.isLoading,
-        execute,
-        reset
-      })}
+      {!state.isLoading &&
+        children({
+          isLoading: state.isLoading,
+          execute,
+          reset,
+        })}
     </div>
   );
 }

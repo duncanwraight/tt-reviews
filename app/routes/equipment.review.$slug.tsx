@@ -27,7 +27,9 @@ export function meta({ data }: Route.MetaArgs) {
 
   const { equipment } = data;
   return [
-    { title: `Review ${equipment.name} by ${equipment.manufacturer} | TT Reviews` },
+    {
+      title: `Review ${equipment.name} by ${equipment.manufacturer} | TT Reviews`,
+    },
     {
       name: "description",
       content: `Write a detailed review of the ${equipment.name} ${equipment.category} by ${equipment.manufacturer}.`,
@@ -61,33 +63,41 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const equipment = await db.getEquipment(slug);
 
   if (!equipment) {
-    throw redirect("/equipment", { status: 404, headers: sbServerClient.headers });
+    throw redirect("/equipment", {
+      status: 404,
+      headers: sbServerClient.headers,
+    });
   }
 
   // Check if user has already reviewed this equipment
-  const existingReview = await db.getUserReviewForEquipment(equipment.id, user.id);
+  const existingReview = await db.getUserReviewForEquipment(
+    equipment.id,
+    user.id
+  );
   if (existingReview) {
-    throw redirect(`/equipment/${slug}`, { 
+    throw redirect(`/equipment/${slug}`, {
       headers: sbServerClient.headers,
-      status: 302 
+      status: 302,
     });
   }
 
   // Load dynamic rating categories based on equipment type
   const categoryService = createCategoryService(sbServerClient.client);
   const playingStyles = await categoryService.getPlayingStyles();
-  
+
   // Get rating categories based on equipment type
   // For rubbers: use subcategory (inverted, anti, short_pips, etc.)
   // For blades: use main category since subcategory is null
   const categoryKey = equipment.subcategory || equipment.category;
-  const ratingCategories = await categoryService.getReviewRatingCategories(categoryKey);
-  
+  const ratingCategories =
+    await categoryService.getReviewRatingCategories(categoryKey);
+
   // Also get general rating categories (those without parent_id)
-  const generalRatingCategories = await categoryService.getReviewRatingCategories();
+  const generalRatingCategories =
+    await categoryService.getReviewRatingCategories();
 
   // Generate CSRF token for form protection
-  const sessionId = getSessionId(request) || 'anonymous';
+  const sessionId = getSessionId(request) || "anonymous";
   const csrfToken = generateCSRFToken(sessionId, user.id);
 
   return data(
@@ -99,8 +109,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       generalRatingCategories,
       csrfToken,
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -109,10 +121,11 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 export async function action({ params, request, context }: Route.ActionArgs) {
   const { slug } = params;
-  
+
   // Get request correlation ID for logging
-  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
-  
+  const requestId =
+    request.headers.get("x-correlation-id") || crypto.randomUUID();
+
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
@@ -123,7 +136,10 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   // Validate CSRF token
   const csrfValidation = await validateCSRF(request, user.id);
   if (!csrfValidation.valid) {
-    console.warn(`CSRF validation failed for user ${user.id}:`, csrfValidation.error);
+    console.warn(
+      `CSRF validation failed for user ${user.id}:`,
+      csrfValidation.error
+    );
     throw createCSRFFailureResponse(csrfValidation.error);
   }
 
@@ -131,15 +147,21 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   const equipment = await db.getEquipment(slug);
 
   if (!equipment) {
-    throw redirect("/equipment", { status: 404, headers: sbServerClient.headers });
+    throw redirect("/equipment", {
+      status: 404,
+      headers: sbServerClient.headers,
+    });
   }
 
   // Check if user has already reviewed this equipment
-  const existingReview = await db.getUserReviewForEquipment(equipment.id, user.id);
+  const existingReview = await db.getUserReviewForEquipment(
+    equipment.id,
+    user.id
+  );
   if (existingReview) {
-    throw redirect(`/equipment/${slug}`, { 
+    throw redirect(`/equipment/${slug}`, {
       headers: sbServerClient.headers,
-      status: 302 
+      status: 302,
     });
   }
 
@@ -160,9 +182,9 @@ export async function action({ params, request, context }: Route.ActionArgs) {
       reviewText = sanitizeReviewText(rawReviewText.trim());
     } catch (error) {
       // If sanitization fails (e.g., text too long), return error
-      throw new Response((error as Error).message, { 
-        status: 400, 
-        headers: sbServerClient.headers 
+      throw new Response((error as Error).message, {
+        status: 400,
+        headers: sbServerClient.headers,
       });
     }
   }
@@ -206,13 +228,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   // Handle image upload if provided
   if (formData.get("image") && (formData.get("image") as File).size > 0) {
     try {
-      await handleImageUpload(
-        formData,
-        env,
-        "reviews",
-        review.id,
-        "image"
-      );
+      await handleImageUpload(formData, env, "reviews", review.id, "image");
     } catch (error) {
       console.error("Error uploading review image:", error);
       // Don't fail the entire submission for image upload errors
@@ -226,7 +242,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
       equipment_name: equipment.name,
       overall_rating: overallRating,
       reviewer_name: user.email || "Anonymous",
-      equipment_id: equipment.id
+      equipment_id: equipment.id,
     };
 
     const discordService = new DiscordService(context);
@@ -237,10 +253,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   }
 
   // Return success response for modal display
-  return data(
-    { success: true },
-    { headers: sbServerClient.headers }
-  );
+  return data({ success: true }, { headers: sbServerClient.headers });
 }
 
 export default function EquipmentReview({ loaderData }: Route.ComponentProps) {

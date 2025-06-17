@@ -17,7 +17,7 @@ export function FeedbackMessage({
   autoHide = false,
   autoHideDelay = 5000,
   onClose,
-  actions
+  actions,
 }: FeedbackMessageProps) {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -38,29 +38,29 @@ export function FeedbackMessage({
       borderColor: "border-green-200",
       textColor: "text-green-800",
       iconColor: "text-green-400",
-      icon: "✓"
+      icon: "✓",
     },
     error: {
-      bgColor: "bg-red-50", 
+      bgColor: "bg-red-50",
       borderColor: "border-red-200",
       textColor: "text-red-800",
       iconColor: "text-red-400",
-      icon: "✕"
+      icon: "✕",
     },
     warning: {
       bgColor: "bg-yellow-50",
-      borderColor: "border-yellow-200", 
+      borderColor: "border-yellow-200",
       textColor: "text-yellow-800",
       iconColor: "text-yellow-400",
-      icon: "⚠"
+      icon: "⚠",
     },
     info: {
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
-      textColor: "text-blue-800", 
+      textColor: "text-blue-800",
       iconColor: "text-blue-400",
-      icon: "ℹ"
-    }
+      icon: "ℹ",
+    },
   };
 
   const config = typeConfig[type];
@@ -68,7 +68,9 @@ export function FeedbackMessage({
   if (!isVisible) return null;
 
   return (
-    <div className={`${config.bgColor} ${config.borderColor} border rounded-lg p-4 mb-4`}>
+    <div
+      className={`${config.bgColor} ${config.borderColor} border rounded-lg p-4 mb-4`}
+    >
       <div className="flex items-start">
         <div className={`${config.iconColor} mt-0.5 mr-3 text-lg font-bold`}>
           {config.icon}
@@ -79,14 +81,8 @@ export function FeedbackMessage({
               {title}
             </h3>
           )}
-          <p className={`${config.textColor}`}>
-            {message}
-          </p>
-          {actions && (
-            <div className="mt-3">
-              {actions}
-            </div>
-          )}
+          <p className={`${config.textColor}`}>{message}</p>
+          {actions && <div className="mt-3">{actions}</div>}
         </div>
         {onClose && (
           <button

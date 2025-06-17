@@ -10,9 +10,9 @@ import { PageSection } from "~/components/layout/PageSection";
 import { LoadingState } from "~/components/ui/LoadingState";
 
 // Lazy load the form component for better code splitting
-const PlayerSubmissionForm = lazy(() => 
+const PlayerSubmissionForm = lazy(() =>
   import("~/components/players/PlayerSubmissionForm").then(module => ({
-    default: module.PlayerSubmissionForm
+    default: module.PlayerSubmissionForm,
   }))
 );
 
@@ -31,7 +31,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // Generate CSRF token for form submission
   const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
-  const sessionId = getSessionId(request) || 'anonymous';
+  const sessionId = getSessionId(request) || "anonymous";
   const csrfToken = generateCSRFToken(sessionId, userResponse.data.user.id);
 
   return data(
@@ -52,13 +52,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
-  
+  const {
+    rateLimit,
+    RATE_LIMITS,
+    createRateLimitResponse,
+    validateCSRF,
+    createCSRFFailureResponse,
+  } = await import("~/lib/security.server");
+
   // Get request correlation ID for logging
-  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
-  
+  const requestId =
+    request.headers.get("x-correlation-id") || crypto.randomUUID();
+
   // Apply rate limiting for form submissions
-  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  const rateLimitResult = await rateLimit(
+    request,
+    RATE_LIMITS.FORM_SUBMISSION,
+    context
+  );
   if (!rateLimitResult.success) {
     return createRateLimitResponse(rateLimitResult.resetTime!);
   }
@@ -112,14 +123,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     const forehandRubber = formData.get("forehand_rubber_name");
     if (forehandRubber) {
       equipmentSetup.forehand_rubber_name = forehandRubber;
-      equipmentSetup.forehand_thickness = formData.get("forehand_thickness") || null;
+      equipmentSetup.forehand_thickness =
+        formData.get("forehand_thickness") || null;
       equipmentSetup.forehand_side = formData.get("forehand_side") || null;
     }
 
     const backhandRubber = formData.get("backhand_rubber_name");
     if (backhandRubber) {
       equipmentSetup.backhand_rubber_name = backhandRubber;
-      equipmentSetup.backhand_thickness = formData.get("backhand_thickness") || null;
+      equipmentSetup.backhand_thickness =
+        formData.get("backhand_thickness") || null;
       equipmentSetup.backhand_side = formData.get("backhand_side") || null;
     }
 
@@ -163,11 +176,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (imageUploadResult.success && imageUploadResult.url) {
     imageUrl = imageUploadResult.url;
-    
+
     // Update submission with image URL
     const { error: updateError } = await supabase
       .from("player_submissions")
-      .update({ 
+      .update({
         image_url: imageUrl,
         image_key: imageUploadResult.key,
       })
@@ -179,7 +192,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   } else if (formData.get("image") && !imageUploadResult.success) {
     // If user tried to upload an image but it failed, return error
     return data(
-      { error: imageUploadResult.error || "Failed to upload image. Please try again." },
+      {
+        error:
+          imageUploadResult.error ||
+          "Failed to upload image. Please try again.",
+      },
       { status: 400, headers: sbServerClient.headers }
     );
   }
@@ -204,7 +221,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   return data(
-    { success: true, message: "Player submitted successfully! It will be reviewed by our team." },
+    {
+      success: true,
+      message:
+        "Player submitted successfully! It will be reviewed by our team.",
+    },
     { headers: sbServerClient.headers }
   );
 }
@@ -225,8 +246,14 @@ export default function PlayersSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <Suspense fallback={<LoadingState message="Loading submission form..." />}>
-          <PlayerSubmissionForm playingStyles={playingStyles} countries={countries} csrfToken={csrfToken} />
+        <Suspense
+          fallback={<LoadingState message="Loading submission form..." />}
+        >
+          <PlayerSubmissionForm
+            playingStyles={playingStyles}
+            countries={countries}
+            csrfToken={csrfToken}
+          />
         </Suspense>
       </div>
     </PageSection>

@@ -12,20 +12,22 @@ interface CategoryManagerProps {
   parentCategories?: Category[];
 }
 
-export function CategoryManager({ 
-  categories, 
-  type, 
-  title, 
-  description, 
-  showFlags = false, 
+export function CategoryManager({
+  categories,
+  type,
+  title,
+  description,
+  showFlags = false,
   allowSubcategories = false,
-  parentCategories = []
+  parentCategories = [],
 }: CategoryManagerProps) {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
-  const sortedCategories = [...categories].sort((a, b) => a.display_order - b.display_order);
+  const sortedCategories = [...categories].sort(
+    (a, b) => a.display_order - b.display_order
+  );
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -45,14 +47,19 @@ export function CategoryManager({
       {/* Add New Category Form */}
       {isAddingNew && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-          <h4 className="font-medium text-gray-900 mb-3">Add New {title.slice(0, -1)}</h4>
+          <h4 className="font-medium text-gray-900 mb-3">
+            Add New {title.slice(0, -1)}
+          </h4>
           <Form method="post" className="space-y-4">
             <input type="hidden" name="intent" value="create" />
             <input type="hidden" name="type" value={type} />
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Display Name *
                 </label>
                 <input
@@ -64,9 +71,12 @@ export function CategoryManager({
                   placeholder="e.g., Long Pips"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="value"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Form Value *
                 </label>
                 <input
@@ -83,7 +93,10 @@ export function CategoryManager({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showFlags && (
                 <div>
-                  <label htmlFor="flag_emoji" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="flag_emoji"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Flag Emoji
                   </label>
                   <input
@@ -99,7 +112,10 @@ export function CategoryManager({
 
               {allowSubcategories && parentCategories.length > 0 && (
                 <div>
-                  <label htmlFor="parent_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="parent_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Parent Category
                   </label>
                   <select
@@ -118,7 +134,10 @@ export function CategoryManager({
               )}
 
               <div>
-                <label htmlFor="display_order" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="display_order"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Display Order
                 </label>
                 <input
@@ -154,7 +173,9 @@ export function CategoryManager({
       {/* Category List */}
       <div className="space-y-2">
         {sortedCategories.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No categories found. Add one above.</p>
+          <p className="text-gray-500 text-center py-4">
+            No categories found. Add one above.
+          </p>
         ) : (
           sortedCategories.map((category, index) => (
             <CategoryItem
@@ -166,15 +187,24 @@ export function CategoryManager({
               showFlags={showFlags}
               allowSubcategories={allowSubcategories}
               parentCategories={parentCategories}
-              onMoveUp={index > 0 ? () => handleReorder(category.id, category.display_order - 1) : undefined}
-              onMoveDown={index < sortedCategories.length - 1 ? () => handleReorder(category.id, category.display_order + 1) : undefined}
+              onMoveUp={
+                index > 0
+                  ? () => handleReorder(category.id, category.display_order - 1)
+                  : undefined
+              }
+              onMoveDown={
+                index < sortedCategories.length - 1
+                  ? () => handleReorder(category.id, category.display_order + 1)
+                  : undefined
+              }
             />
           ))
         )}
       </div>
 
       <p className="text-sm text-gray-500 mt-4">
-        {categories.length} {categories.length === 1 ? 'category' : 'categories'} total
+        {categories.length}{" "}
+        {categories.length === 1 ? "category" : "categories"} total
       </p>
     </div>
   );
@@ -197,16 +227,16 @@ interface CategoryItemProps {
   onMoveDown?: () => void;
 }
 
-function CategoryItem({ 
-  category, 
-  isEditing, 
-  onEdit, 
-  onCancelEdit, 
-  showFlags, 
-  allowSubcategories, 
+function CategoryItem({
+  category,
+  isEditing,
+  onEdit,
+  onCancelEdit,
+  showFlags,
+  allowSubcategories,
   parentCategories,
   onMoveUp,
-  onMoveDown
+  onMoveDown,
 }: CategoryItemProps) {
   if (isEditing) {
     return (
@@ -215,10 +245,13 @@ function CategoryItem({
         <Form method="post" className="space-y-4">
           <input type="hidden" name="intent" value="update" />
           <input type="hidden" name="id" value={category.id} />
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor={`edit-name-${category.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={`edit-name-${category.id}`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Display Name *
               </label>
               <input
@@ -230,9 +263,12 @@ function CategoryItem({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
-            
+
             <div>
-              <label htmlFor={`edit-value-${category.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={`edit-value-${category.id}`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Form Value *
               </label>
               <input
@@ -249,7 +285,10 @@ function CategoryItem({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {showFlags && (
               <div>
-                <label htmlFor={`edit-flag-${category.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor={`edit-flag-${category.id}`}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Flag Emoji
                 </label>
                 <input
@@ -264,7 +303,10 @@ function CategoryItem({
             )}
 
             <div>
-              <label htmlFor={`edit-order-${category.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={`edit-order-${category.id}`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Display Order
               </label>
               <input
@@ -278,7 +320,10 @@ function CategoryItem({
             </div>
 
             <div>
-              <label htmlFor={`edit-active-${category.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={`edit-active-${category.id}`}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Status
               </label>
               <select
@@ -335,12 +380,14 @@ function CategoryItem({
 
       <div className="flex items-center space-x-2">
         {/* Status Badge */}
-        <span className={`px-2 py-1 rounded text-xs font-medium ${
-          category.is_active 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {category.is_active ? 'Active' : 'Inactive'}
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            category.is_active
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {category.is_active ? "Active" : "Inactive"}
         </span>
 
         {/* Display Order */}
@@ -355,7 +402,11 @@ function CategoryItem({
               title="Move Up"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd"></path>
+                <path
+                  fillRule="evenodd"
+                  d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                  clipRule="evenodd"
+                ></path>
               </svg>
             </button>
           )}
@@ -366,7 +417,11 @@ function CategoryItem({
               title="Move Down"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                <path
+                  fillRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                ></path>
               </svg>
             </button>
           )}
@@ -383,7 +438,7 @@ function CategoryItem({
               <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
             </svg>
           </button>
-          
+
           <Form method="post" className="inline">
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="id" value={category.id} />
@@ -391,14 +446,22 @@ function CategoryItem({
               type="submit"
               className="p-1 text-red-600 hover:text-red-800"
               title="Delete"
-              onClick={(e) => {
-                if (!confirm(`Are you sure you want to delete "${category.name}"? This action cannot be undone.`)) {
+              onClick={e => {
+                if (
+                  !confirm(
+                    `Are you sure you want to delete "${category.name}"? This action cannot be undone.`
+                  )
+                ) {
                   e.preventDefault();
                 }
               }}
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 112 0v3a1 1 0 11-2 0V9zm4 0a1 1 0 112 0v3a1 1 0 11-2 0V9z" clipRule="evenodd"></path>
+                <path
+                  fillRule="evenodd"
+                  d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 112 0v3a1 1 0 11-2 0V9zm4 0a1 1 0 112 0v3a1 1 0 11-2 0V9z"
+                  clipRule="evenodd"
+                ></path>
               </svg>
             </button>
           </Form>

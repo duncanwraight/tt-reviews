@@ -1,6 +1,6 @@
 /**
  * Enhanced Error Boundary with Logging and Context Capture
- * 
+ *
  * Captures client-side errors with correlation context and sends them
  * to the logging service for better debugging and monitoring.
  */
@@ -17,7 +17,11 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  fallback?: (error: Error, errorInfo: ErrorInfo, retry: () => void) => ReactNode;
+  fallback?: (
+    error: Error,
+    errorInfo: ErrorInfo,
+    retry: () => void
+  ) => ReactNode;
   requestId?: string; // Passed from server-side rendering
   userId?: string;
   route?: string;
@@ -25,7 +29,7 @@ interface ErrorBoundaryProps {
 
 interface ClientLogEntry {
   timestamp: string;
-  level: 'error';
+  level: "error";
   message: string;
   context: {
     requestId?: string;
@@ -43,13 +47,16 @@ interface ClientLogEntry {
   metadata?: any;
 }
 
-export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class EnhancedErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   private retryCount = 0;
   private readonly maxRetries = 2;
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    
+
     this.state = {
       hasError: false,
     };
@@ -75,7 +82,7 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     this.logClientError(error, errorInfo);
 
     // Send to external monitoring service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       this.sendToMonitoringService(error, errorInfo);
     }
   }
@@ -83,11 +90,11 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   private logClientError(error: Error, errorInfo: ErrorInfo): void {
     const logEntry: ClientLogEntry = {
       timestamp: new Date().toISOString(),
-      level: 'error',
-      message: 'Client-side error caught by ErrorBoundary',
+      level: "error",
+      message: "Client-side error caught by ErrorBoundary",
       context: {
         requestId: this.props.requestId,
-        userId: this.props.userId?.substring(0, 8) + '...',
+        userId: this.props.userId?.substring(0, 8) + "...",
         route: this.props.route || window.location.pathname,
         userAgent: navigator.userAgent,
         url: window.location.href,
@@ -106,16 +113,18 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           width: window.innerWidth,
           height: window.innerHeight,
         },
-        connection: (navigator as any).connection ? {
-          effectiveType: (navigator as any).connection.effectiveType,
-          downlink: (navigator as any).connection.downlink,
-        } : undefined,
+        connection: (navigator as any).connection
+          ? {
+              effectiveType: (navigator as any).connection.effectiveType,
+              downlink: (navigator as any).connection.downlink,
+            }
+          : undefined,
       },
     };
 
     // Log to console for development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', {
+    if (process.env.NODE_ENV === "development") {
+      console.error("ErrorBoundary caught an error:", {
         error,
         errorInfo,
         logEntry,
@@ -126,11 +135,14 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     }
   }
 
-  private async sendToMonitoringService(error: Error, errorInfo: ErrorInfo): Promise<void> {
+  private async sendToMonitoringService(
+    error: Error,
+    errorInfo: ErrorInfo
+  ): Promise<void> {
     try {
       // TODO: Implement monitoring service integration
       // Could send to Sentry, LogRocket, or custom endpoint
-      
+
       const payload = {
         error: {
           name: error.name,
@@ -158,32 +170,34 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       // });
     } catch (logError) {
       // Silently fail to avoid recursive errors
-      console.warn('Failed to send error to monitoring service:', logError);
+      console.warn("Failed to send error to monitoring service:", logError);
     }
   }
 
   private handleRetry = (): void => {
     if (this.retryCount < this.maxRetries) {
       this.retryCount += 1;
-      
+
       // Log retry attempt
       const context = {
-        requestId: this.props.requestId || 'unknown',
+        requestId: this.props.requestId || "unknown",
         route: this.props.route || window.location.pathname,
         userAgent: navigator.userAgent,
         url: window.location.href,
       };
 
-      console.log(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: 'Error boundary retry attempted',
-        context,
-        metadata: {
-          retryCount: this.retryCount,
-          maxRetries: this.maxRetries,
-        },
-      }));
+      console.log(
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: "info",
+          message: "Error boundary retry attempted",
+          context,
+          metadata: {
+            retryCount: this.retryCount,
+            maxRetries: this.maxRetries,
+          },
+        })
+      );
 
       // Reset error state
       this.setState({
@@ -209,8 +223,8 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             <p className="text-gray-600 mb-6">
               We encountered an unexpected error. Our team has been notified.
             </p>
-            
-            {process.env.NODE_ENV === 'development' && error && (
+
+            {process.env.NODE_ENV === "development" && error && (
               <details className="text-left bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <summary className="font-medium text-red-800 cursor-pointer">
                   Error Details (Development)
@@ -253,14 +267,14 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
                   Try Again ({this.maxRetries - this.retryCount} attempts left)
                 </button>
               )}
-              
+
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => (window.location.href = "/")}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
               >
                 Go to Homepage
               </button>
-              
+
               <button
                 onClick={() => window.location.reload()}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -284,9 +298,13 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     if (this.state.hasError) {
       // Render custom fallback if provided, otherwise use default
       if (this.props.fallback && this.state.error && this.state.errorInfo) {
-        return this.props.fallback(this.state.error, this.state.errorInfo, this.handleRetry);
+        return this.props.fallback(
+          this.state.error,
+          this.state.errorInfo,
+          this.handleRetry
+        );
       }
-      
+
       return this.renderDefaultFallback();
     }
 
@@ -300,7 +318,7 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 export function RouteErrorBoundary({ requestId }: { requestId?: string }) {
   // This would be used in route.tsx files for route-specific error handling
   // Implementation would depend on React Router v7 error handling patterns
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
@@ -336,10 +354,10 @@ export function useErrorReporting() {
       userId: context?.userId,
       route: context?.route || window.location.pathname,
     });
-    
+
     // Manually trigger error logging
     boundary.componentDidCatch(error, {
-      componentStack: context?.componentStack || 'Manual error report',
+      componentStack: context?.componentStack || "Manual error report",
     });
   };
 

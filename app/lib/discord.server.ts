@@ -8,7 +8,10 @@ import {
   type EquipmentSubmission,
   type PlayerSubmission,
 } from "./database.server";
-import { createModerationService, type ModerationService } from "./moderation.server";
+import {
+  createModerationService,
+  type ModerationService,
+} from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
 import { Logger, createLogContext, type LogContext } from "./logger.server";
 
@@ -50,7 +53,7 @@ export class DiscordService {
   private moderationService: ModerationService;
   private env: Cloudflare.Env;
   private context: AppLoadContext;
-  private logger = Logger.child({ service: 'discord' });
+  private logger = Logger.child({ service: "discord" });
 
   constructor(context: AppLoadContext) {
     this.context = context;
@@ -63,7 +66,11 @@ export class DiscordService {
   /**
    * Validate Discord webhook configuration and environment
    */
-  private validateWebhookConfig(logContext: LogContext): { isValid: boolean; webhookUrl?: string; issues: string[] } {
+  private validateWebhookConfig(logContext: LogContext): {
+    isValid: boolean;
+    webhookUrl?: string;
+    issues: string[];
+  } {
     const issues: string[] = [];
     let webhookUrl: string | undefined;
 
@@ -72,39 +79,57 @@ export class DiscordService {
       issues.push("DISCORD_WEBHOOK_URL environment variable not set");
     } else {
       webhookUrl = this.env.DISCORD_WEBHOOK_URL;
-      
+
       // Check for placeholder values
-      if (webhookUrl.includes('your_webhook_url_here') || webhookUrl.includes('placeholder')) {
+      if (
+        webhookUrl.includes("your_webhook_url_here") ||
+        webhookUrl.includes("placeholder")
+      ) {
         issues.push("DISCORD_WEBHOOK_URL appears to be a placeholder value");
       }
-      
+
       // Validate URL format
       try {
         const url = new URL(webhookUrl);
-        if (!url.hostname.includes('discord.com') && !url.hostname.includes('discordapp.com')) {
-          issues.push("DISCORD_WEBHOOK_URL does not appear to be a valid Discord webhook URL");
+        if (
+          !url.hostname.includes("discord.com") &&
+          !url.hostname.includes("discordapp.com")
+        ) {
+          issues.push(
+            "DISCORD_WEBHOOK_URL does not appear to be a valid Discord webhook URL"
+          );
         }
-        if (!url.pathname.includes('/webhooks/')) {
-          issues.push("DISCORD_WEBHOOK_URL path does not contain '/webhooks/' segment");
+        if (!url.pathname.includes("/webhooks/")) {
+          issues.push(
+            "DISCORD_WEBHOOK_URL path does not contain '/webhooks/' segment"
+          );
         }
       } catch (error) {
-        issues.push(`DISCORD_WEBHOOK_URL is not a valid URL: ${(error as Error).message}`);
+        issues.push(
+          `DISCORD_WEBHOOK_URL is not a valid URL: ${(error as Error).message}`
+        );
       }
     }
 
     // Check for other required environment variables
     if (!this.env.SITE_URL) {
-      issues.push("SITE_URL environment variable not set (needed for Discord embed links)");
+      issues.push(
+        "SITE_URL environment variable not set (needed for Discord embed links)"
+      );
     }
 
     const isValid = issues.length === 0;
-    
+
     if (!isValid) {
-      this.logger.warn("Discord webhook configuration issues detected", logContext, {
-        issues,
-        hasWebhookUrl: !!webhookUrl,
-        hasSiteUrl: !!this.env.SITE_URL
-      });
+      this.logger.warn(
+        "Discord webhook configuration issues detected",
+        logContext,
+        {
+          issues,
+          hasWebhookUrl: !!webhookUrl,
+          hasSiteUrl: !!this.env.SITE_URL,
+        }
+      );
     }
 
     return { isValid, webhookUrl, issues };
@@ -257,7 +282,9 @@ export class DiscordService {
   /**
    * Handle message components (buttons, select menus)
    */
-  async handleMessageComponent(interaction: DiscordInteraction): Promise<Response> {
+  async handleMessageComponent(
+    interaction: DiscordInteraction
+  ): Promise<Response> {
     // Check user permissions first
     const hasPermission = await this.checkUserPermissions(
       interaction.member,
@@ -292,22 +319,34 @@ export class DiscordService {
 
     if (customId.startsWith("approve_equipment_")) {
       const submissionId = customId.replace("approve_equipment_", "");
-      return await this.handleApproveEquipmentSubmission(submissionId, interaction.user);
+      return await this.handleApproveEquipmentSubmission(
+        submissionId,
+        interaction.user
+      );
     }
 
     if (customId.startsWith("reject_equipment_")) {
       const submissionId = customId.replace("reject_equipment_", "");
-      return await this.handleRejectEquipmentSubmission(submissionId, interaction.user);
+      return await this.handleRejectEquipmentSubmission(
+        submissionId,
+        interaction.user
+      );
     }
 
     if (customId.startsWith("approve_player_")) {
       const submissionId = customId.replace("approve_player_", "");
-      return await this.handleApprovePlayerSubmission(submissionId, interaction.user);
+      return await this.handleApprovePlayerSubmission(
+        submissionId,
+        interaction.user
+      );
     }
 
     if (customId.startsWith("reject_player_")) {
       const submissionId = customId.replace("reject_player_", "");
-      return await this.handleRejectPlayerSubmission(submissionId, interaction.user);
+      return await this.handleRejectPlayerSubmission(
+        submissionId,
+        interaction.user
+      );
     }
 
     if (customId.startsWith("approve_")) {
@@ -416,7 +455,7 @@ export class DiscordService {
       const results = equipment
         .slice(0, 5)
         .map(
-          (item) =>
+          item =>
             `**${item.name}** by ${item.manufacturer}\n` +
             `Type: ${item.category}\n` +
             `${this.env.SITE_URL}/equipment/${item.slug}`
@@ -454,7 +493,7 @@ export class DiscordService {
       const results = players
         .slice(0, 5)
         .map(
-          (player) =>
+          player =>
             `**${player.name}**\n` +
             `Status: ${player.active ? "Active" : "Inactive"}\n` +
             `${this.env.SITE_URL}/players/${player.slug}`
@@ -538,11 +577,13 @@ export class DiscordService {
       if (result.success) {
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
-          message = "Player edit has been fully approved and changes will be applied.";
+          message =
+            "Player edit has been fully approved and changes will be applied.";
         } else if (result.newStatus === "awaiting_second_approval") {
-          message = "Player edit needs one more approval before changes are applied.";
+          message =
+            "Player edit needs one more approval before changes are applied.";
         }
-        
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -601,7 +642,7 @@ export class DiscordService {
         "discord",
         {
           category: "other",
-          reason: `Rejected via Discord by ${user.username}`
+          reason: `Rejected via Discord by ${user.username}`,
         },
         this.context.cloudflare?.env?.R2_BUCKET
       );
@@ -667,11 +708,13 @@ export class DiscordService {
       if (result.success) {
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
-          message = "Equipment submission has been fully approved and will be published.";
+          message =
+            "Equipment submission has been fully approved and will be published.";
         } else if (result.newStatus === "awaiting_second_approval") {
-          message = "Equipment submission needs one more approval before being published.";
+          message =
+            "Equipment submission needs one more approval before being published.";
         }
-        
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -730,7 +773,7 @@ export class DiscordService {
         "discord",
         {
           category: "other",
-          reason: `Rejected via Discord by ${user.username}`
+          reason: `Rejected via Discord by ${user.username}`,
         },
         this.context.cloudflare?.env?.R2_BUCKET
       );
@@ -796,11 +839,13 @@ export class DiscordService {
       if (result.success) {
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
-          message = "Player submission has been fully approved and will be published.";
+          message =
+            "Player submission has been fully approved and will be published.";
         } else if (result.newStatus === "awaiting_second_approval") {
-          message = "Player submission needs one more approval before being published.";
+          message =
+            "Player submission needs one more approval before being published.";
         }
-        
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -859,7 +904,7 @@ export class DiscordService {
         "discord",
         {
           category: "other",
-          reason: `Rejected via Discord by ${user.username}`
+          reason: `Rejected via Discord by ${user.username}`,
         },
         this.context.cloudflare?.env?.R2_BUCKET
       );
@@ -928,29 +973,43 @@ export class DiscordService {
   /**
    * Send notification about new review submission
    */
-  async notifyNewReview(reviewData: any, requestId: string = 'unknown'): Promise<any> {
-    const logContext = createLogContext(requestId, { 
-      operation: 'discord_webhook',
-      submissionType: 'review',
-      submissionId: reviewData.id 
+  async notifyNewReview(
+    reviewData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_webhook",
+      submissionType: "review",
+      submissionId: reviewData.id,
     });
 
     return this.logger.timeOperation(
-      'discord_webhook_review',
+      "discord_webhook_review",
       async () => {
-        this.logger.info("Sending Discord webhook for review submission", logContext, {
-          reviewId: reviewData.id,
-          equipmentName: reviewData.equipment_name
-        });
+        this.logger.info(
+          "Sending Discord webhook for review submission",
+          logContext,
+          {
+            reviewId: reviewData.id,
+            equipmentName: reviewData.equipment_name,
+          }
+        );
 
         // Validate configuration
         const config = this.validateWebhookConfig(logContext);
         if (!config.isValid) {
-          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
-          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
-            issues: config.issues,
-            reviewId: reviewData.id
-          });
+          const error = new Error(
+            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord webhook configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              reviewId: reviewData.id,
+            }
+          );
           throw error;
         }
 
@@ -1011,7 +1070,7 @@ export class DiscordService {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0"
+              "User-Agent": "tt-reviews-bot/1.0",
             },
             body: JSON.stringify(payload),
           });
@@ -1022,33 +1081,38 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              reviewId: reviewData.id
+              reviewId: reviewData.id,
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'review'
+              submissionType: "review",
             });
           } else {
             this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
               responseBody: responseText,
-              reviewId: reviewData.id
+              reviewId: reviewData.id,
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: 'review',
-              errorStatus: response.status
+              submissionType: "review",
+              errorStatus: response.status,
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook network error", logContext, error as Error, {
-            reviewId: reviewData.id
-          });
+          this.logger.error(
+            "Discord webhook network error",
+            logContext,
+            error as Error,
+            {
+              reviewId: reviewData.id,
+            }
+          );
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'review'
+            submissionType: "review",
           });
 
           throw error;
@@ -1061,41 +1125,58 @@ export class DiscordService {
   /**
    * Send notification about new player edit submission
    */
-  async notifyNewPlayerEdit(editData: any, requestId: string = 'unknown'): Promise<any> {
-    const logContext = createLogContext(requestId, { 
-      operation: 'discord_webhook',
-      submissionType: 'player_edit',
-      submissionId: editData.id 
+  async notifyNewPlayerEdit(
+    editData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_webhook",
+      submissionType: "player_edit",
+      submissionId: editData.id,
     });
 
     return this.logger.timeOperation(
-      'discord_webhook_player_edit',
+      "discord_webhook_player_edit",
       async () => {
-        this.logger.info("Sending Discord webhook for player edit", logContext, {
-          editId: editData.id,
-          playerName: editData.player_name
-        });
+        this.logger.info(
+          "Sending Discord webhook for player edit",
+          logContext,
+          {
+            editId: editData.id,
+            playerName: editData.player_name,
+          }
+        );
 
         // Validate configuration
         const config = this.validateWebhookConfig(logContext);
         if (!config.isValid) {
-          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
-          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
-            issues: config.issues,
-            editId: editData.id
-          });
+          const error = new Error(
+            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord webhook configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              editId: editData.id,
+            }
+          );
           throw error;
         }
 
         // Create a summary of the changes
         const changes = [];
-        if (editData.edit_data.name) changes.push(`Name: ${editData.edit_data.name}`);
+        if (editData.edit_data.name)
+          changes.push(`Name: ${editData.edit_data.name}`);
         if (editData.edit_data.highest_rating)
           changes.push(`Rating: ${editData.edit_data.highest_rating}`);
         if (editData.edit_data.active_years)
           changes.push(`Active: ${editData.edit_data.active_years}`);
         if (editData.edit_data.active !== undefined)
-          changes.push(`Status: ${editData.edit_data.active ? "Active" : "Inactive"}`);
+          changes.push(
+            `Status: ${editData.edit_data.active ? "Active" : "Inactive"}`
+          );
 
         const embed = {
           title: "🏓 Player Edit Submitted",
@@ -1114,7 +1195,10 @@ export class DiscordService {
             },
             {
               name: "Changes",
-              value: changes.length > 0 ? changes.join("\n") : "No changes specified",
+              value:
+                changes.length > 0
+                  ? changes.join("\n")
+                  : "No changes specified",
               inline: false,
             },
           ],
@@ -1154,7 +1238,7 @@ export class DiscordService {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0"
+              "User-Agent": "tt-reviews-bot/1.0",
             },
             body: JSON.stringify(payload),
           });
@@ -1165,33 +1249,38 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              editId: editData.id
+              editId: editData.id,
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'player_edit'
+              submissionType: "player_edit",
             });
           } else {
             this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
               responseBody: responseText,
-              editId: editData.id
+              editId: editData.id,
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: 'player_edit',
-              errorStatus: response.status
+              submissionType: "player_edit",
+              errorStatus: response.status,
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook network error", logContext, error as Error, {
-            editId: editData.id
-          });
+          this.logger.error(
+            "Discord webhook network error",
+            logContext,
+            error as Error,
+            {
+              editId: editData.id,
+            }
+          );
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'player_edit'
+            submissionType: "player_edit",
           });
 
           throw error;
@@ -1204,29 +1293,43 @@ export class DiscordService {
   /**
    * Send notification about new equipment submission
    */
-  async notifyNewEquipmentSubmission(submissionData: any, requestId: string = 'unknown'): Promise<any> {
-    const logContext = createLogContext(requestId, { 
-      operation: 'discord_webhook',
-      submissionType: 'equipment',
-      submissionId: submissionData.id 
+  async notifyNewEquipmentSubmission(
+    submissionData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_webhook",
+      submissionType: "equipment",
+      submissionId: submissionData.id,
     });
 
     return this.logger.timeOperation(
-      'discord_webhook_equipment_submission',
+      "discord_webhook_equipment_submission",
       async () => {
-        this.logger.info("Sending Discord webhook for equipment submission", logContext, {
-          submissionId: submissionData.id,
-          equipmentName: submissionData.name
-        });
+        this.logger.info(
+          "Sending Discord webhook for equipment submission",
+          logContext,
+          {
+            submissionId: submissionData.id,
+            equipmentName: submissionData.name,
+          }
+        );
 
         // Validate configuration
         const config = this.validateWebhookConfig(logContext);
         if (!config.isValid) {
-          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
-          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
-            issues: config.issues,
-            submissionId: submissionData.id
-          });
+          const error = new Error(
+            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord webhook configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              submissionId: submissionData.id,
+            }
+          );
           throw error;
         }
 
@@ -1300,7 +1403,7 @@ export class DiscordService {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0"
+              "User-Agent": "tt-reviews-bot/1.0",
             },
             body: JSON.stringify(payload),
           });
@@ -1311,33 +1414,38 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              submissionId: submissionData.id
+              submissionId: submissionData.id,
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'equipment'
+              submissionType: "equipment",
             });
           } else {
             this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
               responseBody: responseText,
-              submissionId: submissionData.id
+              submissionId: submissionData.id,
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: 'equipment',
-              errorStatus: response.status
+              submissionType: "equipment",
+              errorStatus: response.status,
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook network error", logContext, error as Error, {
-            submissionId: submissionData.id
-          });
+          this.logger.error(
+            "Discord webhook network error",
+            logContext,
+            error as Error,
+            {
+              submissionId: submissionData.id,
+            }
+          );
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'equipment'
+            submissionType: "equipment",
           });
 
           throw error;
@@ -1350,29 +1458,43 @@ export class DiscordService {
   /**
    * Send notification about new player submission
    */
-  async notifyNewPlayerSubmission(submissionData: any, requestId: string = 'unknown'): Promise<any> {
-    const logContext = createLogContext(requestId, { 
-      operation: 'discord_webhook',
-      submissionType: 'player',
-      submissionId: submissionData.id 
+  async notifyNewPlayerSubmission(
+    submissionData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_webhook",
+      submissionType: "player",
+      submissionId: submissionData.id,
     });
 
     return this.logger.timeOperation(
-      'discord_webhook_player_submission',
+      "discord_webhook_player_submission",
       async () => {
-        this.logger.info("Sending Discord webhook for player submission", logContext, {
-          submissionId: submissionData.id,
-          playerName: submissionData.name
-        });
+        this.logger.info(
+          "Sending Discord webhook for player submission",
+          logContext,
+          {
+            submissionId: submissionData.id,
+            playerName: submissionData.name,
+          }
+        );
 
         // Validate configuration
         const config = this.validateWebhookConfig(logContext);
         if (!config.isValid) {
-          const error = new Error(`Discord webhook configuration invalid: ${config.issues.join(', ')}`);
-          this.logger.error("Discord webhook configuration validation failed", logContext, error, {
-            issues: config.issues,
-            submissionId: submissionData.id
-          });
+          const error = new Error(
+            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord webhook configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              submissionId: submissionData.id,
+            }
+          );
           throw error;
         }
 
@@ -1394,7 +1516,9 @@ export class DiscordService {
             {
               name: "Playing Style",
               value: submissionData.playing_style
-                ? submissionData.playing_style.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+                ? submissionData.playing_style
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l: string) => l.toUpperCase())
                 : "N/A",
               inline: true,
             },
@@ -1450,7 +1574,7 @@ export class DiscordService {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0"
+              "User-Agent": "tt-reviews-bot/1.0",
             },
             body: JSON.stringify(payload),
           });
@@ -1461,33 +1585,38 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              submissionId: submissionData.id
+              submissionId: submissionData.id,
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'player'
+              submissionType: "player",
             });
           } else {
             this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
               responseBody: responseText,
-              submissionId: submissionData.id
+              submissionId: submissionData.id,
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: 'player',
-              errorStatus: response.status
+              submissionType: "player",
+              errorStatus: response.status,
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook network error", logContext, error as Error, {
-            submissionId: submissionData.id
-          });
+          this.logger.error(
+            "Discord webhook network error",
+            logContext,
+            error as Error,
+            {
+              submissionId: submissionData.id,
+            }
+          );
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'player'
+            submissionType: "player",
           });
 
           throw error;

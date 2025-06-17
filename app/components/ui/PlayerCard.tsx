@@ -8,11 +8,13 @@ interface PlayerCardProps {
   };
 }
 
-export const PlayerCard = memo(function PlayerCard({ player }: PlayerCardProps) {
+export const PlayerCard = memo(function PlayerCard({
+  player,
+}: PlayerCardProps) {
   // Memoize playing style label transformation to avoid recalculation
   const getPlayingStyleLabel = useCallback((style: string | undefined) => {
     if (!style || style === "unknown") return "Pro Player";
-    return style.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    return style.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   }, []);
 
   // Memoize formatted date to avoid recalculation
@@ -82,9 +84,7 @@ export const PlayerCard = memo(function PlayerCard({ player }: PlayerCardProps) 
           >
             View Profile →
           </Link>
-          <div className="text-xs text-gray-500">
-            Added {formattedDate}
-          </div>
+          <div className="text-xs text-gray-500">Added {formattedDate}</div>
         </div>
       </div>
     </div>

@@ -14,11 +14,14 @@ interface AverageRatingsProps {
   }>;
 }
 
-export const AverageRatings = memo(function AverageRatings({ reviews, ratingCategories }: AverageRatingsProps) {
+export const AverageRatings = memo(function AverageRatings({
+  reviews,
+  ratingCategories,
+}: AverageRatingsProps) {
   // Memoize category averages calculation - most expensive operation
   const categoryAverages = useMemo(() => {
     const averages: Record<string, { average: number; count: number }> = {};
-    
+
     reviews.forEach(review => {
       Object.entries(review.category_ratings).forEach(([category, rating]) => {
         if (!averages[category]) {
@@ -31,7 +34,8 @@ export const AverageRatings = memo(function AverageRatings({ reviews, ratingCate
 
     // Calculate final averages
     Object.keys(averages).forEach(category => {
-      averages[category].average = averages[category].average / averages[category].count;
+      averages[category].average =
+        averages[category].average / averages[category].count;
     });
 
     return averages;
@@ -40,27 +44,35 @@ export const AverageRatings = memo(function AverageRatings({ reviews, ratingCate
   // Memoize overall average calculation
   const overallAverage = useMemo(() => {
     if (reviews.length === 0) return 0;
-    return reviews.reduce((sum, review) => sum + review.overall_rating, 0) / reviews.length;
+    return (
+      reviews.reduce((sum, review) => sum + review.overall_rating, 0) /
+      reviews.length
+    );
   }, [reviews]);
 
   // Memoize category label lookup function
-  const getCategoryLabel = useCallback((value: string) => {
-    const category = ratingCategories.find(cat => cat.value === value);
-    return category?.name || value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ');
-  }, [ratingCategories]);
+  const getCategoryLabel = useCallback(
+    (value: string) => {
+      const category = ratingCategories.find(cat => cat.value === value);
+      return (
+        category?.name ||
+        value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, " ")
+      );
+    },
+    [ratingCategories]
+  );
 
   // Memoize sorted category entries for display
   const sortedCategoryEntries = useMemo(() => {
-    return Object.entries(categoryAverages)
-      .sort(([a], [b]) => {
-        // Sort by the order defined in ratingCategories, then alphabetically
-        const orderA = ratingCategories.findIndex(cat => cat.value === a);
-        const orderB = ratingCategories.findIndex(cat => cat.value === b);
-        if (orderA !== -1 && orderB !== -1) return orderA - orderB;
-        if (orderA !== -1) return -1;
-        if (orderB !== -1) return 1;
-        return a.localeCompare(b);
-      });
+    return Object.entries(categoryAverages).sort(([a], [b]) => {
+      // Sort by the order defined in ratingCategories, then alphabetically
+      const orderA = ratingCategories.findIndex(cat => cat.value === a);
+      const orderB = ratingCategories.findIndex(cat => cat.value === b);
+      if (orderA !== -1 && orderB !== -1) return orderA - orderB;
+      if (orderA !== -1) return -1;
+      if (orderB !== -1) return 1;
+      return a.localeCompare(b);
+    });
   }, [categoryAverages, ratingCategories]);
 
   if (reviews.length === 0) {
@@ -70,13 +82,16 @@ export const AverageRatings = memo(function AverageRatings({ reviews, ratingCate
   return (
     <div className="bg-gray-50 rounded-lg p-6 mb-8">
       <h3 className="text-lg font-semibold text-gray-900 mb-6">
-        Average Ratings ({reviews.length} review{reviews.length !== 1 ? 's' : ''})
+        Average Ratings ({reviews.length} review
+        {reviews.length !== 1 ? "s" : ""})
       </h3>
-      
+
       {/* Overall Rating */}
       <div className="mb-6 pb-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium text-gray-900">Overall Rating</span>
+          <span className="text-base font-medium text-gray-900">
+            Overall Rating
+          </span>
           <div className="flex items-center gap-3">
             <div className="w-32 bg-gray-200 rounded-full h-3">
               <div

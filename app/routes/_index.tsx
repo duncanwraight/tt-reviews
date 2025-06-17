@@ -3,7 +3,11 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { DatabaseService } from "~/lib/database.server";
 import { data } from "react-router";
-import { withLoaderCorrelation, enhanceContextWithUser, logUserAction } from "~/lib/middleware/correlation.server";
+import {
+  withLoaderCorrelation,
+  enhanceContextWithUser,
+  logUserAction,
+} from "~/lib/middleware/correlation.server";
 
 import { Navigation } from "~/components/ui/Navigation";
 import { HeroSection } from "~/components/sections/HeroSection";
@@ -57,59 +61,67 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export const loader = withLoaderCorrelation(async ({ request, context, logContext }: Route.LoaderArgs & { logContext: any }) => {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
+export const loader = withLoaderCorrelation(
+  async ({
+    request,
+    context,
+    logContext,
+  }: Route.LoaderArgs & { logContext: any }) => {
+    const sbServerClient = getServerClient(request, context);
+    const user = await getUserWithRole(sbServerClient, context);
 
-  // Enhance log context with user information
-  const enhancedContext = enhanceContextWithUser(logContext, user);
+    // Enhance log context with user information
+    const enhancedContext = enhanceContextWithUser(logContext, user);
 
-  const db = new DatabaseService(context, enhancedContext);
+    const db = new DatabaseService(context, enhancedContext);
 
-  const [equipmentWithStats, allPlayers] = await Promise.all([
-    db.getPopularEquipment(6),
-    db.getPlayersWithoutFilters(),
-  ]);
+    const [equipmentWithStats, allPlayers] = await Promise.all([
+      db.getPopularEquipment(6),
+      db.getPlayersWithoutFilters(),
+    ]);
 
-  const featuredEquipment: EquipmentDisplay[] = equipmentWithStats.map(
-    (equipment) => ({
-      ...equipment,
-      rating: equipment.averageRating || undefined,
-      reviewCount: equipment.reviewCount ? Number(equipment.reviewCount) : undefined,
-    })
-  );
+    const featuredEquipment: EquipmentDisplay[] = equipmentWithStats.map(
+      equipment => ({
+        ...equipment,
+        rating: equipment.averageRating || undefined,
+        reviewCount: equipment.reviewCount
+          ? Number(equipment.reviewCount)
+          : undefined,
+      })
+    );
 
-  const popularPlayers: PlayerDisplay[] = allPlayers
-    .filter((player) => player.active)
-    .slice(0, 6)
-    .map((player) => {
-      // Get the most recent equipment setup
-      const recentSetup = player.equipment_setups?.[0];
-      const currentSetup = recentSetup 
-        ? `${recentSetup.blade_name || 'Professional'} Setup`
-        : "Professional Setup";
-      
-      return {
-        ...player,
-        currentSetup,
-      };
+    const popularPlayers: PlayerDisplay[] = allPlayers
+      .filter(player => player.active)
+      .slice(0, 6)
+      .map(player => {
+        // Get the most recent equipment setup
+        const recentSetup = player.equipment_setups?.[0];
+        const currentSetup = recentSetup
+          ? `${recentSetup.blade_name || "Professional"} Setup`
+          : "Professional Setup";
+
+        return {
+          ...player,
+          currentSetup,
+        };
+      });
+
+    // Log user action for analytics
+    logUserAction("view_homepage", enhancedContext, {
+      featured_equipment_count: featuredEquipment.length,
+      popular_players_count: popularPlayers.length,
     });
 
-  // Log user action for analytics
-  logUserAction('view_homepage', enhancedContext, {
-    featured_equipment_count: featuredEquipment.length,
-    popular_players_count: popularPlayers.length,
-  });
-
-  return data(
-    {
-      user,
-      featuredEquipment,
-      popularPlayers,
-    },
-    { headers: sbServerClient.headers }
-  );
-});
+    return data(
+      {
+        user,
+        featuredEquipment,
+        popularPlayers,
+      },
+      { headers: sbServerClient.headers }
+    );
+  }
+);
 
 export default function Index({ loaderData }: Route.ComponentProps) {
   const { user, featuredEquipment, popularPlayers } = loaderData;

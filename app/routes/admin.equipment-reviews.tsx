@@ -33,7 +33,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Get all reviews first
   const { data: reviews, error } = await supabase
     .from("equipment_reviews")
-    .select(`
+    .select(
+      `
       *,
       equipment (
         id,
@@ -43,7 +44,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         category,
         subcategory
       )
-    `)
+    `
+    )
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -57,13 +59,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       .in("submission_id", reviewIds);
 
     // Group approvals by submission_id
-    const approvalsByReview = (approvals || []).reduce((acc, approval) => {
-      if (!acc[approval.submission_id]) {
-        acc[approval.submission_id] = [];
-      }
-      acc[approval.submission_id].push(approval);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const approvalsByReview = (approvals || []).reduce(
+      (acc, approval) => {
+        if (!acc[approval.submission_id]) {
+          acc[approval.submission_id] = [];
+        }
+        acc[approval.submission_id].push(approval);
+        return acc;
+      },
+      {} as Record<string, any[]>
+    );
 
     // Add approvals to each review
     reviews.forEach((review: any) => {
@@ -106,16 +111,20 @@ export async function action({ request, context }: Route.ActionArgs) {
         await moderation.approveEquipmentReview(reviewId, user.id);
         break;
       case "reject":
-        const rejectionCategory = formData.get("rejectionCategory") as RejectionCategory;
+        const rejectionCategory = formData.get(
+          "rejectionCategory"
+        ) as RejectionCategory;
         const rawRejectionReason = formData.get("rejectionReason") as string;
-        
+
         // Sanitize rejection reason to prevent XSS attacks
-        const rejectionReason = rawRejectionReason ? sanitizeAdminContent(rawRejectionReason.trim()) : "";
-        
+        const rejectionReason = rawRejectionReason
+          ? sanitizeAdminContent(rawRejectionReason.trim())
+          : "";
+
         await moderation.rejectEquipmentReview(
-          reviewId, 
-          user.id, 
-          rejectionCategory, 
+          reviewId,
+          user.id,
+          rejectionCategory,
           rejectionReason,
           context.cloudflare?.env?.R2_BUCKET
         );
@@ -124,7 +133,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         throw new Response("Invalid action", { status: 400 });
     }
 
-    return redirect("/admin/equipment-reviews", { headers: sbServerClient.headers });
+    return redirect("/admin/equipment-reviews", {
+      headers: sbServerClient.headers,
+    });
   } catch (error) {
     console.error("Moderation action failed:", error);
     throw new Response("Action failed", { status: 500 });
@@ -142,11 +153,12 @@ export default function AdminEquipmentReviews({
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
   // Group reviews by status
-  const pendingReviews = reviews.filter((r: any) => 
-    r.status === "pending" || r.status === "awaiting_second_approval"
+  const pendingReviews = reviews.filter(
+    (r: any) =>
+      r.status === "pending" || r.status === "awaiting_second_approval"
   );
-  const processedReviews = reviews.filter((r: any) => 
-    r.status === "approved" || r.status === "rejected"
+  const processedReviews = reviews.filter(
+    (r: any) => r.status === "approved" || r.status === "rejected"
   );
 
   const getStatusBadge = (status: string, approvalCount?: number) => {
@@ -154,16 +166,33 @@ export default function AdminEquipmentReviews({
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
     switch (status) {
       case "pending":
-        const pendingText = approvalCount ? `${approvalCount}/2 approvals` : "pending";
-        return { classes: `${baseClasses} bg-yellow-100 text-yellow-800`, text: pendingText };
+        const pendingText = approvalCount
+          ? `${approvalCount}/2 approvals`
+          : "pending";
+        return {
+          classes: `${baseClasses} bg-yellow-100 text-yellow-800`,
+          text: pendingText,
+        };
       case "awaiting_second_approval":
-        return { classes: `${baseClasses} bg-blue-100 text-blue-800`, text: "1/2 approvals" };
+        return {
+          classes: `${baseClasses} bg-blue-100 text-blue-800`,
+          text: "1/2 approvals",
+        };
       case "approved":
-        return { classes: `${baseClasses} bg-green-100 text-green-800`, text: "approved" };
+        return {
+          classes: `${baseClasses} bg-green-100 text-green-800`,
+          text: "approved",
+        };
       case "rejected":
-        return { classes: `${baseClasses} bg-red-100 text-red-800`, text: "rejected" };
+        return {
+          classes: `${baseClasses} bg-red-100 text-red-800`,
+          text: "rejected",
+        };
       default:
-        return { classes: `${baseClasses} bg-gray-100 text-gray-800`, text: status };
+        return {
+          classes: `${baseClasses} bg-gray-100 text-gray-800`,
+          text: status,
+        };
     }
   };
 
@@ -173,9 +202,12 @@ export default function AdminEquipmentReviews({
   };
 
   const canApprove = (review: any) => {
-    if (review.status === "approved" || review.status === "rejected") return false;
+    if (review.status === "approved" || review.status === "rejected")
+      return false;
     const approvals = review.approvals || [];
-    const userApproval = approvals.find((a: any) => a.moderator_id === user.id && a.action === "approved");
+    const userApproval = approvals.find(
+      (a: any) => a.moderator_id === user.id && a.action === "approved"
+    );
     return !userApproval;
   };
 
@@ -201,7 +233,10 @@ export default function AdminEquipmentReviews({
       vibration: "Vibration",
       durability: "Durability",
     };
-    return labels[key] || key.charAt(0).toUpperCase() + key.slice(1).replace("_", " ");
+    return (
+      labels[key] ||
+      key.charAt(0).toUpperCase() + key.slice(1).replace("_", " ")
+    );
   };
 
   const renderReviewItem = (review: any) => (
@@ -215,18 +250,18 @@ export default function AdminEquipmentReviews({
                 {review.equipment?.name || "Unknown Equipment"}
               </p>
               <p className="text-sm text-gray-500">
-                by {review.equipment?.manufacturer || "Unknown"} • Overall: {review.overall_rating}/10
+                by {review.equipment?.manufacturer || "Unknown"} • Overall:{" "}
+                {review.overall_rating}/10
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             {(() => {
-              const badge = getStatusBadge(review.status, getApprovalCount(review));
-              return (
-                <span className={badge.classes}>
-                  {badge.text}
-                </span>
+              const badge = getStatusBadge(
+                review.status,
+                getApprovalCount(review)
               );
+              return <span className={badge.classes}>{badge.text}</span>;
             })()}
             <div className="text-sm text-gray-500">
               {new Date(review.created_at).toLocaleDateString()}
@@ -249,38 +284,51 @@ export default function AdminEquipmentReviews({
           <div className="mt-2 text-sm text-gray-600">
             <strong>Detailed Ratings:</strong>
             <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(review.category_ratings).map(([category, rating]) => (
-                <span key={category} className="text-xs">
-                  <strong>{getCategoryLabel(category)}:</strong> {rating}/10
-                </span>
-              ))}
+              {Object.entries(review.category_ratings).map(
+                ([category, rating]) => (
+                  <span key={category} className="text-xs">
+                    <strong>{getCategoryLabel(category)}:</strong> {rating}/10
+                  </span>
+                )
+              )}
             </div>
           </div>
         )}
 
         {/* Reviewer Context */}
-        {review.reviewer_context && Object.keys(review.reviewer_context).length > 0 && (
-          <div className="mt-2 text-sm text-gray-600">
-            <strong>Reviewer Info:</strong>
-            <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(review.reviewer_context).map(([key, value]) => (
-                value && (
-                  <span key={key} className="text-xs">
-                    <strong>{getCategoryLabel(key)}:</strong> {String(value)}
-                  </span>
-                )
-              ))}
+        {review.reviewer_context &&
+          Object.keys(review.reviewer_context).length > 0 && (
+            <div className="mt-2 text-sm text-gray-600">
+              <strong>Reviewer Info:</strong>
+              <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(review.reviewer_context).map(
+                  ([key, value]) =>
+                    value && (
+                      <span key={key} className="text-xs">
+                        <strong>{getCategoryLabel(key)}:</strong>{" "}
+                        {String(value)}
+                      </span>
+                    )
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Show rejection details for rejected reviews */}
         {review.status === "rejected" && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <svg
+                  className="h-5 w-5 text-red-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
@@ -301,9 +349,13 @@ export default function AdminEquipmentReviews({
             <div className="space-y-1">
               {review.approvals.map((approval: any, index: number) => (
                 <div key={index} className="text-sm flex justify-between">
-                  <span className={`font-medium ${
-                    approval.action === "approved" ? "text-green-700" : "text-red-700"
-                  }`}>
+                  <span
+                    className={`font-medium ${
+                      approval.action === "approved"
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }`}
+                  >
                     {approval.action} by {approval.source}
                   </span>
                   <span className="text-gray-500">
@@ -316,15 +368,12 @@ export default function AdminEquipmentReviews({
         )}
 
         {/* Action buttons only for pending reviews */}
-        {(review.status === "pending" || review.status === "awaiting_second_approval") && (
+        {(review.status === "pending" ||
+          review.status === "awaiting_second_approval") && (
           <div className="mt-3 flex items-center space-x-3">
             {canApprove(review) && (
               <Form method="post" className="inline">
-                <input
-                  type="hidden"
-                  name="reviewId"
-                  value={review.id}
-                />
+                <input type="hidden" name="reviewId" value={review.id} />
                 <input type="hidden" name="intent" value="approve" />
                 <button
                   type="submit"
@@ -364,8 +413,12 @@ export default function AdminEquipmentReviews({
               <span className="text-2xl">⏳</span>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-yellow-800">Pending Review</p>
-              <p className="text-2xl font-bold text-yellow-900">{pendingReviews.length}</p>
+              <p className="text-sm font-medium text-yellow-800">
+                Pending Review
+              </p>
+              <p className="text-2xl font-bold text-yellow-900">
+                {pendingReviews.length}
+              </p>
             </div>
           </div>
         </div>
@@ -401,7 +454,9 @@ export default function AdminEquipmentReviews({
         <div className="text-center py-12">
           <div className="text-4xl mb-4">📝</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Reviews</h3>
-          <p className="text-gray-600">No equipment reviews have been submitted yet.</p>
+          <p className="text-gray-600">
+            No equipment reviews have been submitted yet.
+          </p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -446,10 +501,16 @@ export default function AdminEquipmentReviews({
           )}
         </div>
       )}
-      
+
       <RejectionModal
         isOpen={rejectionModal.isOpen}
-        onClose={() => setRejectionModal({ isOpen: false, submissionId: "", submissionName: "" })}
+        onClose={() =>
+          setRejectionModal({
+            isOpen: false,
+            submissionId: "",
+            submissionName: "",
+          })
+        }
         submissionId={rejectionModal.submissionId}
         submissionType="equipment_review"
         submissionName={rejectionModal.submissionName}
@@ -457,4 +518,3 @@ export default function AdminEquipmentReviews({
     </div>
   );
 }
-

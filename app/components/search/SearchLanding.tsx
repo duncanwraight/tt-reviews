@@ -27,7 +27,7 @@ export function SearchLanding() {
             { name: "Rubbers", icon: "🔴", href: "/equipment?category=rubber" },
             { name: "Balls", icon: "🟠", href: "/equipment?category=ball" },
             { name: "Players", icon: "👤", href: "/players" },
-          ].map((category) => (
+          ].map(category => (
             <Link
               key={category.name}
               to={category.href}
@@ -51,7 +51,7 @@ export function SearchLanding() {
               "Stiga Clipper",
               "Best long pips",
               "Joo Saehyuk setup",
-            ].map((search) => (
+            ].map(search => (
               <button
                 key={search}
                 className="popular-search bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm transition-colors"

@@ -34,53 +34,58 @@ export function useAsyncOperation(options: AsyncOperationOptions = {}) {
     });
   }, []);
 
-  const execute = useCallback(async <T>(
-    operation: () => Promise<T>,
-    operationOptions?: Partial<AsyncOperationOptions>
-  ): Promise<T | null> => {
-    const finalOptions = { ...options, ...operationOptions };
-    
-    setState({
-      isLoading: true,
-      error: null,
-      success: false,
-      successMessage: null,
-    });
+  const execute = useCallback(
+    async <T>(
+      operation: () => Promise<T>,
+      operationOptions?: Partial<AsyncOperationOptions>
+    ): Promise<T | null> => {
+      const finalOptions = { ...options, ...operationOptions };
 
-    try {
-      const result = await operation();
-      
       setState({
-        isLoading: false,
+        isLoading: true,
         error: null,
-        success: true,
-        successMessage: finalOptions.successMessage || "Operation completed successfully",
-      });
-
-      finalOptions.onSuccess?.();
-
-      // Auto-reset after delay if specified
-      if (finalOptions.resetDelay && finalOptions.resetDelay > 0) {
-        timeoutRef.current = setTimeout(reset, finalOptions.resetDelay);
-      }
-
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : finalOptions.errorMessage || "An unexpected error occurred";
-
-      setState({
-        isLoading: false,
-        error: errorMessage,
         success: false,
         successMessage: null,
       });
 
-      finalOptions.onError?.(errorMessage);
-      return null;
-    }
-  }, [options, reset]);
+      try {
+        const result = await operation();
+
+        setState({
+          isLoading: false,
+          error: null,
+          success: true,
+          successMessage:
+            finalOptions.successMessage || "Operation completed successfully",
+        });
+
+        finalOptions.onSuccess?.();
+
+        // Auto-reset after delay if specified
+        if (finalOptions.resetDelay && finalOptions.resetDelay > 0) {
+          timeoutRef.current = setTimeout(reset, finalOptions.resetDelay);
+        }
+
+        return result;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : finalOptions.errorMessage || "An unexpected error occurred";
+
+        setState({
+          isLoading: false,
+          error: errorMessage,
+          success: false,
+          successMessage: null,
+        });
+
+        finalOptions.onError?.(errorMessage);
+        return null;
+      }
+    },
+    [options, reset]
+  );
 
   // Cleanup timeout on unmount
   const cleanup = useCallback(() => {

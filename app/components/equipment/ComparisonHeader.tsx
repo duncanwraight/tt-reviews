@@ -10,20 +10,20 @@ interface ComparisonHeaderProps {
   reviewCount2: number;
 }
 
-export function ComparisonHeader({ 
-  equipment1, 
-  equipment2, 
+export function ComparisonHeader({
+  equipment1,
+  equipment2,
   averageRating1,
   averageRating2,
   reviewCount1,
-  reviewCount2
+  reviewCount2,
 }: ComparisonHeaderProps) {
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <svg
         key={i}
         className={`w-4 h-4 ${
-          i < Math.floor(rating) ? 'text-yellow-400' : 'text-gray-300'
+          i < Math.floor(rating) ? "text-yellow-400" : "text-gray-300"
         }`}
         fill="currentColor"
         viewBox="0 0 20 20"
@@ -40,7 +40,8 @@ export function ComparisonHeader({
           Equipment Comparison
         </h1>
         <p className="text-gray-600">
-          Detailed side-by-side comparison of {equipment1.category} specifications and performance
+          Detailed side-by-side comparison of {equipment1.category}{" "}
+          specifications and performance
         </p>
       </div>
 
@@ -48,22 +49,19 @@ export function ComparisonHeader({
         {/* Equipment 1 */}
         <div className="text-center">
           <div className="bg-purple-50 rounded-lg p-6">
-            <Link 
-              to={`/equipment/${equipment1.slug}`}
-              className="group"
-            >
+            <Link to={`/equipment/${equipment1.slug}`} className="group">
               <h2 className="text-2xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors mb-2">
                 {equipment1.name}
               </h2>
             </Link>
-            <p className="text-lg text-gray-600 mb-4">by {equipment1.manufacturer}</p>
-            
+            <p className="text-lg text-gray-600 mb-4">
+              by {equipment1.manufacturer}
+            </p>
+
             <div className="flex items-center justify-center space-x-2 mb-2">
               {averageRating1 ? (
                 <>
-                  <div className="flex">
-                    {renderStars(averageRating1)}
-                  </div>
+                  <div className="flex">{renderStars(averageRating1)}</div>
                   <span className="text-sm font-medium text-gray-700">
                     {averageRating1.toFixed(1)}
                   </span>
@@ -72,9 +70,9 @@ export function ComparisonHeader({
                 <span className="text-sm text-gray-500">No ratings yet</span>
               )}
             </div>
-            
+
             <p className="text-sm text-gray-500">
-              {reviewCount1} {reviewCount1 === 1 ? 'review' : 'reviews'}
+              {reviewCount1} {reviewCount1 === 1 ? "review" : "reviews"}
             </p>
 
             {equipment1.subcategory && (
@@ -102,22 +100,19 @@ export function ComparisonHeader({
         {/* Equipment 2 */}
         <div className="text-center">
           <div className="bg-blue-50 rounded-lg p-6">
-            <Link 
-              to={`/equipment/${equipment2.slug}`}
-              className="group"
-            >
+            <Link to={`/equipment/${equipment2.slug}`} className="group">
               <h2 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">
                 {equipment2.name}
               </h2>
             </Link>
-            <p className="text-lg text-gray-600 mb-4">by {equipment2.manufacturer}</p>
-            
+            <p className="text-lg text-gray-600 mb-4">
+              by {equipment2.manufacturer}
+            </p>
+
             <div className="flex items-center justify-center space-x-2 mb-2">
               {averageRating2 ? (
                 <>
-                  <div className="flex">
-                    {renderStars(averageRating2)}
-                  </div>
+                  <div className="flex">{renderStars(averageRating2)}</div>
                   <span className="text-sm font-medium text-gray-700">
                     {averageRating2.toFixed(1)}
                   </span>
@@ -126,9 +121,9 @@ export function ComparisonHeader({
                 <span className="text-sm text-gray-500">No ratings yet</span>
               )}
             </div>
-            
+
             <p className="text-sm text-gray-500">
-              {reviewCount2} {reviewCount2 === 1 ? 'review' : 'reviews'}
+              {reviewCount2} {reviewCount2 === 1 ? "review" : "reviews"}
             </p>
 
             {equipment2.subcategory && (

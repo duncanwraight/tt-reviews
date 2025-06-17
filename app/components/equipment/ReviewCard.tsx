@@ -83,7 +83,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
 
       {review.review_text && (
         <div className="mb-6">
-          <SafeHtml 
+          <SafeHtml
             content={review.review_text}
             profile="review"
             className="text-gray-700 leading-relaxed"

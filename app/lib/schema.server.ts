@@ -98,7 +98,8 @@ export class SchemaService {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.SITE_URL || "https://tabletennis.reviews";
+    this.baseUrl =
+      baseUrl || process.env.SITE_URL || "https://tabletennis.reviews";
   }
 
   // Organization schema for the main site
@@ -108,7 +109,8 @@ export class SchemaService {
       "@type": "Organization",
       name: "TT Reviews",
       url: this.baseUrl,
-      description: "Professional table tennis equipment reviews and player database",
+      description:
+        "Professional table tennis equipment reviews and player database",
       logo: `${this.baseUrl}/logo.png`,
       sameAs: [
         // Add social media URLs when available
@@ -128,7 +130,8 @@ export class SchemaService {
       "@type": "WebSite",
       name: "TT Reviews",
       url: this.baseUrl,
-      description: "Professional table tennis equipment reviews and player database",
+      description:
+        "Professional table tennis equipment reviews and player database",
       potentialAction: {
         "@type": "SearchAction",
         target: `${this.baseUrl}/search?q={search_term_string}`,
@@ -151,7 +154,8 @@ export class SchemaService {
       "@type": "Person",
       name: player.name,
       url: `${this.baseUrl}/players/${player.slug}`,
-      description: player.bio || `Professional table tennis player ${player.name}`,
+      description:
+        player.bio || `Professional table tennis player ${player.name}`,
       nationality: player.birth_country || player.represents || undefined,
       sport: "Table Tennis",
       knowsAbout: [
@@ -183,7 +187,9 @@ export class SchemaService {
       "@context": "https://schema.org",
       "@type": "Product",
       name: equipment.name,
-      description: equipment.description || `${equipment.name} ${equipment.category} by ${equipment.manufacturer}`,
+      description:
+        equipment.description ||
+        `${equipment.name} ${equipment.category} by ${equipment.manufacturer}`,
       brand: {
         "@type": "Brand",
         name: equipment.manufacturer,
@@ -205,7 +211,7 @@ export class SchemaService {
 
     // Add individual reviews if available (limit to top 5 for performance)
     if (equipment.reviews && equipment.reviews.length > 0) {
-      schema.review = equipment.reviews.slice(0, 5).map((review) => ({
+      schema.review = equipment.reviews.slice(0, 5).map(review => ({
         "@type": "Review",
         reviewRating: {
           "@type": "Rating",
@@ -230,7 +236,9 @@ export class SchemaService {
   }
 
   // Breadcrumb schema
-  generateBreadcrumbSchema(breadcrumbs: Array<{ label: string; href?: string }>): SchemaBreadcrumbList {
+  generateBreadcrumbSchema(
+    breadcrumbs: Array<{ label: string; href?: string }>
+  ): SchemaBreadcrumbList {
     return {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
@@ -313,15 +321,16 @@ export class SchemaService {
           brand: { "@type": "Brand", name: data.equipment1.manufacturer },
           category: data.equipment1.category,
           url: `${this.baseUrl}/equipment/${data.equipment1.slug}`,
-          ...(data.equipment1.averageRating && data.equipment1.reviewCount > 0 && {
-            aggregateRating: {
-              "@type": "AggregateRating",
-              ratingValue: data.equipment1.averageRating,
-              reviewCount: data.equipment1.reviewCount,
-              bestRating: 5,
-              worstRating: 1,
-            }
-          })
+          ...(data.equipment1.averageRating &&
+            data.equipment1.reviewCount > 0 && {
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: data.equipment1.averageRating,
+                reviewCount: data.equipment1.reviewCount,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }),
         },
         {
           "@type": "Product",
@@ -329,16 +338,17 @@ export class SchemaService {
           brand: { "@type": "Brand", name: data.equipment2.manufacturer },
           category: data.equipment2.category,
           url: `${this.baseUrl}/equipment/${data.equipment2.slug}`,
-          ...(data.equipment2.averageRating && data.equipment2.reviewCount > 0 && {
-            aggregateRating: {
-              "@type": "AggregateRating",
-              ratingValue: data.equipment2.averageRating,
-              reviewCount: data.equipment2.reviewCount,
-              bestRating: 5,
-              worstRating: 1,
-            }
-          })
-        }
+          ...(data.equipment2.averageRating &&
+            data.equipment2.reviewCount > 0 && {
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: data.equipment2.averageRating,
+                reviewCount: data.equipment2.reviewCount,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }),
+        },
       ],
       mainEntity: {
         "@type": "ItemList",
@@ -351,8 +361,8 @@ export class SchemaService {
             item: {
               "@type": "Product",
               name: data.equipment1.name,
-              url: `${this.baseUrl}/equipment/${data.equipment1.slug}`
-            }
+              url: `${this.baseUrl}/equipment/${data.equipment1.slug}`,
+            },
           },
           {
             "@type": "ListItem",
@@ -360,11 +370,11 @@ export class SchemaService {
             item: {
               "@type": "Product",
               name: data.equipment2.name,
-              url: `${this.baseUrl}/equipment/${data.equipment2.slug}`
-            }
-          }
-        ]
-      }
+              url: `${this.baseUrl}/equipment/${data.equipment2.slug}`,
+            },
+          },
+        ],
+      },
     };
   }
 

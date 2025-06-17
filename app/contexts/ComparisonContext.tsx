@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+} from "react";
 
 interface Equipment {
   id: string;
@@ -19,7 +25,9 @@ interface ComparisonContextType {
   getCompareUrl: () => string | null;
 }
 
-const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined);
+const ComparisonContext = createContext<ComparisonContextType | undefined>(
+  undefined
+);
 
 export function ComparisonProvider({ children }: { children: ReactNode }) {
   const [isCompareMode, setIsCompareMode] = useState(false);
@@ -38,7 +46,7 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
   const toggleEquipment = useCallback((equipment: Equipment) => {
     setSelectedEquipment(prev => {
       const isSelected = prev.find(item => item.id === equipment.id);
-      
+
       if (isSelected) {
         // Remove if already selected
         return prev.filter(item => item.id !== equipment.id);

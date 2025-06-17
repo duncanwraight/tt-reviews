@@ -33,7 +33,7 @@ export function SearchHeader({
               className="search-input w-full py-3 px-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="Search equipment, players, or reviews..."
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={e => setSearchValue(e.target.value)}
             />
             <button
               type="submit"

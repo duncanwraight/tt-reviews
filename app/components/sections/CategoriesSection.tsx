@@ -23,7 +23,8 @@ export function CategoriesSection() {
               Blades
             </h3>
             <p className="text-gray-600">
-              The foundation of your game. Discover blades for every playing style.
+              The foundation of your game. Discover blades for every playing
+              style.
             </p>
           </Link>
 
@@ -36,7 +37,8 @@ export function CategoriesSection() {
               Inverted Rubber
             </h3>
             <p className="text-gray-600">
-              Most popular rubber type offering great spin and control for all skill levels.
+              Most popular rubber type offering great spin and control for all
+              skill levels.
             </p>
           </Link>
 
@@ -49,7 +51,8 @@ export function CategoriesSection() {
               Long Pips
             </h3>
             <p className="text-gray-600">
-              Defensive rubber that reverses spin and creates unpredictable effects.
+              Defensive rubber that reverses spin and creates unpredictable
+              effects.
             </p>
           </Link>
 
@@ -62,7 +65,8 @@ export function CategoriesSection() {
               Short Pips
             </h3>
             <p className="text-gray-600">
-              Fast attacking rubber with minimal spin for aggressive close-to-table play.
+              Fast attacking rubber with minimal spin for aggressive
+              close-to-table play.
             </p>
           </Link>
 
@@ -75,7 +79,8 @@ export function CategoriesSection() {
               Anti-Spin
             </h3>
             <p className="text-gray-600">
-              Specialized rubber that neutralizes opponent's spin for control-based play.
+              Specialized rubber that neutralizes opponent's spin for
+              control-based play.
             </p>
           </Link>
         </div>

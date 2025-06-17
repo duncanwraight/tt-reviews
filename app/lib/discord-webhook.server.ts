@@ -19,7 +19,7 @@ export async function sendDiscordPlayerEditNotification(
   try {
     const env = context.cloudflare.env as Cloudflare.Env;
     const webhookUrl = env.DISCORD_WEBHOOK_URL;
-    
+
     if (!webhookUrl) {
       console.error("DISCORD_WEBHOOK_URL not configured");
       return { success: false };
@@ -27,17 +27,21 @@ export async function sendDiscordPlayerEditNotification(
 
     // Create a summary of the changes
     const changes = [];
-    if (editData.edit_data.name) changes.push(`Name: ${editData.edit_data.name}`);
+    if (editData.edit_data.name)
+      changes.push(`Name: ${editData.edit_data.name}`);
     if (editData.edit_data.highest_rating)
       changes.push(`Rating: ${editData.edit_data.highest_rating}`);
     if (editData.edit_data.active_years)
       changes.push(`Active: ${editData.edit_data.active_years}`);
     if (editData.edit_data.active !== undefined)
-      changes.push(`Status: ${editData.edit_data.active ? "Active" : "Inactive"}`);
+      changes.push(
+        `Status: ${editData.edit_data.active ? "Active" : "Inactive"}`
+      );
 
     const embed = {
       title: "🏓 Player Edit Submitted",
-      description: "A player information update has been submitted and needs moderation.",
+      description:
+        "A player information update has been submitted and needs moderation.",
       color: 0xe67e22, // Orange color to distinguish from reviews
       fields: [
         {
@@ -52,7 +56,8 @@ export async function sendDiscordPlayerEditNotification(
         },
         {
           name: "Changes",
-          value: changes.length > 0 ? changes.join("\n") : "No changes specified",
+          value:
+            changes.length > 0 ? changes.join("\n") : "No changes specified",
           inline: false,
         },
       ],

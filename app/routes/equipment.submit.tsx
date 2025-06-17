@@ -11,9 +11,9 @@ import { PageSection } from "~/components/layout/PageSection";
 import { LoadingState } from "~/components/ui/LoadingState";
 
 // Lazy load the form component for better code splitting
-const EquipmentSubmissionForm = lazy(() => 
+const EquipmentSubmissionForm = lazy(() =>
   import("~/components/equipment/EquipmentSubmissionForm").then(module => ({
-    default: module.EquipmentSubmissionForm
+    default: module.EquipmentSubmissionForm,
   }))
 );
 
@@ -31,7 +31,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // Generate CSRF token for form submission
   const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
-  const sessionId = getSessionId(request) || 'anonymous';
+  const sessionId = getSessionId(request) || "anonymous";
   const csrfToken = generateCSRFToken(sessionId, user.id);
 
   return data(
@@ -40,8 +40,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipmentCategories,
       csrfToken,
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -50,13 +52,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
-  
+  const {
+    rateLimit,
+    RATE_LIMITS,
+    createRateLimitResponse,
+    validateCSRF,
+    createCSRFFailureResponse,
+  } = await import("~/lib/security.server");
+
   // Get request correlation ID for logging
-  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
-  
+  const requestId =
+    request.headers.get("x-correlation-id") || crypto.randomUUID();
+
   // Apply rate limiting for form submissions
-  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  const rateLimitResult = await rateLimit(
+    request,
+    RATE_LIMITS.FORM_SUBMISSION,
+    context
+  );
   if (!rateLimitResult.success) {
     return createRateLimitResponse(rateLimitResult.resetTime!);
   }
@@ -136,16 +149,16 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (imageUploadResult.success && imageUploadResult.url) {
     imageUrl = imageUploadResult.url;
-    
+
     // Update submission with image URL
     const { error: updateError } = await supabase
       .from("equipment_submissions")
-      .update({ 
+      .update({
         specifications: {
           ...specifications,
           image_url: imageUrl,
           image_key: imageUploadResult.key,
-        }
+        },
       })
       .eq("id", submission.id);
 
@@ -155,7 +168,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   } else if (formData.get("image") && !imageUploadResult.success) {
     // If user tried to upload an image but it failed, return error
     return data(
-      { error: imageUploadResult.error || "Failed to upload image. Please try again." },
+      {
+        error:
+          imageUploadResult.error ||
+          "Failed to upload image. Please try again.",
+      },
       { status: 400, headers: sbServerClient.headers }
     );
   }
@@ -172,14 +189,21 @@ export async function action({ request, context }: Route.ActionArgs) {
     };
 
     const discordService = new DiscordService(context);
-    await discordService.notifyNewEquipmentSubmission(notificationData, requestId);
+    await discordService.notifyNewEquipmentSubmission(
+      notificationData,
+      requestId
+    );
   } catch (error) {
     // Discord notification failure should not block the submission
     // Error logging is handled by the Discord service
   }
 
   return data(
-    { success: true, message: "Equipment submitted successfully! It will be reviewed by our team." },
+    {
+      success: true,
+      message:
+        "Equipment submitted successfully! It will be reviewed by our team.",
+    },
     { headers: sbServerClient.headers }
   );
 }
@@ -200,8 +224,14 @@ export default function EquipmentSubmit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <Suspense fallback={<LoadingState message="Loading submission form..." />}>
-          <EquipmentSubmissionForm categories={equipmentCategories} csrfToken={csrfToken} env={env} />
+        <Suspense
+          fallback={<LoadingState message="Loading submission form..." />}
+        >
+          <EquipmentSubmissionForm
+            categories={equipmentCategories}
+            csrfToken={csrfToken}
+            env={env}
+          />
         </Suspense>
       </div>
     </PageSection>

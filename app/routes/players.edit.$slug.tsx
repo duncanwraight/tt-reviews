@@ -49,7 +49,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // Generate CSRF token for form submission
   const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
-  const sessionId = getSessionId(request) || 'anonymous';
+  const sessionId = getSessionId(request) || "anonymous";
   const csrfToken = generateCSRFToken(sessionId, userResponse.data.user.id);
 
   return data(
@@ -71,13 +71,24 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context, params }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { rateLimit, RATE_LIMITS, createRateLimitResponse, validateCSRF, createCSRFFailureResponse } = await import("~/lib/security.server");
-  
+  const {
+    rateLimit,
+    RATE_LIMITS,
+    createRateLimitResponse,
+    validateCSRF,
+    createCSRFFailureResponse,
+  } = await import("~/lib/security.server");
+
   // Get request correlation ID for logging
-  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
-  
+  const requestId =
+    request.headers.get("x-correlation-id") || crypto.randomUUID();
+
   // Apply rate limiting for form submissions
-  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION, context);
+  const rateLimitResult = await rateLimit(
+    request,
+    RATE_LIMITS.FORM_SUBMISSION,
+    context
+  );
   if (!rateLimitResult.success) {
     return createRateLimitResponse(rateLimitResult.resetTime!);
   }
@@ -103,7 +114,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  
+
   // Build edit data with only changed fields
   const editData: any = {};
 
@@ -145,9 +156,10 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // Check if there are any changes
   if (Object.keys(editData).length === 0) {
     return data(
-      { 
-        success: false, 
-        error: "No changes detected. Please modify at least one field before submitting." 
+      {
+        success: false,
+        error:
+          "No changes detected. Please modify at least one field before submitting.",
       },
       { status: 400, headers: sbServerClient.headers }
     );
@@ -170,9 +182,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     if (submitError) {
       console.error("Player edit submission error:", submitError);
       return data(
-        { 
-          success: false, 
-          error: "Failed to submit player edit. Please try again." 
+        {
+          success: false,
+          error: "Failed to submit player edit. Please try again.",
         },
         { status: 500, headers: sbServerClient.headers }
       );
@@ -196,15 +208,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     }
 
     return data(
-      { success: true, message: "Player edit submitted successfully! It will be reviewed by our team." },
+      {
+        success: true,
+        message:
+          "Player edit submitted successfully! It will be reviewed by our team.",
+      },
       { headers: sbServerClient.headers }
     );
   } catch (error) {
     console.error("Player edit submission error:", error);
     return data(
-      { 
-        success: false, 
-        error: "Failed to submit player edit. Please try again." 
+      {
+        success: false,
+        error: "Failed to submit player edit. Please try again.",
       },
       { status: 500, headers: sbServerClient.headers }
     );
@@ -236,10 +252,10 @@ export default function PlayerEdit({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <PlayerEditForm 
-          player={player} 
-          env={env} 
-          userId={user.id} 
+        <PlayerEditForm
+          player={player}
+          env={env}
+          userId={user.id}
           playingStyles={playingStyles}
           countries={countries}
           csrfToken={csrfToken}

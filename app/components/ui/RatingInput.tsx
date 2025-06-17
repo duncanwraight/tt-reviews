@@ -56,13 +56,15 @@ export function RatingInput({
             disabled={disabled}
             className={`
               w-8 h-8 rounded-full border-2 text-sm font-semibold transition-all duration-150
-              ${isActive 
-                ? 'bg-purple-600 border-purple-600 text-white' 
-                : 'bg-white border-gray-300 text-gray-400 hover:border-purple-400'
+              ${
+                isActive
+                  ? "bg-purple-600 border-purple-600 text-white"
+                  : "bg-white border-gray-300 text-gray-400 hover:border-purple-400"
               }
-              ${isClickable 
-                ? 'hover:scale-110 cursor-pointer' 
-                : 'cursor-not-allowed opacity-50'
+              ${
+                isClickable
+                  ? "hover:scale-110 cursor-pointer"
+                  : "cursor-not-allowed opacity-50"
               }
             `}
           >

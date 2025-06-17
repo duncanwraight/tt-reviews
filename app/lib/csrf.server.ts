@@ -1,6 +1,6 @@
 /**
  * CSRF (Cross-Site Request Forgery) Protection
- * 
+ *
  * Generates and validates CSRF tokens to prevent malicious cross-site requests
  * that could trick users into performing unwanted actions.
  */
@@ -23,30 +23,30 @@ interface CSRFTokenData {
  */
 export function generateCSRFToken(sessionId: string, userId?: string): string {
   const timestamp = Date.now();
-  const randomData = randomBytes(CSRF_TOKEN_LENGTH).toString('hex');
-  
+  const randomData = randomBytes(CSRF_TOKEN_LENGTH).toString("hex");
+
   // Create token payload
   const payload: CSRFTokenData = {
     token: randomData,
     sessionId,
     userId,
-    timestamp
+    timestamp,
   };
-  
+
   // Create signature using HMAC
   const signature = createTokenSignature(payload);
-  
+
   // Encode the complete token
   const tokenData = JSON.stringify({ ...payload, signature });
-  return Buffer.from(tokenData).toString('base64url');
+  return Buffer.from(tokenData).toString("base64url");
 }
 
 /**
  * Validate a CSRF token
  */
 export function validateCSRFToken(
-  token: string, 
-  sessionId: string, 
+  token: string,
+  sessionId: string,
   userId?: string
 ): { valid: boolean; error?: string } {
   try {
@@ -55,8 +55,14 @@ export function validateCSRFToken(
     }
 
     // Decode token
-    const tokenData = JSON.parse(Buffer.from(token, 'base64url').toString());
-    const { signature, timestamp, sessionId: tokenSessionId, userId: tokenUserId, token: tokenValue } = tokenData;
+    const tokenData = JSON.parse(Buffer.from(token, "base64url").toString());
+    const {
+      signature,
+      timestamp,
+      sessionId: tokenSessionId,
+      userId: tokenUserId,
+      token: tokenValue,
+    } = tokenData;
 
     // Check token structure
     if (!signature || !timestamp || !tokenSessionId || !tokenValue) {
@@ -83,7 +89,7 @@ export function validateCSRFToken(
       token: tokenValue,
       sessionId: tokenSessionId,
       userId: tokenUserId,
-      timestamp
+      timestamp,
     });
 
     if (signature !== expectedSignature) {
@@ -102,12 +108,12 @@ export function validateCSRFToken(
  */
 function createTokenSignature(data: CSRFTokenData): string {
   // Use a combination of session data and environment to create signature
-  const signingKey = process.env.SESSION_SECRET || 'fallback-secret-key';
-  const payload = `${data.token}:${data.sessionId}:${data.userId || ''}:${data.timestamp}`;
-  
-  return createHash('sha256')
+  const signingKey = process.env.SESSION_SECRET || "fallback-secret-key";
+  const payload = `${data.token}:${data.sessionId}:${data.userId || ""}:${data.timestamp}`;
+
+  return createHash("sha256")
     .update(payload + signingKey)
-    .digest('hex');
+    .digest("hex");
 }
 
 /**
@@ -115,29 +121,33 @@ function createTokenSignature(data: CSRFTokenData): string {
  */
 export function getSessionId(request: Request): string | null {
   // Try to get session from various sources
-  const cookies = parseCookies(request.headers.get('Cookie') || '');
-  
+  const cookies = parseCookies(request.headers.get("Cookie") || "");
+
   // Check for session cookie
-  if (cookies['session']) {
-    return cookies['session'];
+  if (cookies["session"]) {
+    return cookies["session"];
   }
-  
+
   // Check for authorization header (if using JWT)
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
     // Extract session from JWT or similar
-    return createHash('sha256').update(authHeader).digest('hex').substring(0, 32);
+    return createHash("sha256")
+      .update(authHeader)
+      .digest("hex")
+      .substring(0, 32);
   }
-  
+
   // Fallback: use IP + User-Agent as session identifier
-  const ip = request.headers.get('CF-Connecting-IP') || 
-             request.headers.get('X-Forwarded-For') || 
-             'unknown';
-  const userAgent = request.headers.get('User-Agent') || 'unknown';
-  
-  return createHash('sha256')
+  const ip =
+    request.headers.get("CF-Connecting-IP") ||
+    request.headers.get("X-Forwarded-For") ||
+    "unknown";
+  const userAgent = request.headers.get("User-Agent") || "unknown";
+
+  return createHash("sha256")
     .update(`${ip}:${userAgent}`)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 32);
 }
 
@@ -146,14 +156,14 @@ export function getSessionId(request: Request): string | null {
  */
 function parseCookies(cookieHeader: string): Record<string, string> {
   const cookies: Record<string, string> = {};
-  
-  cookieHeader.split(';').forEach(cookie => {
-    const [name, ...rest] = cookie.trim().split('=');
+
+  cookieHeader.split(";").forEach(cookie => {
+    const [name, ...rest] = cookie.trim().split("=");
     if (name && rest.length > 0) {
-      cookies[name] = rest.join('=');
+      cookies[name] = rest.join("=");
     }
   });
-  
+
   return cookies;
 }
 
@@ -172,17 +182,21 @@ export async function validateCSRFFromRequest(
 
     // Get token from form data or headers
     let csrfToken: string | null = null;
-    
-    if (request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') {
+
+    if (
+      request.method === "POST" ||
+      request.method === "PUT" ||
+      request.method === "DELETE"
+    ) {
       // Clone request to read form data without consuming original
       const clonedRequest = request.clone();
-      
+
       try {
         const formData = await clonedRequest.formData();
-        csrfToken = formData.get('_csrf') as string;
+        csrfToken = formData.get("_csrf") as string;
       } catch {
         // If form data parsing fails, try headers
-        csrfToken = request.headers.get('X-CSRF-Token');
+        csrfToken = request.headers.get("X-CSRF-Token");
       }
     }
 
@@ -203,17 +217,19 @@ export async function validateCSRFFromRequest(
 export function requiresCSRFProtection(request: Request): boolean {
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
-  
+
   // Only protect state-changing operations
-  if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+  if (!["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
     return false;
   }
-  
+
   // Skip CSRF for API endpoints that use other authentication
-  if (url.pathname.startsWith('/api/discord/') || 
-      url.pathname.startsWith('/api/webhooks/')) {
+  if (
+    url.pathname.startsWith("/api/discord/") ||
+    url.pathname.startsWith("/api/webhooks/")
+  ) {
     return false;
   }
-  
+
   return true;
 }

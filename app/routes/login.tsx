@@ -63,52 +63,60 @@ export default function Login({ loaderData }: Route.ComponentProps) {
 
     const isSignup = intent === "signup";
 
-    await execute(async () => {
-      let result;
+    await execute(
+      async () => {
+        let result;
 
-      if (isSignup) {
-        result = await supabase.auth.signUp({
-          email: dataFields.email as string,
-          password: dataFields.password as string,
-        });
-      } else {
-        result = await supabase.auth.signInWithPassword({
-          email: dataFields.email as string,
-          password: dataFields.password as string,
-        });
+        if (isSignup) {
+          result = await supabase.auth.signUp({
+            email: dataFields.email as string,
+            password: dataFields.password as string,
+          });
+        } else {
+          result = await supabase.auth.signInWithPassword({
+            email: dataFields.email as string,
+            password: dataFields.password as string,
+          });
+        }
+
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+
+        return result;
+      },
+      {
+        loadingTitle: isSignup ? "Creating Account" : "Signing In",
+        loadingMessage: isSignup
+          ? "Creating your account, please wait..."
+          : "Verifying your credentials...",
+        successTitle: isSignup ? "Check Your Email!" : "Welcome Back!",
+        successMessage: isSignup
+          ? "We've sent you a confirmation email. Please check your inbox and click the confirmation link to activate your account."
+          : "You have been successfully signed in. Redirecting to homepage...",
+        errorTitle: "Authentication Failed",
+        successRedirect: !isSignup ? () => navigate("/") : undefined,
+        successRedirectDelay: 2000,
       }
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      return result;
-    }, {
-      loadingTitle: isSignup ? "Creating Account" : "Signing In",
-      loadingMessage: isSignup 
-        ? "Creating your account, please wait..." 
-        : "Verifying your credentials...",
-      successTitle: isSignup ? "Account Created!" : "Welcome Back!",
-      successMessage: isSignup 
-        ? "Account created successfully! Please check your email and click the confirmation link before signing in." 
-        : "You have been successfully signed in. Redirecting to homepage...",
-      errorTitle: "Authentication Failed",
-      successRedirect: !isSignup ? () => navigate("/") : undefined,
-      successRedirectDelay: 2000
-    });
+    );
   };
 
-  const handleForgotPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleForgotPassword = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
 
     if (!email) {
-      await execute(async () => {
-        throw new Error("Please enter your email address");
-      }, {
-        errorTitle: "Email Required"
-      });
+      await execute(
+        async () => {
+          throw new Error("Please enter your email address");
+        },
+        {
+          errorTitle: "Email Required",
+        }
+      );
       return;
     }
 
@@ -117,29 +125,32 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       env.SUPABASE_ANON_KEY
     );
 
-    await execute(async () => {
-      const result = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+    await execute(
+      async () => {
+        const result = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
 
-      if (result.error) {
-        throw new Error(result.error.message);
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+
+        return result;
+      },
+      {
+        loadingTitle: "Sending Reset Email",
+        loadingMessage: "Sending password reset instructions...",
+        successTitle: "Reset Email Sent!",
+        successMessage: "Check your email for password reset instructions.",
+        errorTitle: "Reset Failed",
       }
-
-      return result;
-    }, {
-      loadingTitle: "Sending Reset Email",
-      loadingMessage: "Sending password reset instructions...",
-      successTitle: "Reset Email Sent!",
-      successMessage: "Check your email for password reset instructions.",
-      errorTitle: "Reset Failed"
-    });
+    );
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
@@ -165,7 +176,10 @@ export default function Login({ loaderData }: Route.ComponentProps) {
 
             <form onSubmit={handleAuth} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Email Address
                 </label>
                 <input
@@ -178,9 +192,12 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                   disabled={modalState.isOpen && modalState.type === "loading"}
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Password
                 </label>
                 <input
@@ -194,7 +211,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                   disabled={modalState.isOpen && modalState.type === "loading"}
                 />
               </div>
-              
+
               <div className="flex flex-col gap-3">
                 <button
                   type="submit"
@@ -205,7 +222,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                 >
                   Sign In
                 </button>
-                
+
                 <button
                   type="submit"
                   name="intent"
@@ -217,17 +234,20 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                 </button>
               </div>
             </form>
-            
+
             <div className="mt-6 text-center">
               <form onSubmit={handleForgotPassword} className="inline">
                 <input type="hidden" name="email" />
                 <button
                   type="button"
-                  onClick={(e) => {
-                    const emailInput = document.querySelector('input[name="email"]') as HTMLInputElement;
-                    const hiddenInput = e.currentTarget.previousElementSibling as HTMLInputElement;
-                    hiddenInput.value = emailInput?.value || '';
-                    e.currentTarget.closest('form')?.requestSubmit();
+                  onClick={e => {
+                    const emailInput = document.querySelector(
+                      'input[name="email"]'
+                    ) as HTMLInputElement;
+                    const hiddenInput = e.currentTarget
+                      .previousElementSibling as HTMLInputElement;
+                    hiddenInput.value = emailInput?.value || "";
+                    e.currentTarget.closest("form")?.requestSubmit();
                   }}
                   className="text-purple-600 hover:text-purple-800 text-sm font-medium transition-colors"
                 >
@@ -235,11 +255,14 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                 </button>
               </form>
             </div>
-            
+
             <div className="mt-6 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-gray-600">
-                New to table tennis equipment reviews?{' '}
-                <Link to="/" className="text-purple-600 hover:text-purple-800 font-medium transition-colors">
+                New to table tennis equipment reviews?{" "}
+                <Link
+                  to="/"
+                  className="text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                >
                   Explore our reviews
                 </Link>
               </p>
@@ -247,7 +270,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

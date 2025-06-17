@@ -35,9 +35,11 @@ export function ImageUpload({
 
     if (file) {
       // Validate file type
-      const allowedTypes = accept.split(',').map(type => type.trim());
+      const allowedTypes = accept.split(",").map(type => type.trim());
       if (!allowedTypes.includes(file.type)) {
-        setError("Invalid file type. Please select a JPEG, PNG, or WebP image.");
+        setError(
+          "Invalid file type. Please select a JPEG, PNG, or WebP image."
+        );
         setSelectedFile(null);
         setPreviewUrl(null);
         if (onFileChange) onFileChange(null);
@@ -74,7 +76,7 @@ export function ImageUpload({
     setPreviewUrl(null);
     setError(null);
     if (onFileChange) onFileChange(null);
-    
+
     // Clear the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -125,7 +127,7 @@ export function ImageUpload({
             className={`
               border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer
               hover:border-gray-400 hover:bg-gray-50 transition-colors
-              ${disabled ? 'cursor-not-allowed opacity-50' : ''}
+              ${disabled ? "cursor-not-allowed opacity-50" : ""}
             `}
           >
             <div className="space-y-2">
@@ -143,7 +145,10 @@ export function ImageUpload({
                 />
               </svg>
               <div className="text-sm text-gray-600">
-                <span className="font-medium text-purple-600">Click to upload</span> or drag and drop
+                <span className="font-medium text-purple-600">
+                  Click to upload
+                </span>{" "}
+                or drag and drop
               </div>
               <p className="text-xs text-gray-500">
                 JPEG, PNG, WebP up to {maxSize}MB
@@ -185,7 +190,11 @@ export function ImageUpload({
                 disabled={disabled}
                 className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
               >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className="h-5 w-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"

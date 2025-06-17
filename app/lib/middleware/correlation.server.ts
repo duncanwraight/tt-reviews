@@ -1,11 +1,16 @@
 /**
  * Request Correlation Middleware for React Router v7
- * 
+ *
  * Adds request tracing and logging context to all route loaders and actions.
  * Provides unique request IDs for correlating logs across different operations.
  */
 
-import { Logger, createLogContext, extractRequestContext, type LogContext } from "~/lib/logger.server";
+import {
+  Logger,
+  createLogContext,
+  extractRequestContext,
+  type LogContext,
+} from "~/lib/logger.server";
 
 export interface CorrelatedRequest {
   requestId: string;
@@ -18,25 +23,29 @@ export interface CorrelatedRequest {
  */
 export function withCorrelation<T extends (...args: any[]) => any>(
   handler: T,
-  operationType: 'loader' | 'action' = 'loader'
+  operationType: "loader" | "action" = "loader"
 ): T {
   return (async (...args: any[]) => {
     // Generate unique request ID
     const requestId = crypto.randomUUID();
     const startTime = Date.now();
-    
+
     // Extract request from arguments (first argument in React Router)
     const request = args[0]?.request as Request | undefined;
-    
+
     if (!request) {
       // Fallback for cases where request isn't available
       const fallbackContext = createLogContext(requestId);
-      return handler(...args, { requestId, logContext: fallbackContext, startTime });
+      return handler(...args, {
+        requestId,
+        logContext: fallbackContext,
+        startTime,
+      });
     }
 
     // Extract request context
     const requestContext = extractRequestContext(request);
-    
+
     // Create full log context
     const logContext = createLogContext(requestId, {
       ...requestContext,
@@ -60,18 +69,16 @@ export function withCorrelation<T extends (...args: any[]) => any>(
       // Log successful completion
       const duration = Date.now() - startTime;
       Logger.performance(`${operationType}_execution`, duration, logContext);
-      
+
       return result;
     } catch (error) {
       // Log error with correlation context
       const duration = Date.now() - startTime;
-      Logger.error(
-        `${operationType} failed`,
-        logContext,
-        error as Error,
-        { duration, operationType }
-      );
-      
+      Logger.error(`${operationType} failed`, logContext, error as Error, {
+        duration,
+        operationType,
+      });
+
       throw error;
     }
   }) as T;
@@ -80,15 +87,19 @@ export function withCorrelation<T extends (...args: any[]) => any>(
 /**
  * Specific wrapper for route loaders
  */
-export function withLoaderCorrelation<T extends (...args: any[]) => any>(handler: T): T {
-  return withCorrelation(handler, 'loader');
+export function withLoaderCorrelation<T extends (...args: any[]) => any>(
+  handler: T
+): T {
+  return withCorrelation(handler, "loader");
 }
 
 /**
  * Specific wrapper for route actions
  */
-export function withActionCorrelation<T extends (...args: any[]) => any>(handler: T): T {
-  return withCorrelation(handler, 'action');
+export function withActionCorrelation<T extends (...args: any[]) => any>(
+  handler: T
+): T {
+  return withCorrelation(handler, "action");
 }
 
 /**
@@ -119,12 +130,10 @@ export async function withDatabaseCorrelation<T>(
   context: LogContext,
   metadata?: any
 ): Promise<T> {
-  return Logger.timeOperation(
-    `db_${operation}`,
-    fn,
-    context,
-    { operation_type: 'database', ...metadata }
-  );
+  return Logger.timeOperation(`db_${operation}`, fn, context, {
+    operation_type: "database",
+    ...metadata,
+  });
 }
 
 /**
@@ -137,12 +146,11 @@ export async function withServiceCorrelation<T>(
   context: LogContext,
   metadata?: any
 ): Promise<T> {
-  return Logger.timeOperation(
-    `${service}_${operation}`,
-    fn,
-    context,
-    { operation_type: 'external_service', service, ...metadata }
-  );
+  return Logger.timeOperation(`${service}_${operation}`, fn, context, {
+    operation_type: "external_service",
+    service,
+    ...metadata,
+  });
 }
 
 /**
@@ -212,10 +220,10 @@ export class CorrelatedError extends Error {
 
   constructor(message: string, context: LogContext, cause?: Error) {
     super(message);
-    this.name = 'CorrelatedError';
+    this.name = "CorrelatedError";
     this.requestId = context.requestId;
     this.context = context;
-    
+
     if (cause) {
       this.cause = cause;
     }
@@ -230,9 +238,5 @@ export function wrapWithCorrelation(
   context: LogContext,
   message?: string
 ): CorrelatedError {
-  return new CorrelatedError(
-    message || error.message,
-    context,
-    error
-  );
+  return new CorrelatedError(message || error.message, context, error);
 }

@@ -40,15 +40,26 @@ export function ReviewsSection({
   return (
     <section className="py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ReviewsSectionHeader reviewCount={reviewCount} user={user} equipmentSlug={equipmentSlug} />
+        <ReviewsSectionHeader
+          reviewCount={reviewCount}
+          user={user}
+          equipmentSlug={equipmentSlug}
+        />
 
         {reviews.length > 0 ? (
           <>
-            <AverageRatings reviews={reviews} ratingCategories={ratingCategories} />
+            <AverageRatings
+              reviews={reviews}
+              ratingCategories={ratingCategories}
+            />
             <ReviewsList reviews={reviews} />
           </>
         ) : (
-          <NoReviewsState equipmentName={equipmentName} user={user} equipmentSlug={equipmentSlug} />
+          <NoReviewsState
+            equipmentName={equipmentName}
+            user={user}
+            equipmentSlug={equipmentSlug}
+          />
         )}
       </div>
     </section>
@@ -74,7 +85,13 @@ function ReviewsSectionHeader({
   );
 }
 
-function WriteReviewButton({ user, equipmentSlug }: { user?: User | null; equipmentSlug: string }) {
+function WriteReviewButton({
+  user,
+  equipmentSlug,
+}: {
+  user?: User | null;
+  equipmentSlug: string;
+}) {
   if (user) {
     return (
       <Link
@@ -99,7 +116,7 @@ function WriteReviewButton({ user, equipmentSlug }: { user?: User | null; equipm
 function ReviewsList({ reviews }: { reviews: Review[] }) {
   return (
     <div className="space-y-6">
-      {reviews.map((review) => (
+      {reviews.map(review => (
         <ReviewCard key={review.id} review={review} />
       ))}
     </div>
@@ -129,7 +146,13 @@ function NoReviewsState({
   );
 }
 
-function NoReviewsAction({ user, equipmentSlug }: { user?: User | null; equipmentSlug: string }) {
+function NoReviewsAction({
+  user,
+  equipmentSlug,
+}: {
+  user?: User | null;
+  equipmentSlug: string;
+}) {
   if (user) {
     return (
       <Link

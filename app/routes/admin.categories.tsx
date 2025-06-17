@@ -7,9 +7,9 @@ import { LoadingState } from "~/components/ui/LoadingState";
 import { data, redirect } from "react-router";
 
 // Lazy load the category manager for better code splitting
-const CategoryManager = lazy(() => 
+const CategoryManager = lazy(() =>
   import("~/components/admin/CategoryManager").then(module => ({
-    default: module.CategoryManager
+    default: module.CategoryManager,
   }))
 );
 
@@ -43,13 +43,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     playingStyles,
     countries,
     rejectionCategories,
-    allCategories
+    allCategories,
   ] = await Promise.all([
     categoryService.getEquipmentCategories(),
     categoryService.getPlayingStyles(),
     categoryService.getCountries(),
     categoryService.getRejectionCategories(),
-    categoryService.getAllCategoriesForAdmin()
+    categoryService.getAllCategoriesForAdmin(),
   ]);
 
   return data(
@@ -60,11 +60,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         playingStyles,
         countries,
         rejectionCategories,
-        all: allCategories
+        all: allCategories,
       },
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>).SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>).SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
+          .SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -89,9 +91,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         const type = formData.get("type") as any;
         const name = formData.get("name") as string;
         const value = formData.get("value") as string;
-        const parentId = formData.get("parent_id") as string || undefined;
-        const flagEmoji = formData.get("flag_emoji") as string || undefined;
-        const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+        const parentId = (formData.get("parent_id") as string) || undefined;
+        const flagEmoji = (formData.get("flag_emoji") as string) || undefined;
+        const displayOrder =
+          parseInt(formData.get("display_order") as string) || 0;
 
         if (!type || !name || !value) {
           return data(
@@ -107,7 +110,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           parent_id: parentId || null,
           flag_emoji: flagEmoji?.trim() || null,
           display_order: displayOrder,
-          is_active: true
+          is_active: true,
         });
 
         if (!result) {
@@ -127,8 +130,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         const id = formData.get("id") as string;
         const name = formData.get("name") as string;
         const value = formData.get("value") as string;
-        const flagEmoji = formData.get("flag_emoji") as string || undefined;
-        const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+        const flagEmoji = (formData.get("flag_emoji") as string) || undefined;
+        const displayOrder =
+          parseInt(formData.get("display_order") as string) || 0;
         const isActive = formData.get("is_active") === "true";
 
         if (!id || !name || !value) {
@@ -143,7 +147,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           value: value.trim(),
           flag_emoji: flagEmoji?.trim() || null,
           display_order: displayOrder,
-          is_active: isActive
+          is_active: isActive,
         });
 
         if (!result) {
@@ -224,15 +228,26 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-export default function AdminCategories({ loaderData, actionData }: Route.ComponentProps) {
+export default function AdminCategories({
+  loaderData,
+  actionData,
+}: Route.ComponentProps) {
   const { categories, env } = loaderData;
 
   // Filter categories by type for the new manager components
-  const equipmentCategories = categories.all.filter(cat => cat.type === 'equipment_category');
-  const equipmentSubcategories = categories.all.filter(cat => cat.type === 'equipment_subcategory');
-  const playingStyles = categories.all.filter(cat => cat.type === 'playing_style');
-  const countries = categories.all.filter(cat => cat.type === 'country');
-  const rejectionCategories = categories.all.filter(cat => cat.type === 'rejection_category');
+  const equipmentCategories = categories.all.filter(
+    cat => cat.type === "equipment_category"
+  );
+  const equipmentSubcategories = categories.all.filter(
+    cat => cat.type === "equipment_subcategory"
+  );
+  const playingStyles = categories.all.filter(
+    cat => cat.type === "playing_style"
+  );
+  const countries = categories.all.filter(cat => cat.type === "country");
+  const rejectionCategories = categories.all.filter(
+    cat => cat.type === "rejection_category"
+  );
 
   return (
     <div className="space-y-8">
@@ -241,7 +256,9 @@ export default function AdminCategories({ loaderData, actionData }: Route.Compon
           Category Management
         </h2>
         <p className="text-gray-600 mb-8">
-          Manage dropdown categories used throughout the application. Categories control what options are available in forms for equipment, players, and moderation.
+          Manage dropdown categories used throughout the application. Categories
+          control what options are available in forms for equipment, players,
+          and moderation.
         </p>
       </div>
 
@@ -273,7 +290,9 @@ export default function AdminCategories({ loaderData, actionData }: Route.Compon
       )}
 
       {/* Category Type Sections */}
-      <Suspense fallback={<LoadingState message="Loading category management..." />}>
+      <Suspense
+        fallback={<LoadingState message="Loading category management..." />}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Equipment Categories */}
           <CategoryManager
@@ -330,4 +349,3 @@ export default function AdminCategories({ loaderData, actionData }: Route.Compon
     </div>
   );
 }
-

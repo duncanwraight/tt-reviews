@@ -18,13 +18,16 @@ interface ComparisonCardProps {
 
 export function ComparisonCard({ equipment }: ComparisonCardProps) {
   const { isCompareMode, selectedEquipment, toggleEquipment } = useComparison();
-  
+
   const isSelected = selectedEquipment.find(item => item.id === equipment.id);
   const canSelect = selectedEquipment.length < 2 || isSelected;
-  
+
   // Check if we can select this equipment (same category as already selected)
-  const categoryMatch = selectedEquipment.length === 0 || 
-    selectedEquipment.every(selected => selected.category === equipment.category);
+  const categoryMatch =
+    selectedEquipment.length === 0 ||
+    selectedEquipment.every(
+      selected => selected.category === equipment.category
+    );
 
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -64,9 +67,13 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
   };
 
   return (
-    <div className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
-      isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-    }`}>
+    <div
+      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
+        isSelected
+          ? "border-purple-500 bg-purple-50"
+          : "border-gray-200 hover:border-gray-300"
+      }`}
+    >
       {isCompareMode && (
         <div className="absolute top-3 right-3 z-10">
           <button
@@ -74,15 +81,19 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
             disabled={!canSelect || !categoryMatch}
             className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
               isSelected
-                ? 'border-purple-500 bg-purple-500 text-white'
+                ? "border-purple-500 bg-purple-500 text-white"
                 : canSelect && categoryMatch
-                ? 'border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50'
-                : 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
+                  ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
+                  : "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
             }`}
           >
             {isSelected ? (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
             ) : (
               <div className="w-3 h-3 rounded-full border border-current"></div>
@@ -94,14 +105,16 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
       <Link to={`/equipment/${equipment.slug}`} className="block p-6">
         <div className="flex items-start space-x-4">
           <div className="text-4xl">{getCategoryIcon(equipment.category)}</div>
-          
+
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
               {equipment.name}
             </h3>
-            
-            <p className="text-sm text-gray-600 mb-2">{equipment.manufacturer}</p>
-            
+
+            <p className="text-sm text-gray-600 mb-2">
+              {equipment.manufacturer}
+            </p>
+
             {equipment.subcategory && (
               <div className="mb-3">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -109,7 +122,7 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
                 </span>
               </div>
             )}
-            
+
             {equipment.rating && equipment.reviewCount ? (
               <div className="flex items-center space-x-2">
                 <div className="flex">
@@ -117,7 +130,9 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
                     <svg
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(equipment.rating!) ? 'text-yellow-400' : 'text-gray-300'
+                        i < Math.floor(equipment.rating!)
+                          ? "text-yellow-400"
+                          : "text-gray-300"
                       }`}
                       fill="currentColor"
                       viewBox="0 0 20 20"
@@ -127,7 +142,8 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
                   ))}
                 </div>
                 <span className="text-sm text-gray-600">
-                  {equipment.rating.toFixed(1)} ({equipment.reviewCount} reviews)
+                  {equipment.rating.toFixed(1)} ({equipment.reviewCount}{" "}
+                  reviews)
                 </span>
               </div>
             ) : (

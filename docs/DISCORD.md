@@ -7,7 +7,7 @@
 When submissions are made, Discord automatically sends embed messages with interactive buttons:
 
 - **Equipment submissions**: Green "Approve Equipment" / Red "Reject Equipment" buttons
-- **Player submissions**: Green "Approve Player" / Red "Reject Player" buttons  
+- **Player submissions**: Green "Approve Player" / Red "Reject Player" buttons
 - **Player edits**: Green "Approve Edit" / Red "Reject Edit" buttons
 
 Moderators simply click the buttons to approve/reject submissions.
@@ -25,6 +25,7 @@ Moderators simply click the buttons to approve/reject submissions.
 ## Permission System
 
 Only users with configured Discord roles can moderate:
+
 - Set via `DISCORD_ALLOWED_ROLES` environment variable (comma-separated role IDs)
 - If no roles configured, all users are allowed
 

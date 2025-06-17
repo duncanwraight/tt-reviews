@@ -17,28 +17,31 @@ export function meta({ params, data }: Route.MetaArgs) {
   }
 
   // Enhanced SEO title pattern based on research
-  const titleSuffix = "Equipment Setup & History | Professional Table Tennis Reviews";
+  const titleSuffix =
+    "Equipment Setup & History | Professional Table Tennis Reviews";
   const title = `${player.name} ${titleSuffix}`;
-  
+
   // Enhanced meta description with current equipment details
   const currentSetup = data?.equipmentSetups?.[0];
-  const setupDetails = currentSetup 
-    ? 'Current professional equipment setup with blade and rubbers.'
-    : 'Professional equipment setup.';
-  
+  const setupDetails = currentSetup
+    ? "Current professional equipment setup with blade and rubbers."
+    : "Professional equipment setup.";
+
   const description = `Complete equipment history for ${player.name}. ${setupDetails} Historical changes with sources and tournament usage.`;
-  
+
   // Enhanced keywords targeting high-value search terms
   const keywords = [
     player.name,
     `${player.name} equipment`,
     `${player.name} blade`,
     `${player.name} rubber`,
-    'table tennis equipment',
-    'professional player setup',
-    player.playing_style || 'professional',
-    player.birth_country || player.represents || ''
-  ].filter(Boolean).join(', ');
+    "table tennis equipment",
+    "professional player setup",
+    player.playing_style || "professional",
+    player.birth_country || player.represents || "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return [
     { title },
@@ -77,9 +80,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
-    { label: player.name, href: `/players/${player.slug}` }
+    { label: player.name, href: `/players/${player.slug}` },
   ]);
-  const schemaJsonLd = schemaService.generateMultipleSchemas([playerSchema, breadcrumbSchema]);
+  const schemaJsonLd = schemaService.generateMultipleSchemas([
+    playerSchema,
+    breadcrumbSchema,
+  ]);
 
   return data(
     {

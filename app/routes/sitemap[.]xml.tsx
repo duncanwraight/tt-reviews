@@ -17,30 +17,41 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const staticPages = sitemapService.generateStaticPages();
   const playerPages = sitemapService.generatePlayerPages(allPlayers);
   const equipmentPages = sitemapService.generateEquipmentPages(allEquipment);
-  
+
   // Get unique equipment categories for category pages
   const equipmentCategories = [...new Set(allEquipment.map(e => e.category))];
-  const categoryPages = sitemapService.generateCategoryPages(equipmentCategories);
+  const categoryPages =
+    sitemapService.generateCategoryPages(equipmentCategories);
 
   // Get unique category-subcategory combinations for subcategory pages
   const categorySubcategories = allEquipment
     .filter(e => e.subcategory) // Only equipment with subcategories
     .map(e => ({ category: e.category, subcategory: e.subcategory! }))
-    .filter((item, index, arr) => 
-      // Remove duplicates by comparing stringified objects
-      arr.findIndex(other => 
-        other.category === item.category && other.subcategory === item.subcategory
-      ) === index
+    .filter(
+      (item, index, arr) =>
+        // Remove duplicates by comparing stringified objects
+        arr.findIndex(
+          other =>
+            other.category === item.category &&
+            other.subcategory === item.subcategory
+        ) === index
     );
-  
-  const subcategoryPages = sitemapService.generateSubcategoryPages(categorySubcategories);
+
+  const subcategoryPages = sitemapService.generateSubcategoryPages(
+    categorySubcategories
+  );
 
   // Get unique manufacturers for manufacturer pages
-  const equipmentManufacturers = [...new Set(allEquipment.map(e => e.manufacturer))];
-  const manufacturerPages = sitemapService.generateManufacturerPages(equipmentManufacturers);
+  const equipmentManufacturers = [
+    ...new Set(allEquipment.map(e => e.manufacturer)),
+  ];
+  const manufacturerPages = sitemapService.generateManufacturerPages(
+    equipmentManufacturers
+  );
 
   // Generate popular comparison pages for SEO
-  const comparisonPages = sitemapService.generatePopularComparisonPages(allEquipment);
+  const comparisonPages =
+    sitemapService.generatePopularComparisonPages(allEquipment);
 
   // Combine all pages
   const allPages = [

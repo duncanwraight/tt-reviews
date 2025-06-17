@@ -25,7 +25,9 @@ export const SkeletonCard = memo(function SkeletonCard({
   };
 
   return (
-    <div className={`bg-white rounded-xl shadow-md border border-gray-100 animate-pulse ${className}`}>
+    <div
+      className={`bg-white rounded-xl shadow-md border border-gray-100 animate-pulse ${className}`}
+    >
       <div className="p-6">
         {/* Image skeleton */}
         {showImage && (

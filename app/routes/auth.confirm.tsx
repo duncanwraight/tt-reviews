@@ -30,21 +30,61 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
   const { env } = loaderData;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const confirmEmail = async () => {
-      const token_hash = searchParams.get('token_hash');
-      const type = searchParams.get('type');
+      // Check for errors in URL hash first (Supabase recommended pattern)
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const hashError = hashParams.get("error");
+      const hashErrorCode = hashParams.get("error_code");
+      const hashErrorDescription = hashParams.get("error_description");
 
-      if (!token_hash || !type) {
-        setStatus('error');
-        setMessage('Invalid confirmation link. Please try signing up again.');
+      // Handle hash-based errors first
+      if (hashError) {
+        setStatus("error");
+        // Show more user-friendly messages for 4xx errors
+        if (hashErrorCode && hashErrorCode.startsWith("4")) {
+          if (hashErrorCode === "401") {
+            setMessage(
+              "Your confirmation link has expired. Please request a new confirmation email."
+            );
+          } else if (hashErrorCode === "404") {
+            setMessage(
+              "Invalid confirmation link. Please check your email or sign up again."
+            );
+          } else {
+            setMessage(
+              hashErrorDescription ||
+                "Confirmation failed. Please try again or request a new confirmation email."
+            );
+          }
+        } else {
+          setMessage(
+            hashErrorDescription ||
+              hashError ||
+              "Email confirmation failed. Please try again."
+          );
+        }
         return;
       }
 
-      const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      const token_hash = searchParams.get("token_hash");
+      const type = searchParams.get("type");
+
+      if (!token_hash || !type) {
+        setStatus("error");
+        setMessage("Invalid confirmation link. Please try signing up again.");
+        return;
+      }
+
+      const supabase = createBrowserClient(
+        env.SUPABASE_URL,
+        env.SUPABASE_ANON_KEY
+      );
 
       try {
         const { error } = await supabase.auth.verifyOtp({
@@ -53,20 +93,22 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
         });
 
         if (error) {
-          setStatus('error');
+          setStatus("error");
           setMessage(error.message);
         } else {
-          setStatus('success');
-          setMessage('Your email has been confirmed! You can now sign in to your account.');
-          
+          setStatus("success");
+          setMessage(
+            "Your email has been confirmed! You can now sign in to your account."
+          );
+
           // Redirect to login page after 3 seconds
           setTimeout(() => {
-            navigate('/login');
+            navigate("/login");
           }, 3000);
         }
       } catch (error) {
-        setStatus('error');
-        setMessage('Something went wrong. Please try again.');
+        setStatus("error");
+        setMessage("Something went wrong. Please try again.");
       }
     };
 
@@ -76,11 +118,11 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            {status === 'loading' && (
+            {status === "loading" && (
               <>
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -91,40 +133,36 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
                 </p>
               </>
             )}
-            
-            {status === 'success' && (
+
+            {status === "success" && (
               <>
                 <span className="text-6xl mb-4 block">✅</span>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Email Confirmed!
                 </h1>
-                <p className="text-gray-600 mb-4">
-                  {message}
-                </p>
+                <p className="text-gray-600 mb-4">{message}</p>
                 <p className="text-sm text-gray-500">
                   Redirecting to login page in 3 seconds...
                 </p>
               </>
             )}
-            
-            {status === 'error' && (
+
+            {status === "error" && (
               <>
                 <span className="text-6xl mb-4 block">❌</span>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Confirmation Failed
                 </h1>
-                <p className="text-gray-600 mb-6">
-                  {message}
-                </p>
+                <p className="text-gray-600 mb-6">{message}</p>
                 <div className="space-y-3">
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate("/login")}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02] shadow-lg"
                   >
                     Go to Login
                   </button>
                   <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate("/")}
                     className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-[1.02]"
                   >
                     Back to Homepage
@@ -135,7 +173,7 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

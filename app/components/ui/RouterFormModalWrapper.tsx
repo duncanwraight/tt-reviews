@@ -3,10 +3,7 @@ import { FeedbackModal } from "./FeedbackModal";
 import { useEffect, useState } from "react";
 
 interface RouterFormModalWrapperProps {
-  children: (props: {
-    isLoading: boolean;
-    actionData: any;
-  }) => React.ReactNode;
+  children: (props: { isLoading: boolean; actionData: any }) => React.ReactNode;
   loadingTitle?: string;
   loadingMessage?: string;
   successTitle?: string;
@@ -28,15 +25,15 @@ export function RouterFormModalWrapper({
   successRedirect,
   successRedirectDelay = 2000,
   successActions,
-  className = ""
+  className = "",
 }: RouterFormModalWrapperProps) {
   const actionData = useActionData();
   const navigation = useNavigation();
   const isLoading = navigation.state === "submitting";
-  
+
   const [modalState, setModalState] = useState({
     isOpen: false,
-    type: "loading" as "success" | "error" | "loading"
+    type: "loading" as "success" | "error" | "loading",
   });
 
   // Handle loading state
@@ -50,13 +47,13 @@ export function RouterFormModalWrapper({
   useEffect(() => {
     if (actionData?.success && !isLoading) {
       setModalState({ isOpen: true, type: "success" });
-      
+
       if (successRedirect) {
         const timer = setTimeout(() => {
           setModalState({ isOpen: false, type: "success" });
           successRedirect();
         }, successRedirectDelay);
-        
+
         return () => clearTimeout(timer);
       }
     }
@@ -78,28 +75,31 @@ export function RouterFormModalWrapper({
       return {
         title: loadingTitle,
         message: loadingMessage,
-        autoClose: false
+        autoClose: false,
       };
     }
-    
+
     if (modalState.type === "success") {
       return {
         title: successTitle,
-        message: successMessage || actionData?.message || "Operation completed successfully",
+        message:
+          successMessage ||
+          actionData?.message ||
+          "Operation completed successfully",
         autoClose: true,
         autoCloseDelay: successRedirectDelay,
-        actions: successActions
+        actions: successActions,
       };
     }
-    
+
     if (modalState.type === "error") {
       return {
         title: errorTitle,
         message: actionData?.error || "An unexpected error occurred",
-        autoClose: false
+        autoClose: false,
       };
     }
-    
+
     return {};
   };
 
@@ -113,10 +113,12 @@ export function RouterFormModalWrapper({
       />
 
       {/* Form Content - hidden during loading/success states */}
-      {!isLoading && !actionData?.success && children({
-        isLoading,
-        actionData
-      })}
+      {!isLoading &&
+        !actionData?.success &&
+        children({
+          isLoading,
+          actionData,
+        })}
     </div>
   );
 }
