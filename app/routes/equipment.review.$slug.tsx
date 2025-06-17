@@ -7,6 +7,7 @@ import { handleImageUpload } from "~/lib/image-upload.server";
 import { sanitizeReviewText } from "~/lib/sanitize";
 import { generateCSRFToken, getSessionId } from "~/lib/csrf.server";
 import { validateCSRF, createCSRFFailureResponse } from "~/lib/security.server";
+import { DiscordService } from "~/lib/discord.server";
 import { redirect, data } from "react-router";
 
 import { PageSection } from "~/components/layout/PageSection";
@@ -108,6 +109,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 export async function action({ params, request, context }: Route.ActionArgs) {
   const { slug } = params;
+  
+  // Get request correlation ID for logging
+  const requestId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+  
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
@@ -212,6 +217,23 @@ export async function action({ params, request, context }: Route.ActionArgs) {
       console.error("Error uploading review image:", error);
       // Don't fail the entire submission for image upload errors
     }
+  }
+
+  // Send Discord notification (non-blocking)
+  try {
+    const notificationData = {
+      id: review.id,
+      equipment_name: equipment.name,
+      overall_rating: overallRating,
+      reviewer_name: user.email || "Anonymous",
+      equipment_id: equipment.id
+    };
+
+    const discordService = new DiscordService(context);
+    await discordService.notifyNewReview(notificationData, requestId);
+  } catch (error) {
+    // Discord notification failure should not block the review submission
+    // Error logging is handled by the Discord service
   }
 
   // Return success response for modal display
