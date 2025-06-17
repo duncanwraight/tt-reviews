@@ -99,13 +99,13 @@ export class DiscordService {
 
     const isValid = issues.length === 0;
     
-    this.logger.debug("Discord webhook configuration validation", logContext, {
-      isValid,
-      hasWebhookUrl: !!webhookUrl,
-      hasSiteUrl: !!this.env.SITE_URL,
-      issues,
-      webhookDomain: webhookUrl ? new URL(webhookUrl).hostname : null
-    });
+    if (!isValid) {
+      this.logger.warn("Discord webhook configuration issues detected", logContext, {
+        issues,
+        hasWebhookUrl: !!webhookUrl,
+        hasSiteUrl: !!this.env.SITE_URL
+      });
+    }
 
     return { isValid, webhookUrl, issues };
   }
@@ -938,11 +938,9 @@ export class DiscordService {
     return this.logger.timeOperation(
       'discord_webhook_review',
       async () => {
-        this.logger.info("Attempting to send Discord webhook for review submission", logContext, {
+        this.logger.info("Sending Discord webhook for review submission", logContext, {
           reviewId: reviewData.id,
-          equipmentName: reviewData.equipment_name,
-          overallRating: reviewData.overall_rating,
-          reviewerName: reviewData.reviewer_name
+          equipmentName: reviewData.equipment_name
         });
 
         // Validate configuration
@@ -1006,12 +1004,6 @@ export class DiscordService {
         };
 
         const payloadSize = JSON.stringify(payload).length;
-        this.logger.debug("Prepared Discord webhook payload", logContext, {
-          payloadSize,
-          embedFieldCount: embed.fields.length,
-          componentCount: components[0].components.length,
-          webhookDomain: new URL(config.webhookUrl!).hostname
-        });
 
         // Send webhook request
         try {
@@ -1030,44 +1022,33 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              statusText: response.statusText,
-              reviewId: reviewData.id,
-              payloadSize,
-              responseSize: responseText.length
+              reviewId: reviewData.id
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'review',
-              payloadSize
+              submissionType: 'review'
             });
           } else {
-            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+            this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
-              statusText: response.statusText,
               responseBody: responseText,
-              reviewId: reviewData.id,
-              payloadSize,
-              headers: Object.fromEntries(response.headers.entries())
+              reviewId: reviewData.id
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
               submissionType: 'review',
-              errorStatus: response.status,
-              payloadSize
+              errorStatus: response.status
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
-            reviewId: reviewData.id,
-            payloadSize,
-            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          this.logger.error("Discord webhook network error", logContext, error as Error, {
+            reviewId: reviewData.id
           });
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'review',
-            errorType: (error as Error).name
+            submissionType: 'review'
           });
 
           throw error;
@@ -1090,11 +1071,9 @@ export class DiscordService {
     return this.logger.timeOperation(
       'discord_webhook_player_edit',
       async () => {
-        this.logger.info("Attempting to send Discord webhook for player edit", logContext, {
+        this.logger.info("Sending Discord webhook for player edit", logContext, {
           editId: editData.id,
-          playerName: editData.player_name,
-          submitterEmail: editData.submitter_email,
-          changeCount: Object.keys(editData.edit_data || {}).length
+          playerName: editData.player_name
         });
 
         // Validate configuration
@@ -1168,13 +1147,6 @@ export class DiscordService {
         };
 
         const payloadSize = JSON.stringify(payload).length;
-        this.logger.debug("Prepared Discord webhook payload", logContext, {
-          payloadSize,
-          embedFieldCount: embed.fields.length,
-          componentCount: components[0].components.length,
-          changesCount: changes.length,
-          webhookDomain: new URL(config.webhookUrl!).hostname
-        });
 
         // Send webhook request
         try {
@@ -1193,44 +1165,33 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              statusText: response.statusText,
-              editId: editData.id,
-              payloadSize,
-              responseSize: responseText.length
+              editId: editData.id
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'player_edit',
-              payloadSize
+              submissionType: 'player_edit'
             });
           } else {
-            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+            this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
-              statusText: response.statusText,
               responseBody: responseText,
-              editId: editData.id,
-              payloadSize,
-              headers: Object.fromEntries(response.headers.entries())
+              editId: editData.id
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
               submissionType: 'player_edit',
-              errorStatus: response.status,
-              payloadSize
+              errorStatus: response.status
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
-            editId: editData.id,
-            payloadSize,
-            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          this.logger.error("Discord webhook network error", logContext, error as Error, {
+            editId: editData.id
           });
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'player_edit',
-            errorType: (error as Error).name
+            submissionType: 'player_edit'
           });
 
           throw error;
@@ -1253,11 +1214,9 @@ export class DiscordService {
     return this.logger.timeOperation(
       'discord_webhook_equipment_submission',
       async () => {
-        this.logger.info("Attempting to send Discord webhook for equipment submission", logContext, {
+        this.logger.info("Sending Discord webhook for equipment submission", logContext, {
           submissionId: submissionData.id,
-          equipmentName: submissionData.name,
-          manufacturer: submissionData.manufacturer,
-          submitterEmail: submissionData.submitter_email
+          equipmentName: submissionData.name
         });
 
         // Validate configuration
@@ -1334,12 +1293,6 @@ export class DiscordService {
         };
 
         const payloadSize = JSON.stringify(payload).length;
-        this.logger.debug("Prepared Discord webhook payload", logContext, {
-          payloadSize,
-          embedFieldCount: embed.fields.length,
-          componentCount: components[0].components.length,
-          webhookDomain: new URL(config.webhookUrl!).hostname
-        });
 
         // Send webhook request
         try {
@@ -1358,44 +1311,33 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              statusText: response.statusText,
-              submissionId: submissionData.id,
-              payloadSize,
-              responseSize: responseText.length
+              submissionId: submissionData.id
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'equipment',
-              payloadSize
+              submissionType: 'equipment'
             });
           } else {
-            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+            this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
-              statusText: response.statusText,
               responseBody: responseText,
-              submissionId: submissionData.id,
-              payloadSize,
-              headers: Object.fromEntries(response.headers.entries())
+              submissionId: submissionData.id
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
               submissionType: 'equipment',
-              errorStatus: response.status,
-              payloadSize
+              errorStatus: response.status
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
-            submissionId: submissionData.id,
-            payloadSize,
-            webhookUrl: config.webhookUrl!.substring(0, 50) + '...' // Log partial URL for debugging
+          this.logger.error("Discord webhook network error", logContext, error as Error, {
+            submissionId: submissionData.id
           });
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'equipment',
-            errorType: (error as Error).name
+            submissionType: 'equipment'
           });
 
           throw error;
@@ -1418,11 +1360,9 @@ export class DiscordService {
     return this.logger.timeOperation(
       'discord_webhook_player_submission',
       async () => {
-        this.logger.info("Attempting to send Discord webhook for player submission", logContext, {
+        this.logger.info("Sending Discord webhook for player submission", logContext, {
           submissionId: submissionData.id,
-          playerName: submissionData.name,
-          playingStyle: submissionData.playing_style,
-          submitterEmail: submissionData.submitter_email
+          playerName: submissionData.name
         });
 
         // Validate configuration
@@ -1503,12 +1443,6 @@ export class DiscordService {
         };
 
         const payloadSize = JSON.stringify(payload).length;
-        this.logger.debug("Prepared Discord webhook payload", logContext, {
-          payloadSize,
-          embedFieldCount: embed.fields.length,
-          componentCount: components[0].components.length,
-          webhookDomain: new URL(config.webhookUrl!).hostname
-        });
 
         // Send webhook request
         try {
@@ -1527,44 +1461,33 @@ export class DiscordService {
           if (success) {
             this.logger.info("Discord webhook sent successfully", logContext, {
               status: response.status,
-              statusText: response.statusText,
-              submissionId: submissionData.id,
-              payloadSize,
-              responseSize: responseText.length
+              submissionId: submissionData.id
             });
 
             this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: 'player',
-              payloadSize
+              submissionType: 'player'
             });
           } else {
-            this.logger.error("Discord webhook failed with error response", logContext, undefined, {
+            this.logger.error("Discord webhook failed", logContext, undefined, {
               status: response.status,
-              statusText: response.statusText,
               responseBody: responseText,
-              submissionId: submissionData.id,
-              payloadSize,
-              headers: Object.fromEntries(response.headers.entries())
+              submissionId: submissionData.id
             });
 
             this.logger.metric("discord_webhook_failure", 1, logContext, {
               submissionType: 'player',
-              errorStatus: response.status,
-              payloadSize
+              errorStatus: response.status
             });
           }
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
-          this.logger.error("Discord webhook request failed with network error", logContext, error as Error, {
-            submissionId: submissionData.id,
-            payloadSize,
-            webhookUrl: config.webhookUrl!.substring(0, 50) + '...'
+          this.logger.error("Discord webhook network error", logContext, error as Error, {
+            submissionId: submissionData.id
           });
 
           this.logger.metric("discord_webhook_network_error", 1, logContext, {
-            submissionType: 'player',
-            errorType: (error as Error).name
+            submissionType: 'player'
           });
 
           throw error;
