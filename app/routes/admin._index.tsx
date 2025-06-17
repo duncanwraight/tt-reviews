@@ -1,9 +1,133 @@
 import type { Route } from "./+types/admin._index";
-import { data } from "react-router";
-import {
-  DatabaseService,
-  createSupabaseAdminClient,
-} from "~/lib/database.server";
+import { data, redirect } from "react-router";
+import { createSupabaseAdminClient } from "~/lib/database.server";
+import { getServerClient } from "~/lib/supabase.server";
+import { getUserWithRole } from "~/lib/auth.server";
+
+// Helper function to get dashboard counts using admin client
+async function getAdminDashboardCountsWithClient(supabase: any) {
+  try {
+    // Use admin client to bypass RLS policies - same logic as DatabaseService but with admin access
+    const [
+      equipmentSubmissionsQuery,
+      playerSubmissionsQuery,
+      playerEditsQuery,
+      equipmentReviewsQuery,
+      equipmentCountQuery,
+      playersCountQuery,
+    ] = await Promise.all([
+      // Get equipment submissions grouped by status
+      supabase
+        .from("equipment_submissions")
+        .select("status")
+        .neq("status", null),
+
+      // Get player submissions grouped by status
+      supabase
+        .from("player_submissions")
+        .select("status")
+        .neq("status", null),
+
+      // Get player edits grouped by status
+      supabase.from("player_edits").select("status").neq("status", null),
+
+      // Get equipment reviews grouped by status
+      supabase
+        .from("equipment_reviews")
+        .select("status")
+        .neq("status", null),
+
+      // Get total equipment count
+      supabase
+        .from("equipment")
+        .select("*", { count: "exact", head: true }),
+
+      // Get total players count
+      supabase
+        .from("players")
+        .select("*", { count: "exact", head: true }),
+    ]);
+
+    // Process the results to get status counts
+    const getStatusCounts = (data: any[] | null): Record<string, number> => {
+      const counts: Record<string, number> = {
+        pending: 0,
+        awaiting_second_approval: 0,
+        approved: 0,
+        rejected: 0,
+      };
+
+      if (data) {
+        data.forEach((item: any) => {
+          if (item.status && counts.hasOwnProperty(item.status)) {
+            counts[item.status]++;
+          }
+        });
+      }
+
+      return counts;
+    };
+
+    const result = {
+      totals: {
+        equipmentSubmissions: equipmentSubmissionsQuery.data?.length || 0,
+        playerSubmissions: playerSubmissionsQuery.data?.length || 0,
+        playerEdits: playerEditsQuery.data?.length || 0,
+        equipmentReviews: equipmentReviewsQuery.data?.length || 0,
+        equipment: equipmentCountQuery.count || 0,
+        players: playersCountQuery.count || 0,
+      },
+      byStatus: {
+        equipmentSubmissions: getStatusCounts(equipmentSubmissionsQuery.data),
+        playerSubmissions: getStatusCounts(playerSubmissionsQuery.data),
+        playerEdits: getStatusCounts(playerEditsQuery.data),
+        equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
+      },
+    };
+
+    return result;
+  } catch (error) {
+    console.error("Error fetching admin dashboard counts:", error);
+
+    // Return empty counts as fallback
+    return {
+      totals: {
+        equipmentSubmissions: 0,
+        playerSubmissions: 0,
+        playerEdits: 0,
+        equipmentReviews: 0,
+        equipment: 0,
+        players: 0,
+      },
+      byStatus: {
+        equipmentSubmissions: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+        playerSubmissions: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+        playerEdits: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+        equipmentReviews: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+      },
+    };
+  }
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,12 +139,19 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
-  const db = new DatabaseService(context);
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const sbServerClient = getServerClient(request, context);
+  const user = await getUserWithRole(sbServerClient);
+
+  // Check admin access - CRITICAL security check before using admin client
+  if (!user || user.role !== "admin") {
+    throw redirect("/", { headers: sbServerClient.headers });
+  }
+
   const supabase = createSupabaseAdminClient(context);
 
-  // Use optimized database function to get all counts efficiently
-  const dashboardCounts = await db.getAdminDashboardCounts();
+  // Now safe to use admin client to bypass RLS policies since user is verified admin
+  const dashboardCounts = await getAdminDashboardCountsWithClient(supabase);
 
   // Extract totals for easier access
   const {
