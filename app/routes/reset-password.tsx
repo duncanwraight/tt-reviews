@@ -74,10 +74,10 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
     }
 
     // Check if we have the necessary parameters for password reset
-    const access_token = searchParams.get("access_token");
-    const refresh_token = searchParams.get("refresh_token");
+    const token_hash = searchParams.get("token_hash");
+    const type = searchParams.get("type");
 
-    if (!access_token || !refresh_token) {
+    if (!token_hash || type !== "recovery") {
       setStatus("error");
       setMessage(
         "Invalid password reset link. Please request a new password reset email."
@@ -104,8 +104,8 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
 
     setStatus("loading");
 
-    const access_token = searchParams.get("access_token");
-    const refresh_token = searchParams.get("refresh_token");
+    const token_hash = searchParams.get("token_hash");
+    const type = searchParams.get("type");
 
     const supabase = createBrowserClient(
       env.SUPABASE_URL,
@@ -113,13 +113,13 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
     );
 
     try {
-      // Set the session first
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: access_token!,
-        refresh_token: refresh_token!,
+      // Verify the recovery token and update password
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: token_hash!,
+        type: type as any,
       });
 
-      if (sessionError) {
+      if (verifyError) {
         setStatus("error");
         setMessage(
           "Invalid or expired reset link. Please request a new password reset."
