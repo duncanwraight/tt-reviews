@@ -1594,25 +1594,14 @@ export class DiscordService {
               const discordResponse = JSON.parse(responseText);
               messageId = discordResponse.id;
               
-              console.log(`Discord response parsed, message ID: ${messageId} for equipment ${submissionData.id}`);
-              
               // Store message ID in database for later editing
               if (messageId) {
-                console.log(`Attempting to store Discord message ID ${messageId} for equipment ${submissionData.id}`);
                 await this.dbService.updateEquipmentSubmissionDiscordMessageId(
                   submissionData.id,
                   messageId
                 );
-                console.log(`Successfully stored Discord message ID ${messageId} for equipment ${submissionData.id}`);
-              } else {
-                console.warn(`No message ID found in Discord response for equipment ${submissionData.id}`);
               }
             } catch (error) {
-              console.error("Failed to parse Discord response or store message ID", {
-                submissionId: submissionData.id,
-                error: error instanceof Error ? error.message : "Unknown error",
-                responseText: responseText.substring(0, 500) // First 500 chars for debugging
-              });
               this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
                 submissionId: submissionData.id,
                 error: error instanceof Error ? error.message : "Unknown error"
@@ -1770,25 +1759,14 @@ export class DiscordService {
               const discordResponse = JSON.parse(responseText);
               messageId = discordResponse.id;
               
-              console.log(`Discord response parsed, message ID: ${messageId} for player ${submissionData.id}`);
-              
               // Store message ID in database for later editing
               if (messageId) {
-                console.log(`Attempting to store Discord message ID ${messageId} for player ${submissionData.id}`);
                 await this.dbService.updatePlayerSubmissionDiscordMessageId(
                   submissionData.id,
                   messageId
                 );
-                console.log(`Successfully stored Discord message ID ${messageId} for player ${submissionData.id}`);
-              } else {
-                console.warn(`No message ID found in Discord response for player ${submissionData.id}`);
               }
             } catch (error) {
-              console.error("Failed to parse Discord response or store message ID", {
-                submissionId: submissionData.id,
-                error: error instanceof Error ? error.message : "Unknown error",
-                responseText: responseText.substring(0, 500) // First 500 chars for debugging
-              });
               this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
                 submissionId: submissionData.id,
                 error: error instanceof Error ? error.message : "Unknown error"
@@ -2011,8 +1989,6 @@ export class DiscordService {
     moderatorUsername: string
   ): Promise<void> {
     try {
-      console.log(`Updating Discord message for ${submissionType} ${submissionId} with status ${newStatus}`);
-      
       // Get Discord message ID from database
       const messageId = await this.dbService.getDiscordMessageId(
         submissionType,
@@ -2020,16 +1996,13 @@ export class DiscordService {
       );
 
       if (!messageId) {
-        console.warn(`No Discord message ID found for ${submissionType} ${submissionId} - this submission was likely created before Discord message tracking was implemented. Skipping message update.`);
+        // Skip message update for older submissions without Discord message tracking
         return;
       }
-
-      console.log(`Found Discord message ID: ${messageId}`);
 
       // Get Discord channel ID from config
       const config = this.validateBotConfig(createLogContext("update-after-moderation"));
       if (!config.isValid || !config.channelId) {
-        console.warn("Discord configuration not valid for message editing");
         return;
       }
 
@@ -2065,15 +2038,12 @@ export class DiscordService {
       };
 
       // Update the Discord message
-      console.log(`Updating Discord message ${messageId} in channel ${config.channelId}`);
       const updateResult = await this.updateDiscordMessage(config.channelId, messageId, {
         embeds: [updatedEmbed],
         components: components,
       });
 
-      if (updateResult.success) {
-        console.log(`Successfully updated Discord message ${messageId}`);
-      } else {
+      if (!updateResult.success) {
         console.error("Failed to update Discord message:", updateResult.error);
       }
     } catch (error) {

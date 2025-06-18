@@ -70,15 +70,6 @@ export class ModerationService {
       const { error } = await this.supabase.from("moderator_approvals").insert(insertData);
 
       if (error) {
-        console.error("Database error in recordApproval:", error);
-        console.error("Insert data:", {
-          submission_type: submissionType,
-          submission_id: submissionId,
-          moderator_id: moderatorId,
-          source,
-          action: "approved",
-          notes,
-        });
         return {
           success: false,
           error: `Failed to record approval: ${error.message}`,
@@ -93,7 +84,6 @@ export class ModerationService {
 
       return { success: true, newStatus: status };
     } catch (error) {
-      console.error("Exception in recordApproval:", error);
       return {
         success: false,
         error: `Internal error: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -314,13 +304,11 @@ export class ModerationService {
       );
 
       if (error) {
-        console.error("Error creating Discord moderator:", error);
         return null;
       }
 
       return data as string;
     } catch (error) {
-      console.error("Exception creating Discord moderator:", error);
       return null;
     }
   }

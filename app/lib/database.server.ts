@@ -1182,50 +1182,13 @@ export class DatabaseService {
     submissionId: string,
     messageId: string
   ): Promise<void> {
-    // Retry logic to handle timing issues where submission might not be committed yet
-    const maxRetries = 3;
-    const retryDelay = 500; // 500ms between retries
+    const { error } = await this.supabase
+      .from("equipment_submissions")
+      .update({ discord_message_id: messageId })
+      .eq("id", submissionId);
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`DatabaseService: Updating equipment ${submissionId} with Discord message ID ${messageId} (attempt ${attempt}/${maxRetries})`);
-        
-        const { data, error } = await this.supabase
-          .from("equipment_submissions")
-          .update({ discord_message_id: messageId })
-          .eq("id", submissionId)
-          .select();
-
-        if (error) {
-          console.error(`DatabaseService: Failed to update Discord message ID for equipment ${submissionId}:`, error);
-          throw new Error(`Failed to update Discord message ID: ${error.message}`);
-        }
-
-        console.log(`DatabaseService: Update attempt ${attempt} - affected rows:`, data?.length || 0);
-
-        if (data && data.length > 0) {
-          // Success!
-          console.log(`DatabaseService: Successfully updated equipment ${submissionId} on attempt ${attempt}`);
-          console.log(`DatabaseService: Verification - updated record has discord_message_id:`, data[0].discord_message_id);
-          return;
-        }
-
-        // No rows updated - submission might not exist yet
-        if (attempt < maxRetries) {
-          console.warn(`DatabaseService: No rows updated for equipment ${submissionId} on attempt ${attempt} - retrying in ${retryDelay}ms`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        } else {
-          console.error(`DatabaseService: Failed to update equipment ${submissionId} after ${maxRetries} attempts - submission may not exist`);
-          throw new Error(`Submission ${submissionId} not found after ${maxRetries} attempts`);
-        }
-      } catch (error) {
-        if (attempt === maxRetries) {
-          console.error(`DatabaseService: Exception updating equipment ${submissionId} on final attempt:`, error);
-          throw error;
-        }
-        console.warn(`DatabaseService: Exception on attempt ${attempt}, retrying:`, error);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
+    if (error) {
+      throw new Error(`Failed to update Discord message ID: ${error.message}`);
     }
   }
 
@@ -1233,50 +1196,13 @@ export class DatabaseService {
     submissionId: string,
     messageId: string
   ): Promise<void> {
-    // Retry logic to handle timing issues where submission might not be committed yet
-    const maxRetries = 3;
-    const retryDelay = 500; // 500ms between retries
+    const { error } = await this.supabase
+      .from("player_submissions")
+      .update({ discord_message_id: messageId })
+      .eq("id", submissionId);
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`DatabaseService: Updating player ${submissionId} with Discord message ID ${messageId} (attempt ${attempt}/${maxRetries})`);
-        
-        const { data, error } = await this.supabase
-          .from("player_submissions")
-          .update({ discord_message_id: messageId })
-          .eq("id", submissionId)
-          .select();
-
-        if (error) {
-          console.error(`DatabaseService: Failed to update Discord message ID for player ${submissionId}:`, error);
-          throw new Error(`Failed to update Discord message ID: ${error.message}`);
-        }
-
-        console.log(`DatabaseService: Update attempt ${attempt} - affected rows:`, data?.length || 0);
-
-        if (data && data.length > 0) {
-          // Success!
-          console.log(`DatabaseService: Successfully updated player ${submissionId} on attempt ${attempt}`);
-          console.log(`DatabaseService: Verification - updated record has discord_message_id:`, data[0].discord_message_id);
-          return;
-        }
-
-        // No rows updated - submission might not exist yet
-        if (attempt < maxRetries) {
-          console.warn(`DatabaseService: No rows updated for player ${submissionId} on attempt ${attempt} - retrying in ${retryDelay}ms`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        } else {
-          console.error(`DatabaseService: Failed to update player ${submissionId} after ${maxRetries} attempts - submission may not exist`);
-          throw new Error(`Submission ${submissionId} not found after ${maxRetries} attempts`);
-        }
-      } catch (error) {
-        if (attempt === maxRetries) {
-          console.error(`DatabaseService: Exception updating player ${submissionId} on final attempt:`, error);
-          throw error;
-        }
-        console.warn(`DatabaseService: Exception on attempt ${attempt}, retrying:`, error);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
+    if (error) {
+      throw new Error(`Failed to update Discord message ID: ${error.message}`);
     }
   }
 
