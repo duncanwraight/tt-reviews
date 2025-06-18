@@ -65,50 +65,47 @@ export class DiscordService {
   }
 
   /**
-   * Validate Discord webhook configuration and environment
+   * Validate Discord bot configuration and environment
    */
-  private validateWebhookConfig(logContext: LogContext): {
+  private validateBotConfig(logContext: LogContext): {
     isValid: boolean;
-    webhookUrl?: string;
+    botToken?: string;
+    channelId?: string;
     issues: string[];
   } {
     const issues: string[] = [];
-    let webhookUrl: string | undefined;
+    let botToken: string | undefined;
+    let channelId: string | undefined;
 
-    // Check if webhook URL is configured
-    if (!this.env.DISCORD_WEBHOOK_URL) {
-      issues.push("DISCORD_WEBHOOK_URL environment variable not set");
+    // Check if bot token is configured
+    if (!this.env.DISCORD_BOT_TOKEN) {
+      issues.push("DISCORD_BOT_TOKEN environment variable not set");
     } else {
-      webhookUrl = this.env.DISCORD_WEBHOOK_URL;
+      botToken = this.env.DISCORD_BOT_TOKEN;
 
       // Check for placeholder values
       if (
-        webhookUrl.includes("your_webhook_url_here") ||
-        webhookUrl.includes("placeholder")
+        botToken.includes("your_actual_bot_token_here") ||
+        botToken.includes("placeholder") ||
+        botToken.length < 50
       ) {
-        issues.push("DISCORD_WEBHOOK_URL appears to be a placeholder value");
+        issues.push("DISCORD_BOT_TOKEN appears to be a placeholder value");
       }
+    }
 
-      // Validate URL format
-      try {
-        const url = new URL(webhookUrl);
-        if (
-          !url.hostname.includes("discord.com") &&
-          !url.hostname.includes("discordapp.com")
-        ) {
-          issues.push(
-            "DISCORD_WEBHOOK_URL does not appear to be a valid Discord webhook URL"
-          );
-        }
-        if (!url.pathname.includes("/webhooks/")) {
-          issues.push(
-            "DISCORD_WEBHOOK_URL path does not contain '/webhooks/' segment"
-          );
-        }
-      } catch (error) {
-        issues.push(
-          `DISCORD_WEBHOOK_URL is not a valid URL: ${(error as Error).message}`
-        );
+    // Check if channel ID is configured
+    if (!this.env.DISCORD_CHANNEL_ID) {
+      issues.push("DISCORD_CHANNEL_ID environment variable not set");
+    } else {
+      channelId = this.env.DISCORD_CHANNEL_ID;
+
+      // Check for placeholder values
+      if (
+        channelId.includes("your_channel_id") ||
+        channelId.includes("placeholder") ||
+        channelId.length < 15
+      ) {
+        issues.push("DISCORD_CHANNEL_ID appears to be a placeholder value");
       }
     }
 
@@ -123,17 +120,18 @@ export class DiscordService {
 
     if (!isValid) {
       this.logger.warn(
-        "Discord webhook configuration issues detected",
+        "Discord bot configuration issues detected",
         logContext,
         {
           issues,
-          hasWebhookUrl: !!webhookUrl,
+          hasBotToken: !!botToken,
+          hasChannelId: !!channelId,
           hasSiteUrl: !!this.env.SITE_URL,
         }
       );
     }
 
-    return { isValid, webhookUrl, issues };
+    return { isValid, botToken, channelId, issues };
   }
 
   /**
@@ -979,16 +977,16 @@ export class DiscordService {
     requestId: string = "unknown"
   ): Promise<any> {
     const logContext = createLogContext(requestId, {
-      operation: "discord_webhook",
+      operation: "discord_bot",
       submissionType: "review",
       submissionId: reviewData.id,
     });
 
     return this.logger.timeOperation(
-      "discord_webhook_review",
+      "discord_bot_review",
       async () => {
         this.logger.info(
-          "Sending Discord webhook for review submission",
+          "Sending Discord bot message for review submission",
           logContext,
           {
             reviewId: reviewData.id,
@@ -997,13 +995,13 @@ export class DiscordService {
         );
 
         // Validate configuration
-        const config = this.validateWebhookConfig(logContext);
+        const config = this.validateBotConfig(logContext);
         if (!config.isValid) {
           const error = new Error(
-            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
           );
           this.logger.error(
-            "Discord webhook configuration validation failed",
+            "Discord bot configuration validation failed",
             logContext,
             error,
             {
@@ -1065,16 +1063,20 @@ export class DiscordService {
 
         const payloadSize = JSON.stringify(payload).length;
 
-        // Send webhook request
+        // Send bot message request
         try {
-          const response = await globalThis.fetch(config.webhookUrl!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0",
-            },
-            body: JSON.stringify(payload),
-          });
+          const response = await globalThis.fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
 
           const responseText = await response.text();
           const success = response.ok;
@@ -1090,7 +1092,7 @@ export class DiscordService {
           return { success, status: response.status, response: responseText };
         } catch (error) {
           this.logger.error(
-            "Discord webhook network error",
+            "Discord bot API network error",
             logContext,
             error as Error,
             {
@@ -1098,7 +1100,7 @@ export class DiscordService {
             }
           );
 
-          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
             submissionType: "review",
           });
 
@@ -1117,16 +1119,16 @@ export class DiscordService {
     requestId: string = "unknown"
   ): Promise<any> {
     const logContext = createLogContext(requestId, {
-      operation: "discord_webhook",
+      operation: "discord_bot",
       submissionType: "player_edit",
       submissionId: editData.id,
     });
 
     return this.logger.timeOperation(
-      "discord_webhook_player_edit",
+      "discord_bot_player_edit",
       async () => {
         this.logger.info(
-          "Sending Discord webhook for player edit",
+          "Sending Discord bot message for player edit",
           logContext,
           {
             editId: editData.id,
@@ -1135,13 +1137,13 @@ export class DiscordService {
         );
 
         // Validate configuration
-        const config = this.validateWebhookConfig(logContext);
+        const config = this.validateBotConfig(logContext);
         if (!config.isValid) {
           const error = new Error(
-            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
           );
           this.logger.error(
-            "Discord webhook configuration validation failed",
+            "Discord bot configuration validation failed",
             logContext,
             error,
             {
@@ -1219,16 +1221,20 @@ export class DiscordService {
 
         const payloadSize = JSON.stringify(payload).length;
 
-        // Send webhook request
+        // Send bot message request
         try {
-          const response = await globalThis.fetch(config.webhookUrl!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0",
-            },
-            body: JSON.stringify(payload),
-          });
+          const response = await globalThis.fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
 
           const responseText = await response.text();
           const success = response.ok;
@@ -1244,7 +1250,7 @@ export class DiscordService {
           return { success, status: response.status, response: responseText };
         } catch (error) {
           this.logger.error(
-            "Discord webhook network error",
+            "Discord bot API network error",
             logContext,
             error as Error,
             {
@@ -1252,7 +1258,7 @@ export class DiscordService {
             }
           );
 
-          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
             submissionType: "player_edit",
           });
 
@@ -1271,16 +1277,16 @@ export class DiscordService {
     requestId: string = "unknown"
   ): Promise<any> {
     const logContext = createLogContext(requestId, {
-      operation: "discord_webhook",
+      operation: "discord_bot",
       submissionType: "equipment",
       submissionId: submissionData.id,
     });
 
     return this.logger.timeOperation(
-      "discord_webhook_equipment_submission",
+      "discord_bot_equipment_submission",
       async () => {
         this.logger.info(
-          "Sending Discord webhook for equipment submission",
+          "Sending Discord bot message for equipment submission",
           logContext,
           {
             submissionId: submissionData.id,
@@ -1289,13 +1295,13 @@ export class DiscordService {
         );
 
         // Validate configuration
-        const config = this.validateWebhookConfig(logContext);
+        const config = this.validateBotConfig(logContext);
         if (!config.isValid) {
           const error = new Error(
-            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
           );
           this.logger.error(
-            "Discord webhook configuration validation failed",
+            "Discord bot configuration validation failed",
             logContext,
             error,
             {
@@ -1370,16 +1376,20 @@ export class DiscordService {
 
         const payloadSize = JSON.stringify(payload).length;
 
-        // Send webhook request
+        // Send bot message request
         try {
-          const response = await globalThis.fetch(config.webhookUrl!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0",
-            },
-            body: JSON.stringify(payload),
-          });
+          const response = await globalThis.fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
 
           const responseText = await response.text();
           const success = response.ok;
@@ -1395,7 +1405,7 @@ export class DiscordService {
           return { success, status: response.status, response: responseText };
         } catch (error) {
           this.logger.error(
-            "Discord webhook network error",
+            "Discord bot API network error",
             logContext,
             error as Error,
             {
@@ -1403,7 +1413,7 @@ export class DiscordService {
             }
           );
 
-          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
             submissionType: "equipment",
           });
 
@@ -1422,16 +1432,16 @@ export class DiscordService {
     requestId: string = "unknown"
   ): Promise<any> {
     const logContext = createLogContext(requestId, {
-      operation: "discord_webhook",
+      operation: "discord_bot",
       submissionType: "player",
       submissionId: submissionData.id,
     });
 
     return this.logger.timeOperation(
-      "discord_webhook_player_submission",
+      "discord_bot_player_submission",
       async () => {
         this.logger.info(
-          "Sending Discord webhook for player submission",
+          "Sending Discord bot message for player submission",
           logContext,
           {
             submissionId: submissionData.id,
@@ -1440,13 +1450,13 @@ export class DiscordService {
         );
 
         // Validate configuration
-        const config = this.validateWebhookConfig(logContext);
+        const config = this.validateBotConfig(logContext);
         if (!config.isValid) {
           const error = new Error(
-            `Discord webhook configuration invalid: ${config.issues.join(", ")}`
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
           );
           this.logger.error(
-            "Discord webhook configuration validation failed",
+            "Discord bot configuration validation failed",
             logContext,
             error,
             {
@@ -1527,16 +1537,20 @@ export class DiscordService {
 
         const payloadSize = JSON.stringify(payload).length;
 
-        // Send webhook request
+        // Send bot message request
         try {
-          const response = await globalThis.fetch(config.webhookUrl!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "tt-reviews-bot/1.0",
-            },
-            body: JSON.stringify(payload),
-          });
+          const response = await globalThis.fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
 
           const responseText = await response.text();
           const success = response.ok;
@@ -1552,7 +1566,7 @@ export class DiscordService {
           return { success, status: response.status, response: responseText };
         } catch (error) {
           this.logger.error(
-            "Discord webhook network error",
+            "Discord bot API network error",
             logContext,
             error as Error,
             {
@@ -1560,7 +1574,7 @@ export class DiscordService {
             }
           );
 
-          this.logger.metric("discord_webhook_network_error", 1, logContext, {
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
             submissionType: "player",
           });
 
