@@ -136,9 +136,17 @@ export class DatabaseService {
   private context?: LogContext;
   public content: ContentService;
 
-  constructor(context: AppLoadContext, logContext?: LogContext) {
-    this.supabase = createSupabaseClient(context);
-    this.context = logContext;
+  constructor(context: AppLoadContext, supabaseClientOrLogContext?: SupabaseClient | LogContext, logContext?: LogContext) {
+    // Handle both old and new constructor signatures
+    if (supabaseClientOrLogContext && 'from' in supabaseClientOrLogContext) {
+      // New signature: DatabaseService(context, supabaseClient, logContext?)
+      this.supabase = supabaseClientOrLogContext as SupabaseClient;
+      this.context = logContext;
+    } else {
+      // Old signature: DatabaseService(context, logContext?)
+      this.supabase = createSupabaseClient(context);
+      this.context = supabaseClientOrLogContext as LogContext;
+    }
     this.content = new ContentService(this.supabase);
   }
 

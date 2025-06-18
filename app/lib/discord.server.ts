@@ -57,8 +57,9 @@ export class DiscordService {
 
   constructor(context: AppLoadContext) {
     this.context = context;
-    this.dbService = new DatabaseService(context);
+    // Use the same Supabase admin client for both services to ensure consistent database access
     const supabase = createSupabaseAdminClient(context);
+    this.dbService = new DatabaseService(context, supabase);
     this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
     
