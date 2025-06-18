@@ -243,38 +243,11 @@ export async function action({ params, request, context }: Route.ActionArgs) {
       equipment_id: equipment.id,
     };
 
-    console.log(
-      `[DISCORD] Attempting to send review submission notification for ID: ${review.id}, Equipment: ${equipment.name}`
-    );
-
     const discordService = new DiscordService(context);
-    const result = await discordService.notifyNewReview(
-      notificationData,
-      requestId
-    );
-
-    console.log(
-      `[DISCORD] Review submission notification result:`,
-      JSON.stringify(result, null, 2)
-    );
+    await discordService.notifyNewReview(notificationData, requestId);
   } catch (error) {
     // Discord notification failure should not block the review submission
-    // But we need to log this for debugging
-    console.error(
-      `[DISCORD] Review submission notification failed for ID: ${review.id}`,
-      error
-    );
-    console.error(
-      `[DISCORD] Error details:`,
-      {
-        reviewId: review.id,
-        equipmentName: equipment.name,
-        equipmentId: equipment.id,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : "No stack trace",
-        requestId,
-      }
-    );
+    // Error logging is handled by the Discord service
   }
 
   // Return success response for modal display

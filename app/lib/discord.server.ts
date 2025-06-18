@@ -13,7 +13,7 @@ import {
   type ModerationService,
 } from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
-import { Logger, createLogContext, type LogContext } from "./logger.server";
+import { Logger, createLogContext } from "./logger.server";
 
 interface DiscordUser {
   id: string;
@@ -53,7 +53,7 @@ export class DiscordService {
   private moderationService: ModerationService;
   private env: Cloudflare.Env;
   private context: AppLoadContext;
-  private logger = Logger.child({ service: "discord" });
+  private logger = Logger;
 
   constructor(context: AppLoadContext) {
     this.context = context;
@@ -62,22 +62,6 @@ export class DiscordService {
     this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
     
-    // Log environment configuration for debugging (without sensitive values)
-    try {
-      console.log(`[DISCORD] Service initialized with config:`, {
-        hasWebhookUrl: !!this.env.DISCORD_WEBHOOK_URL,
-        webhookUrlLength: this.env.DISCORD_WEBHOOK_URL?.length || 0,
-        webhookUrlHost: this.env.DISCORD_WEBHOOK_URL ? new URL(this.env.DISCORD_WEBHOOK_URL).hostname : 'not set',
-        hasPublicKey: !!this.env.DISCORD_PUBLIC_KEY,
-        publicKeyLength: this.env.DISCORD_PUBLIC_KEY?.length || 0,
-        hasSiteUrl: !!this.env.SITE_URL,
-        siteUrl: this.env.SITE_URL || 'not set',
-        hasAllowedRoles: !!this.env.DISCORD_ALLOWED_ROLES,
-        allowedRolesCount: this.env.DISCORD_ALLOWED_ROLES?.split(',').length || 0,
-      });
-    } catch (error) {
-      console.error(`[DISCORD] Error logging service configuration:`, error);
-    }
   }
 
   /**
@@ -1095,27 +1079,13 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
-          if (success) {
-            this.logger.info("Discord webhook sent successfully", logContext, {
-              status: response.status,
-              reviewId: reviewData.id,
-            });
-
-            this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: "review",
-            });
-          } else {
-            this.logger.error("Discord webhook failed", logContext, undefined, {
-              status: response.status,
-              responseBody: responseText,
-              reviewId: reviewData.id,
-            });
-
-            this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: "review",
-              errorStatus: response.status,
-            });
-          }
+          this.logger.info("Review notification result", {
+            reviewId: reviewData.id,
+            equipmentName: reviewData.equipment_name,
+            success,
+            status: response.status,
+            requestId,
+          });
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
@@ -1263,27 +1233,13 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
-          if (success) {
-            this.logger.info("Discord webhook sent successfully", logContext, {
-              status: response.status,
-              editId: editData.id,
-            });
-
-            this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: "player_edit",
-            });
-          } else {
-            this.logger.error("Discord webhook failed", logContext, undefined, {
-              status: response.status,
-              responseBody: responseText,
-              editId: editData.id,
-            });
-
-            this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: "player_edit",
-              errorStatus: response.status,
-            });
-          }
+          this.logger.info("Player edit notification result", {
+            editId: editData.id,
+            playerName: editData.player_name,
+            success,
+            status: response.status,
+            requestId,
+          });
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
@@ -1428,27 +1384,13 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
-          if (success) {
-            this.logger.info("Discord webhook sent successfully", logContext, {
-              status: response.status,
-              submissionId: submissionData.id,
-            });
-
-            this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: "equipment",
-            });
-          } else {
-            this.logger.error("Discord webhook failed", logContext, undefined, {
-              status: response.status,
-              responseBody: responseText,
-              submissionId: submissionData.id,
-            });
-
-            this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: "equipment",
-              errorStatus: response.status,
-            });
-          }
+          this.logger.info("Equipment submission notification result", {
+            submissionId: submissionData.id,
+            equipmentName: submissionData.name,
+            success,
+            status: response.status,
+            requestId,
+          });
 
           return { success, status: response.status, response: responseText };
         } catch (error) {
@@ -1599,27 +1541,13 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
-          if (success) {
-            this.logger.info("Discord webhook sent successfully", logContext, {
-              status: response.status,
-              submissionId: submissionData.id,
-            });
-
-            this.logger.metric("discord_webhook_success", 1, logContext, {
-              submissionType: "player",
-            });
-          } else {
-            this.logger.error("Discord webhook failed", logContext, undefined, {
-              status: response.status,
-              responseBody: responseText,
-              submissionId: submissionData.id,
-            });
-
-            this.logger.metric("discord_webhook_failure", 1, logContext, {
-              submissionType: "player",
-              errorStatus: response.status,
-            });
-          }
+          this.logger.info("Player submission notification result", {
+            submissionId: submissionData.id,
+            playerName: submissionData.name,
+            success,
+            status: response.status,
+            requestId,
+          });
 
           return { success, status: response.status, response: responseText };
         } catch (error) {

@@ -186,37 +186,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       submitter_email: user.email,
     };
 
-    console.log(
-      `[DISCORD] Attempting to send equipment submission notification for ID: ${submission.id}, Name: ${submission.name}`
-    );
-
     const discordService = new DiscordService(context);
-    const result = await discordService.notifyNewEquipmentSubmission(
+    await discordService.notifyNewEquipmentSubmission(
       notificationData,
       requestId
     );
-
-    console.log(
-      `[DISCORD] Equipment submission notification result:`,
-      JSON.stringify(result, null, 2)
-    );
   } catch (error) {
     // Discord notification failure should not block the submission
-    // But we need to log this for debugging
-    console.error(
-      `[DISCORD] Equipment submission notification failed for ID: ${submission.id}`,
-      error
-    );
-    console.error(
-      `[DISCORD] Error details:`,
-      {
-        submissionId: submission.id,
-        equipmentName: submission.name,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : "No stack trace",
-        requestId,
-      }
-    );
+    // Error logging is handled by the Discord service
   }
 
   return data(

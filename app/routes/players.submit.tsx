@@ -213,37 +213,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       submitter_email: userResponse.data.user.email || "Anonymous",
     };
 
-    console.log(
-      `[DISCORD] Attempting to send player submission notification for ID: ${playerSubmission.id}, Name: ${playerSubmission.name}`
-    );
-
     const discordService = new DiscordService(context);
-    const result = await discordService.notifyNewPlayerSubmission(
-      notificationData,
-      requestId
-    );
-
-    console.log(
-      `[DISCORD] Player submission notification result:`,
-      JSON.stringify(result, null, 2)
-    );
+    await discordService.notifyNewPlayerSubmission(notificationData, requestId);
   } catch (error) {
     // Discord notification failure should not block the submission
-    // But we need to log this for debugging
-    console.error(
-      `[DISCORD] Player submission notification failed for ID: ${playerSubmission.id}`,
-      error
-    );
-    console.error(
-      `[DISCORD] Error details:`,
-      {
-        submissionId: playerSubmission.id,
-        playerName: playerSubmission.name,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : "No stack trace",
-        requestId,
-      }
-    );
+    // Error logging is handled by the Discord service
   }
 
   return data(
