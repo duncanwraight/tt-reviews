@@ -12,6 +12,7 @@ import { useAsyncOperationWithModal } from "~/hooks/useAsyncOperationWithModal";
 import { FeedbackModal } from "~/components/ui/FeedbackModal";
 import { Navigation } from "~/components/ui/Navigation";
 import { Footer } from "~/components/ui/Footer";
+import { getSupabaseConfig } from "~/lib/env.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -31,13 +32,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
+  const supabaseConfig = getSupabaseConfig(context);
+
   return data(
     {
-      env: {
-        SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
-          .SUPABASE_ANON_KEY!,
-      },
+      env: supabaseConfig,
     },
     { headers: sbServerClient.headers }
   );
@@ -47,6 +46,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
   const { env } = loaderData;
   const navigate = useNavigate();
   const { modalState, execute, closeModal } = useAsyncOperationWithModal();
+
 
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

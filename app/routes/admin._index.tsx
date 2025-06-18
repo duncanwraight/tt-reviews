@@ -20,22 +20,22 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
       supabase
         .from("equipment_submissions")
         .select("status")
-        .neq("status", null),
+        .not("status", "is", null),
 
       // Get player submissions grouped by status
       supabase
         .from("player_submissions")
         .select("status")
-        .neq("status", null),
+        .not("status", "is", null),
 
       // Get player edits grouped by status
-      supabase.from("player_edits").select("status").neq("status", null),
+      supabase.from("player_edits").select("status").not("status", "is", null),
 
       // Get equipment reviews grouped by status
       supabase
         .from("equipment_reviews")
         .select("status")
-        .neq("status", null),
+        .not("status", "is", null),
 
       // Get total equipment count
       supabase
