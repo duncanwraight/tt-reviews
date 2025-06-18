@@ -590,14 +590,45 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       const result = await this.moderationService.recordApproval(
         "player_edit",
         editId,
-        user.id,
-        "discord"
+        discordModeratorId,
+        "discord",
+        undefined,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with new button states
+        await this.updateDiscordMessageAfterModeration(
+          "player_edit",
+          editId,
+          result.newStatus || "pending",
+          user.username
+        );
+
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
           message =
@@ -657,20 +688,50 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       // For Discord rejections, use a generic rejection category and reason
       const result = await this.moderationService.recordRejection(
         "player_edit",
         editId,
-        user.id,
+        discordModeratorId,
         "discord",
         {
           category: "other",
           reason: `Rejected via Discord by ${user.username}`,
         },
-        this.context.cloudflare?.env?.R2_BUCKET
+        this.context.cloudflare?.env?.R2_BUCKET,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with disabled buttons
+        await this.updateDiscordMessageAfterModeration(
+          "player_edit",
+          editId,
+          "rejected",
+          user.username
+        );
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -721,14 +782,45 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       const result = await this.moderationService.recordApproval(
         "equipment",
         submissionId,
-        user.id,
-        "discord"
+        discordModeratorId,
+        "discord",
+        undefined,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with new button states
+        await this.updateDiscordMessageAfterModeration(
+          "equipment",
+          submissionId,
+          result.newStatus || "pending",
+          user.username
+        );
+
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
           message =
@@ -788,20 +880,50 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       // For Discord rejections, use a generic rejection category and reason
       const result = await this.moderationService.recordRejection(
         "equipment",
         submissionId,
-        user.id,
+        discordModeratorId,
         "discord",
         {
           category: "other",
           reason: `Rejected via Discord by ${user.username}`,
         },
-        this.context.cloudflare?.env?.R2_BUCKET
+        this.context.cloudflare?.env?.R2_BUCKET,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with disabled buttons
+        await this.updateDiscordMessageAfterModeration(
+          "equipment",
+          submissionId,
+          "rejected",
+          user.username
+        );
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -852,14 +974,45 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       const result = await this.moderationService.recordApproval(
         "player",
         submissionId,
-        user.id,
-        "discord"
+        discordModeratorId,
+        "discord",
+        undefined,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with new button states
+        await this.updateDiscordMessageAfterModeration(
+          "player",
+          submissionId,
+          result.newStatus || "pending",
+          user.username
+        );
+
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
           message =
@@ -919,20 +1072,50 @@ export class DiscordService {
     user: DiscordUser
   ): Promise<Response> {
     try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       // For Discord rejections, use a generic rejection category and reason
       const result = await this.moderationService.recordRejection(
         "player",
         submissionId,
-        user.id,
+        discordModeratorId,
         "discord",
         {
           category: "other",
           reason: `Rejected via Discord by ${user.username}`,
         },
-        this.context.cloudflare?.env?.R2_BUCKET
+        this.context.cloudflare?.env?.R2_BUCKET,
+        true // isDiscordModerator
       );
 
       if (result.success) {
+        // Update Discord message with disabled buttons
+        await this.updateDiscordMessageAfterModeration(
+          "player",
+          submissionId,
+          "rejected",
+          user.username
+        );
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -1218,25 +1401,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = [
-          {
-            type: 1, // Action Row
-            components: [
-              {
-                type: 2, // Button
-                style: 3, // Success/Green
-                label: "Approve Edit",
-                custom_id: `approve_player_edit_${editData.id}`,
-              },
-              {
-                type: 2, // Button
-                style: 4, // Danger/Red
-                label: "Reject Edit",
-                custom_id: `reject_player_edit_${editData.id}`,
-              },
-            ],
-          },
-        ];
+        const components = this.createProgressButtons("player_edit", editData.id, 0, 2);
 
         const payload = {
           embeds: [embed],
@@ -1263,15 +1428,37 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
+          let messageId: string | null = null;
+          if (success) {
+            try {
+              const discordResponse = JSON.parse(responseText);
+              messageId = discordResponse.id;
+              
+              // Store message ID in database for later editing
+              if (messageId) {
+                await this.dbService.updatePlayerEditDiscordMessageId(
+                  editData.id,
+                  messageId
+                );
+              }
+            } catch (error) {
+              this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
+                editId: editData.id,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+            }
+          }
+
           this.logger.info("Player edit notification result", {
             editId: editData.id,
             playerName: editData.player_name,
             success,
             status: response.status,
+            messageId,
             requestId,
           });
 
-          return { success, status: response.status, response: responseText };
+          return { success, status: response.status, response: responseText, messageId };
         } catch (error) {
           this.logger.error(
             "Discord bot API network error",
@@ -1373,25 +1560,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = [
-          {
-            type: 1, // Action Row
-            components: [
-              {
-                type: 2, // Button
-                style: 3, // Success/Green
-                label: "Approve Equipment",
-                custom_id: `approve_equipment_${submissionData.id}`,
-              },
-              {
-                type: 2, // Button
-                style: 4, // Danger/Red
-                label: "Reject Equipment",
-                custom_id: `reject_equipment_${submissionData.id}`,
-              },
-            ],
-          },
-        ];
+        const components = this.createProgressButtons("equipment", submissionData.id, 0, 2);
 
         const payload = {
           embeds: [embed],
@@ -1418,15 +1587,37 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
+          let messageId: string | null = null;
+          if (success) {
+            try {
+              const discordResponse = JSON.parse(responseText);
+              messageId = discordResponse.id;
+              
+              // Store message ID in database for later editing
+              if (messageId) {
+                await this.dbService.updateEquipmentSubmissionDiscordMessageId(
+                  submissionData.id,
+                  messageId
+                );
+              }
+            } catch (error) {
+              this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
+                submissionId: submissionData.id,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+            }
+          }
+
           this.logger.info("Equipment submission notification result", {
             submissionId: submissionData.id,
             equipmentName: submissionData.name,
             success,
             status: response.status,
+            messageId,
             requestId,
           });
 
-          return { success, status: response.status, response: responseText };
+          return { success, status: response.status, response: responseText, messageId };
         } catch (error) {
           this.logger.error(
             "Discord bot API network error",
@@ -1534,25 +1725,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = [
-          {
-            type: 1, // Action Row
-            components: [
-              {
-                type: 2, // Button
-                style: 3, // Success/Green
-                label: "Approve Player",
-                custom_id: `approve_player_${submissionData.id}`,
-              },
-              {
-                type: 2, // Button
-                style: 4, // Danger/Red
-                label: "Reject Player",
-                custom_id: `reject_player_${submissionData.id}`,
-              },
-            ],
-          },
-        ];
+        const components = this.createProgressButtons("player", submissionData.id, 0, 2);
 
         const payload = {
           embeds: [embed],
@@ -1579,15 +1752,37 @@ export class DiscordService {
           const responseText = await response.text();
           const success = response.ok;
 
+          let messageId: string | null = null;
+          if (success) {
+            try {
+              const discordResponse = JSON.parse(responseText);
+              messageId = discordResponse.id;
+              
+              // Store message ID in database for later editing
+              if (messageId) {
+                await this.dbService.updatePlayerSubmissionDiscordMessageId(
+                  submissionData.id,
+                  messageId
+                );
+              }
+            } catch (error) {
+              this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
+                submissionId: submissionData.id,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+            }
+          }
+
           this.logger.info("Player submission notification result", {
             submissionId: submissionData.id,
             playerName: submissionData.name,
             success,
             status: response.status,
+            messageId,
             requestId,
           });
 
-          return { success, status: response.status, response: responseText };
+          return { success, status: response.status, response: responseText, messageId };
         } catch (error) {
           this.logger.error(
             "Discord bot API network error",
@@ -1607,6 +1802,298 @@ export class DiscordService {
       },
       logContext
     );
+  }
+
+  /**
+   * Update Discord message with new button states and embed content
+   */
+  async updateDiscordMessage(
+    channelId: string,
+    messageId: string,
+    payload: any
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate configuration
+      const config = this.validateBotConfig(createLogContext("update-message"));
+      if (!config.isValid) {
+        return { success: false, error: "Discord bot not configured" };
+      }
+
+      const response = await globalThis.fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bot ${config.botToken}`,
+            "User-Agent": "tt-reviews-bot/1.0",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (response.ok) {
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        return { success: false, error: `Discord API error: ${errorText}` };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Create progress buttons based on current approval count
+   */
+  private createProgressButtons(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string,
+    currentApprovals: number,
+    requiredApprovals: number = 2
+  ): any[] {
+    // Create proper custom_id based on submission type
+    let approveCustomId: string;
+    let rejectCustomId: string;
+    
+    if (submissionType === "player_edit") {
+      approveCustomId = `approve_player_edit_${submissionId}`;
+      rejectCustomId = `reject_player_edit_${submissionId}`;
+    } else {
+      approveCustomId = `approve_${submissionType}_${submissionId}`;
+      rejectCustomId = `reject_${submissionType}_${submissionId}`;
+    }
+
+    return [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 3, // Success/Green
+            label: `Approve (${currentApprovals}/${requiredApprovals})`,
+            custom_id: approveCustomId,
+          },
+          {
+            type: 2, // Button
+            style: 4, // Danger/Red
+            label: "Reject",
+            custom_id: rejectCustomId,
+          },
+        ],
+      },
+    ];
+  }
+
+  /**
+   * Create disabled buttons for final state
+   */
+  private createDisabledButtons(finalStatus: "approved" | "rejected"): any[] {
+    return [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: finalStatus === "approved" ? 3 : 2, // Green if approved, Gray if rejected
+            label: finalStatus === "approved" ? "Approved" : "Approve",
+            custom_id: "disabled_approve",
+            disabled: true,
+          },
+          {
+            type: 2, // Button
+            style: finalStatus === "rejected" ? 4 : 2, // Red if rejected, Gray if approved
+            label: finalStatus === "rejected" ? "Rejected" : "Reject",
+            custom_id: "disabled_reject",
+            disabled: true,
+          },
+        ],
+      },
+    ];
+  }
+
+  /**
+   * Create updated embed with moderation status
+   */
+  private createUpdatedEmbed(
+    originalEmbed: any,
+    status: string,
+    moderatorUsername?: string
+  ): any {
+    const updatedEmbed = { ...originalEmbed };
+    
+    // Add status field
+    if (!updatedEmbed.fields) updatedEmbed.fields = [];
+    
+    // Remove existing status field if present
+    updatedEmbed.fields = updatedEmbed.fields.filter(
+      (field: any) => field.name !== "Status"
+    );
+    
+    // Add new status field
+    let statusValue = "";
+    if (status === "approved") {
+      statusValue = "✅ **Approved**";
+      updatedEmbed.color = 0x2ecc71; // Green
+    } else if (status === "rejected") {
+      statusValue = "❌ **Rejected**";
+      updatedEmbed.color = 0xe74c3c; // Red
+    } else if (status === "awaiting_second_approval") {
+      statusValue = "⏳ **Awaiting Second Approval** (1/2)";
+      updatedEmbed.color = 0xf39c12; // Orange
+    }
+
+    if (moderatorUsername) {
+      statusValue += `\nModerated by: ${moderatorUsername}`;
+    }
+
+    updatedEmbed.fields.push({
+      name: "Status",
+      value: statusValue,
+      inline: false,
+    });
+
+    return updatedEmbed;
+  }
+
+  /**
+   * Get current approval count for a submission
+   */
+  private async getApprovalCount(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string
+  ): Promise<number> {
+    try {
+      const approvals = await this.moderationService.getSubmissionApprovals(
+        submissionType,
+        submissionId
+      );
+      return approvals.filter((approval) => approval.action === "approved").length;
+    } catch (error) {
+      console.error("Error getting approval count:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Update Discord message after moderation action
+   */
+  private async updateDiscordMessageAfterModeration(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string,
+    newStatus: string,
+    moderatorUsername: string
+  ): Promise<void> {
+    try {
+      // Get Discord message ID from database
+      const messageId = await this.dbService.getDiscordMessageId(
+        submissionType,
+        submissionId
+      );
+
+      if (!messageId) {
+        console.warn(`No Discord message ID found for ${submissionType} ${submissionId}`);
+        return;
+      }
+
+      // Get Discord channel ID from config
+      const config = this.validateBotConfig(createLogContext("update-after-moderation"));
+      if (!config.isValid || !config.channelId) {
+        console.warn("Discord configuration not valid for message editing");
+        return;
+      }
+
+      // Determine components and embed based on status
+      let components: any[];
+      let updatedEmbed: any;
+
+      if (newStatus === "approved" || newStatus === "rejected") {
+        // Final state - disable all buttons
+        components = this.createDisabledButtons(newStatus as "approved" | "rejected");
+      } else if (newStatus === "awaiting_second_approval") {
+        // Show progress (1/2 approvals)
+        components = this.createProgressButtons(submissionType, submissionId, 1, 2);
+      } else {
+        // Default to first approval state
+        components = this.createProgressButtons(submissionType, submissionId, 0, 2);
+      }
+
+      // For now, we'll update the embed minimally (just add status)
+      // In a full implementation, you'd want to reconstruct the original embed
+      updatedEmbed = {
+        title: this.getEmbedTitle(submissionType),
+        description: "Submission status updated",
+        color: this.getStatusColor(newStatus),
+        fields: [
+          {
+            name: "Status",
+            value: this.getStatusText(newStatus, moderatorUsername),
+            inline: false,
+          },
+        ],
+        timestamp: new Date().toISOString(),
+      };
+
+      // Update the Discord message
+      const updateResult = await this.updateDiscordMessage(config.channelId, messageId, {
+        embeds: [updatedEmbed],
+        components: components,
+      });
+
+      if (!updateResult.success) {
+        console.error("Failed to update Discord message:", updateResult.error);
+      }
+    } catch (error) {
+      console.error("Error updating Discord message after moderation:", error);
+    }
+  }
+
+  private getEmbedTitle(submissionType: "equipment" | "player" | "player_edit"): string {
+    switch (submissionType) {
+      case "equipment":
+        return "⚙️ Equipment Submission";
+      case "player":
+        return "👤 Player Submission";
+      case "player_edit":
+        return "🏓 Player Edit";
+      default:
+        return "📝 Submission";
+    }
+  }
+
+  private getStatusColor(status: string): number {
+    switch (status) {
+      case "approved":
+        return 0x2ecc71; // Green
+      case "rejected":
+        return 0xe74c3c; // Red
+      case "awaiting_second_approval":
+        return 0xf39c12; // Orange
+      default:
+        return 0x9b59b6; // Purple (default)
+    }
+  }
+
+  private getStatusText(status: string, moderatorUsername: string): string {
+    let statusText = "";
+    switch (status) {
+      case "approved":
+        statusText = "✅ **Approved**";
+        break;
+      case "rejected":
+        statusText = "❌ **Rejected**";
+        break;
+      case "awaiting_second_approval":
+        statusText = "⏳ **Awaiting Second Approval** (1/2)";
+        break;
+      default:
+        statusText = "⏳ **Pending Review**";
+    }
+    
+    return `${statusText}\nModerated by: ${moderatorUsername}`;
   }
 
   /**

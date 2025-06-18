@@ -25,18 +25,25 @@ export class ModerationService {
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
-    notes?: string
+    notes?: string,
+    isDiscordModerator: boolean = false
   ): Promise<ApprovalResult> {
     try {
       // Check if this moderator has already approved this submission
-      const { data: existingApproval } = await this.supabase
+      const approvalQuery = this.supabase
         .from("moderator_approvals")
         .select("id")
         .eq("submission_type", submissionType)
         .eq("submission_id", submissionId)
-        .eq("moderator_id", moderatorId)
-        .eq("action", "approved")
-        .maybeSingle();
+        .eq("action", "approved");
+
+      if (isDiscordModerator) {
+        approvalQuery.eq("discord_moderator_id", moderatorId);
+      } else {
+        approvalQuery.eq("moderator_id", moderatorId);
+      }
+
+      const { data: existingApproval } = await approvalQuery.maybeSingle();
 
       if (existingApproval) {
         return {
@@ -46,14 +53,21 @@ export class ModerationService {
       }
 
       // Record the approval
-      const { error } = await this.supabase.from("moderator_approvals").insert({
+      const insertData: any = {
         submission_type: submissionType,
         submission_id: submissionId,
-        moderator_id: moderatorId,
         source,
         action: "approved",
         notes,
-      });
+      };
+
+      if (isDiscordModerator) {
+        insertData.discord_moderator_id = moderatorId;
+      } else {
+        insertData.moderator_id = moderatorId;
+      }
+
+      const { error } = await this.supabase.from("moderator_approvals").insert(insertData);
 
       if (error) {
         console.error("Database error in recordApproval:", error);
@@ -93,19 +107,27 @@ export class ModerationService {
     moderatorId: string,
     source: ApprovalSource,
     rejectionData: RejectionData,
-    bucket?: R2Bucket
+    bucket?: R2Bucket,
+    isDiscordModerator: boolean = false
   ): Promise<ApprovalResult> {
     try {
       // Record the rejection
-      const { error } = await this.supabase.from("moderator_approvals").insert({
+      const insertData: any = {
         submission_type: submissionType,
         submission_id: submissionId,
-        moderator_id: moderatorId,
         source,
         action: "rejected",
         rejection_category: rejectionData.category,
         rejection_reason: rejectionData.reason,
-      });
+      };
+
+      if (isDiscordModerator) {
+        insertData.discord_moderator_id = moderatorId;
+      } else {
+        insertData.moderator_id = moderatorId;
+      }
+
+      const { error } = await this.supabase.from("moderator_approvals").insert(insertData);
 
       if (error) {
         return { success: false, error: "Failed to record rejection" };
@@ -275,6 +297,31 @@ export class ModerationService {
       }
     } catch (error) {
       // Don't throw - image deletion failure shouldn't block rejection
+    }
+  }
+
+  async getOrCreateDiscordModerator(
+    discordUserId: string,
+    discordUsername?: string
+  ): Promise<string | null> {
+    try {
+      const { data, error } = await this.supabase.rpc(
+        "get_or_create_discord_moderator",
+        {
+          p_discord_user_id: discordUserId,
+          p_discord_username: discordUsername,
+        }
+      );
+
+      if (error) {
+        console.error("Error creating Discord moderator:", error);
+        return null;
+      }
+
+      return data as string;
+    } catch (error) {
+      console.error("Exception creating Discord moderator:", error);
+      return null;
     }
   }
 

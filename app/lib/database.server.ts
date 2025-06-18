@@ -1168,4 +1168,100 @@ export class DatabaseService {
 
     return { equipment, players };
   }
+
+  // Discord message tracking methods
+  async updateEquipmentSubmissionDiscordMessageId(
+    submissionId: string,
+    messageId: string
+  ): Promise<void> {
+    return withDatabaseCorrelation(
+      async () => {
+        const { error } = await this.supabase
+          .from("equipment_submissions")
+          .update({ discord_message_id: messageId })
+          .eq("id", submissionId);
+
+        if (error) {
+          throw new Error(`Failed to update Discord message ID: ${error.message}`);
+        }
+      },
+      { submissionId, messageId }
+    );
+  }
+
+  async updatePlayerSubmissionDiscordMessageId(
+    submissionId: string,
+    messageId: string
+  ): Promise<void> {
+    return withDatabaseCorrelation(
+      async () => {
+        const { error } = await this.supabase
+          .from("player_submissions")
+          .update({ discord_message_id: messageId })
+          .eq("id", submissionId);
+
+        if (error) {
+          throw new Error(`Failed to update Discord message ID: ${error.message}`);
+        }
+      },
+      { submissionId, messageId }
+    );
+  }
+
+  async updatePlayerEditDiscordMessageId(
+    editId: string,
+    messageId: string
+  ): Promise<void> {
+    return withDatabaseCorrelation(
+      async () => {
+        const { error } = await this.supabase
+          .from("player_edits")
+          .update({ discord_message_id: messageId })
+          .eq("id", editId);
+
+        if (error) {
+          throw new Error(`Failed to update Discord message ID: ${error.message}`);
+        }
+      },
+      { editId, messageId }
+    );
+  }
+
+  async getDiscordMessageId(
+    submissionType: "equipment" | "player" | "player_edit",
+    submissionId: string
+  ): Promise<string | null> {
+    return withDatabaseCorrelation(
+      async () => {
+        const tableName = this.getSubmissionTableName(submissionType);
+        const { data, error } = await this.supabase
+          .from(tableName)
+          .select("discord_message_id")
+          .eq("id", submissionId)
+          .single();
+
+        if (error || !data) {
+          return null;
+        }
+
+        return data.discord_message_id;
+      },
+      { submissionType, submissionId }
+    );
+  }
+
+  private getSubmissionTableName(
+    submissionType: "equipment" | "player" | "player_edit"
+  ): string {
+    switch (submissionType) {
+      case "equipment":
+        return "equipment_submissions";
+      case "player":
+        return "player_submissions";
+      case "player_edit":
+        return "player_edits";
+      default:
+        throw new Error(`Unknown submission type: ${submissionType}`);
+    }
+  }
 }
