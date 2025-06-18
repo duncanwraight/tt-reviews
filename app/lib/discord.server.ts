@@ -31,8 +31,8 @@ interface DiscordInteraction {
     custom_id?: string;
     options?: Array<{ value: string }>;
   };
-  user: DiscordUser;
-  member: DiscordMember;
+  user?: DiscordUser;
+  member: DiscordMember & { user?: DiscordUser };
   guild_id: string;
 }
 
@@ -196,6 +196,24 @@ export class DiscordService {
 
     const { data } = interaction;
     const commandName = data.name;
+    
+    // Get user from either interaction.user or interaction.member.user
+    const user = interaction.user || (interaction.member as any)?.user;
+    
+    if (!user && (commandName === "approve" || commandName === "reject")) {
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: "❌ **Error**: Unable to identify user from interaction.",
+            flags: 64, // Ephemeral flag
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // Check user permissions
     const hasPermission = await this.checkUserPermissions(
@@ -225,12 +243,12 @@ export class DiscordService {
       case "approve":
         return await this.handleApproveReview(
           data.options?.[0]?.value,
-          interaction.user
+          user
         );
       case "reject":
         return await this.handleRejectReview(
           data.options?.[0]?.value,
-          interaction.user
+          user
         );
       default:
         return new Response(
@@ -305,57 +323,63 @@ export class DiscordService {
     }
 
     const customId = interaction.data.custom_id!;
+    
+    // Get user from either interaction.user or interaction.member.user
+    const user = interaction.user || (interaction.member as any)?.user;
+    
+    if (!user) {
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: "❌ **Error**: Unable to identify user from interaction.",
+            flags: 64, // Ephemeral flag
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (customId.startsWith("approve_player_edit_")) {
       const editId = customId.replace("approve_player_edit_", "");
-      return await this.handleApprovePlayerEdit(editId, interaction.user);
+      return await this.handleApprovePlayerEdit(editId, user);
     }
 
     if (customId.startsWith("reject_player_edit_")) {
       const editId = customId.replace("reject_player_edit_", "");
-      return await this.handleRejectPlayerEdit(editId, interaction.user);
+      return await this.handleRejectPlayerEdit(editId, user);
     }
 
     if (customId.startsWith("approve_equipment_")) {
       const submissionId = customId.replace("approve_equipment_", "");
-      return await this.handleApproveEquipmentSubmission(
-        submissionId,
-        interaction.user
-      );
+      return await this.handleApproveEquipmentSubmission(submissionId, user);
     }
 
     if (customId.startsWith("reject_equipment_")) {
       const submissionId = customId.replace("reject_equipment_", "");
-      return await this.handleRejectEquipmentSubmission(
-        submissionId,
-        interaction.user
-      );
+      return await this.handleRejectEquipmentSubmission(submissionId, user);
     }
 
     if (customId.startsWith("approve_player_")) {
       const submissionId = customId.replace("approve_player_", "");
-      return await this.handleApprovePlayerSubmission(
-        submissionId,
-        interaction.user
-      );
+      return await this.handleApprovePlayerSubmission(submissionId, user);
     }
 
     if (customId.startsWith("reject_player_")) {
       const submissionId = customId.replace("reject_player_", "");
-      return await this.handleRejectPlayerSubmission(
-        submissionId,
-        interaction.user
-      );
+      return await this.handleRejectPlayerSubmission(submissionId, user);
     }
 
     if (customId.startsWith("approve_")) {
       const reviewId = customId.replace("approve_", "");
-      return await this.handleApproveReview(reviewId, interaction.user);
+      return await this.handleApproveReview(reviewId, user);
     }
 
     if (customId.startsWith("reject_")) {
       const reviewId = customId.replace("reject_", "");
-      return await this.handleRejectReview(reviewId, interaction.user);
+      return await this.handleRejectReview(reviewId, user);
     }
 
     return new Response(
