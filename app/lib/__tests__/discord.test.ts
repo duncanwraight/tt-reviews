@@ -2,6 +2,11 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { DiscordService } from "../discord.server";
 import { DatabaseService } from "../database.server";
 
+// Helper function to check if Supabase environment is available
+const hasSupabaseEnv = () => {
+  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+};
+
 // Mock AppLoadContext for testing
 const createMockContext = () =>
   ({
@@ -31,13 +36,16 @@ describe("Discord Integration", () => {
   let mockContext: any;
 
   beforeAll(() => {
-    mockContext = createMockContext();
-    discordService = new DiscordService(mockContext);
-    dbService = new DatabaseService(mockContext);
+    // Only initialize services if Supabase environment is available
+    if (hasSupabaseEnv()) {
+      mockContext = createMockContext();
+      discordService = new DiscordService(mockContext);
+      dbService = new DatabaseService(mockContext);
+    }
   });
 
   describe("Push Functionality - Discord Notifications", () => {
-    it("should generate valid Discord embed structure for equipment submission", async () => {
+    it.skipIf(!hasSupabaseEnv())("should generate valid Discord embed structure for equipment submission", async () => {
       const mockSubmissionData = {
         id: "test-equipment-123",
         name: "Test Blade",
@@ -125,7 +133,7 @@ describe("Discord Integration", () => {
       }
     });
 
-    it("should generate valid Discord embed structure for player edit", async () => {
+    it.skipIf(!hasSupabaseEnv())("should generate valid Discord embed structure for player edit", async () => {
       const mockEditData = {
         id: "test-edit-123",
         player_name: "Test Player",
@@ -182,7 +190,7 @@ describe("Discord Integration", () => {
   });
 
   describe("Pull Functionality - Discord Slash Commands", () => {
-    it("should handle equipment search command with real database", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle equipment search command with real database", async () => {
       const mockInteraction = {
         type: 2, // Application Command
         data: {
@@ -215,7 +223,7 @@ describe("Discord Integration", () => {
       }
     });
 
-    it("should handle player search command with real database", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle player search command with real database", async () => {
       const mockInteraction = {
         type: 2,
         data: {
@@ -236,7 +244,7 @@ describe("Discord Integration", () => {
       );
     });
 
-    it("should reject commands from users without proper roles", async () => {
+    it.skipIf(!hasSupabaseEnv())("should reject commands from users without proper roles", async () => {
       const mockInteraction = {
         type: 2,
         data: {
@@ -258,7 +266,7 @@ describe("Discord Integration", () => {
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
 
-    it("should handle empty search queries appropriately", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle empty search queries appropriately", async () => {
       const mockInteraction = {
         type: 2,
         data: {
@@ -282,7 +290,7 @@ describe("Discord Integration", () => {
   });
 
   describe("Button Interactions - Moderation Actions", () => {
-    it("should handle equipment approval button interaction", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle equipment approval button interaction", async () => {
       const mockInteraction = {
         type: 3, // Message Component
         data: {
@@ -308,7 +316,7 @@ describe("Discord Integration", () => {
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
 
-    it("should handle player edit approval button interaction", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle player edit approval button interaction", async () => {
       const mockInteraction = {
         type: 3,
         data: {
@@ -333,7 +341,7 @@ describe("Discord Integration", () => {
       expect(responseData.data.flags).toBe(64);
     });
 
-    it("should reject button interactions from unauthorized users", async () => {
+    it.skipIf(!hasSupabaseEnv())("should reject button interactions from unauthorized users", async () => {
       const mockInteraction = {
         type: 3,
         data: {
@@ -355,7 +363,7 @@ describe("Discord Integration", () => {
       expect(responseData.data.flags).toBe(64);
     });
 
-    it("should handle unknown button interactions", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle unknown button interactions", async () => {
       const mockInteraction = {
         type: 3,
         data: {
@@ -377,7 +385,7 @@ describe("Discord Integration", () => {
   });
 
   describe("Discord Ping Response", () => {
-    it("should respond to Discord ping challenge", async () => {
+    it.skipIf(!hasSupabaseEnv())("should respond to Discord ping challenge", async () => {
       const mockPingInteraction = {
         type: 1, // Ping
         data: {}, // Add empty data object to avoid the error
@@ -393,7 +401,7 @@ describe("Discord Integration", () => {
   });
 
   describe("Prefix Commands", () => {
-    it("should handle equipment prefix command", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle equipment prefix command", async () => {
       const mockMessage = {
         content: "!equipment butterfly",
         member: { roles: ["role_id_1"] },
@@ -408,7 +416,7 @@ describe("Discord Integration", () => {
       );
     });
 
-    it("should handle player prefix command", async () => {
+    it.skipIf(!hasSupabaseEnv())("should handle player prefix command", async () => {
       const mockMessage = {
         content: "!player test",
         member: { roles: ["role_id_1"] },
@@ -421,7 +429,7 @@ describe("Discord Integration", () => {
       expect(result.content).toMatch(/Player Search Results|No players found/);
     });
 
-    it("should return null for unrecognized prefix commands", async () => {
+    it.skipIf(!hasSupabaseEnv())("should return null for unrecognized prefix commands", async () => {
       const mockMessage = {
         content: "!unknown command",
         member: { roles: ["role_id_1"] },
@@ -432,7 +440,7 @@ describe("Discord Integration", () => {
       expect(result).toBeNull();
     });
 
-    it("should reject prefix commands from unauthorized users", async () => {
+    it.skipIf(!hasSupabaseEnv())("should reject prefix commands from unauthorized users", async () => {
       const mockMessage = {
         content: "!equipment test",
         member: { roles: ["wrong_role"] },
