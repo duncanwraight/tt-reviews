@@ -1988,6 +1988,8 @@ export class DiscordService {
     moderatorUsername: string
   ): Promise<void> {
     try {
+      console.log(`Updating Discord message for ${submissionType} ${submissionId} with status ${newStatus}`);
+      
       // Get Discord message ID from database
       const messageId = await this.dbService.getDiscordMessageId(
         submissionType,
@@ -1998,6 +2000,8 @@ export class DiscordService {
         console.warn(`No Discord message ID found for ${submissionType} ${submissionId}`);
         return;
       }
+
+      console.log(`Found Discord message ID: ${messageId}`);
 
       // Get Discord channel ID from config
       const config = this.validateBotConfig(createLogContext("update-after-moderation"));
@@ -2038,12 +2042,15 @@ export class DiscordService {
       };
 
       // Update the Discord message
+      console.log(`Updating Discord message ${messageId} in channel ${config.channelId}`);
       const updateResult = await this.updateDiscordMessage(config.channelId, messageId, {
         embeds: [updatedEmbed],
         components: components,
       });
 
-      if (!updateResult.success) {
+      if (updateResult.success) {
+        console.log(`Successfully updated Discord message ${messageId}`);
+      } else {
         console.error("Failed to update Discord message:", updateResult.error);
       }
     } catch (error) {

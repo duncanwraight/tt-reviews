@@ -1231,23 +1231,24 @@ export class DatabaseService {
     submissionType: "equipment" | "player" | "player_edit",
     submissionId: string
   ): Promise<string | null> {
-    return withDatabaseCorrelation(
-      async () => {
-        const tableName = this.getSubmissionTableName(submissionType);
-        const { data, error } = await this.supabase
-          .from(tableName)
-          .select("discord_message_id")
-          .eq("id", submissionId)
-          .single();
+    try {
+      const tableName = this.getSubmissionTableName(submissionType);
+      const { data, error } = await this.supabase
+        .from(tableName)
+        .select("discord_message_id")
+        .eq("id", submissionId)
+        .single();
 
-        if (error || !data) {
-          return null;
-        }
+      if (error || !data) {
+        console.warn(`No Discord message ID found for ${submissionType} ${submissionId}:`, error?.message);
+        return null;
+      }
 
-        return data.discord_message_id;
-      },
-      { submissionType, submissionId }
-    );
+      return data.discord_message_id;
+    } catch (error) {
+      console.error(`Error getting Discord message ID for ${submissionType} ${submissionId}:`, error);
+      return null;
+    }
   }
 
   private getSubmissionTableName(
