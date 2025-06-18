@@ -101,7 +101,7 @@ export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
   const isDevMode = isDevelopment ?? (process.env.NODE_ENV === "development" || process.env.ENVIRONMENT === "development");
   
   const connectSrc = isDevMode
-    ? "'self' https://*.supabase.co wss://*.supabase.co http://tt-reviews.local:54321 http://localhost:54321"
+    ? "'self' https://*.supabase.co wss://*.supabase.co http://tt-reviews.local:54321 http://localhost:54321 http://tt-reviews.local:5173 http://localhost:5173"
     : "'self' https://*.supabase.co wss://*.supabase.co";
 
   const csp = [

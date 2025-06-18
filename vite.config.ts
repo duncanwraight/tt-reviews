@@ -13,6 +13,10 @@ export default defineConfig({
     reactRouter(),
     tsconfigPaths(),
   ],
+  server: {
+    host: true,
+    allowedHosts: ["tt-reviews.local", "localhost", "127.0.0.1"],
+  },
   build: {
     rollupOptions: {
       output: {
