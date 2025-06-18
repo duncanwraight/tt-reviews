@@ -12,9 +12,12 @@ const createMockContext = () =>
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
         DISCORD_PUBLIC_KEY:
           process.env.DISCORD_PUBLIC_KEY || "test_key_placeholder",
-        DISCORD_WEBHOOK_URL:
-          process.env.DISCORD_WEBHOOK_URL ||
-          "https://discord.com/api/webhooks/test",
+        DISCORD_BOT_TOKEN:
+          process.env.DISCORD_BOT_TOKEN || "test_bot_token_placeholder",
+        DISCORD_CHANNEL_ID:
+          process.env.DISCORD_CHANNEL_ID || "123456789012345678",
+        DISCORD_GUILD_ID:
+          process.env.DISCORD_GUILD_ID || "987654321098765432",
         DISCORD_ALLOWED_ROLES:
           process.env.DISCORD_ALLOWED_ROLES || "role_id_1,role_id_2,role_id_3",
         SITE_URL: process.env.SITE_URL || "https://tt-reviews.local",
@@ -46,8 +49,10 @@ describe("Discord Integration", () => {
 
       // Mock the fetch function to capture the payload
       let capturedPayload: any = null;
+      let capturedUrl: string = "";
       const originalFetch = global.fetch;
       global.fetch = async (url: string, options: any) => {
+        capturedUrl = url;
         capturedPayload = JSON.parse(options.body);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       };
@@ -58,6 +63,7 @@ describe("Discord Integration", () => {
 
         expect(result.success).toBe(true);
         expect(capturedPayload).toBeDefined();
+        expect(capturedUrl).toMatch(/^https:\/\/discord\.com\/api\/v10\/channels\/\d+\/messages$/);
 
         // Validate Discord embed structure
         expect(capturedPayload).toHaveProperty("embeds");
@@ -133,8 +139,10 @@ describe("Discord Integration", () => {
       };
 
       let capturedPayload: any = null;
+      let capturedUrl: string = "";
       const originalFetch = global.fetch;
       global.fetch = async (url: string, options: any) => {
+        capturedUrl = url;
         capturedPayload = JSON.parse(options.body);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       };
@@ -144,6 +152,7 @@ describe("Discord Integration", () => {
 
         expect(result.success).toBe(true);
         expect(capturedPayload).toBeDefined();
+        expect(capturedUrl).toMatch(/^https:\/\/discord\.com\/api\/v10\/channels\/\d+\/messages$/);
 
         // Validate Discord embed structure
         const embed = capturedPayload.embeds[0];
