@@ -61,6 +61,23 @@ export class DiscordService {
     const supabase = createSupabaseAdminClient(context);
     this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
+    
+    // Log environment configuration for debugging (without sensitive values)
+    try {
+      console.log(`[DISCORD] Service initialized with config:`, {
+        hasWebhookUrl: !!this.env.DISCORD_WEBHOOK_URL,
+        webhookUrlLength: this.env.DISCORD_WEBHOOK_URL?.length || 0,
+        webhookUrlHost: this.env.DISCORD_WEBHOOK_URL ? new URL(this.env.DISCORD_WEBHOOK_URL).hostname : 'not set',
+        hasPublicKey: !!this.env.DISCORD_PUBLIC_KEY,
+        publicKeyLength: this.env.DISCORD_PUBLIC_KEY?.length || 0,
+        hasSiteUrl: !!this.env.SITE_URL,
+        siteUrl: this.env.SITE_URL || 'not set',
+        hasAllowedRoles: !!this.env.DISCORD_ALLOWED_ROLES,
+        allowedRolesCount: this.env.DISCORD_ALLOWED_ROLES?.split(',').length || 0,
+      });
+    } catch (error) {
+      console.error(`[DISCORD] Error logging service configuration:`, error);
+    }
   }
 
   /**
