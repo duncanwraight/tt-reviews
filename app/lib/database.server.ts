@@ -1219,7 +1219,18 @@ export class DatabaseService {
       console.log(`DatabaseService: Successfully updated player ${submissionId}, affected rows:`, data?.length || 0);
       if (data && data.length === 0) {
         console.warn(`DatabaseService: No rows were updated for player ${submissionId} - submission may not exist`);
+      } else if (data && data.length > 0) {
+        console.log(`DatabaseService: Verification - updated record has discord_message_id:`, data[0].discord_message_id);
       }
+
+      // Double-check by reading the record back
+      const { data: verifyData } = await this.supabase
+        .from("player_submissions")
+        .select("discord_message_id")
+        .eq("id", submissionId)
+        .single();
+      
+      console.log(`DatabaseService: Post-update verification - discord_message_id in database:`, verifyData?.discord_message_id || 'NULL');
     } catch (error) {
       console.error(`DatabaseService: Exception updating player ${submissionId}:`, error);
       throw error;
