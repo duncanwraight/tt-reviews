@@ -98,7 +98,13 @@ export const RATE_LIMITS = {
 export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
   // Content Security Policy - Progressive enhancement approach
   // Default to checking NODE_ENV, but allow override from context
-  const isDevMode = isDevelopment ?? (process.env.NODE_ENV === "development" || process.env.ENVIRONMENT === "development");
+  // In standard React dev, NODE_ENV might not be set, so be more permissive
+  const isDevMode = isDevelopment ?? (
+    process.env.NODE_ENV === "development" || 
+    process.env.ENVIRONMENT === "development" ||
+    !process.env.NODE_ENV || // If NODE_ENV is not set, assume development
+    process.env.NODE_ENV !== "production"
+  );
   
   const connectSrc = isDevMode
     ? "'self' https://*.supabase.co wss://*.supabase.co http://tt-reviews.local:54321 http://localhost:54321 http://tt-reviews.local:5173 http://localhost:5173"
@@ -148,7 +154,12 @@ export function addApiSecurityHeaders(headers: Headers, isDevelopment?: boolean)
   headers.set("X-XSS-Protection", "1; mode=block");
 
   // HSTS - Only add in production with HTTPS
-  const isDevMode = isDevelopment ?? (process.env.NODE_ENV === "development" || process.env.ENVIRONMENT === "development");
+  const isDevMode = isDevelopment ?? (
+    process.env.NODE_ENV === "development" || 
+    process.env.ENVIRONMENT === "development" ||
+    !process.env.NODE_ENV ||
+    process.env.NODE_ENV !== "production"
+  );
   if (!isDevMode) {
     headers.set(
       "Strict-Transport-Security",
