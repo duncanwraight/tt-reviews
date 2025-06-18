@@ -1997,7 +1997,7 @@ export class DiscordService {
       );
 
       if (!messageId) {
-        console.warn(`No Discord message ID found for ${submissionType} ${submissionId}`);
+        console.warn(`No Discord message ID found for ${submissionType} ${submissionId} - this submission was likely created before Discord message tracking was implemented. Skipping message update.`);
         return;
       }
 

@@ -1233,18 +1233,36 @@ export class DatabaseService {
   ): Promise<string | null> {
     try {
       const tableName = this.getSubmissionTableName(submissionType);
-      const { data, error } = await this.supabase
+      
+      // First check if the record exists at all
+      const { data: allRecords, error: countError } = await this.supabase
         .from(tableName)
-        .select("discord_message_id")
-        .eq("id", submissionId)
-        .single();
+        .select("id, discord_message_id")
+        .eq("id", submissionId);
 
-      if (error || !data) {
-        console.warn(`No Discord message ID found for ${submissionType} ${submissionId}:`, error?.message);
+      if (countError) {
+        console.error(`Database error checking ${submissionType} ${submissionId}:`, countError.message);
         return null;
       }
 
-      return data.discord_message_id;
+      if (!allRecords || allRecords.length === 0) {
+        console.warn(`${submissionType} record ${submissionId} does not exist`);
+        return null;
+      }
+
+      if (allRecords.length > 1) {
+        console.error(`Multiple ${submissionType} records found for ID ${submissionId}:`, allRecords.length);
+        // Return the first one as fallback
+        return allRecords[0].discord_message_id;
+      }
+
+      const record = allRecords[0];
+      if (!record.discord_message_id) {
+        console.warn(`${submissionType} ${submissionId} has no Discord message ID stored`);
+        return null;
+      }
+
+      return record.discord_message_id;
     } catch (error) {
       console.error(`Error getting Discord message ID for ${submissionType} ${submissionId}:`, error);
       return null;
