@@ -1174,38 +1174,56 @@ export class DatabaseService {
     submissionId: string,
     messageId: string
   ): Promise<void> {
-    return withDatabaseCorrelation(
-      async () => {
-        const { error } = await this.supabase
-          .from("equipment_submissions")
-          .update({ discord_message_id: messageId })
-          .eq("id", submissionId);
+    try {
+      console.log(`DatabaseService: Updating equipment ${submissionId} with Discord message ID ${messageId}`);
+      
+      const { data, error } = await this.supabase
+        .from("equipment_submissions")
+        .update({ discord_message_id: messageId })
+        .eq("id", submissionId)
+        .select(); // Add select to see what was updated
 
-        if (error) {
-          throw new Error(`Failed to update Discord message ID: ${error.message}`);
-        }
-      },
-      { submissionId, messageId }
-    );
+      if (error) {
+        console.error(`DatabaseService: Failed to update Discord message ID for equipment ${submissionId}:`, error);
+        throw new Error(`Failed to update Discord message ID: ${error.message}`);
+      }
+
+      console.log(`DatabaseService: Successfully updated equipment ${submissionId}, affected rows:`, data?.length || 0);
+      if (data && data.length === 0) {
+        console.warn(`DatabaseService: No rows were updated for equipment ${submissionId} - submission may not exist`);
+      }
+    } catch (error) {
+      console.error(`DatabaseService: Exception updating equipment ${submissionId}:`, error);
+      throw error;
+    }
   }
 
   async updatePlayerSubmissionDiscordMessageId(
     submissionId: string,
     messageId: string
   ): Promise<void> {
-    return withDatabaseCorrelation(
-      async () => {
-        const { error } = await this.supabase
-          .from("player_submissions")
-          .update({ discord_message_id: messageId })
-          .eq("id", submissionId);
+    try {
+      console.log(`DatabaseService: Updating player ${submissionId} with Discord message ID ${messageId}`);
+      
+      const { data, error } = await this.supabase
+        .from("player_submissions")
+        .update({ discord_message_id: messageId })
+        .eq("id", submissionId)
+        .select(); // Add select to see what was updated
 
-        if (error) {
-          throw new Error(`Failed to update Discord message ID: ${error.message}`);
-        }
-      },
-      { submissionId, messageId }
-    );
+      if (error) {
+        console.error(`DatabaseService: Failed to update Discord message ID for player ${submissionId}:`, error);
+        throw new Error(`Failed to update Discord message ID: ${error.message}`);
+      }
+
+      console.log(`DatabaseService: Successfully updated player ${submissionId}, affected rows:`, data?.length || 0);
+      if (data && data.length === 0) {
+        console.warn(`DatabaseService: No rows were updated for player ${submissionId} - submission may not exist`);
+      }
+    } catch (error) {
+      console.error(`DatabaseService: Exception updating player ${submissionId}:`, error);
+      throw error;
+    }
   }
 
   async updatePlayerEditDiscordMessageId(

@@ -1593,14 +1593,25 @@ export class DiscordService {
               const discordResponse = JSON.parse(responseText);
               messageId = discordResponse.id;
               
+              console.log(`Discord response parsed, message ID: ${messageId} for equipment ${submissionData.id}`);
+              
               // Store message ID in database for later editing
               if (messageId) {
+                console.log(`Attempting to store Discord message ID ${messageId} for equipment ${submissionData.id}`);
                 await this.dbService.updateEquipmentSubmissionDiscordMessageId(
                   submissionData.id,
                   messageId
                 );
+                console.log(`Successfully stored Discord message ID ${messageId} for equipment ${submissionData.id}`);
+              } else {
+                console.warn(`No message ID found in Discord response for equipment ${submissionData.id}`);
               }
             } catch (error) {
+              console.error("Failed to parse Discord response or store message ID", {
+                submissionId: submissionData.id,
+                error: error instanceof Error ? error.message : "Unknown error",
+                responseText: responseText.substring(0, 500) // First 500 chars for debugging
+              });
               this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
                 submissionId: submissionData.id,
                 error: error instanceof Error ? error.message : "Unknown error"
@@ -1758,14 +1769,25 @@ export class DiscordService {
               const discordResponse = JSON.parse(responseText);
               messageId = discordResponse.id;
               
+              console.log(`Discord response parsed, message ID: ${messageId} for player ${submissionData.id}`);
+              
               // Store message ID in database for later editing
               if (messageId) {
+                console.log(`Attempting to store Discord message ID ${messageId} for player ${submissionData.id}`);
                 await this.dbService.updatePlayerSubmissionDiscordMessageId(
                   submissionData.id,
                   messageId
                 );
+                console.log(`Successfully stored Discord message ID ${messageId} for player ${submissionData.id}`);
+              } else {
+                console.warn(`No message ID found in Discord response for player ${submissionData.id}`);
               }
             } catch (error) {
+              console.error("Failed to parse Discord response or store message ID", {
+                submissionId: submissionData.id,
+                error: error instanceof Error ? error.message : "Unknown error",
+                responseText: responseText.substring(0, 500) // First 500 chars for debugging
+              });
               this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
                 submissionId: submissionData.id,
                 error: error instanceof Error ? error.message : "Unknown error"
