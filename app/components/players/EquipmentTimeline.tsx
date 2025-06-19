@@ -91,54 +91,55 @@ export function EquipmentTimeline({
   playerName,
   showAddButton = false,
 }: EquipmentTimelineProps) {
-  // Mock data if no setups provided
-  const mockSetups = equipmentSetups.length
-    ? equipmentSetups
-    : [
-        {
-          id: "mock-1",
-          player_id: playerId,
-          year: 2019,
-          blade: { name: "Butterfly Diode", slug: "butterfly-diode" },
-          forehand_rubber: {
-            name: "Butterfly Tenergy 64",
-            slug: "butterfly-tenergy-64",
-          },
-          forehand_thickness: "max",
-          forehand_color: "red" as const,
-          backhand_rubber: {
-            name: "Victas Curl P3aV",
-            slug: "victas-curl-p3av",
-          },
-          backhand_thickness: "1.5mm",
-          backhand_color: "black" as const,
-          source_url: "https://youtube.com/watch",
-          source_type: "video" as const,
-          verified: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "mock-2",
-          player_id: playerId,
-          year: 2007,
-          blade: { name: "Butterfly Diode", slug: "butterfly-diode" },
-          forehand_rubber: {
-            name: "Butterfly Tenergy 64",
-            slug: "butterfly-tenergy-64",
-          },
-          forehand_thickness: "max",
-          forehand_color: "red" as const,
-          backhand_rubber: { name: "TSP Curl P1-R", slug: "tsp-curl-p1-r" },
-          backhand_thickness: "1.5mm",
-          backhand_color: "black" as const,
-          source_url: "https://example.com/interview",
-          source_type: "interview" as const,
-          verified: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
+  // Show empty state if no equipment setups
+  if (equipmentSetups.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="timeline-header flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
+          {showAddButton && (
+            <a
+              href={`/players/${playerId}/edit#add-equipment`}
+              className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              Add Equipment Setup
+            </a>
+          )}
+        </div>
+
+        <div className="empty-state text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mb-4">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No Equipment Information Available
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {playerName}'s equipment hasn't been submitted yet.
+          </p>
+          <a
+            href={`/players/submit?player=${encodeURIComponent(playerName)}`}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          >
+            Submit Equipment Information
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -158,7 +159,7 @@ export function EquipmentTimeline({
       <div className="timeline relative pl-8">
         <div className="timeline-line absolute left-3 top-0 bottom-0 w-0.5 bg-gray-300"></div>
 
-        {mockSetups.map((setup, index) => (
+        {equipmentSetups.map((setup, index) => (
           <TimelineItem key={setup.id || index} setup={setup} />
         ))}
       </div>
