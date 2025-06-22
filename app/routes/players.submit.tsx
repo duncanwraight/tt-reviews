@@ -147,6 +147,24 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
   }
 
+  // Add video data if provided
+  const videos = [];
+  let index = 0;
+  while (formData.get(`videos[${index}][url]`)) {
+    const url = formData.get(`videos[${index}][url]`) as string;
+    const title = formData.get(`videos[${index}][title]`) as string;
+    const platform = formData.get(`videos[${index}][platform]`) as string;
+
+    if (url && title) {
+      videos.push({ url, title, platform });
+    }
+    index++;
+  }
+
+  if (videos.length > 0) {
+    submission.videos = videos;
+  }
+
   // Use authenticated client with RLS policies
   const supabase = sbServerClient.client;
   const { data: playerSubmission, error: submitError } = await supabase

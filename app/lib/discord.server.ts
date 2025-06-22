@@ -2111,6 +2111,161 @@ export class DiscordService {
     // TODO: Implement rejected review notification
     return { success: true };
   }
+
+  /**
+   * Send notification about new video submission
+   */
+  async notifyNewVideoSubmission(
+    submissionData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_bot",
+      submissionType: "video",
+      submissionId: submissionData.id,
+    });
+
+    return this.logger.timeOperation(
+      "discord_bot_video_submission",
+      async () => {
+        this.logger.info(
+          "Sending Discord bot message for video submission",
+          logContext,
+          {
+            submissionId: submissionData.id,
+            playerName: submissionData.player_name,
+          }
+        );
+
+        // Validate configuration
+        const config = this.validateBotConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord bot configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              submissionId: submissionData.id,
+            }
+          );
+          throw error;
+        }
+
+        // Format video information
+        const videoCount = Array.isArray(submissionData.videos) ? submissionData.videos.length : 0;
+        const videoSummary = Array.isArray(submissionData.videos) && submissionData.videos.length > 0
+          ? submissionData.videos.map((v: any) => `• [${v.title}](${v.url}) (${v.platform})`).join('\n')
+          : 'No videos provided';
+
+        const embed = {
+          title: "🎥 Video Submission",
+          description: `A new video submission has been received and needs moderation.`,
+          color: 0xe74c3c, // Red color to distinguish from equipment submissions
+          fields: [
+            {
+              name: "Player",
+              value: submissionData.player_name || "Unknown Player",
+              inline: true,
+            },
+            {
+              name: "Video Count",
+              value: videoCount.toString(),
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: submissionData.submitter_email || "Anonymous",
+              inline: true,
+            },
+            {
+              name: "Videos",
+              value: videoSummary.length > 1024 ? videoSummary.substring(0, 1021) + '...' : videoSummary,
+              inline: false,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const components = this.createProgressButtons("video", submissionData.id, 0, 2);
+
+        const payload = {
+          embeds: [embed],
+          components,
+        };
+
+        // Send bot message request
+        try {
+          const response = await globalThis.fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          let messageId: string | null = null;
+          if (success) {
+            try {
+              const discordResponse = JSON.parse(responseText);
+              messageId = discordResponse.id;
+              
+              // Store message ID in database for later editing
+              if (messageId) {
+                await this.dbService.updateVideoSubmissionDiscordMessageId(
+                  submissionData.id,
+                  messageId
+                );
+              }
+            } catch (error) {
+              this.logger.warn("Failed to parse Discord response or store message ID", logContext, {
+                submissionId: submissionData.id,
+                error: error instanceof Error ? error.message : "Unknown error"
+              });
+            }
+          }
+
+          this.logger.info("Video submission notification result", {
+            submissionId: submissionData.id,
+            playerName: submissionData.player_name,
+            success,
+            status: response.status,
+            messageId,
+            requestId,
+          });
+
+          return { success, status: response.status, response: responseText, messageId };
+        } catch (error) {
+          this.logger.error(
+            "Discord bot API network error",
+            logContext,
+            error as Error,
+            {
+              submissionId: submissionData.id,
+            }
+          );
+
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
+            submissionType: "video",
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
+  }
 }
 
 /**

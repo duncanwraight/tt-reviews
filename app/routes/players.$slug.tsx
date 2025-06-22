@@ -74,6 +74,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // Get equipment setups with related equipment data
   const equipmentSetups = await db.getPlayerEquipmentSetups(player.id);
+  
+  // Get player footage/videos
+  const footage = await db.getPlayerFootage(player.id);
 
   // Generate structured data schemas
   const playerSchema = schemaService.generatePlayerSchema(player);
@@ -92,6 +95,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       user: userResponse?.data?.user || null,
       player,
       equipmentSetups,
+      footage,
       schemaJsonLd,
     },
     { headers: sbServerClient.headers }
@@ -99,7 +103,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
-  const { user, player, equipmentSetups } = loaderData;
+  const { user, player, equipmentSetups, footage } = loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -118,6 +122,7 @@ export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
       <PlayerTabs
         player={player}
         equipmentSetups={equipmentSetups}
+        footage={footage}
         showEditButtons={!!user}
       />
     </>

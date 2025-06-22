@@ -798,7 +798,7 @@ INSERT INTO site_content (key, content, description, category) VALUES
 -- Form Help Text & Guidance
 ('forms.subcategory_help', 'Select subcategory (optional)', 'Help text for subcategory selection in forms', 'forms'),
 ('forms.equipment_specifications_help', 'Include any technical specifications, ratings, or notable features of this equipment.', 'Help text for equipment specifications field', 'forms'),
-('forms.player_biography_help', 'Include career highlights, playing achievements, and notable information about this player.', 'Help text for player biography field', 'forms'),
+('forms.player_biography_help', 'Include career highlights and notable information about this player.', 'Help text for player biography field', 'forms'),
 ('forms.image_upload_general_help', 'Upload a clear, high-quality image. This helps with identification and approval.', 'General help text for image uploads', 'forms'),
 
 -- Footer

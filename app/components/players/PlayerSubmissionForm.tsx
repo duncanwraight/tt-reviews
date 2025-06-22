@@ -4,6 +4,7 @@ import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { ImageUpload } from "~/components/ui/ImageUpload";
 import { CSRFToken } from "~/components/ui/CSRFToken";
 import { PlayerEquipmentSetup } from "./PlayerEquipmentSetup";
+import { VideoSubmissionSection } from "~/components/forms/VideoSubmissionSection";
 import type { CategoryOption } from "~/lib/categories.server";
 
 // Client-side helper function to format country options
@@ -26,6 +27,7 @@ export function PlayerSubmissionForm({
 }: PlayerSubmissionFormProps): JSX.Element {
   const navigate = useNavigate();
   const [includeEquipment, setIncludeEquipment] = useState(false);
+  const [videos, setVideos] = useState<any[]>([]);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -224,6 +226,14 @@ export function PlayerSubmissionForm({
                   onToggleEquipment={setIncludeEquipment}
                   isSubmitting={isLoading}
                 />
+
+                {/* Video Information Section */}
+                <div className="border-t border-gray-200 pt-8">
+                  <VideoSubmissionSection 
+                    onVideosChange={setVideos}
+                    showTitle={true}
+                  />
+                </div>
 
                 {/* Submit Button */}
                 <div className="flex justify-end space-x-3">

@@ -98,14 +98,6 @@ export function PlayerHeader({
                 </a>
               </div>
             )}
-            <p className="text-sm text-gray-600 mb-2">
-              <span className="font-medium text-gray-900">
-                Notable Achievements
-              </span>
-            </p>
-            <p className="text-sm text-gray-600">
-              World Championship semifinalist, Olympic bronze medalist
-            </p>
           </div>
         </div>
       </div>

@@ -119,7 +119,7 @@ export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
     `connect-src ${connectSrc}`, // Supabase API + local development
     "media-src 'self'",
     "object-src 'none'",
-    "frame-src 'none'",
+    "frame-src 'self' https://www.youtube.com https://youtube.com",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",

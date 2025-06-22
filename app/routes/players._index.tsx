@@ -18,7 +18,7 @@ export function meta({ data }: Route.MetaArgs) {
   const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
 
   // Enhanced meta description with player count and value proposition
-  const description = `Explore hundreds of professional table tennis players. Discover equipment setups, playing styles, and career achievements. Updated ${currentYear}.`;
+  const description = `Explore hundreds of professional table tennis players. Discover equipment setups and playing styles. Updated ${currentYear}.`;
 
   // Enhanced keywords targeting player searches from research
   const keywords = [

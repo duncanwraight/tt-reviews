@@ -568,6 +568,22 @@ export class DatabaseService {
     return (data as PlayerEquipmentSetup[]) || [];
   }
 
+  async getPlayerFootage(playerId: string) {
+    const { data, error } = await this.supabase
+      .from("player_footage")
+      .select("*")
+      .eq("player_id", playerId)
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching player footage:", error);
+      return [];
+    }
+
+    return data || [];
+  }
+
   // Review methods
   async getEquipmentReviews(
     equipmentId: string,
@@ -1198,6 +1214,20 @@ export class DatabaseService {
   ): Promise<void> {
     const { error } = await this.supabase
       .from("player_submissions")
+      .update({ discord_message_id: messageId })
+      .eq("id", submissionId);
+
+    if (error) {
+      throw new Error(`Failed to update Discord message ID: ${error.message}`);
+    }
+  }
+
+  async updateVideoSubmissionDiscordMessageId(
+    submissionId: string,
+    messageId: string
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .from("video_submissions")
       .update({ discord_message_id: messageId })
       .eq("id", submissionId);
 
