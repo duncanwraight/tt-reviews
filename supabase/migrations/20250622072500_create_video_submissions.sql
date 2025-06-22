@@ -46,6 +46,14 @@ CREATE TRIGGER update_video_submissions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+-- Update moderator_approvals table to support video submissions
+ALTER TABLE moderator_approvals 
+DROP CONSTRAINT moderator_approvals_submission_type_check;
+
+ALTER TABLE moderator_approvals 
+ADD CONSTRAINT moderator_approvals_submission_type_check 
+CHECK (submission_type IN ('equipment', 'player', 'player_edit', 'video'));
+
 -- Update the submission status trigger to handle video submissions
 CREATE OR REPLACE FUNCTION update_submission_status()
 RETURNS TRIGGER AS $$

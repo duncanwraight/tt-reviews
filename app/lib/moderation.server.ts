@@ -21,7 +21,7 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -92,7 +92,7 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -242,7 +242,7 @@ export class ModerationService {
   }
 
   private async getSubmissionStatus(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -256,7 +256,7 @@ export class ModerationService {
   }
 
   private async deleteSubmissionImage(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -314,7 +314,7 @@ export class ModerationService {
   }
 
   private getTableName(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review"
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video"
   ): string {
     switch (submissionType) {
       case "equipment":
@@ -325,6 +325,8 @@ export class ModerationService {
         return "player_edits";
       case "equipment_review":
         return "equipment_reviews";
+      case "video":
+        return "video_submissions";
       default:
         throw new Error(`Unknown submission type: ${submissionType}`);
     }

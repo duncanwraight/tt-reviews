@@ -13,6 +13,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
       playerSubmissionsQuery,
       playerEditsQuery,
       equipmentReviewsQuery,
+      videoSubmissionsQuery,
       equipmentCountQuery,
       playersCountQuery,
     ] = await Promise.all([
@@ -34,6 +35,12 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
       // Get equipment reviews grouped by status
       supabase
         .from("equipment_reviews")
+        .select("status")
+        .not("status", "is", null),
+
+      // Get video submissions grouped by status
+      supabase
+        .from("video_submissions")
         .select("status")
         .not("status", "is", null),
 
@@ -74,6 +81,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerSubmissions: playerSubmissionsQuery.data?.length || 0,
         playerEdits: playerEditsQuery.data?.length || 0,
         equipmentReviews: equipmentReviewsQuery.data?.length || 0,
+        videoSubmissions: videoSubmissionsQuery.data?.length || 0,
         equipment: equipmentCountQuery.count || 0,
         players: playersCountQuery.count || 0,
       },
@@ -82,6 +90,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerSubmissions: getStatusCounts(playerSubmissionsQuery.data),
         playerEdits: getStatusCounts(playerEditsQuery.data),
         equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
+        videoSubmissions: getStatusCounts(videoSubmissionsQuery.data),
       },
     };
 
@@ -96,6 +105,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerSubmissions: 0,
         playerEdits: 0,
         equipmentReviews: 0,
+        videoSubmissions: 0,
         equipment: 0,
         players: 0,
       },
@@ -119,6 +129,12 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
           rejected: 0,
         },
         equipmentReviews: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+        videoSubmissions: {
           pending: 0,
           awaiting_second_approval: 0,
           approved: 0,
@@ -159,6 +175,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     playerSubmissions: playerSubmissionsCount,
     playerEdits: playerEditsCount,
     equipmentReviews: equipmentReviewsCount,
+    videoSubmissions: videoSubmissionsCount,
     equipment: equipmentCount,
     players: playersCount,
   } = dashboardCounts.totals;
@@ -169,6 +186,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     playerSubmissions: playerSubmissionsByStatus,
     playerEdits: playerEditsByStatus,
     equipmentReviews: equipmentReviewsByStatus,
+    videoSubmissions: videoSubmissionsByStatus,
   } = dashboardCounts.byStatus;
 
   // Extract individual status counts for easier access
@@ -195,12 +213,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const approvedEquipmentReviews = equipmentReviewsByStatus.approved;
   const rejectedEquipmentReviews = equipmentReviewsByStatus.rejected;
 
+  const pendingVideoSubmissions = videoSubmissionsByStatus.pending;
+  const awaitingVideoSubmissions =
+    videoSubmissionsByStatus.awaiting_second_approval;
+  const approvedVideoSubmissions = videoSubmissionsByStatus.approved;
+  const rejectedVideoSubmissions = videoSubmissionsByStatus.rejected;
+
   return data({
     stats: {
       equipmentSubmissions: equipmentSubmissionsCount || 0,
       playerSubmissions: playerSubmissionsCount || 0,
       playerEdits: playerEditsCount || 0,
       equipmentReviews: equipmentReviewsCount || 0,
+      videoSubmissions: videoSubmissionsCount || 0,
       equipment: equipmentCount || 0,
       players: playersCount || 0,
       // Equipment submission status breakdown
@@ -224,6 +249,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         (pendingEquipmentReviews || 0) + (awaitingEquipmentReviews || 0),
       equipmentReviewsApproved: approvedEquipmentReviews || 0,
       equipmentReviewsRejected: rejectedEquipmentReviews || 0,
+      // Video submissions status breakdown
+      videoSubmissionsPending:
+        (pendingVideoSubmissions || 0) + (awaitingVideoSubmissions || 0),
+      videoSubmissionsApproved: approvedVideoSubmissions || 0,
+      videoSubmissionsRejected: rejectedVideoSubmissions || 0,
     },
   });
 }
@@ -268,6 +298,15 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       link: "/admin/equipment-reviews",
       color: "bg-yellow-500",
     },
+    {
+      title: "Video Submissions",
+      total: stats.videoSubmissions,
+      pending: stats.videoSubmissionsPending,
+      approved: stats.videoSubmissionsApproved,
+      rejected: stats.videoSubmissionsRejected,
+      link: "/admin/video-submissions",
+      color: "bg-pink-500",
+    },
   ];
 
   const contentStats = [
@@ -295,7 +334,8 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         {/* Pending Items Alert */}
         {stats.equipmentPending +
           stats.playerSubmissionsPending +
-          stats.playerEditsPending >
+          stats.playerEditsPending +
+          stats.videoSubmissionsPending >
           0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
@@ -310,7 +350,8 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   You have{" "}
                   {stats.equipmentPending +
                     stats.playerSubmissionsPending +
-                    stats.playerEditsPending}{" "}
+                    stats.playerEditsPending +
+                    stats.videoSubmissionsPending}{" "}
                   items waiting for review.
                 </div>
               </div>
@@ -319,7 +360,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Moderation Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           {statCards.map((card, index) => (
             <div key={index} className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">

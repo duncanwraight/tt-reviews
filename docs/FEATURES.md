@@ -16,3 +16,6 @@ Search box doesn't really work at the moment. Searches with more than 1 word don
 
 # Form modal
 - [ ] Any time a modal response is used to confirm a successful submission, redirect to the user's profile page so they can see the submission
+
+# Admin area
+- [ ] Update the administrative navigation menu to have all submissions under a drop-down, e.g. "[Submissions] | Categories | Content"

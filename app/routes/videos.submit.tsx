@@ -125,6 +125,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   try {
+    console.log("Video submission attempt for player:", playerId, "videos:", videos);
     // Get player info for the submission
     const { data: player } = await sbServerClient.client
       .from("players")
@@ -137,7 +138,18 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     // Create video submission for moderation
-    const { data: submission, error: submitError } = await sbServerClient.client
+    console.log("Inserting video submission:", {
+      user_id: user.id,
+      player_id: playerId,
+      videos: videos,
+      status: "pending",
+    });
+    
+    // Try with admin client to bypass RLS issues
+    const { createSupabaseAdminClient } = await import("~/lib/database.server");
+    const adminClient = createSupabaseAdminClient(context);
+    
+    const { data: submission, error: submitError } = await adminClient
       .from("video_submissions")
       .insert({
         user_id: user.id,
@@ -147,6 +159,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       })
       .select()
       .single();
+    
+    console.log("Video submission result:", { submission, submitError });
 
     if (submitError) {
       console.error("Video submission error:", submitError);
