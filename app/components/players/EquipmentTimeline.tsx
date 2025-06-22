@@ -7,7 +7,7 @@ interface EquipmentTimelineProps {
     forehand_rubber?: { name: string; slug: string };
     backhand_rubber?: { name: string; slug: string };
   })[];
-  playerId: string;
+  playerId: string; // This is actually the player slug
   playerName: string;
   showAddButton?: boolean;
 }
@@ -98,12 +98,12 @@ export function EquipmentTimeline({
         <div className="timeline-header flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
           {showAddButton && (
-            <a
-              href={`/players/${playerId}/edit#add-equipment`}
+            <Link
+              to={`/players/edit/${playerId}#add-equipment`}
               className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               Add Equipment Setup
-            </a>
+            </Link>
           )}
         </div>
 
@@ -130,12 +130,12 @@ export function EquipmentTimeline({
           <p className="text-gray-600 mb-6">
             {playerName}'s equipment hasn't been submitted yet.
           </p>
-          <a
-            href={`/players/submit?player=${encodeURIComponent(playerName)}`}
+          <Link
+            to={`/players/edit/${playerId}#add-equipment`}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
           >
             Submit Equipment Information
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -147,12 +147,12 @@ export function EquipmentTimeline({
       <div className="timeline-header flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
         {showAddButton && (
-          <a
-            href={`/players/${playerId}/edit#add-equipment`}
+          <Link
+            to={`/players/edit/${playerId}#add-equipment`}
             className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             Add Equipment Setup
-          </a>
+          </Link>
         )}
       </div>
 

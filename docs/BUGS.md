@@ -5,8 +5,8 @@
   - ~~https://tabletennis.reviews/equipment?category=rubber&subcategory=anti~~
   - ~~https://tabletennis.reviews/players/truls-moregard~~
   - ~~https://tabletennis.reviews/equipment~~
-- [ ] File upload boxes across site don't support drag&drop functionality
-- [ ] On /players/submit once a forehand rubber is selected, the other rubber should automatically select backhand
-- [ ] On /players/* detail pages, Add Equipment Setup link 404s
-- [ ] On /players/* detail pages, if a player has no equipment, the Submit Equipment Information button navigates to the full Player Submit form
+- [x] ~~File upload boxes across site don't support drag&drop functionality~~ - **FIXED**: Added full drag & drop support to ImageUpload component with visual feedback
+- [x] ~~On /players/submit once a forehand rubber is selected, the other rubber should automatically select backhand~~ - **FIXED**: Implemented auto-selection logic for rubber sides in PlayerEquipmentSetup component
+- [x] ~~On /players/* detail pages, Add Equipment Setup link 404s~~ - **FIXED**: Corrected URL format from `/players/{id}/edit` to `/players/edit/{slug}`
+- [x] ~~On /players/* detail pages, if a player has no equipment, the Submit Equipment Information button navigates to the full Player Submit form~~ - **FIXED**: Changed button to navigate to player edit page instead of new player submission
 - [x] ~~On /equipment/submit, a user received an error, but the review appeared in their Profile and we saw the moderation request in Discord - check to make sure error logic is correct~~ - **FIXED**: Changed logic to not fail submission when image upload fails, shows informative success message instead

@@ -1,4 +1,4 @@
-import { type ComponentProps } from "react";
+import { type ComponentProps, useState, useEffect } from "react";
 
 interface PlayerEquipmentSetupProps {
   includeEquipment: boolean;
@@ -18,6 +18,24 @@ export function PlayerEquipmentSetup({
   onToggleEquipment,
   isSubmitting,
 }: PlayerEquipmentSetupProps) {
+  const [forehandSide, setForehandSide] = useState<string>("");
+  const [backhandSide, setBackhandSide] = useState<string>("");
+
+  // Auto-select logic: when one side is selected, auto-select the opposite for the other rubber
+  const handleForehandSideChange = (value: string) => {
+    setForehandSide(value);
+    if (value === "forehand") {
+      setBackhandSide("backhand");
+    }
+  };
+
+  const handleBackhandSideChange = (value: string) => {
+    setBackhandSide(value);
+    if (value === "backhand") {
+      setForehandSide("forehand");
+    }
+  };
+
   return (
     <div className="border-b border-gray-200 pb-6">
       <div className="flex items-center mb-4">
@@ -84,6 +102,8 @@ export function PlayerEquipmentSetup({
             side="forehand"
             label="Forehand"
             isSubmitting={isSubmitting}
+            selectedSide={forehandSide}
+            onSideChange={handleForehandSideChange}
           />
 
           {/* Backhand Setup */}
@@ -91,6 +111,8 @@ export function PlayerEquipmentSetup({
             side="backhand"
             label="Backhand"
             isSubmitting={isSubmitting}
+            selectedSide={backhandSide}
+            onSideChange={handleBackhandSideChange}
           />
 
           {/* Source Information */}
@@ -143,9 +165,11 @@ interface RubberSetupProps {
   side: "forehand" | "backhand";
   label: string;
   isSubmitting: boolean;
+  selectedSide: string;
+  onSideChange: (value: string) => void;
 }
 
-function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
+function RubberSetup({ side, label, isSubmitting, selectedSide, onSideChange }: RubberSetupProps) {
   return (
     <div>
       <h4 className="text-md font-medium text-gray-900 mb-3">{label}</h4>
@@ -198,6 +222,8 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
                 id={`${side}_forehand`}
                 name={`${side}_side`}
                 value="forehand"
+                checked={selectedSide === "forehand"}
+                onChange={(e) => onSideChange(e.target.value)}
                 disabled={isSubmitting}
                 className="mr-2 text-red-600 focus:ring-red-500"
               />
@@ -215,6 +241,8 @@ function RubberSetup({ side, label, isSubmitting }: RubberSetupProps) {
                 id={`${side}_backhand`}
                 name={`${side}_side`}
                 value="backhand"
+                checked={selectedSide === "backhand"}
+                onChange={(e) => onSideChange(e.target.value)}
                 disabled={isSubmitting}
                 className="mr-2 text-gray-900 focus:ring-gray-500"
               />

@@ -27,10 +27,10 @@ export function ImageUpload({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
+  const processFile = (file: File | null) => {
     setError(null);
 
     if (file) {
@@ -71,6 +71,11 @@ export function ImageUpload({
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    processFile(file);
+  };
+
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -86,6 +91,47 @@ export function ImageUpload({
   const handleClick = () => {
     if (!disabled) {
       fileInputRef.current?.click();
+    }
+  };
+
+  // Drag and drop event handlers
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    if (disabled) return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      processFile(file);
+
+      // Update the hidden file input to match the dropped file
+      if (fileInputRef.current) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInputRef.current.files = dataTransfer.files;
+      }
     }
   };
 
@@ -124,9 +170,16 @@ export function ImageUpload({
         {!selectedFile && (
           <div
             onClick={handleClick}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
             className={`
-              border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer
-              hover:border-gray-400 hover:bg-gray-50 transition-colors
+              border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
+              ${isDragOver 
+                ? "border-purple-500 bg-purple-50 border-solid" 
+                : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+              }
               ${disabled ? "cursor-not-allowed opacity-50" : ""}
             `}
           >
@@ -145,10 +198,18 @@ export function ImageUpload({
                 />
               </svg>
               <div className="text-sm text-gray-600">
-                <span className="font-medium text-purple-600">
-                  Click to upload
-                </span>{" "}
-                or drag and drop
+                {isDragOver ? (
+                  <span className="font-medium text-purple-600">
+                    Drop your image here
+                  </span>
+                ) : (
+                  <>
+                    <span className="font-medium text-purple-600">
+                      Click to upload
+                    </span>{" "}
+                    or drag and drop
+                  </>
+                )}
               </div>
               <p className="text-xs text-gray-500">
                 JPEG, PNG, WebP up to {maxSize}MB
