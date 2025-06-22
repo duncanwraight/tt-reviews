@@ -164,15 +164,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       // Continue anyway - the submission was created successfully
     }
   } else if (formData.get("image") && !imageUploadResult.success) {
-    // If user tried to upload an image but it failed, return error
-    return data(
-      {
-        error:
-          imageUploadResult.error ||
-          "Failed to upload image. Please try again.",
-      },
-      { status: 400, headers: sbServerClient.headers }
-    );
+    // Log image upload failure but don't fail the entire submission
+    console.warn("Image upload failed for submission:", submission.id, imageUploadResult.error);
   }
 
   // Send Discord notification (non-blocking)
@@ -196,11 +189,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     // Error logging is handled by the Discord service
   }
 
+  // Determine success message based on whether image upload succeeded
+  let message = "Equipment submitted successfully! It will be reviewed by our team.";
+  if (formData.get("image") && !imageUploadResult.success) {
+    message += " Note: Image upload failed, but you can add an image later by editing your submission.";
+  }
+
   return data(
     {
       success: true,
-      message:
-        "Equipment submitted successfully! It will be reviewed by our team.",
+      message,
     },
     { headers: sbServerClient.headers }
   );

@@ -56,7 +56,7 @@ export function meta({ params, data }: Route.MetaArgs) {
     { property: "article:author", content: "TT Reviews" },
     { property: "og:site_name", content: "TT Reviews" },
     // Structured data from loader
-    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
+    ...(data?.multipleSchemas ? [{ "script:ld+json": data.multipleSchemas }] : []),
   ];
 }
 
@@ -85,10 +85,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     { label: "Players", href: "/players" },
     { label: player.name, href: `/players/${player.slug}` },
   ]);
-  const schemaJsonLd = schemaService.generateMultipleSchemas([
-    playerSchema,
-    breadcrumbSchema,
-  ]);
+  const multipleSchemas = [playerSchema, breadcrumbSchema];
 
   return data(
     {
@@ -96,7 +93,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       player,
       equipmentSetups,
       footage,
-      schemaJsonLd,
+      multipleSchemas,
     },
     { headers: sbServerClient.headers }
   );

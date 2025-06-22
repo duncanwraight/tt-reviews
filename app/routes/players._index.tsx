@@ -49,7 +49,7 @@ export function meta({ data }: Route.MetaArgs) {
     { name: "category", content: "Table Tennis Players" },
     { property: "article:section", content: "Player Database" },
     // Structured data from loader
-    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
+    ...(data?.breadcrumbSchema ? [{ "script:ld+json": data.breadcrumbSchema }] : []),
   ];
 }
 
@@ -110,7 +110,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
   ]);
-  const schemaJsonLd = schemaService.toJsonLd(breadcrumbSchema);
 
   return data(
     {
@@ -132,7 +131,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         sortBy,
         sortOrder,
       },
-      schemaJsonLd,
+      breadcrumbSchema,
     },
     { headers: sbServerClient.headers }
   );

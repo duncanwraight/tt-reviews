@@ -540,47 +540,176 @@ export class DiscordService {
   }
 
   /**
-   * Handle review approval - placeholder for now
+   * Handle review approval
    */
   private async handleApproveReview(
     reviewId: string,
     user: DiscordUser
   ): Promise<Response> {
-    // TODO: Implement moderation service for reviews
-    return new Response(
-      JSON.stringify({
-        type: 4,
-        data: {
-          content: `✅ **Review approval functionality not yet implemented**\nReview ${reviewId} - this will be implemented when the moderation service is ported.`,
-          flags: 64,
-        },
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
-    );
+
+      const result = await this.moderationService.recordApproval(
+        "equipment_review",
+        reviewId,
+        discordModeratorId,
+        "discord",
+        `Approved by ${user.username} via Discord`,
+        true
+      );
+
+      if (result.success) {
+        const statusText = result.newStatus === "approved" 
+          ? "fully approved and published"
+          : "received first approval";
+        
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Review ${statusText}**\nReview ${reviewId} approved by ${user.username}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Approval failed**: ${result.error || "Unknown error"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Review approval error:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to approve review - ${error instanceof Error ? error.message : "Unknown error"}`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   }
 
   /**
-   * Handle review rejection - placeholder for now
+   * Handle review rejection
    */
   private async handleRejectReview(
     reviewId: string,
     user: DiscordUser
   ): Promise<Response> {
-    // TODO: Implement moderation service for reviews
-    return new Response(
-      JSON.stringify({
-        type: 4,
-        data: {
-          content: `❌ **Review rejection functionality not yet implemented**\nReview ${reviewId} - this will be implemented when the moderation service is ported.`,
-          flags: 64,
-        },
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
-    );
+
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "equipment_review",
+        reviewId,
+        discordModeratorId,
+        "discord",
+        {
+          category: "quality",
+          reason: `Rejected by ${user.username} via Discord`,
+        },
+        this.env.R2_BUCKET,
+        true
+      );
+
+      if (result.success) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Review rejected**\nReview ${reviewId} rejected by ${user.username}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Rejection failed**: ${result.error || "Unknown error"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Review rejection error:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to reject review - ${error instanceof Error ? error.message : "Unknown error"}`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   }
 
   /**

@@ -94,7 +94,7 @@ export function meta({ data }: Route.MetaArgs) {
       ? [{ property: "product:rating:count", content: reviewCount.toString() }]
       : []),
     // Structured data from loader
-    ...(data?.schemaJsonLd ? [{ "script:ld+json": data.schemaJsonLd }] : []),
+    ...(data?.multipleSchemas ? [{ "script:ld+json": data.multipleSchemas }] : []),
   ];
 }
 
@@ -174,10 +174,7 @@ export const loader = withLoaderCorrelation(
       { label: "Equipment", href: "/equipment" },
       { label: equipment.name },
     ]);
-    const schemaJsonLd = schemaService.generateMultipleSchemas([
-      equipmentSchema,
-      breadcrumbSchema,
-    ]);
+    const multipleSchemas = [equipmentSchema, breadcrumbSchema];
 
     return data(
       {
@@ -189,7 +186,7 @@ export const loader = withLoaderCorrelation(
         reviewCount: reviews.length,
         ratingCategories: allRatingCategories,
         similarEquipment,
-        schemaJsonLd,
+        multipleSchemas,
       },
       { headers: sbServerClient.headers }
     );

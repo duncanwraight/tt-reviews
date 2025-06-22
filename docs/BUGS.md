@@ -1,12 +1,12 @@
-- [ ] Submissions for equipment reviews aren't being handled properly from moderation perspective; just have some "coming soon"-type text
-- [ ] Google Search Console is reporting "Invalid top level element 'string'" on the following URLs:
-  - https://tabletennis.reviews/players
-  - Newly-submitted players like https://tabletennis.reviews/players/asdsada
-  - https://tabletennis.reviews/equipment?category=rubber&subcategory=anti
-  - https://tabletennis.reviews/players/truls-moregard
-  - https://tabletennis.reviews/equipment
+- [x] ~~Submissions for equipment reviews aren't being handled properly from moderation perspective; just have some "coming soon"-type text~~ - **FIXED**: Implemented proper Discord bot approval/rejection handlers for equipment reviews
+- [x] ~~Google Search Console is reporting "Invalid top level element 'string'" on the following URLs~~ - **FIXED**: Fixed JSON-LD schema format issues in meta functions across all affected routes
+  - ~~https://tabletennis.reviews/players~~
+  - ~~Newly-submitted players like https://tabletennis.reviews/players/asdsada~~
+  - ~~https://tabletennis.reviews/equipment?category=rubber&subcategory=anti~~
+  - ~~https://tabletennis.reviews/players/truls-moregard~~
+  - ~~https://tabletennis.reviews/equipment~~
 - [ ] File upload boxes across site don't support drag&drop functionality
 - [ ] On /players/submit once a forehand rubber is selected, the other rubber should automatically select backhand
 - [ ] On /players/* detail pages, Add Equipment Setup link 404s
 - [ ] On /players/* detail pages, if a player has no equipment, the Submit Equipment Information button navigates to the full Player Submit form
-- [ ] On /equipment/submit, a user received an error, but the review appeared in their Profile and we saw the moderation request in Discord - check to make sure error logic is correct
+- [x] ~~On /equipment/submit, a user received an error, but the review appeared in their Profile and we saw the moderation request in Discord - check to make sure error logic is correct~~ - **FIXED**: Changed logic to not fail submission when image upload fails, shows informative success message instead

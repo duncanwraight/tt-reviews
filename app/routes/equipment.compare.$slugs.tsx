@@ -93,10 +93,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     },
   ]);
 
-  const schemaJsonLd = schemaService.generateMultipleSchemas([
-    comparisonSchema,
-    breadcrumbSchema,
-  ]);
+  const multipleSchemas = [comparisonSchema, breadcrumbSchema];
 
   return data(
     {
@@ -108,7 +105,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       averageRating2,
       usedByPlayers1,
       usedByPlayers2,
-      schemaJsonLd,
+      multipleSchemas,
     },
     { headers: sbServerClient.headers }
   );
@@ -171,7 +168,7 @@ export function meta({ data }: Route.MetaArgs) {
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
     {
-      "script:ld+json": data.schemaJsonLd,
+      "script:ld+json": data.multipleSchemas,
     },
   ];
 }
