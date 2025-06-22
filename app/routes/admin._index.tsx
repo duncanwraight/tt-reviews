@@ -14,6 +14,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
       playerEditsQuery,
       equipmentReviewsQuery,
       videoSubmissionsQuery,
+      playerEquipmentSetupsQuery,
       equipmentCountQuery,
       playersCountQuery,
     ] = await Promise.all([
@@ -43,6 +44,12 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         .from("video_submissions")
         .select("status")
         .not("status", "is", null),
+
+      // Get player equipment setups (unverified count)
+      supabase
+        .from("player_equipment_setups")
+        .select("verified")
+        .eq("verified", false),
 
       // Get total equipment count
       supabase
@@ -82,6 +89,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerEdits: playerEditsQuery.data?.length || 0,
         equipmentReviews: equipmentReviewsQuery.data?.length || 0,
         videoSubmissions: videoSubmissionsQuery.data?.length || 0,
+        playerEquipmentSetups: playerEquipmentSetupsQuery.data?.length || 0,
         equipment: equipmentCountQuery.count || 0,
         players: playersCountQuery.count || 0,
       },
@@ -106,6 +114,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerEdits: 0,
         equipmentReviews: 0,
         videoSubmissions: 0,
+        playerEquipmentSetups: 0,
         equipment: 0,
         players: 0,
       },
@@ -176,6 +185,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     playerEdits: playerEditsCount,
     equipmentReviews: equipmentReviewsCount,
     videoSubmissions: videoSubmissionsCount,
+    playerEquipmentSetups: playerEquipmentSetupsCount,
     equipment: equipmentCount,
     players: playersCount,
   } = dashboardCounts.totals;
@@ -226,6 +236,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       playerEdits: playerEditsCount || 0,
       equipmentReviews: equipmentReviewsCount || 0,
       videoSubmissions: videoSubmissionsCount || 0,
+      playerEquipmentSetups: playerEquipmentSetupsCount || 0,
       equipment: equipmentCount || 0,
       players: playersCount || 0,
       // Equipment submission status breakdown
@@ -290,6 +301,15 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       color: "bg-purple-500",
     },
     {
+      title: "Equipment Setups",
+      total: stats.playerEquipmentSetups,
+      pending: stats.playerEquipmentSetups, // All unverified setups are "pending"
+      approved: 0, // We don't track approved count (just verified/unverified)
+      rejected: 0, // We don't track rejected count (they're deleted)
+      link: "/admin/player-equipment-setups",
+      color: "bg-teal-500",
+    },
+    {
       title: "Equipment Reviews",
       total: stats.equipmentReviews,
       pending: stats.equipmentReviewsPending,
@@ -335,6 +355,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         {stats.equipmentPending +
           stats.playerSubmissionsPending +
           stats.playerEditsPending +
+          stats.playerEquipmentSetups +
           stats.videoSubmissionsPending >
           0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -351,6 +372,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   {stats.equipmentPending +
                     stats.playerSubmissionsPending +
                     stats.playerEditsPending +
+                    stats.playerEquipmentSetups +
                     stats.videoSubmissionsPending}{" "}
                   items waiting for review.
                 </div>

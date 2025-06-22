@@ -2458,6 +2458,123 @@ export class DiscordService {
       logContext
     );
   }
+
+  async notifyNewPlayerEquipmentSetup(
+    equipmentData: any,
+    requestId: string = "unknown"
+  ): Promise<any> {
+    const logContext = createLogContext(requestId, {
+      operation: "discord_bot",
+      submissionType: "player_equipment_setup",
+      submissionId: equipmentData.id,
+    });
+
+    return this.logger.timeOperation(
+      "discord_bot_player_equipment_setup",
+      async () => {
+        this.logger.info(
+          "Sending Discord bot message for player equipment setup",
+          logContext,
+          {
+            setupId: equipmentData.id,
+            playerName: equipmentData.player_name,
+            year: equipmentData.year,
+          }
+        );
+
+        // Validate configuration
+        const config = this.validateBotConfig(logContext);
+        if (!config.isValid) {
+          const error = new Error(
+            `Discord bot configuration invalid: ${config.issues.join(", ")}`
+          );
+          this.logger.error(
+            "Discord bot configuration validation failed",
+            logContext,
+            error,
+            {
+              issues: config.issues,
+              setupId: equipmentData.id,
+            }
+          );
+          throw error;
+        }
+
+        const embed = {
+          title: "🏓 Player Equipment Setup Submitted",
+          description: `A new equipment setup has been submitted for a player and needs moderation.`,
+          color: 0x9b59b6, // Purple color for equipment setups
+          fields: [
+            {
+              name: "Player",
+              value: equipmentData.player_name || "Unknown Player",
+              inline: true,
+            },
+            {
+              name: "Year",
+              value: equipmentData.year?.toString() || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Submitted by",
+              value: equipmentData.submitter_email || "Anonymous",
+              inline: true,
+            },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+
+        const payload = {
+          content: `📝 **New player equipment setup submitted** - Moderation required`,
+          embeds: [embed],
+        };
+
+        try {
+          const response = await fetch(
+            `https://discord.com/api/v10/channels/${config.channelId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bot ${config.botToken}`,
+                "User-Agent": "tt-reviews-bot/1.0",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          const responseText = await response.text();
+          const success = response.ok;
+
+          this.logger.info("Player equipment setup notification result", {
+            setupId: equipmentData.id,
+            playerName: equipmentData.player_name,
+            success,
+            status: response.status,
+            requestId,
+          });
+
+          return { success, status: response.status, response: responseText };
+        } catch (error) {
+          this.logger.error(
+            "Discord bot API network error",
+            logContext,
+            error as Error,
+            {
+              setupId: equipmentData.id,
+            }
+          );
+
+          this.logger.metric("discord_bot_network_error", 1, logContext, {
+            submissionType: "player_equipment_setup",
+          });
+
+          throw error;
+        }
+      },
+      logContext
+    );
+  }
 }
 
 /**
