@@ -309,9 +309,9 @@ describe("Discord Integration", () => {
       const responseData = await response.json();
 
       expect(responseData.type).toBe(4);
-      // Should handle database errors gracefully
+      // Should handle duplicate approvals gracefully
       expect(responseData.data.content).toMatch(
-        /Error.*Failed to record approval/
+        /Error.*already approved/
       );
       expect(responseData.data.flags).toBe(64); // Ephemeral flag
     });
@@ -336,7 +336,7 @@ describe("Discord Integration", () => {
 
       expect(responseData.type).toBe(4);
       expect(responseData.data.content).toMatch(
-        /Error.*Failed to record approval/
+        /Error.*already approved/
       );
       expect(responseData.data.flags).toBe(64);
     });

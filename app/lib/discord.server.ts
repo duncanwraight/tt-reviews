@@ -1402,7 +1402,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = this.createProgressButtons("player_edit", editData.id, 0, 2);
+        const components = this.createInitialButtons("player_edit", editData.id);
 
         const payload = {
           embeds: [embed],
@@ -1561,7 +1561,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = this.createProgressButtons("equipment", submissionData.id, 0, 2);
+        const components = this.createInitialButtons("equipment", submissionData.id);
 
         const payload = {
           embeds: [embed],
@@ -1726,7 +1726,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = this.createProgressButtons("player", submissionData.id, 0, 2);
+        const components = this.createInitialButtons("player", submissionData.id);
 
         const payload = {
           embeds: [embed],
@@ -1848,10 +1848,71 @@ export class DiscordService {
   }
 
   /**
+   * Create initial buttons for new submissions with descriptive labels
+   */
+  private createInitialButtons(
+    submissionType: "equipment" | "player" | "player_edit" | "video",
+    submissionId: string
+  ): any[] {
+    // Create proper custom_id based on submission type
+    let approveCustomId: string;
+    let rejectCustomId: string;
+    let approveLabel: string;
+    let rejectLabel: string;
+    
+    if (submissionType === "player_edit") {
+      approveCustomId = `approve_player_edit_${submissionId}`;
+      rejectCustomId = `reject_player_edit_${submissionId}`;
+      approveLabel = "Approve Player Edit";
+      rejectLabel = "Reject Player Edit";
+    } else if (submissionType === "equipment") {
+      approveCustomId = `approve_${submissionType}_${submissionId}`;
+      rejectCustomId = `reject_${submissionType}_${submissionId}`;
+      approveLabel = "Approve Equipment";
+      rejectLabel = "Reject Equipment";
+    } else if (submissionType === "player") {
+      approveCustomId = `approve_${submissionType}_${submissionId}`;
+      rejectCustomId = `reject_${submissionType}_${submissionId}`;
+      approveLabel = "Approve Player";
+      rejectLabel = "Reject Player";
+    } else if (submissionType === "video") {
+      approveCustomId = `approve_${submissionType}_${submissionId}`;
+      rejectCustomId = `reject_${submissionType}_${submissionId}`;
+      approveLabel = "Approve Video";
+      rejectLabel = "Reject Video";
+    } else {
+      approveCustomId = `approve_${submissionType}_${submissionId}`;
+      rejectCustomId = `reject_${submissionType}_${submissionId}`;
+      approveLabel = "Approve";
+      rejectLabel = "Reject";
+    }
+
+    return [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 3, // Success/Green
+            label: approveLabel,
+            custom_id: approveCustomId,
+          },
+          {
+            type: 2, // Button
+            style: 4, // Danger/Red
+            label: rejectLabel,
+            custom_id: rejectCustomId,
+          },
+        ],
+      },
+    ];
+  }
+
+  /**
    * Create progress buttons based on current approval count
    */
   private createProgressButtons(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string,
     currentApprovals: number,
     requiredApprovals: number = 2
@@ -1964,7 +2025,7 @@ export class DiscordService {
    * Get current approval count for a submission
    */
   private async getApprovalCount(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string
   ): Promise<number> {
     try {
@@ -1983,7 +2044,7 @@ export class DiscordService {
    * Update Discord message after moderation action
    */
   private async updateDiscordMessageAfterModeration(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string,
     newStatus: string,
     moderatorUsername: string
@@ -2051,7 +2112,7 @@ export class DiscordService {
     }
   }
 
-  private getEmbedTitle(submissionType: "equipment" | "player" | "player_edit"): string {
+  private getEmbedTitle(submissionType: "equipment" | "player" | "player_edit" | "video"): string {
     switch (submissionType) {
       case "equipment":
         return "⚙️ Equipment Submission";
@@ -2059,6 +2120,8 @@ export class DiscordService {
         return "👤 Player Submission";
       case "player_edit":
         return "🏓 Player Edit";
+      case "video":
+        return "🎥 Video Submission";
       default:
         return "📝 Submission";
     }
@@ -2190,7 +2253,7 @@ export class DiscordService {
           timestamp: new Date().toISOString(),
         };
 
-        const components = this.createProgressButtons("video", submissionData.id, 0, 2);
+        const components = this.createInitialButtons("video", submissionData.id);
 
         const payload = {
           embeds: [embed],
