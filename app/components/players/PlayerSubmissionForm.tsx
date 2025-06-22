@@ -24,7 +24,7 @@ export function PlayerSubmissionForm({
   playingStyles,
   countries,
   csrfToken,
-}: PlayerSubmissionFormProps): JSX.Element {
+}: PlayerSubmissionFormProps) {
   const navigate = useNavigate();
   const [includeEquipment, setIncludeEquipment] = useState(false);
   const [videos, setVideos] = useState<any[]>([]);

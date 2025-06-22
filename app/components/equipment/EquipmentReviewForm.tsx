@@ -254,7 +254,7 @@ export function EquipmentReviewForm({
             <label className="block text-sm font-medium text-gray-700">
               Photo (Optional)
             </label>
-            <ImageUpload name="image" env={env} disabled={isLoading} />
+            <ImageUpload name="image" disabled={isLoading} />
             <p className="text-sm text-gray-500">
               Upload a photo of your equipment setup or the equipment in use
             </p>

@@ -226,7 +226,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   // Handle image upload if provided
   if (formData.get("image") && (formData.get("image") as File).size > 0) {
     try {
-      await handleImageUpload(formData, env, "reviews", review.id, "image");
+      await handleImageUpload(formData, env, "equipment", review.id, "image");
     } catch (error) {
       console.error("Error uploading review image:", error);
       // Don't fail the entire submission for image upload errors
