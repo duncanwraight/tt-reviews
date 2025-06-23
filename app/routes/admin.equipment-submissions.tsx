@@ -8,6 +8,7 @@ import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -66,7 +67,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (error) {
-    console.error("Equipment submissions error:", error);
+    const logContext = createLogContext(
+      request.headers.get("X-Request-ID") || "admin-equipment-submissions",
+      { route: "/admin/equipment-submissions", method: "GET", userId: user?.id }
+    );
+    Logger.error("Equipment submissions error", logContext, error instanceof Error ? error : undefined);
     return data(
       { submissions: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }

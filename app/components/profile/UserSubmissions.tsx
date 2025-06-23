@@ -1,10 +1,14 @@
-import type { ReviewStatus, RejectionCategory } from "~/lib/types";
+import type { ReviewStatus, RejectionCategory, SubmissionType } from "~/lib/types";
 import { SafeHtml } from "~/lib/sanitize";
 
 interface Submission {
   id: string;
-  name: string;
-  type: "equipment" | "player" | "player_edit";
+  name?: string;
+  player_name?: string;
+  equipment_name?: string;
+  review_text?: string;
+  overall_rating?: number;
+  type: SubmissionType;
   status: ReviewStatus;
   rejection_category?: RejectionCategory;
   rejection_reason?: string;
@@ -57,7 +61,7 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: SubmissionType) => {
     switch (type) {
       case "equipment":
         return "⚙️";
@@ -65,12 +69,18 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
         return "👤";
       case "player_edit":
         return "✏️";
+      case "review":
+        return "⭐";
+      case "video":
+        return "📹";
+      case "player_equipment_setup":
+        return "🏓";
       default:
         return "📄";
     }
   };
 
-  const getTypeName = (type: string) => {
+  const getTypeName = (type: SubmissionType) => {
     switch (type) {
       case "equipment":
         return "Equipment";
@@ -78,6 +88,12 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
         return "Player";
       case "player_edit":
         return "Player Edit";
+      case "review":
+        return "Review";
+      case "video":
+        return "Video";
+      case "player_equipment_setup":
+        return "Equipment Setup";
       default:
         return "Submission";
     }
@@ -122,21 +138,26 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
           No submissions yet
         </h3>
         <p className="text-gray-600 mb-4">
-          Start contributing to the community by submitting equipment or
-          players.
+          Start contributing to the community by submitting equipment, players, or reviews.
         </p>
-        <div className="space-x-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <a
-            href="/equipment/submit"
+            href="/submissions/equipment/submit"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
           >
             Submit Equipment
           </a>
           <a
-            href="/players/submit"
+            href="/submissions/player/submit"
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             Submit Player
+          </a>
+          <a
+            href="/submissions/review/submit"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Write Review
           </a>
         </div>
       </div>
@@ -177,7 +198,9 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
                   </div>
 
                   <h4 className="text-base font-medium text-gray-900 mb-2">
-                    {submission.name}
+                    {submission.name || submission.player_name || submission.equipment_name || 
+                     (submission.type === "review" && submission.overall_rating ? 
+                       `Review (${submission.overall_rating}/5 stars)` : "Submission")}
                   </h4>
 
                   {submission.status === "rejected" &&
@@ -230,18 +253,24 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
         </div>
 
         <div className="text-center pt-4 border-t border-gray-200">
-          <div className="space-x-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <a
-              href="/equipment/submit"
+              href="/submissions/equipment/submit"
               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200"
             >
               Submit Equipment
             </a>
             <a
-              href="/players/submit"
+              href="/submissions/player/submit"
               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               Submit Player
+            </a>
+            <a
+              href="/submissions/review/submit"
+              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Write Review
             </a>
           </div>
         </div>

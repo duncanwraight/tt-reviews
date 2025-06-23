@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 import type { Route } from "./+types/logout";
 import { getServerClient } from "~/lib/supabase.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -12,7 +13,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (error instanceof Response) {
       throw error; // Re-throw redirect responses
     }
-    console.error("Logout error:", error);
+    const logContext = createLogContext(
+      request.headers.get("X-Request-ID") || "logout-action",
+      { route: "/logout", method: "POST" }
+    );
+    Logger.error("Logout error", logContext, error instanceof Error ? error : undefined);
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 }

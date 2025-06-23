@@ -88,7 +88,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  console.log("Video submission action called");
   try {
     // Import security functions inside server-only action
     const { validateCSRF, createCSRFFailureResponse } = await import(
@@ -112,7 +111,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     const formData = await request.formData();
     const submissionId = formData.get("submissionId") as string;
     const actionType = formData.get("action") as string;
-    console.log("Video submission form data:", { submissionId, actionType });
     const moderatorNotes = (formData.get("notes") as string) || undefined;
     const rejectionCategory = formData.get(
       "category"
@@ -136,7 +134,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     let result;
     if (actionType === "approved") {
-      console.log("Recording video approval for:", submissionId);
       result = await moderationService.recordApproval(
         "video",
         submissionId,
@@ -144,7 +141,6 @@ export async function action({ request, context }: Route.ActionArgs) {
         "admin_ui",
         moderatorNotes
       );
-      console.log("Approval result:", result);
     } else if (actionType === "rejected") {
       if (!rejectionCategory || !rejectionReason) {
         return data(
@@ -169,7 +165,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     if (!result.success) {
-      console.error("Video submission moderation failed:", result.error);
       return data(
         { error: result.error || "Operation failed" },
         { status: 500, headers: sbServerClient.headers }

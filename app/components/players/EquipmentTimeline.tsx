@@ -99,7 +99,7 @@ export function EquipmentTimeline({
           <h2 className="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
           {showAddButton && (
             <Link
-              to={`/players/equipment/${playerId}`}
+              to={`/submissions/player_equipment_setup/submit?player_id=${playerId}`}
               className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               Add Equipment Setup
@@ -131,7 +131,7 @@ export function EquipmentTimeline({
             {playerName}'s equipment hasn't been submitted yet.
           </p>
           <Link
-            to={`/players/equipment/${playerId}`}
+            to={`/submissions/player_equipment_setup/submit?player_id=${playerId}`}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
           >
             Submit Equipment Information
@@ -148,7 +148,7 @@ export function EquipmentTimeline({
         <h2 className="text-2xl font-bold text-gray-900">Equipment Timeline</h2>
         {showAddButton && (
           <Link
-            to={`/players/equipment/${playerId}`}
+            to={`/submissions/player_equipment_setup/submit?player_id=${playerId}`}
             className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             Add Equipment Setup

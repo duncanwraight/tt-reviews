@@ -211,7 +211,7 @@ export function CategoryManager({
 
   function handleReorder(categoryId: string, newOrder: number) {
     // This would need to be implemented with a reorder action
-    console.log(`Reorder ${categoryId} to position ${newOrder}`);
+    // TODO: Implement reorder functionality
   }
 }
 

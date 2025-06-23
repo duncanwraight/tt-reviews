@@ -289,7 +289,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
           {user && (
             <div className="flex space-x-3">
               <a
-                href="/equipment/submit"
+                href="/submissions/equipment/submit"
                 className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
               >
                 Submit Equipment

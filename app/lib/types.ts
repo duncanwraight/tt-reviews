@@ -18,6 +18,44 @@ export type RejectionCategory =
   | "spam"
   | "other";
 
+// Unified submission types
+export type SubmissionType = 
+  | "equipment"
+  | "player" 
+  | "player_edit"
+  | "video"
+  | "review"
+  | "player_equipment_setup";
+
+// Base interface for all submissions
+export interface BaseSubmission {
+  id: string;
+  user_id: string;
+  status: ReviewStatus;
+  rejection_category?: RejectionCategory;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Discord notification data structure
+export interface DiscordNotificationData {
+  id: string;
+  submissionType: SubmissionType;
+  title: string;
+  description: string;
+  color: number;
+  fields: Array<{
+    name: string;
+    value: string;
+    inline?: boolean;
+  }>;
+  adminUrl?: string;
+  submitterEmail?: string;
+  // Type-specific data
+  [key: string]: any;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -68,7 +106,7 @@ export interface PlayerEquipmentSetup {
 
 export interface ModeratorApproval {
   id: string;
-  submission_type: "equipment" | "player" | "player_edit";
+  submission_type: SubmissionType;
   submission_id: string;
   moderator_id: string;
   source: ApprovalSource;

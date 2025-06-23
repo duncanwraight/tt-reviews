@@ -95,7 +95,7 @@ function WriteReviewButton({
   if (user) {
     return (
       <Link
-        to={`/equipment/review/${equipmentSlug}`}
+        to={`/submissions/review/submit?equipment_slug=${equipmentSlug}`}
         className="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
       >
         Write a Review
@@ -156,7 +156,7 @@ function NoReviewsAction({
   if (user) {
     return (
       <Link
-        to={`/equipment/review/${equipmentSlug}`}
+        to={`/submissions/review/submit?equipment_slug=${equipmentSlug}`}
         className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
       >
         Write the First Review

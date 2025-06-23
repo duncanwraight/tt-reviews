@@ -36,22 +36,25 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     // Test different Discord integration features
     if (body.test === "notification") {
-      // Test equipment notification
-      const notificationResult =
-        await discordService.notifyNewEquipmentSubmission({
+      // Test equipment notification using unified system
+      const notificationResult = await discordService.notifySubmission(
+        "equipment",
+        {
           id: "test-123",
           name: "Test Equipment",
           manufacturer: "Test Manufacturer",
           category: "blade",
           subcategory: null,
           submitter_email: "test@example.com",
-        });
+        },
+        "test-request"
+      );
 
       return Response.json({
         success: true,
         test: "notification",
         result: notificationResult,
-        note: "This would normally send to Discord webhook",
+        note: "This would normally send to Discord webhook using unified system",
       });
     }
 
@@ -164,13 +167,13 @@ export default function TestDiscord() {
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-4">
-            Test Equipment Notification
+            Test Unified Equipment Notification
           </h2>
           <button
             onClick={() => testDiscordFeature("notification")}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
-            Test Equipment Notification
+            Test Unified Notification
           </button>
         </div>
 

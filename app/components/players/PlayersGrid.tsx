@@ -17,7 +17,7 @@ export function PlayersGrid({ players }: PlayersGridProps) {
           Be the first to submit a professional player profile to our database.
         </p>
         <a
-          href="/players/submit"
+          href="/submissions/player/submit"
           className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
         >
           Submit First Player

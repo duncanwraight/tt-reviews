@@ -105,7 +105,7 @@ export function PlayersHeader({
         {user && (
           <div className="flex space-x-3">
             <a
-              href="/players/submit"
+              href="/submissions/player/submit"
               className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
             >
               Submit Player

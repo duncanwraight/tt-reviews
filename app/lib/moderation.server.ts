@@ -163,7 +163,7 @@ export class ModerationService {
   }
 
   async getUserSubmissions(userId: string, limit: number = 20) {
-    const [equipmentSubmissions, playerSubmissions, playerEdits] =
+    const [equipmentSubmissions, playerSubmissions, playerEdits, videoSubmissions, equipmentReviews, playerEquipmentSetups] =
       await Promise.all([
         this.supabase
           .from("equipment_submissions")
@@ -185,6 +185,27 @@ export class ModerationService {
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(limit),
+
+        this.supabase
+          .from("video_submissions")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+
+        this.supabase
+          .from("equipment_reviews")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+
+        this.supabase
+          .from("player_equipment_setups")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
       ]);
 
     const allSubmissions = [
@@ -199,6 +220,18 @@ export class ModerationService {
       ...(playerEdits.data || []).map(s => ({
         ...s,
         type: "player_edit" as const,
+      })),
+      ...(videoSubmissions.data || []).map(s => ({
+        ...s,
+        type: "video" as const,
+      })),
+      ...(equipmentReviews.data || []).map(s => ({
+        ...s,
+        type: "review" as const,
+      })),
+      ...(playerEquipmentSetups.data || []).map(s => ({
+        ...s,
+        type: "player_equipment_setup" as const,
       })),
     ];
 

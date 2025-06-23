@@ -59,7 +59,7 @@ function VideosSection({ footage, playerName }: { footage: PlayerFootage[]; play
             {playerName}'s videos haven't been submitted yet.
           </p>
           <a
-            href={`/videos/submit?player=${encodeURIComponent(playerName)}`}
+            href={`/submissions/video/submit?player=${encodeURIComponent(playerName)}`}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
           >
             Submit Video Information
@@ -77,7 +77,7 @@ function VideosSection({ footage, playerName }: { footage: PlayerFootage[]; play
           Videos ({footage.length})
         </h3>
         <a
-          href={`/videos/submit?player=${encodeURIComponent(playerName)}`}
+          href={`/submissions/video/submit?player=${encodeURIComponent(playerName)}`}
           className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

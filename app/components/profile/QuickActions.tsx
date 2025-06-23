@@ -28,7 +28,7 @@ export function QuickActions({ env }: QuickActionsProps) {
       </h2>
       <div className="space-y-3">
         <Link
-          to="/equipment/submit"
+          to="/submissions/equipment/submit"
           className="block w-full bg-purple-600 text-white text-center py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
         >
           Submit Equipment

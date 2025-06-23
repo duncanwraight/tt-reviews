@@ -123,58 +123,6 @@ export class CategoryService {
     return this.getCategoriesByType("rejection_category");
   }
 
-  /**
-   * Get review rating categories for specific equipment category/subcategory
-   */
-  async getReviewRatingCategories(
-    equipmentCategoryValue?: string
-  ): Promise<CategoryOption[]> {
-    try {
-      let query = this.supabase
-        .from("categories")
-        .select("id, name, value, description, display_order")
-        .eq("type", "review_rating_category")
-        .eq("is_active", true);
-
-      if (equipmentCategoryValue) {
-        // First, find the parent category ID by its value
-        const { data: parentCategory } = await this.supabase
-          .from("categories")
-          .select("id")
-          .eq("value", equipmentCategoryValue)
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (parentCategory) {
-          query = query.eq("parent_id", parentCategory.id);
-        } else {
-          // If no parent category found, return empty array
-          return [];
-        }
-      } else {
-        // If no category specified, get general categories (no parent)
-        query = query.is("parent_id", null);
-      }
-
-      const { data, error } = await query.order("display_order");
-
-      if (error) {
-        console.error(
-          `Error fetching review rating categories for ${equipmentCategoryValue}:`,
-          error
-        );
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error(
-        `Exception fetching review rating categories for ${equipmentCategoryValue}:`,
-        error
-      );
-      return [];
-    }
-  }
 
   /**
    * Create a new category (admin only)
@@ -301,6 +249,81 @@ export class CategoryService {
       return data || [];
     } catch (error) {
       console.error("Exception fetching categories for admin:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get review rating categories for specific equipment category and subcategory
+   */
+  async getReviewRatingCategories(
+    equipmentCategoryValue?: string,
+    equipmentSubcategoryValue?: string
+  ): Promise<CategoryOption[]> {
+    try {
+      if (!equipmentCategoryValue) {
+        // Return all review rating categories if no equipment category specified
+        return this.getCategoriesByType("review_rating_category");
+      }
+
+      let parentId: string | null = null;
+
+      // If subcategory is specified, prioritize it over main category
+      if (equipmentSubcategoryValue) {
+        const { data: equipmentSubcategory } = await this.supabase
+          .from("categories")
+          .select("id")
+          .eq("type", "equipment_subcategory")
+          .eq("value", equipmentSubcategoryValue)
+          .eq("is_active", true)
+          .single();
+
+        if (equipmentSubcategory) {
+          parentId = equipmentSubcategory.id;
+        }
+      }
+
+      // If no subcategory found or specified, fall back to main category
+      if (!parentId) {
+        const { data: equipmentCategory } = await this.supabase
+          .from("categories")
+          .select("id")
+          .eq("type", "equipment_category")
+          .eq("value", equipmentCategoryValue)
+          .eq("is_active", true)
+          .single();
+
+        if (!equipmentCategory) {
+          console.error(`Equipment category '${equipmentCategoryValue}' not found`);
+          return [];
+        }
+
+        parentId = equipmentCategory.id;
+      }
+
+      // Get rating categories that are children of the determined parent
+      const { data, error } = await this.supabase
+        .from("categories")
+        .select(`
+          id,
+          name,
+          value,
+          description,
+          display_order
+        `)
+        .eq("type", "review_rating_category")
+        .eq("parent_id", parentId)
+        .eq("is_active", true)
+        .order("display_order");
+
+      if (error) {
+        console.error(`Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}:`, error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error(`Exception fetching review rating categories:`, error);
       return [];
     }
   }

@@ -2,6 +2,7 @@ import type { Route } from "./+types/sitemap[.]xml";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { sitemapService } from "~/lib/sitemap.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -69,7 +70,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // Log sitemap statistics for monitoring
   const stats = sitemapService.generateSitemapStats(allPages);
-  console.log(`Generated sitemap with ${stats.totalUrls} URLs`, {
+  const logContext = createLogContext(
+    request.headers.get("X-Request-ID") || "sitemap-generation",
+    { route: "/sitemap.xml", method: "GET" }
+  );
+  Logger.info(`Generated sitemap with ${stats.totalUrls} URLs`, logContext, {
     priorities: stats.priorities,
     changeFrequencies: stats.changeFrequencies,
   });

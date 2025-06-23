@@ -91,7 +91,7 @@ export function PlayerHeader({
             {showEditButton && (
               <div className="mb-4">
                 <a
-                  href={`/players/edit/${player.slug}`}
+                  href={`/submissions/player_edit/submit?player_id=${player.id}`}
                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   Edit Player
