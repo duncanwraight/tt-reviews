@@ -248,6 +248,9 @@ export default function AdminCategories({
   const rejectionCategories = categories.all.filter(
     cat => cat.type === "rejection_category"
   );
+  const reviewRatingCategories = categories.all.filter(
+    cat => cat.type === "review_rating_category"
+  );
 
   return (
     <div className="space-y-8">
@@ -344,6 +347,17 @@ export default function AdminCategories({
           showFlags={false}
           allowSubcategories={true}
           parentCategories={equipmentCategories}
+        />
+
+        {/* Review Rating Categories Section */}
+        <CategoryManager
+          categories={reviewRatingCategories}
+          type="review_rating_category"
+          title="Review Rating Categories"
+          description="Rating aspects for equipment reviews (e.g., Speed, Control, Feel). These are organized by equipment subcategory."
+          showFlags={false}
+          allowSubcategories={true}
+          parentCategories={[...equipmentCategories, ...equipmentSubcategories]}
         />
       </Suspense>
     </div>
