@@ -1,3 +1,10 @@
+/**
+ * DISABLED: 2024-12-30
+ * Route temporarily disabled - implementation is half-finished.
+ * To re-enable: rename file back to equipment.compare.$slugs.tsx
+ * See: /todo/FEATURES.md - "Equipment Comparison Page"
+ */
+
 import type { Route } from "./+types/equipment.compare.$slugs";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";

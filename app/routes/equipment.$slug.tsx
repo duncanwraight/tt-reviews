@@ -15,7 +15,8 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
-import { ComparisonSection } from "~/components/equipment/ComparisonSection";
+// DISABLED: Comparison feature - see /todo/FEATURES.md
+// import { ComparisonSection } from "~/components/equipment/ComparisonSection";
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.equipment) {
@@ -237,6 +238,10 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
 
       <PageSection background="gray-50" padding="medium">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div>
+            <RelatedEquipmentSection category={equipment.category} />
+          </div>
+          {/* DISABLED: Comparison feature - see /todo/FEATURES.md
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <RelatedEquipmentSection category={equipment.category} />
@@ -248,6 +253,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
               />
             </div>
           </div>
+          */}
         </div>
       </PageSection>
     </>

@@ -82,118 +82,132 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  // Import security functions inside server-only action
-  const { validateCSRF, createCSRFFailureResponse } = await import(
-    "~/lib/security.server"
-  );
-
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
-
-  // Check admin access
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  // Validate CSRF token for admin actions
-  const csrfValidation = await validateCSRF(request, user.id);
-  if (!csrfValidation.valid) {
-    return createCSRFFailureResponse(csrfValidation.error);
-  }
-
-  const formData = await request.formData();
-  const submissionId = formData.get("submissionId") as string;
-  const actionType = formData.get("action") as string;
-  const moderatorNotes = (formData.get("notes") as string) || undefined;
-  const rejectionCategory = formData.get(
-    "category"
-  ) as RejectionCategory | null;
-  const rawRejectionReason = formData.get("reason") as string | null;
-
-  // Sanitize rejection reason to prevent XSS attacks
-  const rejectionReason = rawRejectionReason
-    ? sanitizeAdminContent(rawRejectionReason.trim())
-    : null;
-
-  if (!submissionId || !actionType) {
-    return data(
-      { error: "Missing required fields" },
-      { status: 400, headers: sbServerClient.headers }
-    );
-  }
-
-  const supabase = createSupabaseAdminClient(context);
-  const moderationService = createModerationService(supabase);
-
-  let result;
-  if (actionType === "approved") {
-    result = await moderationService.recordApproval(
-      "player",
-      submissionId,
-      user.id,
-      "admin_ui",
-      moderatorNotes
+  try {
+    // Import security functions inside server-only action
+    const { validateCSRF, createCSRFFailureResponse } = await import(
+      "~/lib/security.server"
     );
 
-    // If this approval results in full approval, create the player record
-    if (result.success && result.newStatus === "approved") {
-      const { data: submission } = await supabase
-        .from("player_submissions")
-        .select("*")
-        .eq("id", submissionId)
-        .single();
+    const sbServerClient = getServerClient(request, context);
+    const user = await getUserWithRole(sbServerClient, context);
 
-      if (submission) {
-        const slug = submission.name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)/g, "");
-
-        await supabase.from("players").insert({
-          name: submission.name,
-          slug: slug,
-          highest_rating: submission.highest_rating,
-          active_years: submission.active_years,
-          playing_style: submission.playing_style,
-          birth_country: submission.birth_country,
-          represents: submission.represents,
-          active: true,
-        });
-      }
+    // Check admin access
+    if (!user || user.role !== "admin") {
+      throw redirect("/", { headers: sbServerClient.headers });
     }
-  } else if (actionType === "rejected") {
-    if (!rejectionCategory || !rejectionReason) {
+
+    // Validate CSRF token for admin actions
+    const csrfValidation = await validateCSRF(request, user.id);
+    if (!csrfValidation.valid) {
+      return createCSRFFailureResponse(csrfValidation.error);
+    }
+
+    const formData = await request.formData();
+    const submissionId = formData.get("submissionId") as string;
+    const actionType = formData.get("action") as string;
+    const moderatorNotes = (formData.get("notes") as string) || undefined;
+    const rejectionCategory = formData.get(
+      "category"
+    ) as RejectionCategory | null;
+    const rawRejectionReason = formData.get("reason") as string | null;
+
+    // Sanitize rejection reason to prevent XSS attacks
+    const rejectionReason = rawRejectionReason
+      ? sanitizeAdminContent(rawRejectionReason.trim())
+      : null;
+
+    if (!submissionId || !actionType) {
       return data(
-        { error: "Rejection requires category and reason" },
+        { error: "Missing required fields" },
         { status: 400, headers: sbServerClient.headers }
       );
     }
 
-    result = await moderationService.recordRejection(
-      "player",
-      submissionId,
-      user.id,
-      "admin_ui",
-      { category: rejectionCategory, reason: rejectionReason },
-      context.cloudflare?.env?.R2_BUCKET
-    );
-  } else {
-    return data(
-      { error: "Invalid action" },
-      { status: 400, headers: sbServerClient.headers }
-    );
-  }
+    const supabase = createSupabaseAdminClient(context);
+    const moderationService = createModerationService(supabase);
 
-  if (!result.success) {
-    return data(
-      { error: result.error || "Operation failed" },
-      { status: 500, headers: sbServerClient.headers }
-    );
-  }
+    let result;
+    if (actionType === "approved") {
+      result = await moderationService.recordApproval(
+        "player",
+        submissionId,
+        user.id,
+        "admin_ui",
+        moderatorNotes
+      );
 
-  return redirect("/admin/player-submissions", {
-    headers: sbServerClient.headers,
-  });
+      // If this approval results in full approval, create the player record
+      if (result.success && result.newStatus === "approved") {
+        const { data: submission } = await supabase
+          .from("player_submissions")
+          .select("*")
+          .eq("id", submissionId)
+          .single();
+
+        if (submission) {
+          const slug = submission.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+
+          const { error: insertError } = await supabase.from("players").insert({
+            name: submission.name,
+            slug: slug,
+            highest_rating: submission.highest_rating,
+            active_years: submission.active_years,
+            playing_style: submission.playing_style,
+            birth_country: submission.birth_country,
+            represents: submission.represents,
+            active: true,
+          });
+
+          if (insertError) {
+            console.error("Failed to create player record:", insertError);
+            return data(
+              { error: `Approved but failed to create player: ${insertError.message}` },
+              { status: 500, headers: sbServerClient.headers }
+            );
+          }
+        }
+      }
+    } else if (actionType === "rejected") {
+      if (!rejectionCategory || !rejectionReason) {
+        return data(
+          { error: "Rejection requires category and reason" },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
+      result = await moderationService.recordRejection(
+        "player",
+        submissionId,
+        user.id,
+        "admin_ui",
+        { category: rejectionCategory, reason: rejectionReason },
+        context.cloudflare?.env?.R2_BUCKET
+      );
+    } else {
+      return data(
+        { error: "Invalid action" },
+        { status: 400, headers: sbServerClient.headers }
+      );
+    }
+
+    if (!result.success) {
+      console.error("Moderation failed:", result.error);
+      return data(
+        { error: result.error || "Operation failed" },
+        { status: 500, headers: sbServerClient.headers }
+      );
+    }
+
+    return redirect("/admin/player-submissions", {
+      headers: sbServerClient.headers,
+    });
+  } catch (error) {
+    console.error("Admin player submissions action error:", error);
+    return data({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export default function AdminPlayerSubmissions({

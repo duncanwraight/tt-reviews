@@ -6,7 +6,8 @@ import { data } from "react-router";
 
 import { PageLayout } from "~/components/layout/PageLayout";
 import { ComparisonProvider } from "~/contexts/ComparisonContext";
-import { ComparisonBar } from "~/components/equipment/ComparisonBar";
+// DISABLED: Comparison bar - feature is half-finished, see /todo/FEATURES.md
+// import { ComparisonBar } from "~/components/equipment/ComparisonBar";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -23,11 +24,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export default function EquipmentLayout({ loaderData }: Route.ComponentProps) {
   const { user } = loaderData;
 
+  // Provider kept for ComparisonCard to work, but bar/UI disabled
+  // See /todo/FEATURES.md - "Equipment Comparison Page"
   return (
     <ComparisonProvider>
       <PageLayout user={user}>
         <Outlet />
-        <ComparisonBar />
+        {/* DISABLED: <ComparisonBar /> */}
       </PageLayout>
     </ComparisonProvider>
   );

@@ -4,6 +4,7 @@ interface PlayerEquipmentSetupProps {
   includeEquipment: boolean;
   onToggleEquipment: (include: boolean) => void;
   isSubmitting: boolean;
+  standalone?: boolean;
 }
 
 const SOURCE_TYPES = [
@@ -17,6 +18,7 @@ export function PlayerEquipmentSetup({
   includeEquipment,
   onToggleEquipment,
   isSubmitting,
+  standalone = false,
 }: PlayerEquipmentSetupProps) {
   const [forehandSide, setForehandSide] = useState<string>("");
   const [backhandSide, setBackhandSide] = useState<string>("");
@@ -35,6 +37,114 @@ export function PlayerEquipmentSetup({
       setForehandSide("forehand");
     }
   };
+
+  // For standalone mode (player_equipment_setup form), skip the checkbox UI
+  if (standalone) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Year */}
+          <div>
+            <label
+              htmlFor="year"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Year <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="year"
+              name="year"
+              required
+              min="1970"
+              max={new Date().getFullYear()}
+              defaultValue={new Date().getFullYear()}
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+            />
+          </div>
+
+          {/* Blade */}
+          <div>
+            <label
+              htmlFor="blade_name"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Blade <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="blade_name"
+              name="blade_name"
+              required
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+              placeholder="e.g., Butterfly Viscaria"
+            />
+          </div>
+        </div>
+
+        {/* Forehand Setup */}
+        <RubberSetup
+          side="forehand"
+          label="Forehand"
+          isSubmitting={isSubmitting}
+          selectedSide={forehandSide}
+          onSideChange={handleForehandSideChange}
+        />
+
+        {/* Backhand Setup */}
+        <RubberSetup
+          side="backhand"
+          label="Backhand"
+          isSubmitting={isSubmitting}
+          selectedSide={backhandSide}
+          onSideChange={handleBackhandSideChange}
+        />
+
+        {/* Source Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label
+              htmlFor="source_type"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Source Type
+            </label>
+            <select
+              id="source_type"
+              name="source_type"
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+            >
+              <option value="">Select source type</option>
+              {SOURCE_TYPES.map(type => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="source_url"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Source URL
+            </label>
+            <input
+              type="url"
+              id="source_url"
+              name="source_url"
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+              placeholder="https://..."
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-b border-gray-200 pb-6">

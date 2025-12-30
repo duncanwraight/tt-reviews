@@ -116,20 +116,26 @@ export function CategoryManager({
                     htmlFor="parent_id"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Parent Category
+                    Parent Category {type === "review_rating_category" && <span className="text-red-500">*</span>}
                   </label>
                   <select
                     id="parent_id"
                     name="parent_id"
+                    required={type === "review_rating_category"}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="">No Parent</option>
+                    <option value="">{type === "review_rating_category" ? "Select parent..." : "No Parent"}</option>
                     {parentCategories.map(parent => (
                       <option key={parent.id} value={parent.id}>
                         {parent.name}
                       </option>
                     ))}
                   </select>
+                  {type === "review_rating_category" && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Rating categories must be linked to an equipment category or subcategory
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -177,28 +183,34 @@ export function CategoryManager({
             No categories found. Add one above.
           </p>
         ) : (
-          sortedCategories.map((category, index) => (
-            <CategoryItem
-              key={category.id}
-              category={category}
-              isEditing={editingId === category.id}
-              onEdit={() => setEditingId(category.id)}
-              onCancelEdit={() => setEditingId(null)}
-              showFlags={showFlags}
-              allowSubcategories={allowSubcategories}
-              parentCategories={parentCategories}
-              onMoveUp={
-                index > 0
-                  ? () => handleReorder(category.id, category.display_order - 1)
-                  : undefined
-              }
-              onMoveDown={
-                index < sortedCategories.length - 1
-                  ? () => handleReorder(category.id, category.display_order + 1)
-                  : undefined
-              }
-            />
-          ))
+          sortedCategories.map((category, index) => {
+            const parent = category.parent_id
+              ? parentCategories.find(p => p.id === category.parent_id)
+              : undefined;
+            return (
+              <CategoryItem
+                key={category.id}
+                category={category}
+                isEditing={editingId === category.id}
+                onEdit={() => setEditingId(category.id)}
+                onCancelEdit={() => setEditingId(null)}
+                showFlags={showFlags}
+                allowSubcategories={allowSubcategories}
+                parentCategories={parentCategories}
+                parentName={parent?.name}
+                onMoveUp={
+                  index > 0
+                    ? () => handleReorder(category.id, category.display_order - 1)
+                    : undefined
+                }
+                onMoveDown={
+                  index < sortedCategories.length - 1
+                    ? () => handleReorder(category.id, category.display_order + 1)
+                    : undefined
+                }
+              />
+            );
+          })
         )}
       </div>
 
@@ -225,6 +237,7 @@ interface CategoryItemProps {
   parentCategories: Category[];
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  parentName?: string;
 }
 
 function CategoryItem({
@@ -237,6 +250,7 @@ function CategoryItem({
   parentCategories,
   onMoveUp,
   onMoveDown,
+  parentName,
 }: CategoryItemProps) {
   if (isEditing) {
     return (
@@ -375,6 +389,16 @@ function CategoryItem({
           )}
           <span className="font-medium">{category.name}</span>
           <span className="text-sm text-gray-500">({category.value})</span>
+          {parentName && (
+            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded">
+              {parentName}
+            </span>
+          )}
+          {allowSubcategories && !parentName && !category.parent_id && (
+            <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded">
+              No parent!
+            </span>
+          )}
         </div>
       </div>
 
