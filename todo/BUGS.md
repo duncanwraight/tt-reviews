@@ -36,3 +36,45 @@
 - Added `standalone` prop to PlayerEquipmentSetup component
 - Created `equipment_setup_standalone` field type that skips the checkbox UI
 
+---
+
+## TypeScript Errors (Pre-existing)
+
+The following TypeScript errors exist in the codebase and should be fixed:
+
+### Stale Route Types
+- `.react-router/types/app/routes/+types/equipment.compare.$slugs.tsx.ts` - References deleted route file
+- **Fix**: Delete stale types file or regenerate with `npx react-router typegen`
+
+### Type Mismatches in Components
+| File | Issue |
+|------|-------|
+| `ErrorBoundary.tsx:106` | `string \| null \| undefined` not assignable to `string \| undefined` |
+| `EquipmentReviewForm.tsx:74,76` | `image_url` property doesn't exist on `Equipment` type |
+| `PlayerEditForm.tsx:107,111,289` | `gender` property doesn't exist on `Player` type |
+| `PlayerHeader.tsx:63` | `string \| undefined` not assignable to `string` parameter |
+| `PopularPlayersSection.tsx:35` | `PlayerDisplay` missing properties from `Player` type |
+| `RouterFormModalWrapper.tsx:108` | Props type mismatch with `FeedbackModalProps` |
+
+### Logger/Context Type Issues
+- `content.server.ts` - Multiple errors: `LogContext` type doesn't include `key`, `count`, `error`, `category`, `query`, `contentData` properties
+- **Fix**: Expand `LogContext` interface or use proper typing
+
+### Discord Test File
+- `discord.test.ts` - Multiple `unknown` type errors and `DiscordInteraction` type mismatches
+- **Fix**: Add proper type assertions or fix test mocks
+
+### Environment/Config Types
+| File | Issue |
+|------|-------|
+| `auth.server.ts:44` | `Env` to `Record<string, string>` conversion error |
+| `database.server.ts:124` | `SUPABASE_SERVICE_ROLE_KEY` not in `Env` type |
+| `database.server.ts:213` | `unknown` not assignable to `Equipment \| null` |
+
+### Other Issues
+- `sanitize.tsx` - Various type issues
+- `security.server.ts` - Type issues
+- `video-utils.ts` - Type issues
+- `submissions.$type.submit.tsx:317` - `formatForDiscord` undefined not assignable
+- `test-discord.tsx` - Multiple `unknown` type errors and missing function references
+

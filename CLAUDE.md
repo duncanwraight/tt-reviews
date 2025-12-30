@@ -38,8 +38,9 @@
 
 ## TODOs
 
-- Every new change we work on should be stored in `./docs/TODO.md`
-- You should read this file every time we start a new conversation
+- Bugs and features are tracked in `./todo/BUGS.md` and `./todo/FEATURES.md`
+- Archived planning docs are in `./docs/archive/`
+- You should read the todo files every time we start a new conversation
 
 ## Frontend requirements
 
@@ -303,6 +304,35 @@ When you have nested routes (e.g., `equipment.*`):
 - ✅ Follow dot notation for nested routes (`parent.child.tsx`)
 - ❌ Don't duplicate layout components in child routes
 - ❌ Don't manually configure routes in `routes.ts` unless necessary
+
+## Pre-Push Checks (MANDATORY)
+
+**CRITICAL**: Before pushing ANY changes, you MUST run the following checks locally and ensure they pass:
+
+```bash
+# 1. Install dependencies (if needed)
+npm install
+
+# 2. Run TypeScript type checking
+npm run typecheck
+
+# 3. If typecheck fails, identify which errors are from YOUR changes vs pre-existing
+# Only push if you haven't introduced NEW errors
+```
+
+### Workflow Check Rules
+
+1. **Always run `npm run typecheck`** before committing/pushing code changes
+2. **New TypeScript errors are blockers** - do not push if you introduced new errors
+3. **Pre-existing errors** are documented in `./todo/BUGS.md` under "TypeScript Errors (Pre-existing)"
+4. **If you add a new field type, enum value, or interface** - ensure it's added to all relevant type definitions
+5. **If you rename/delete a route file** - delete stale generated types in `.react-router/types/`
+
+### Common Issues to Check
+
+- New field types must be added to `FieldType` union in `registry.ts`
+- Renamed routes leave stale types in `.react-router/types/app/routes/+types/`
+- New properties on interfaces must be added to the type definition
 
 ## Important Notes
 
