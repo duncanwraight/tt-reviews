@@ -1,16 +1,17 @@
 import type { SubmissionType, DiscordNotificationData } from "~/lib/types";
 
 // Field types for form generation
-export type FieldType = 
-  | "text" 
-  | "textarea" 
-  | "select" 
-  | "number" 
-  | "email" 
-  | "image" 
-  | "dynamic_select" 
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "select"
+  | "number"
+  | "email"
+  | "image"
+  | "dynamic_select"
   | "video_list"
   | "equipment_setup"
+  | "equipment_setup_standalone"
   | "checkbox"
   | "hidden"
   | "rating_slider"
