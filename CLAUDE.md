@@ -305,7 +305,65 @@ When you have nested routes (e.g., `equipment.*`):
 - ❌ Don't duplicate layout components in child routes
 - ❌ Don't manually configure routes in `routes.ts` unless necessary
 
-## Pre-Push Checks (MANDATORY)
+## Code Quality Standards
+
+### TypeScript Requirements
+
+**CRITICAL**: All code must pass TypeScript type checking. Run `npm run typecheck` before committing.
+
+#### Type Safety Rules
+
+1. **Always define explicit types** for function parameters, return types, and component props
+2. **Never use `any`** unless absolutely necessary - use `unknown` and narrow the type
+3. **Use proper type guards** for runtime type checking:
+   ```typescript
+   // Good: Type guard
+   if ("success" in actionData && actionData.success) { ... }
+
+   // Bad: Unsafe access
+   if (actionData?.success) { ... }  // May fail type checking
+   ```
+
+4. **Add new properties to type definitions** when extending interfaces:
+   ```typescript
+   // When adding a field to Equipment, update app/lib/types.ts
+   export interface Equipment {
+     // ... existing fields
+     new_field?: string;  // Add here
+   }
+   ```
+
+5. **Use proper Env type casting**:
+   ```typescript
+   // Correct pattern for Cloudflare env
+   const env = context.cloudflare.env as unknown as Record<string, string>;
+   ```
+
+#### Common Type Pitfalls to Avoid
+
+| Pitfall | Solution |
+|---------|----------|
+| Adding new field types | Add to `FieldType` union in `app/lib/submissions/registry.ts` |
+| New submission types | Add to all relevant union types in `types.ts`, `moderation.server.ts`, `database.server.ts` |
+| Renamed/deleted routes | Delete stale types in `.react-router/types/app/routes/+types/` |
+| Promise.all() results | Use explicit type annotations or separate fetches for different return types |
+| Supabase query results | Cast results appropriately: `data as Equipment[]` |
+| Optional vs null | Use `?? undefined` not `|| null` when interface expects `undefined` |
+
+#### LogContext Usage
+
+When using the Logger service, pass objects that extend LogContext:
+```typescript
+import { createLogContext, type LogContext } from "~/lib/logger.server";
+
+// Create a context for request tracking
+const logContext = createLogContext("operation_name");
+
+// LogContext allows additional properties via index signature
+Logger.info("Message", { requestId: "...", customField: "value" });
+```
+
+### Pre-Push Checks (MANDATORY)
 
 **CRITICAL**: Before pushing ANY changes, you MUST run the following checks locally and ensure they pass:
 
@@ -324,7 +382,7 @@ npm run typecheck
 
 1. **Always run `npm run typecheck`** before committing/pushing code changes
 2. **New TypeScript errors are blockers** - do not push if you introduced new errors
-3. **Pre-existing errors** are documented in `./todo/BUGS.md` under "TypeScript Errors (Pre-existing)"
+3. **Pre-existing errors** are documented in `./todo/BUGS.md` under "TypeScript Errors"
 4. **If you add a new field type, enum value, or interface** - ensure it's added to all relevant type definitions
 5. **If you rename/delete a route file** - delete stale generated types in `.react-router/types/`
 
