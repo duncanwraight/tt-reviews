@@ -130,7 +130,6 @@ export async function action({ request, context }: Route.ActionArgs) {
         const id = formData.get("id") as string;
         const name = formData.get("name") as string;
         const value = formData.get("value") as string;
-        const parentId = (formData.get("parent_id") as string) || undefined;
         const flagEmoji = (formData.get("flag_emoji") as string) || undefined;
         const displayOrder =
           parseInt(formData.get("display_order") as string) || 0;
@@ -143,14 +142,27 @@ export async function action({ request, context }: Route.ActionArgs) {
           );
         }
 
-        const result = await categoryService.updateCategory(id, {
+        // Build updates object - only include parent_id if the field was in the form
+        const updates: Record<string, unknown> = {
           name: name.trim(),
           value: value.trim(),
-          parent_id: parentId ?? undefined,
-          flag_emoji: flagEmoji?.trim() ?? undefined,
           display_order: displayOrder,
           is_active: isActive,
-        });
+        };
+
+        // Only include flag_emoji if it has a value
+        if (flagEmoji) {
+          updates.flag_emoji = flagEmoji.trim();
+        }
+
+        // Only include parent_id if the field was present in the form
+        // Use null (not undefined) to clear a parent in the database
+        if (formData.has("parent_id")) {
+          const parentId = formData.get("parent_id") as string;
+          updates.parent_id = parentId || null;
+        }
+
+        const result = await categoryService.updateCategory(id, updates);
 
         if (!result) {
           return data(
