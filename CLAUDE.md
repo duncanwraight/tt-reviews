@@ -22,7 +22,8 @@
 - Package managers: npm install, npm run (build/test/lint/test:discord)
 - Database reads: SELECT queries
 - When running docker exec commands for data retrieval - e.g. database SELECTs or the aforementioned commands executed within a container
-- I will run supabase commands for you - apart from supabase migrations up, you can run that one without permission
+- I will run supabase commands for you locally
+- Production database migrations are automatically applied via GitHub Actions workflow on push to main
 
 ### Tasks that don't require permission:
 
