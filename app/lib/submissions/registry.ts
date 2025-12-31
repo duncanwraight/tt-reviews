@@ -531,7 +531,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
 
   player_equipment_setup: {
     type: "player_equipment_setup",
-    tableName: "player_equipment_setups",
+    tableName: "player_equipment_setup_submissions",
     displayName: "Player Equipment Setup",
     adminPath: "/admin/player-equipment-setups",
     form: {

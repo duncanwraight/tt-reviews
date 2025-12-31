@@ -49,8 +49,14 @@
 **Location**: `/submissions/player_equipment_setup/submit`
 **Expected**: Form should submit successfully when all fields are completed
 **Actual**: Shows red error "Equipment Details is required" even when all boxes are filled
-**Root Cause**: Validation checked for `formValues["equipment_setup"]` but the PlayerEquipmentSetup component renders individual form inputs (year, blade_name, etc.) and never sets the equipment_setup key. The server handles individual fields correctly, but client validation failed.
-**Fix Applied**: Set `required: false` for equipment_setup field since individual fields handle their own validation
+**Root Cause**: Multiple issues:
+1. Validation checked for `formValues["equipment_setup"]` but the component renders individual inputs
+2. The registry pointed to `player_equipment_setups` (final verified table) instead of a submissions table
+3. The final table has different schema (equipment IDs vs names, verified vs status)
+**Fix Applied**:
+- Set `required: false` for equipment_setup field since individual fields handle their own validation
+- Created new `player_equipment_setup_submissions` table following the established submission pattern
+- Updated registry to use the new submissions table with proper moderation workflow
 
 ## Profile Page Review Rating Display Bug
 
