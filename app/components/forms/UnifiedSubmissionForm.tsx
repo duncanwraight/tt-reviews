@@ -32,8 +32,13 @@ export function UnifiedSubmissionForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleFieldChange = (name: string, value: any) => {
-    setFormValues(prev => ({ ...prev, [name]: value }));
-    
+    console.log('[UnifiedSubmissionForm] handleFieldChange:', { name, value });
+    setFormValues(prev => {
+      const newValues = { ...prev, [name]: value };
+      console.log('[UnifiedSubmissionForm] New formValues:', newValues);
+      return newValues;
+    });
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
