@@ -32,12 +32,7 @@ export function UnifiedSubmissionForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleFieldChange = (name: string, value: any) => {
-    console.log('[UnifiedSubmissionForm] handleFieldChange:', { name, value });
-    setFormValues(prev => {
-      const newValues = { ...prev, [name]: value };
-      console.log('[UnifiedSubmissionForm] New formValues:', newValues);
-      return newValues;
-    });
+    setFormValues(prev => ({ ...prev, [name]: value }));
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -147,16 +142,7 @@ export function UnifiedSubmissionForm({
                 <CSRFToken token={csrfToken} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {config.form.fields.map((field: FormFieldConfig) => {
-                    // DEBUG: Log each field being rendered
-                    if (field.type === "rating_categories") {
-                      console.log('[UnifiedSubmissionForm] Rendering rating_categories field:', {
-                        fieldName: field.name,
-                        ratingCategories: fieldOptions.rating_categories,
-                        currentValue: formValues[field.name]
-                      });
-                    }
-                    return (
+                  {config.form.fields.map((field: FormFieldConfig) => (
                     <FormField
                       key={field.name}
                       field={field}
@@ -169,7 +155,7 @@ export function UnifiedSubmissionForm({
                       allValues={formValues}
                       ratingCategories={fieldOptions.rating_categories || []}
                     />
-                  );})}
+                  ))}
                 </div>
 
                 {/* Submit Button */}

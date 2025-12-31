@@ -29,12 +29,8 @@ export function RatingCategories({
   required = false,
   disabled = false,
 }: RatingCategoriesProps) {
-  // DEBUG: Log on every render
-  console.log('[RatingCategories] Render with values:', values);
-
   // Ensure we have a valid values object with defaults for all categories
   const currentRatings = useMemo(() => {
-    console.log('[RatingCategories] useMemo recalculating currentRatings from values:', values);
     const ratings: Record<string, number> = {};
     categories.forEach(cat => {
       ratings[cat.name] = values[cat.name] ?? min;
@@ -43,25 +39,15 @@ export function RatingCategories({
   }, [categories, values, min]);
 
   const handleSliderChange = useCallback((categoryName: string, newValue: number) => {
-    // DEBUG: Log what's happening
-    console.log('[RatingCategories] handleSliderChange called:', {
-      categoryName,
-      newValue,
-      currentRatings,
-      valuesFromProps: values
-    });
-
     // Create new values object with the updated category
     const newRatings = {
       ...currentRatings,
       [categoryName]: newValue
     };
 
-    console.log('[RatingCategories] Calling onChange with:', { name, newRatings });
-
     // Notify parent
     onChange(name, newRatings);
-  }, [name, currentRatings, onChange, values]);
+  }, [name, currentRatings, onChange]);
 
   const getRatingText = (rating: number) => {
     if (rating === 0) return "No rating";
@@ -111,6 +97,14 @@ export function RatingCategories({
 
   return (
     <div className="space-y-8">
+      {/* DEBUG: Visible on page */}
+      <div className="bg-yellow-100 border border-yellow-400 p-4 rounded text-xs font-mono">
+        <p><strong>DEBUG RatingCategories:</strong></p>
+        <p>values prop: {JSON.stringify(values)}</p>
+        <p>currentRatings: {JSON.stringify(currentRatings)}</p>
+        <p>categories: {categories.map(c => c.name).join(', ')}</p>
+      </div>
+
       <div className="border-b border-gray-200 pb-3">
         <h3 className="text-2xl font-bold text-gray-900">
           {label}

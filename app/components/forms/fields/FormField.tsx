@@ -283,11 +283,6 @@ export function FormField({
         );
 
       case "rating_categories":
-        console.log('[FormField] Rendering rating_categories:', {
-          fieldName: field.name,
-          categories: ratingCategories,
-          value: value
-        });
         return (
           <RatingCategories
             name={field.name}

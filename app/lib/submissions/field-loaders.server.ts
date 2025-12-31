@@ -148,6 +148,11 @@ export async function loadReviewRatingCategories(
   }));
 }
 
+// Type for field options - most fields use value/label, but rating_categories uses name/label/description
+type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
+  rating_categories?: Array<{ name: string; label: string; description?: string }>;
+};
+
 /**
  * Load all field options for a specific submission type
  */
@@ -155,8 +160,8 @@ export async function loadFieldOptions(
   submissionType: SubmissionType,
   sbClient: SupabaseClient,
   additionalData?: { equipmentId?: string }
-): Promise<Record<string, Array<{ value: string; label: string }>>> {
-  const fieldOptions: Record<string, Array<{ value: string; label: string }>> = {};
+): Promise<FieldOptions> {
+  const fieldOptions: FieldOptions = {};
   const loaders = optionLoaders[submissionType];
 
   if (!loaders) return fieldOptions;
@@ -178,10 +183,8 @@ export async function loadFieldOptions(
   // For reviews, also load rating categories if we have equipment ID
   if (submissionType === "review" && additionalData?.equipmentId) {
     const ratingCategories = await loadReviewRatingCategories(additionalData.equipmentId, sbClient);
-    fieldOptions.rating_categories = ratingCategories.map(cat => ({
-      value: cat.name,
-      label: cat.label,
-    }));
+    // Pass through as-is - RatingCategories component expects { name, label, description }
+    fieldOptions.rating_categories = ratingCategories;
   }
 
   return fieldOptions;
