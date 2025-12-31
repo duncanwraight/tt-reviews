@@ -147,7 +147,16 @@ export function UnifiedSubmissionForm({
                 <CSRFToken token={csrfToken} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {config.form.fields.map((field: FormFieldConfig) => (
+                  {config.form.fields.map((field: FormFieldConfig) => {
+                    // DEBUG: Log each field being rendered
+                    if (field.type === "rating_categories") {
+                      console.log('[UnifiedSubmissionForm] Rendering rating_categories field:', {
+                        fieldName: field.name,
+                        ratingCategories: fieldOptions.rating_categories,
+                        currentValue: formValues[field.name]
+                      });
+                    }
+                    return (
                     <FormField
                       key={field.name}
                       field={field}
@@ -160,7 +169,7 @@ export function UnifiedSubmissionForm({
                       allValues={formValues}
                       ratingCategories={fieldOptions.rating_categories || []}
                     />
-                  ))}
+                  );})}
                 </div>
 
                 {/* Submit Button */}
