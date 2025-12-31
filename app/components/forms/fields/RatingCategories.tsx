@@ -4,6 +4,8 @@ interface RatingCategory {
   name: string;
   label: string;
   description?: string;
+  min_label?: string;
+  max_label?: string;
 }
 
 interface RatingCategoriesProps {
@@ -49,14 +51,6 @@ export function RatingCategories({
     onChange(name, newRatings);
   }, [name, currentRatings, onChange]);
 
-  const getRatingText = (rating: number) => {
-    if (rating === 0) return "No rating";
-    if (rating <= 2) return "Poor";
-    if (rating <= 4) return "Fair";
-    if (rating <= 6) return "Good";
-    if (rating <= 8) return "Very Good";
-    return "Excellent";
-  };
 
   const getRatingColor = (rating: number) => {
     if (rating === 0) return "text-gray-400";
@@ -66,15 +60,6 @@ export function RatingCategories({
     if (rating <= 8) return "text-blue-500";
     return "text-green-500";
   };
-
-  // Calculate overall score
-  const overallScore = useMemo(() => {
-    const ratedCategories = categories.filter(cat => currentRatings[cat.name] > 0);
-    if (ratedCategories.length === 0) return 0;
-
-    const totalScore = ratedCategories.reduce((sum, cat) => sum + (currentRatings[cat.name] || 0), 0);
-    return Math.round((totalScore / ratedCategories.length) * 10) / 10;
-  }, [categories, currentRatings]);
 
 
   if (!categories || categories.length === 0) {
@@ -104,26 +89,6 @@ export function RatingCategories({
         </h3>
       </div>
 
-      {/* Overall Score Display */}
-      {overallScore > 0 && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900">Overall Score</h4>
-              <p className="text-sm text-gray-600">Average of all rated categories</p>
-            </div>
-            <div className="text-right">
-              <div className="text-4xl font-bold text-purple-600">
-                {overallScore}/10
-              </div>
-              <div className="text-sm text-gray-500">
-                Based on {categories.filter(cat => currentRatings[cat.name] > 0).length} categories
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-8">
         {categories.map((category, index) => {
           const currentValue = currentRatings[category.name] ?? min;
@@ -138,7 +103,7 @@ export function RatingCategories({
                     {required && <span className="text-red-500 ml-1">*</span>}
                   </label>
                   <div className={`text-2xl font-bold ${getRatingColor(currentValue)}`}>
-                    {currentValue}/{max} - {getRatingText(currentValue)}
+                    {currentValue}/{max}
                   </div>
                 </div>
 
@@ -157,28 +122,28 @@ export function RatingCategories({
                     disabled={disabled}
                     className={`w-full h-3 rounded-lg appearance-none cursor-pointer ${
                       disabled ? "opacity-50 cursor-not-allowed" : ""
-                    } bg-gray-200 
-                    [&::-webkit-slider-thumb]:appearance-none 
-                    [&::-webkit-slider-thumb]:w-6 
-                    [&::-webkit-slider-thumb]:h-6 
-                    [&::-webkit-slider-thumb]:rounded-full 
+                    } bg-gray-200
+                    [&::-webkit-slider-thumb]:appearance-none
+                    [&::-webkit-slider-thumb]:w-6
+                    [&::-webkit-slider-thumb]:h-6
+                    [&::-webkit-slider-thumb]:rounded-full
                     [&::-webkit-slider-thumb]:bg-purple-600
                     [&::-webkit-slider-thumb]:cursor-pointer
                     [&::-webkit-slider-thumb]:shadow-lg
                     [&::-webkit-slider-thumb]:hover:bg-purple-700
-                    [&::-moz-range-thumb]:w-6 
-                    [&::-moz-range-thumb]:h-6 
-                    [&::-moz-range-thumb]:rounded-full 
+                    [&::-moz-range-thumb]:w-6
+                    [&::-moz-range-thumb]:h-6
+                    [&::-moz-range-thumb]:rounded-full
                     [&::-moz-range-thumb]:bg-purple-600
                     [&::-moz-range-thumb]:cursor-pointer
                     [&::-moz-range-thumb]:border-0
                     [&::-moz-range-thumb]:shadow-lg`}
                   />
-                  
+
                   <div className="flex justify-between text-sm text-gray-500 px-1">
-                    <span>{min}</span>
-                    <span className="text-center font-medium">Rating Scale</span>
-                    <span>{max}</span>
+                    <span>{category.min_label || min}</span>
+                    <span className="text-center font-medium">{currentValue}/{max}</span>
+                    <span>{category.max_label || max}</span>
                   </div>
                 </div>
               </div>
@@ -208,13 +173,6 @@ export function RatingCategories({
         type="hidden"
         name={name}
         value={JSON.stringify(currentRatings)}
-      />
-      
-      {/* Overall score hidden input */}
-      <input
-        type="hidden"
-        name="overall_rating"
-        value={overallScore}
       />
     </div>
   );

@@ -198,9 +198,9 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
                   </div>
 
                   <h4 className="text-base font-medium text-gray-900 mb-2">
-                    {submission.name || submission.player_name || submission.equipment_name || 
-                     (submission.type === "review" && submission.overall_rating ? 
-                       `Review (${submission.overall_rating}/5 stars)` : "Submission")}
+                    {submission.name || submission.player_name || submission.equipment_name ||
+                     (submission.type === "review" && submission.overall_rating ?
+                       `Review (${submission.overall_rating}/10)` : "Submission")}
                   </h4>
 
                   {submission.status === "rejected" &&

@@ -21,7 +21,7 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -92,7 +92,7 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -145,7 +145,7 @@ export class ModerationService {
   }
 
   async getSubmissionApprovals(
-    submissionType: "equipment" | "player" | "player_edit" | "video",
+    submissionType: "equipment" | "player" | "player_edit" | "video" | "player_equipment_setup",
     submissionId: string
   ): Promise<ModeratorApproval[]> {
     const { data, error } = await this.supabase
@@ -275,7 +275,7 @@ export class ModerationService {
   }
 
   private async getSubmissionStatus(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -289,7 +289,7 @@ export class ModerationService {
   }
 
   private async deleteSubmissionImage(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video",
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -347,7 +347,7 @@ export class ModerationService {
   }
 
   private getTableName(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video"
+    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup"
   ): string {
     switch (submissionType) {
       case "equipment":

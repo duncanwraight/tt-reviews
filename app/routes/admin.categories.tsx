@@ -93,6 +93,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         const value = formData.get("value") as string;
         const parentId = (formData.get("parent_id") as string) || undefined;
         const flagEmoji = (formData.get("flag_emoji") as string) || undefined;
+        const minLabel = (formData.get("min_label") as string) || undefined;
+        const maxLabel = (formData.get("max_label") as string) || undefined;
         const displayOrder =
           parseInt(formData.get("display_order") as string) || 0;
 
@@ -109,6 +111,8 @@ export async function action({ request, context }: Route.ActionArgs) {
           value: value.trim(),
           parent_id: parentId ?? undefined,
           flag_emoji: flagEmoji?.trim() ?? undefined,
+          min_label: minLabel?.trim() ?? undefined,
+          max_label: maxLabel?.trim() ?? undefined,
           display_order: displayOrder,
           is_active: true,
         });
@@ -160,6 +164,16 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (formData.has("parent_id")) {
           const parentId = formData.get("parent_id") as string;
           updates.parent_id = parentId || null;
+        }
+
+        // Handle min_label and max_label for rating categories
+        if (formData.has("min_label")) {
+          const minLabel = formData.get("min_label") as string;
+          updates.min_label = minLabel?.trim() || null;
+        }
+        if (formData.has("max_label")) {
+          const maxLabel = formData.get("max_label") as string;
+          updates.max_label = maxLabel?.trim() || null;
         }
 
         await categoryService.updateCategory(id, updates);

@@ -366,6 +366,17 @@ export class DiscordService {
       return await this.handleRejectEquipmentSubmission(submissionId, user);
     }
 
+    // Handle player_equipment_setup BEFORE player_ to avoid prefix collision
+    if (customId.startsWith("approve_player_equipment_setup_")) {
+      const submissionId = customId.replace("approve_player_equipment_setup_", "");
+      return await this.handleApprovePlayerEquipmentSetup(submissionId, user);
+    }
+
+    if (customId.startsWith("reject_player_equipment_setup_")) {
+      const submissionId = customId.replace("reject_player_equipment_setup_", "");
+      return await this.handleRejectPlayerEquipmentSetup(submissionId, user);
+    }
+
     if (customId.startsWith("approve_player_")) {
       const submissionId = customId.replace("approve_player_", "");
       return await this.handleApprovePlayerSubmission(submissionId, user);
@@ -1281,6 +1292,182 @@ export class DiscordService {
           type: 4,
           data: {
             content: `❌ **Error**: Failed to process player submission rejection`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle player equipment setup approval
+   */
+  private async handleApprovePlayerEquipmentSetup(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const result = await this.moderationService.recordApproval(
+        "player_equipment_setup",
+        submissionId,
+        discordModeratorId,
+        "discord",
+        undefined,
+        true // isDiscordModerator
+      );
+
+      if (result.success) {
+        let message = "Your approval has been recorded.";
+        if (result.newStatus === "approved") {
+          message =
+            "Player equipment setup has been fully approved and will be published.";
+        } else if (result.newStatus === "awaiting_second_approval") {
+          message =
+            "Player equipment setup needs one more approval before being published.";
+        }
+
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Player Equipment Setup Approved by ${user.username}**\nSubmission ${submissionId}: ${message}`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to process approval"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling approve player equipment setup:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player equipment setup approval`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle player equipment setup rejection
+   */
+  private async handleRejectPlayerEquipmentSetup(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "player_equipment_setup",
+        submissionId,
+        discordModeratorId,
+        "discord",
+        {
+          category: "other",
+          reason: `Rejected via Discord by ${user.username}`,
+        },
+        this.context.cloudflare?.env?.R2_BUCKET,
+        true // isDiscordModerator
+      );
+
+      if (result.success) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Player Equipment Setup Rejected by ${user.username}**\nSubmission ${submissionId} has been rejected and will not be published.`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to reject player equipment setup"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling reject player equipment setup:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process player equipment setup rejection`,
             flags: 64,
           },
         }),

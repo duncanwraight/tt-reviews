@@ -10,7 +10,7 @@ interface UnifiedSubmissionFormProps {
   csrfToken: string;
   // Server-provided options for select fields and rating categories
   fieldOptions?: Record<string, Array<{ value: string; label: string }>> & {
-    rating_categories?: Array<{ name: string; label: string; description?: string }>;
+    rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
   };
   // Pre-selected values (e.g., from URL params)
   preSelectedValues?: Record<string, any>;

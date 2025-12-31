@@ -123,7 +123,7 @@ const optionLoaders: Record<SubmissionType, Record<string, OptionLoaderConfig>> 
 export async function loadReviewRatingCategories(
   equipmentId: string,
   sbClient: SupabaseClient
-): Promise<Array<{ name: string; label: string; description?: string }>> {
+): Promise<Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>> {
   // First get the equipment category and subcategory to determine which rating categories to show
   const { data: equipment } = await sbClient
     .from("equipment")
@@ -140,17 +140,19 @@ export async function loadReviewRatingCategories(
     equipment.subcategory
   );
 
-  // Transform to the expected format
+  // Transform to the expected format, including custom slider labels
   return ratingCategories.map(category => ({
     name: category.value,
     label: category.name,
     description: category.description,
+    min_label: category.min_label,
+    max_label: category.max_label,
   }));
 }
 
-// Type for field options - most fields use value/label, but rating_categories uses name/label/description
+// Type for field options - most fields use value/label, but rating_categories uses name/label/description/min_label/max_label
 type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
-  rating_categories?: Array<{ name: string; label: string; description?: string }>;
+  rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
 };
 
 /**

@@ -17,6 +17,8 @@ export interface Category {
   display_order: number;
   flag_emoji?: string;
   description?: string;
+  min_label?: string;
+  max_label?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -28,6 +30,8 @@ export interface CategoryOption {
   value: string;
   flag_emoji?: string;
   description?: string;
+  min_label?: string;
+  max_label?: string;
   display_order: number;
 }
 
@@ -304,6 +308,8 @@ export class CategoryService {
           name,
           value,
           description,
+          min_label,
+          max_label,
           display_order
         `)
         .eq("type", "review_rating_category")

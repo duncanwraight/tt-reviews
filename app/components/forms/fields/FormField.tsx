@@ -21,7 +21,7 @@ interface FormFieldProps {
   // For dependency handling
   allValues?: Record<string, any>;
   // For rating categories
-  ratingCategories?: Array<{ name: string; label: string; description?: string }>;
+  ratingCategories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
 }
 
 export function FormField({

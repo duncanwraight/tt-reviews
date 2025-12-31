@@ -1,24 +1,16 @@
 # Bugs
 
-## Review Rating Categories Not Showing in Frontend
+## Review Rating Categories Not Showing in Frontend - FIXED
 
 **Location**: Equipment review submission form
 **Expected**: Rating category sliders (Speed, Spin, Control, etc.) should appear based on equipment type
 **Actual**: Shows "Rating categories not available" warning, falls back to overall rating only
 **Root Cause**: Rating categories in database have no `parent_id` set - they need to be linked to equipment categories/subcategories
-**Partial Fix Applied**:
+**Fix Applied**:
 - Admin UI now shows parent name badge (or "No parent!" warning) for each category
 - Parent selection is now required when creating review_rating_category types
-
-### Sub-bug: Cannot Edit Parent on Existing Categories - FIXED
-
-**Location**: `/admin/categories` - Edit mode for Review Rating Categories and Equipment Subcategories
-**Expected**: When editing a category, should be able to change/set the parent
-**Actual**: No parent selection field appears in edit mode - only visible when creating new categories
-**Fix Applied**:
-- Added parent_id selector to edit form in CategoryManager.tsx
-- Updated action handler in admin.categories.tsx to extract and pass parent_id during updates
-- Parent is required for review_rating_category type (marked with red asterisk)
+- Added parent_id selector to edit form for existing categories
+- Updated action handler to extract and pass parent_id during updates
 
 ## Equipment Review Rating Sliders Issues
 
@@ -30,19 +22,26 @@
 **Root Cause**: field-loaders.server.ts was transforming rating categories from `{ name, label }` to `{ value, label }`, but RatingCategories component expected `{ name, label }`. All categories had `category.name` as `undefined`, so all sliders read/wrote to the same key.
 **Fix Applied**: Pass rating categories through without transformation in loadFieldOptions()
 
-### Issue: Rating Labels Not Appropriate for Characteristics
+### Issue: Rating Labels Not Appropriate for Characteristics - FIXED
 
 **Location**: Equipment review submission form
 **Current**: Sliders show labels like "Poor", "Good", "Very Good" based on rating value
 **Problem**: These value judgments don't make sense for equipment characteristics - slow equipment isn't "poor", it's just slow
-**Suggestion**: Either remove labels entirely or use neutral descriptors (e.g., "Low", "Medium", "High" or just show the number)
+**Fix Applied**:
+- Added `min_label` and `max_label` columns to categories table
+- Admin can now set custom endpoint labels per rating category (e.g., "Slow" ↔ "Fast" for Speed)
+- Slider now shows just the number value, with custom labels at endpoints
+- Removed hardcoded value judgment labels
 
-### Issue: Overall Score Calculated as Average
+### Issue: Overall Score Calculated as Average - FIXED
 
 **Location**: Equipment review submission form
 **Current**: Overall score is automatically calculated as average of all category ratings
 **Problem**: Equipment quality isn't determined by averaging characteristics - a blade could be excellent despite having low speed if that's its design intent
-**Suggestion**: Let users set overall score independently, or remove automatic calculation
+**Fix Applied**:
+- Removed auto-calculation from RatingCategories component
+- Added independent overall_rating slider field to review form
+- Users now set overall score independently from category ratings
 
 ## Player Equipment Setup Form Validation Error - FIXED
 
@@ -57,13 +56,26 @@
 - Set `required: false` for equipment_setup field since individual fields handle their own validation
 - Created new `player_equipment_setup_submissions` table following the established submission pattern
 - Updated registry to use the new submissions table with proper moderation workflow
+- Added explicit field extraction in action for the component's rendered fields
 
-## Profile Page Review Rating Display Bug
+## Discord Approval Button Error for Player Equipment Setup - FIXED
+
+**Location**: Discord bot approval interaction
+**Expected**: Clicking Approve in Discord should approve the player equipment setup submission
+**Actual**: Error: `Failed to record approval: invalid input syntax for type uuid: "equipment_setup_9c46155b-3495-4f41-b145-763f9e64b8d7"`
+**Root Cause**: The custom_id `approve_player_equipment_setup_UUID` was matching `approve_player_` pattern first, stripping to `equipment_setup_UUID` (invalid UUID)
+**Fix Applied**:
+- Added specific handling for `approve_player_equipment_setup_` and `reject_player_equipment_setup_` BEFORE the generic `approve_player_` pattern
+- Added `handleApprovePlayerEquipmentSetup` and `handleRejectPlayerEquipmentSetup` handler methods
+- Added `player_equipment_setup` to moderation service type unions
+
+## Profile Page Review Rating Display Bug - FIXED
 
 **Location**: User profile page - reviews section
 **Expected**: Review ratings should display correctly (e.g., "7/10" or converted to "3.5/5 stars")
 **Actual**: Shows "7/5 stars" - raw 10-point rating displayed with 5-star label
-**Root Cause**: Missing conversion from 10-point scale to 5-star scale, or incorrect label
+**Root Cause**: Displayed raw 10-point rating with incorrect "/5 stars" label
+**Fix Applied**: Display rating as "X/10" to match the actual scale used throughout the app
 
 ## Player Submissions Approve Button Not Working - FIXED
 

@@ -157,6 +157,52 @@ export function CategoryManager({
               </div>
             </div>
 
+            {/* Min/Max Labels for Rating Categories */}
+            {type === "review_rating_category" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="md:col-span-2">
+                  <p className="text-sm font-medium text-purple-800 mb-2">
+                    Slider Labels (optional)
+                  </p>
+                  <p className="text-xs text-purple-600 mb-3">
+                    Custom labels shown at the ends of the rating slider instead of generic "Poor"/"Excellent"
+                  </p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="min_label"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Minimum Label (e.g., "Slow", "Low spin")
+                  </label>
+                  <input
+                    type="text"
+                    id="min_label"
+                    name="min_label"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g., Slow"
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="max_label"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Maximum Label (e.g., "Fast", "High spin")
+                  </label>
+                  <input
+                    type="text"
+                    id="max_label"
+                    name="max_label"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g., Fast"
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex space-x-3">
               <button
                 type="submit"
@@ -379,6 +425,54 @@ function CategoryItem({
               </select>
             </div>
           </div>
+
+          {/* Min/Max Labels for Rating Categories */}
+          {type === "review_rating_category" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="md:col-span-2">
+                <p className="text-sm font-medium text-purple-800 mb-2">
+                  Slider Labels (optional)
+                </p>
+                <p className="text-xs text-purple-600 mb-3">
+                  Custom labels shown at the ends of the rating slider instead of generic "Poor"/"Excellent"
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor={`edit-min-label-${category.id}`}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Minimum Label (e.g., "Slow", "Low spin")
+                </label>
+                <input
+                  type="text"
+                  id={`edit-min-label-${category.id}`}
+                  name="min_label"
+                  defaultValue={category.min_label || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., Slow"
+                  maxLength={100}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor={`edit-max-label-${category.id}`}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Maximum Label (e.g., "Fast", "High spin")
+                </label>
+                <input
+                  type="text"
+                  id={`edit-max-label-${category.id}`}
+                  name="max_label"
+                  defaultValue={category.max_label || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., Fast"
+                  maxLength={100}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex space-x-3">
             <button
