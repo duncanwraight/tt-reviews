@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 interface RatingCategory {
   name: string;
@@ -29,26 +29,25 @@ export function RatingCategories({
   required = false,
   disabled = false,
 }: RatingCategoriesProps) {
-  // Use refs to store values to avoid React state issues
-  const ratingsRef = useRef<Record<string, number>>({});
-  
-  // Initialize ratings from props
-  if (Object.keys(ratingsRef.current).length === 0) {
+  // Ensure we have a valid values object with defaults for all categories
+  const currentRatings = useMemo(() => {
+    const ratings: Record<string, number> = {};
     categories.forEach(cat => {
-      ratingsRef.current[cat.name] = values[cat.name] || min;
+      ratings[cat.name] = values[cat.name] ?? min;
     });
-  }
+    return ratings;
+  }, [categories, values, min]);
 
   const handleSliderChange = useCallback((categoryName: string, newValue: number) => {
-    // Update the ref directly
-    ratingsRef.current = {
-      ...ratingsRef.current,
+    // Create new values object with the updated category
+    const newRatings = {
+      ...currentRatings,
       [categoryName]: newValue
     };
-    
+
     // Notify parent
-    onChange(name, {...ratingsRef.current});
-  }, [name, onChange]);
+    onChange(name, newRatings);
+  }, [name, currentRatings, onChange]);
 
   const getRatingText = (rating: number) => {
     if (rating === 0) return "No rating";
@@ -69,15 +68,13 @@ export function RatingCategories({
   };
 
   // Calculate overall score
-  const calculateOverallScore = () => {
-    const ratedCategories = categories.filter(cat => ratingsRef.current[cat.name] > 0);
+  const overallScore = useMemo(() => {
+    const ratedCategories = categories.filter(cat => currentRatings[cat.name] > 0);
     if (ratedCategories.length === 0) return 0;
-    
-    const totalScore = ratedCategories.reduce((sum, cat) => sum + (ratingsRef.current[cat.name] || 0), 0);
-    return Math.round((totalScore / ratedCategories.length) * 10) / 10;
-  };
 
-  const overallScore = calculateOverallScore();
+    const totalScore = ratedCategories.reduce((sum, cat) => sum + (currentRatings[cat.name] || 0), 0);
+    return Math.round((totalScore / ratedCategories.length) * 10) / 10;
+  }, [categories, currentRatings]);
 
 
   if (!categories || categories.length === 0) {
@@ -120,7 +117,7 @@ export function RatingCategories({
                 {overallScore}/10
               </div>
               <div className="text-sm text-gray-500">
-                Based on {categories.filter(cat => ratingsRef.current[cat.name] > 0).length} categories
+                Based on {categories.filter(cat => currentRatings[cat.name] > 0).length} categories
               </div>
             </div>
           </div>
@@ -129,7 +126,7 @@ export function RatingCategories({
 
       <div className="space-y-8">
         {categories.map((category, index) => {
-          const currentValue = ratingsRef.current[category.name] || min;
+          const currentValue = currentRatings[category.name] ?? min;
           const sliderId = `rating_${name}_${category.name}_${index}`;
 
           return (
@@ -202,15 +199,15 @@ export function RatingCategories({
           key={`hidden_input_${category.name}_${index}`}
           type="hidden"
           name={`rating_${category.name}`}
-          value={ratingsRef.current[category.name] || ""}
+          value={currentRatings[category.name] || ""}
         />
       ))}
-      
+
       {/* Summary hidden input */}
       <input
         type="hidden"
         name={name}
-        value={JSON.stringify(ratingsRef.current)}
+        value={JSON.stringify(currentRatings)}
       />
       
       {/* Overall score hidden input */}
