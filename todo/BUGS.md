@@ -43,6 +43,13 @@
 **Problem**: Equipment quality isn't determined by averaging characteristics - a blade could be excellent despite having low speed if that's its design intent
 **Suggestion**: Let users set overall score independently, or remove automatic calculation
 
+## Player Equipment Setup Form Validation Error
+
+**Location**: `/submissions/player_equipment_setup/submit`
+**Expected**: Form should submit successfully when all fields are completed
+**Actual**: Shows red error "Equipment Details is required" even when all boxes are filled
+**Root Cause**: TBD - likely validation logic not recognizing the equipment setup data structure
+
 ## Profile Page Review Rating Display Bug
 
 **Location**: User profile page - reviews section
