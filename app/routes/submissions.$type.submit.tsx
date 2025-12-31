@@ -163,6 +163,28 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       }
     }
 
+    // Handle player_equipment_setup - extract individual fields rendered by the component
+    if (submissionType === "player_equipment_setup") {
+      const equipmentFields = [
+        'year', 'blade_name',
+        'forehand_rubber_name', 'forehand_thickness', 'forehand_side',
+        'backhand_rubber_name', 'backhand_thickness', 'backhand_side',
+        'source_type', 'source_url'
+      ];
+
+      for (const fieldName of equipmentFields) {
+        const value = formData.get(fieldName);
+        if (value !== null && value !== "") {
+          // Convert year to integer
+          if (fieldName === 'year') {
+            submissionData[fieldName] = parseInt(value as string, 10);
+          } else {
+            submissionData[fieldName] = value;
+          }
+        }
+      }
+    }
+
     // Handle review-specific data transformation
     if (submissionType === "review") {
       // Parse rating categories from JSON string and map to correct field name
