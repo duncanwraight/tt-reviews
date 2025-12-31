@@ -191,6 +191,7 @@ export function CategoryManager({
               <CategoryItem
                 key={category.id}
                 category={category}
+                type={type}
                 isEditing={editingId === category.id}
                 onEdit={() => setEditingId(category.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -229,6 +230,7 @@ export function CategoryManager({
 
 interface CategoryItemProps {
   category: Category;
+  type: CategoryType;
   isEditing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -242,6 +244,7 @@ interface CategoryItemProps {
 
 function CategoryItem({
   category,
+  type,
   isEditing,
   onEdit,
   onCancelEdit,
@@ -313,6 +316,31 @@ function CategoryItem({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   maxLength={10}
                 />
+              </div>
+            )}
+
+            {allowSubcategories && parentCategories.length > 0 && (
+              <div>
+                <label
+                  htmlFor={`edit-parent-${category.id}`}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Parent Category {type === "review_rating_category" && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  id={`edit-parent-${category.id}`}
+                  name="parent_id"
+                  required={type === "review_rating_category"}
+                  defaultValue={category.parent_id || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">{type === "review_rating_category" ? "Select parent..." : "No Parent"}</option>
+                  {parentCategories.map(parent => (
+                    <option key={parent.id} value={parent.id}>
+                      {parent.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 

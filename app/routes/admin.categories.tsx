@@ -130,6 +130,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         const id = formData.get("id") as string;
         const name = formData.get("name") as string;
         const value = formData.get("value") as string;
+        const parentId = (formData.get("parent_id") as string) || undefined;
         const flagEmoji = (formData.get("flag_emoji") as string) || undefined;
         const displayOrder =
           parseInt(formData.get("display_order") as string) || 0;
@@ -145,6 +146,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         const result = await categoryService.updateCategory(id, {
           name: name.trim(),
           value: value.trim(),
+          parent_id: parentId ?? undefined,
           flag_emoji: flagEmoji?.trim() ?? undefined,
           display_order: displayOrder,
           is_active: isActive,

@@ -6,10 +6,19 @@
 **Expected**: Rating category sliders (Speed, Spin, Control, etc.) should appear based on equipment type
 **Actual**: Shows "Rating categories not available" warning, falls back to overall rating only
 **Root Cause**: Rating categories in database have no `parent_id` set - they need to be linked to equipment categories/subcategories
-**Fix Applied**:
+**Partial Fix Applied**:
 - Admin UI now shows parent name badge (or "No parent!" warning) for each category
 - Parent selection is now required when creating review_rating_category types
-**Action Required**: Edit existing rating categories in `/admin/categories` to set their parent (e.g., link "Speed" to "Inverted" rubber subcategory)
+
+### Sub-bug: Cannot Edit Parent on Existing Categories - FIXED
+
+**Location**: `/admin/categories` - Edit mode for Review Rating Categories and Equipment Subcategories
+**Expected**: When editing a category, should be able to change/set the parent
+**Actual**: No parent selection field appears in edit mode - only visible when creating new categories
+**Fix Applied**:
+- Added parent_id selector to edit form in CategoryManager.tsx
+- Updated action handler in admin.categories.tsx to extract and pass parent_id during updates
+- Parent is required for review_rating_category type (marked with red asterisk)
 
 ## Player Submissions Approve Button Not Working - FIXED
 
