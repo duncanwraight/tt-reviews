@@ -241,6 +241,51 @@ This feature automatically promotes specified email addresses to admin role when
 - Promotion only happens for authenticated users
 - Existing roles are preserved (won't demote existing admins)
 
+## Row Level Security (RLS) Policies
+
+### Critical: Use JWT Claims for Role Checks
+
+**NEVER** query the `user_roles` table directly in RLS policies. The `user_roles` table has restricted access (only `supabase_auth_admin` can read it).
+
+```sql
+-- WRONG: Will fail with "permission denied for table user_roles"
+CREATE POLICY "admin_only" ON my_table
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+
+-- CORRECT: Use JWT claims
+CREATE POLICY "admin_only" ON my_table
+  FOR ALL TO authenticated
+  USING ((auth.jwt() ->> 'user_role') = 'admin');
+```
+
+### RLS Policy Patterns
+
+| Access Level | Policy Pattern |
+|--------------|----------------|
+| Public read | `FOR SELECT USING (true)` |
+| Authenticated read | `FOR SELECT TO authenticated USING (true)` |
+| Own records only | `USING (auth.uid() = user_id)` |
+| Admin only | `USING ((auth.jwt() ->> 'user_role') = 'admin')` |
+| Admin or moderator | `USING ((auth.jwt() ->> 'user_role') IN ('admin', 'moderator'))` |
+
+### Before Creating RLS Migrations
+
+1. **Check existing patterns** in `supabase/migrations/` - especially `20250612221534_implement_proper_rbac_with_auth_hooks.sql`
+2. **Never query `user_roles` directly** - always use `auth.jwt() ->> 'user_role'`
+3. **Test policies locally** before pushing to production
+4. **Remember SELECT policies** - if admins need to see all records (including inactive), add a separate admin SELECT policy
+
+### Common RLS Issues
+
+| Symptom | Likely Cause |
+|---------|--------------|
+| "permission denied for table user_roles" | RLS policy queries user_roles instead of using JWT claims |
+| Empty results for admin | Missing admin SELECT policy (only public SELECT exists) |
+| Update/delete fails silently | USING clause doesn't match, or missing policy for operation |
+
 ## React Router v7 File-Based Routing
 
 This project uses **file-based routing** with React Router v7. Key configuration details:
