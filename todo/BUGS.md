@@ -20,6 +20,36 @@
 - Updated action handler in admin.categories.tsx to extract and pass parent_id during updates
 - Parent is required for review_rating_category type (marked with red asterisk)
 
+## Equipment Review Rating Sliders Issues
+
+### Bug: All Rating Sliders Move Together
+
+**Location**: Equipment review submission form
+**Expected**: Each rating slider (Speed, Spin, Control, etc.) should be independent
+**Actual**: Moving any slider causes all sliders to move to the same value
+**Root Cause**: Likely shared state or incorrect key/name attributes on slider inputs
+
+### Issue: Rating Labels Not Appropriate for Characteristics
+
+**Location**: Equipment review submission form
+**Current**: Sliders show labels like "Poor", "Good", "Very Good" based on rating value
+**Problem**: These value judgments don't make sense for equipment characteristics - slow equipment isn't "poor", it's just slow
+**Suggestion**: Either remove labels entirely or use neutral descriptors (e.g., "Low", "Medium", "High" or just show the number)
+
+### Issue: Overall Score Calculated as Average
+
+**Location**: Equipment review submission form
+**Current**: Overall score is automatically calculated as average of all category ratings
+**Problem**: Equipment quality isn't determined by averaging characteristics - a blade could be excellent despite having low speed if that's its design intent
+**Suggestion**: Let users set overall score independently, or remove automatic calculation
+
+## Profile Page Review Rating Display Bug
+
+**Location**: User profile page - reviews section
+**Expected**: Review ratings should display correctly (e.g., "7/10" or converted to "3.5/5 stars")
+**Actual**: Shows "7/5 stars" - raw 10-point rating displayed with 5-star label
+**Root Cause**: Missing conversion from 10-point scale to 5-star scale, or incorrect label
+
 ## Player Submissions Approve Button Not Working - FIXED
 
 **Location**: `/admin/player-submissions`
