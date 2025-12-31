@@ -547,7 +547,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           name: "equipment_setup",
           label: "Equipment Details",
           type: "equipment_setup_standalone",
-          required: true,
+          required: false, // Individual fields handle their own validation
           layout: { colSpan: 2 },
         },
       ],
