@@ -103,7 +103,7 @@ export class EnhancedErrorBoundary extends Component<
         name: error.name,
         message: error.message,
         stack: error.stack || undefined,
-        componentStack: errorInfo.componentStack,
+        componentStack: errorInfo.componentStack ?? undefined,
       },
       metadata: {
         retryCount: this.retryCount,

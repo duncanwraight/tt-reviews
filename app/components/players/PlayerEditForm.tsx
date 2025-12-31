@@ -108,7 +108,7 @@ export function PlayerEditForm({
                   <div>
                     <span className="font-medium text-gray-700">Gender:</span>
                     <span className="ml-2 text-gray-900">
-                      {player.gender === "M" ? "Male" : "Female"}
+                      {player.gender === "male" ? "Male" : "Female"}
                     </span>
                   </div>
                 )}

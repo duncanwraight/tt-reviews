@@ -66,6 +66,7 @@ export interface Player {
   playing_style?: string; // Now uses configurable categories instead of hardcoded values
   birth_country?: string; // ISO 3166-1 alpha-3 country code for birth country
   represents?: string; // ISO 3166-1 alpha-3 country code for represented country
+  gender?: "male" | "female";
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +79,7 @@ export interface Equipment {
   subcategory?: "inverted" | "long_pips" | "anti" | "short_pips";
   manufacturer: string;
   specifications: Record<string, unknown>;
+  image_url?: string;
   created_at: string;
   updated_at: string;
 }

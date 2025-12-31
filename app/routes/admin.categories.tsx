@@ -63,9 +63,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         all: allCategories,
       },
       env: {
-        SUPABASE_URL: (context.cloudflare.env as Record<string, string>)
+        SUPABASE_URL: (context.cloudflare.env as unknown as Record<string, string>)
           .SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as Record<string, string>)
+        SUPABASE_ANON_KEY: (context.cloudflare.env as unknown as Record<string, string>)
           .SUPABASE_ANON_KEY!,
       },
     },
@@ -107,8 +107,8 @@ export async function action({ request, context }: Route.ActionArgs) {
           type,
           name: name.trim(),
           value: value.trim(),
-          parent_id: parentId || null,
-          flag_emoji: flagEmoji?.trim() || null,
+          parent_id: parentId ?? undefined,
+          flag_emoji: flagEmoji?.trim() ?? undefined,
           display_order: displayOrder,
           is_active: true,
         });
@@ -145,7 +145,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         const result = await categoryService.updateCategory(id, {
           name: name.trim(),
           value: value.trim(),
-          flag_emoji: flagEmoji?.trim() || null,
+          flag_emoji: flagEmoji?.trim() ?? undefined,
           display_order: displayOrder,
           is_active: isActive,
         });
@@ -266,7 +266,7 @@ export default function AdminCategories({
       </div>
 
       {/* Success/Error Messages */}
-      {actionData?.success && (
+      {actionData && "success" in actionData && actionData.success && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -279,7 +279,7 @@ export default function AdminCategories({
         </div>
       )}
 
-      {actionData?.error && (
+      {actionData && "error" in actionData && actionData.error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex">
             <div className="flex-shrink-0">

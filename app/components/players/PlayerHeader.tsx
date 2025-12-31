@@ -60,7 +60,7 @@ export function PlayerHeader({
               {(player.represents || player.birth_country) && (
                 <span>
                   <span className="font-medium text-gray-700">Represents:</span>{" "}
-                  {getCountryFlag(player.represents || player.birth_country)}{" "}
+                  {getCountryFlag((player.represents || player.birth_country)!)}{" "}
                   {player.represents || player.birth_country}
                 </span>
               )}

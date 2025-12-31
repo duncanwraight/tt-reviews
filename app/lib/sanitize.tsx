@@ -56,11 +56,6 @@ export function sanitizeHtml(
       .replace(/\s*data\s*:/gi, "")
       .replace(/\s*vbscript\s*:/gi, "");
 
-    // If no tags are allowed, strip all HTML
-    if (allowedTags.length === 0) {
-      return sanitized.replace(/<[^>]*>/g, "").trim();
-    }
-
     // Remove any tags not in the allowed list
     const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
     sanitized = sanitized.replace(tagRegex, (match, tagName) => {

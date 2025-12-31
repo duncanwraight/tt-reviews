@@ -2,6 +2,15 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { DiscordService } from "../discord.server";
 import { DatabaseService } from "../database.server";
 
+// Type for Discord API response
+interface DiscordResponse {
+  type: number;
+  data?: {
+    content: string;
+    flags?: number;
+  };
+}
+
 // Helper function to check if Supabase environment is available
 const hasSupabaseEnv = () => {
   return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
@@ -59,9 +68,9 @@ describe("Discord Integration", () => {
       let capturedPayload: any = null;
       let capturedUrl: string = "";
       const originalFetch = global.fetch;
-      global.fetch = async (url: string, options: any) => {
-        capturedUrl = url;
-        capturedPayload = JSON.parse(options.body);
+      global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
+        capturedUrl = String(input);
+        capturedPayload = options?.body ? JSON.parse(options.body as string) : null;
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       };
 
@@ -149,9 +158,9 @@ describe("Discord Integration", () => {
       let capturedPayload: any = null;
       let capturedUrl: string = "";
       const originalFetch = global.fetch;
-      global.fetch = async (url: string, options: any) => {
-        capturedUrl = url;
-        capturedPayload = JSON.parse(options.body);
+      global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
+        capturedUrl = String(input);
+        capturedPayload = options?.body ? JSON.parse(options.body as string) : null;
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       };
 
@@ -205,13 +214,13 @@ describe("Discord Integration", () => {
       const response = await discordService.handleSlashCommand(mockInteraction);
       expect(response).toBeInstanceOf(Response);
 
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
       expect(responseData).toHaveProperty("type", 4); // Channel message with source
       expect(responseData).toHaveProperty("data");
       expect(responseData.data).toHaveProperty("content");
 
       // Should contain search results or "no results" message
-      const content = responseData.data.content;
+      const content = responseData.data!.content;
       expect(content).toMatch(/Equipment Search Results|No equipment found/);
 
       if (content.includes("Equipment Search Results")) {
@@ -236,10 +245,10 @@ describe("Discord Integration", () => {
       };
 
       const response = await discordService.handleSlashCommand(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toMatch(
+      expect(responseData.data!.content).toMatch(
         /Player Search Results|No players found/
       );
     });
@@ -257,13 +266,13 @@ describe("Discord Integration", () => {
       };
 
       const response = await discordService.handleSlashCommand(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toBe(
+      expect(responseData.data!.content).toBe(
         "❌ You do not have permission to use this command."
       );
-      expect(responseData.data.flags).toBe(64); // Ephemeral flag
+      expect(responseData.data!.flags).toBe(64); // Ephemeral flag
     });
 
     it.skipIf(!hasSupabaseEnv())("should handle empty search queries appropriately", async () => {
@@ -279,13 +288,13 @@ describe("Discord Integration", () => {
       };
 
       const response = await discordService.handleSlashCommand(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toContain(
+      expect(responseData.data!.content).toContain(
         "Please provide a search query"
       );
-      expect(responseData.data.flags).toBe(64); // Ephemeral flag
+      expect(responseData.data!.flags).toBe(64); // Ephemeral flag
     });
   });
 
@@ -294,6 +303,7 @@ describe("Discord Integration", () => {
       const mockInteraction = {
         type: 3, // Message Component
         data: {
+          name: "button",
           custom_id: "approve_equipment_12345678-1234-1234-1234-123456789999",
         },
         user: {
@@ -306,20 +316,21 @@ describe("Discord Integration", () => {
 
       const response =
         await discordService.handleMessageComponent(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
       // Should handle duplicate approvals gracefully
-      expect(responseData.data.content).toMatch(
+      expect(responseData.data!.content).toMatch(
         /Error.*already approved/
       );
-      expect(responseData.data.flags).toBe(64); // Ephemeral flag
+      expect(responseData.data!.flags).toBe(64); // Ephemeral flag
     });
 
     it.skipIf(!hasSupabaseEnv())("should handle player edit approval button interaction", async () => {
       const mockInteraction = {
         type: 3,
         data: {
+          name: "button",
           custom_id: "approve_player_edit_12345678-1234-1234-1234-123456789999",
         },
         user: {
@@ -332,19 +343,20 @@ describe("Discord Integration", () => {
 
       const response =
         await discordService.handleMessageComponent(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toMatch(
+      expect(responseData.data!.content).toMatch(
         /Error.*already approved/
       );
-      expect(responseData.data.flags).toBe(64);
+      expect(responseData.data!.flags).toBe(64);
     });
 
     it.skipIf(!hasSupabaseEnv())("should reject button interactions from unauthorized users", async () => {
       const mockInteraction = {
         type: 3,
         data: {
+          name: "button",
           custom_id: "approve_equipment_test-123",
         },
         user: { id: "unauthorized-user", username: "UnauthorizedUser" },
@@ -354,19 +366,20 @@ describe("Discord Integration", () => {
 
       const response =
         await discordService.handleMessageComponent(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toBe(
+      expect(responseData.data!.content).toBe(
         "❌ You do not have permission to use this command."
       );
-      expect(responseData.data.flags).toBe(64);
+      expect(responseData.data!.flags).toBe(64);
     });
 
     it.skipIf(!hasSupabaseEnv())("should handle unknown button interactions", async () => {
       const mockInteraction = {
         type: 3,
         data: {
+          name: "button",
           custom_id: "unknown_action_123",
         },
         user: { id: "test-user", username: "TestUser" },
@@ -376,11 +389,11 @@ describe("Discord Integration", () => {
 
       const response =
         await discordService.handleMessageComponent(mockInteraction);
-      const responseData = await response.json();
+      const responseData = (await response.json()) as DiscordResponse;
 
       expect(responseData.type).toBe(4);
-      expect(responseData.data.content).toBe("❌ Unknown interaction.");
-      expect(responseData.data.flags).toBe(64);
+      expect(responseData.data!.content).toBe("❌ Unknown interaction.");
+      expect(responseData.data!.flags).toBe(64);
     });
   });
 

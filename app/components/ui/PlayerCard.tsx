@@ -1,11 +1,21 @@
 import { Link } from "react-router";
 import { memo, useMemo, useCallback } from "react";
-import type { Player } from "~/lib/database.server";
+
+// Minimum fields required for PlayerCard display
+interface PlayerCardPlayer {
+  id: string;
+  name: string;
+  slug: string;
+  highest_rating?: string;
+  active_years?: string;
+  active?: boolean;
+  playing_style?: string;
+  currentSetup?: string;
+  created_at?: string;
+}
 
 interface PlayerCardProps {
-  player: Player & {
-    currentSetup?: string;
-  };
+  player: PlayerCardPlayer;
 }
 
 export const PlayerCard = memo(function PlayerCard({
@@ -19,7 +29,9 @@ export const PlayerCard = memo(function PlayerCard({
 
   // Memoize formatted date to avoid recalculation
   const formattedDate = useMemo(() => {
-    return new Date(player.created_at).toLocaleDateString();
+    return player.created_at
+      ? new Date(player.created_at).toLocaleDateString()
+      : null;
   }, [player.created_at]);
 
   // Memoize playing style label for this specific player
@@ -27,13 +39,15 @@ export const PlayerCard = memo(function PlayerCard({
     return getPlayingStyleLabel(player.playing_style);
   }, [getPlayingStyleLabel, player.playing_style]);
 
-  // Memoize status badge styling
-  const statusBadgeClassName = useMemo(() => {
-    return `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+  // Memoize status badge styling (only shown if active status is known)
+  const statusBadge = useMemo(() => {
+    if (player.active === undefined) return null;
+    const className = `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
       player.active
         ? "bg-green-100 text-green-800"
         : "bg-gray-100 text-gray-800"
     }`;
+    return { className, label: player.active ? "Active" : "Retired" };
   }, [player.active]);
 
   return (
@@ -70,11 +84,11 @@ export const PlayerCard = memo(function PlayerCard({
               </p>
             )}
           </div>
-          <div className="ml-4">
-            <span className={statusBadgeClassName}>
-              {player.active ? "Active" : "Retired"}
-            </span>
-          </div>
+          {statusBadge && (
+            <div className="ml-4">
+              <span className={statusBadge.className}>{statusBadge.label}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between">
@@ -84,7 +98,9 @@ export const PlayerCard = memo(function PlayerCard({
           >
             View Profile →
           </Link>
-          <div className="text-xs text-gray-500">Added {formattedDate}</div>
+          {formattedDate && (
+            <div className="text-xs text-gray-500">Added {formattedDate}</div>
+          )}
         </div>
       </div>
     </div>

@@ -856,7 +856,12 @@ export class DatabaseService {
     if (error) {
       console.error("Error fetching equipment with reviews:", error);
       // Fallback to basic equipment without stats
-      return this.getAllEquipment(options);
+      // Remove "rating" sortBy since getAllEquipment doesn't support it
+      const fallbackOptions = options ? {
+        ...options,
+        sortBy: options.sortBy === "rating" ? "name" : options.sortBy,
+      } : undefined;
+      return this.getAllEquipment(fallbackOptions);
     }
 
     // Calculate stats for each equipment
@@ -899,9 +904,11 @@ export class DatabaseService {
     });
 
     // Add equipment with no reviews
+    // Remove "rating" sortBy since getAllEquipment doesn't support it
     const equipmentWithoutReviews = await this.getAllEquipment({
       ...options,
       limit: undefined, // Get all for filtering
+      sortBy: options?.sortBy === "rating" ? "name" : options?.sortBy,
     });
 
     const equipmentWithoutReviewsFiltered = equipmentWithoutReviews.filter(
@@ -1256,7 +1263,7 @@ export class DatabaseService {
   }
 
   async getDiscordMessageId(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string
   ): Promise<string | null> {
     try {
@@ -1298,7 +1305,7 @@ export class DatabaseService {
   }
 
   private getSubmissionTableName(
-    submissionType: "equipment" | "player" | "player_edit"
+    submissionType: "equipment" | "player" | "player_edit" | "video"
   ): string {
     switch (submissionType) {
       case "equipment":
@@ -1307,6 +1314,8 @@ export class DatabaseService {
         return "player_submissions";
       case "player_edit":
         return "player_edits";
+      case "video":
+        return "video_submissions";
       default:
         throw new Error(`Unknown submission type: ${submissionType}`);
     }

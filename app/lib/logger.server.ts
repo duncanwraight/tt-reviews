@@ -6,7 +6,7 @@
  */
 
 export interface LogContext {
-  requestId: string;
+  requestId?: string;
   userId?: string;
   userAgent?: string;
   ip?: string;
@@ -15,6 +15,8 @@ export interface LogContext {
   duration?: number;
   sessionId?: string;
   userRole?: string;
+  // Allow additional properties for service-specific logging
+  [key: string]: string | number | boolean | undefined | unknown;
 }
 
 export interface LogMetadata {
@@ -50,9 +52,10 @@ class LoggerService {
 
   constructor() {
     // Determine environment from globalThis or default to production
+    const global = globalThis as unknown as { process?: { env?: { NODE_ENV?: string } }; ENVIRONMENT?: string };
     this.isDevelopment =
-      globalThis.process?.env?.NODE_ENV === "development" ||
-      globalThis.ENVIRONMENT === "development";
+      global.process?.env?.NODE_ENV === "development" ||
+      global.ENVIRONMENT === "development";
 
     // Set log level based on environment
     this.logLevel = this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
@@ -85,6 +88,7 @@ class LoggerService {
     context: LogContext,
     data?: any
   ): LogMetadata {
+    const userId = context?.userId;
     const logEntry: LogMetadata = {
       timestamp: new Date().toISOString(),
       level,
@@ -92,9 +96,10 @@ class LoggerService {
       context: {
         ...(context || {}),
         // Ensure we don't log sensitive information
-        userId: context?.userId
-          ? context.userId.substring(0, 8) + "..."
-          : undefined,
+        userId:
+          userId && typeof userId === "string"
+            ? userId.substring(0, 8) + "..."
+            : undefined,
       },
     };
 
@@ -113,7 +118,10 @@ class LoggerService {
 
     if (this.isDevelopment) {
       // Human-readable format for development
-      return `[${timestamp}] ${level.toUpperCase()} [${context?.requestId?.substring(0, 8) || "unknown"}] ${message}${
+      const requestIdPart = context?.requestId
+        ? `[${String(context.requestId).substring(0, 8)}] `
+        : "";
+      return `[${timestamp}] ${level.toUpperCase()} ${requestIdPart}${message}${
         logEntry.data ? ` ${JSON.stringify(logEntry.data, null, 2)}` : ""
       }`;
     } else {

@@ -222,7 +222,7 @@ export function createSecureResponse(
   if (init?.isApi) {
     addApiSecurityHeaders(headers, init.isDevelopment);
   } else {
-    addSecurityHeaders(headers, init.isDevelopment);
+    addSecurityHeaders(headers, init?.isDevelopment);
   }
 
   // Add rate limiting headers if provided

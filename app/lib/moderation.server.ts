@@ -145,7 +145,7 @@ export class ModerationService {
   }
 
   async getSubmissionApprovals(
-    submissionType: "equipment" | "player" | "player_edit",
+    submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string
   ): Promise<ModeratorApproval[]> {
     const { data, error } = await this.supabase

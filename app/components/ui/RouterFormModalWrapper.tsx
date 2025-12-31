@@ -71,36 +71,31 @@ export function RouterFormModalWrapper({
   };
 
   const getModalProps = () => {
-    if (modalState.type === "loading") {
-      return {
-        title: loadingTitle,
-        message: loadingMessage,
-        autoClose: false,
-      };
+    switch (modalState.type) {
+      case "loading":
+        return {
+          title: loadingTitle,
+          message: loadingMessage,
+          autoClose: false,
+        };
+      case "success":
+        return {
+          title: successTitle,
+          message:
+            successMessage ||
+            actionData?.message ||
+            "Operation completed successfully",
+          autoClose: true,
+          autoCloseDelay: successRedirectDelay,
+          actions: successActions,
+        };
+      case "error":
+        return {
+          title: errorTitle,
+          message: actionData?.error || "An unexpected error occurred",
+          autoClose: false,
+        };
     }
-
-    if (modalState.type === "success") {
-      return {
-        title: successTitle,
-        message:
-          successMessage ||
-          actionData?.message ||
-          "Operation completed successfully",
-        autoClose: true,
-        autoCloseDelay: successRedirectDelay,
-        actions: successActions,
-      };
-    }
-
-    if (modalState.type === "error") {
-      return {
-        title: errorTitle,
-        message: actionData?.error || "An unexpected error occurred",
-        autoClose: false,
-      };
-    }
-
-    return {};
   };
 
   return (

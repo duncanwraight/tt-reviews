@@ -8,6 +8,7 @@ interface PlayerDisplay {
   slug: string;
   highest_rating?: string;
   playing_style?: string;
+  active?: boolean;
   currentSetup?: string;
 }
 

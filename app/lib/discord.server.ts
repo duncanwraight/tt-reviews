@@ -13,7 +13,7 @@ import {
   type ModerationService,
 } from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
-import { Logger, createLogContext } from "./logger.server";
+import { Logger, createLogContext, type LogContext } from "./logger.server";
 import { createUnifiedDiscordNotifier, type UnifiedDiscordNotifier } from "./discord/unified-notifier.server";
 import type { SubmissionType } from "./types";
 
@@ -246,12 +246,12 @@ export class DiscordService {
         return await this.handlePlayerSearch(data.options?.[0]?.value || "");
       case "approve":
         return await this.handleApproveReview(
-          data.options?.[0]?.value,
+          data.options?.[0]?.value || "",
           user
         );
       case "reject":
         return await this.handleRejectReview(
-          data.options?.[0]?.value,
+          data.options?.[0]?.value || "",
           user
         );
       default:
@@ -664,7 +664,7 @@ export class DiscordService {
         discordModeratorId,
         "discord",
         {
-          category: "quality",
+          category: "other",
           reason: `Rejected by ${user.username} via Discord`,
         },
         this.env.R2_BUCKET,

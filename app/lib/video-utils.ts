@@ -33,7 +33,7 @@ export function extractYouTubeVideoId(url: string): string | null {
 /**
  * Get YouTube thumbnail URL for a video ID
  */
-export function getYouTubeThumbnailUrl(videoId: string, quality: 'default' | 'medium' | 'high' | 'maxres' = 'maxresdefault'): string {
+export function getYouTubeThumbnailUrl(videoId: string, quality: 'default' | 'medium' | 'high' | 'maxres' = 'maxres'): string {
   const qualityMap = {
     'default': 'default',
     'medium': 'mqdefault', 
