@@ -131,8 +131,14 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     // Parse form data based on submission type
     const submissionData: any = {
       user_id: user.id,
-      status: "pending",
     };
+
+    // Different tables use different columns for moderation status
+    if (submissionType === "player_equipment_setup") {
+      submissionData.verified = false; // player_equipment_setups uses 'verified' column
+    } else {
+      submissionData.status = "pending"; // Most tables use 'status' column
+    }
 
     // Add equipment_id for review submissions
     if (submissionType === "review" && initialPreSelections.equipment_id) {
