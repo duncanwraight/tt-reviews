@@ -162,14 +162,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           updates.parent_id = parentId || null;
         }
 
-        const result = await categoryService.updateCategory(id, updates);
-
-        if (!result) {
-          return data(
-            { error: "Failed to update category" },
-            { status: 500, headers: sbServerClient.headers }
-          );
-        }
+        await categoryService.updateCategory(id, updates);
 
         return data(
           { success: true, message: "Category updated successfully" },
@@ -235,8 +228,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
   } catch (error) {
     console.error("Category management error:", error);
+    const errorMessage = error instanceof Error ? error.message : "An error occurred while managing categories";
     return data(
-      { error: "An error occurred while managing categories" },
+      { error: errorMessage },
       { status: 500, headers: sbServerClient.headers }
     );
   }

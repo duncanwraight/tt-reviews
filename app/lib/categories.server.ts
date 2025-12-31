@@ -156,24 +156,19 @@ export class CategoryService {
     id: string,
     updates: Partial<Category>
   ): Promise<Category | null> {
-    try {
-      const { data, error } = await this.supabase
-        .from("categories")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+    const { data, error } = await this.supabase
+      .from("categories")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
 
-      if (error) {
-        console.error("Error updating category:", error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Exception updating category:", error);
-      return null;
+    if (error) {
+      console.error("Error updating category:", error);
+      throw new Error(`Failed to update category: ${error.message} (code: ${error.code})`);
     }
+
+    return data;
   }
 
   /**
