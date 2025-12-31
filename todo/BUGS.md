@@ -22,12 +22,13 @@
 
 ## Equipment Review Rating Sliders Issues
 
-### Bug: All Rating Sliders Move Together
+### Bug: All Rating Sliders Move Together - FIXED
 
 **Location**: Equipment review submission form
 **Expected**: Each rating slider (Speed, Spin, Control, etc.) should be independent
 **Actual**: Moving any slider causes all sliders to move to the same value
-**Root Cause**: Likely shared state or incorrect key/name attributes on slider inputs
+**Root Cause**: field-loaders.server.ts was transforming rating categories from `{ name, label }` to `{ value, label }`, but RatingCategories component expected `{ name, label }`. All categories had `category.name` as `undefined`, so all sliders read/wrote to the same key.
+**Fix Applied**: Pass rating categories through without transformation in loadFieldOptions()
 
 ### Issue: Rating Labels Not Appropriate for Characteristics
 

@@ -97,14 +97,6 @@ export function RatingCategories({
 
   return (
     <div className="space-y-8">
-      {/* DEBUG: Visible on page */}
-      <div className="bg-yellow-100 border border-yellow-400 p-4 rounded text-xs font-mono">
-        <p><strong>DEBUG RatingCategories:</strong></p>
-        <p>values prop: {JSON.stringify(values)}</p>
-        <p>currentRatings: {JSON.stringify(currentRatings)}</p>
-        <p>categories: {categories.map(c => c.name).join(', ')}</p>
-      </div>
-
       <div className="border-b border-gray-200 pb-3">
         <h3 className="text-2xl font-bold text-gray-900">
           {label}
