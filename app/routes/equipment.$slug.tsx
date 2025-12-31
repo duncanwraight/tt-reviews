@@ -236,7 +236,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
         ratingCategories={ratingCategories}
       />
 
-      <PageSection background="gray-50" padding="medium">
+      <PageSection background="gray" padding="medium">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div>
             <RelatedEquipmentSection category={equipment.category} />

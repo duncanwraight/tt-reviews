@@ -221,7 +221,7 @@ export class CorrelatedError extends Error {
   constructor(message: string, context: LogContext, cause?: Error) {
     super(message);
     this.name = "CorrelatedError";
-    this.requestId = context.requestId;
+    this.requestId = context.requestId ?? "unknown";
     this.context = context;
 
     if (cause) {

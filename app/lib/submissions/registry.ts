@@ -73,8 +73,8 @@ export interface SubmissionConfig {
     emoji: string;
     titlePrefix: string;
   };
-  // Function to transform submission data into Discord notification format
-  formatForDiscord: (data: any) => DiscordNotificationData;
+  // Function to transform submission data into Discord notification format (optional)
+  formatForDiscord?: (data: any) => DiscordNotificationData;
 }
 
 // Discord color constants
@@ -607,6 +607,18 @@ export function getSubmissionTableName(type: SubmissionType): string {
 
 export function formatSubmissionForDiscord(type: SubmissionType, data: any): DiscordNotificationData {
   const config = getSubmissionConfig(type);
+  if (!config.formatForDiscord) {
+    // Fallback for submission types without custom Discord formatting
+    return {
+      id: data.id || "unknown",
+      submissionType: type,
+      title: `New ${config.displayName} Submission`,
+      description: `A new ${config.displayName.toLowerCase()} has been submitted for review.`,
+      color: config.discord.color,
+      fields: [{ name: "Status", value: "Pending Review", inline: true }],
+      adminUrl: config.adminPath,
+    };
+  }
   return config.formatForDiscord(data);
 }
 

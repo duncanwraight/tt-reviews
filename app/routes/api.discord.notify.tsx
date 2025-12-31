@@ -1,10 +1,15 @@
 import type { Route } from "./+types/api.discord.notify";
 import { DiscordService } from "~/lib/discord.server";
 
+interface NotifyRequestBody {
+  type: string;
+  data: unknown;
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   try {
     const discordService = new DiscordService(context);
-    const { type, data } = await request.json();
+    const { type, data } = (await request.json()) as NotifyRequestBody;
 
     let result;
     switch (type) {

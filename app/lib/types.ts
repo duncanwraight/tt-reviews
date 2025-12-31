@@ -67,6 +67,13 @@ export interface Player {
   birth_country?: string; // ISO 3166-1 alpha-3 country code for birth country
   represents?: string; // ISO 3166-1 alpha-3 country code for represented country
   gender?: "male" | "female";
+  // Optional: expanded equipment setup data from joined queries
+  equipment_setups?: Array<{
+    blade_name?: string;
+    forehand_rubber_name?: string;
+    backhand_rubber_name?: string;
+    year?: number;
+  }>;
   created_at: string;
   updated_at: string;
 }

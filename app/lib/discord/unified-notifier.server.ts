@@ -82,7 +82,7 @@ export class UnifiedDiscordNotifier {
         try {
           // Format submission data using registry
           const notificationData = formatSubmissionForDiscord(submissionType, submissionData);
-          
+
           // Create Discord message
           const message = this.createDiscordMessage(notificationData);
 
@@ -103,7 +103,8 @@ export class UnifiedDiscordNotifier {
             this.logger.error(
               "Failed to send Discord notification",
               logContext,
-              { error: response.error }
+              undefined,
+              { errorMessage: response.error }
             );
           }
 
@@ -112,11 +113,13 @@ export class UnifiedDiscordNotifier {
           this.logger.error(
             "Error in unified Discord notification",
             logContext,
-            { error: String(error) }
+            error instanceof Error ? error : undefined,
+            { errorMessage: String(error) }
           );
           return { success: false, message: String(error) };
         }
-      }
+      },
+      logContext
     );
   }
 
@@ -202,22 +205,24 @@ export class UnifiedDiscordNotifier {
         this.logger.error(
           "Discord API error",
           logContext,
+          undefined,
           {
             status: response.status,
             statusText: response.statusText,
-            error: errorText,
+            errorText,
           }
         );
         return { success: false, error: `Discord API error: ${response.status} ${errorText}` };
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as { id: string };
       return { success: true, messageId: result.id };
     } catch (error) {
       this.logger.error(
         "Network error sending to Discord",
         logContext,
-        { error: String(error) }
+        error instanceof Error ? error : undefined,
+        { errorMessage: String(error) }
       );
       return { success: false, error: String(error) };
     }

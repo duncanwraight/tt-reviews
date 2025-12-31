@@ -178,9 +178,9 @@ export class SchemaService {
     reviews?: Array<{
       id: string;
       overall_rating: number;
-      review_text: string;
+      review_text?: string;
       created_at: string;
-      user: { name: string };
+      user?: { name: string };
     }>;
   }): SchemaProduct {
     const schema: SchemaProduct = {
@@ -221,9 +221,9 @@ export class SchemaService {
         },
         author: {
           "@type": "Person",
-          name: review.user.name,
+          name: review.user?.name || "Anonymous Reviewer",
         },
-        reviewBody: review.review_text,
+        reviewBody: review.review_text || "",
         datePublished: review.created_at,
         itemReviewed: {
           "@type": "Product",

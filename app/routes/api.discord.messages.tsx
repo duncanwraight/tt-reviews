@@ -1,14 +1,24 @@
 import type { Route } from "./+types/api.discord.messages";
 import { DiscordService } from "~/lib/discord.server";
 
+interface DiscordMessageBody {
+  content: string;
+  member: {
+    roles: string[];
+  };
+  guild_id: string;
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   try {
     const discordService = new DiscordService(context);
-    const body = await request.json();
+    const body = (await request.json()) as Partial<DiscordMessageBody>;
 
     // Handle prefix commands
-    if (body.content && typeof body.content === "string") {
-      const response = await discordService.handlePrefixCommand(body);
+    if (body.content && body.member && body.guild_id) {
+      const response = await discordService.handlePrefixCommand(
+        body as DiscordMessageBody
+      );
       if (response) {
         return Response.json(response);
       }

@@ -6,9 +6,14 @@ interface RejectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   submissionId: string;
-  submissionType: "equipment" | "player" | "player_edit";
+  submissionType:
+    | "equipment"
+    | "player"
+    | "player_edit"
+    | "equipment_review"
+    | "video";
   submissionName: string;
-  csrfToken: string;
+  csrfToken?: string;
 }
 
 const REJECTION_CATEGORIES: Array<{ value: RejectionCategory; label: string }> =
@@ -67,7 +72,9 @@ export function RejectionModal({
           </p>
 
           <Form method="post" className="space-y-4">
-            <input type="hidden" name="_csrf" value={csrfToken} />
+            {csrfToken && (
+              <input type="hidden" name="_csrf" value={csrfToken} />
+            )}
             <input type="hidden" name="submissionId" value={submissionId} />
             <input type="hidden" name="action" value="rejected" />
 

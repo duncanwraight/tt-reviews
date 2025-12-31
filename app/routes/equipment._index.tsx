@@ -85,7 +85,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const db = new DatabaseService(context);
 
-  const promises = [
+  // Fetch core data in parallel
+  const [allEquipment, recentReviews, categories] = await Promise.all([
     db.getAllEquipmentWithStats({
       category: category || undefined,
       subcategory: subcategory || undefined,
@@ -95,17 +96,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }),
     db.getRecentReviews(6),
     db.getEquipmentCategories(),
-  ];
+  ]);
 
-  // Add subcategories if a category is selected
-  if (category) {
-    promises.push(db.getEquipmentSubcategories(category));
-  }
-
-  const results = await Promise.all(promises);
-  const [allEquipment, recentReviews, categories] = results;
+  // Fetch subcategories separately if category is selected
   const subcategories = category
-    ? (results[3] as { subcategory: string; count: number }[])
+    ? await db.getEquipmentSubcategories(category)
     : [];
 
   const equipmentDisplay: EquipmentDisplay[] = allEquipment.map(equipment => ({

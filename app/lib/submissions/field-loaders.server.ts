@@ -179,9 +179,8 @@ export async function loadFieldOptions(
   if (submissionType === "review" && additionalData?.equipmentId) {
     const ratingCategories = await loadReviewRatingCategories(additionalData.equipmentId, sbClient);
     fieldOptions.rating_categories = ratingCategories.map(cat => ({
-      name: cat.name,
+      value: cat.name,
       label: cat.label,
-      description: cat.description,
     }));
   }
 

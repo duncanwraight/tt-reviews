@@ -2,15 +2,16 @@ import type { Route } from "./+types/api.discord.interactions";
 import { DiscordService } from "~/lib/discord.server";
 
 export async function action({ request, context }: Route.ActionArgs) {
+  // Import security functions at top of action for use in catch block
+  const {
+    createSecureResponse,
+    sanitizeError,
+    rateLimit,
+    RATE_LIMITS,
+    createRateLimitResponse,
+  } = await import("~/lib/security.server");
+
   try {
-    // Import security functions inside server-only action
-    const {
-      createSecureResponse,
-      sanitizeError,
-      rateLimit,
-      RATE_LIMITS,
-      createRateLimitResponse,
-    } = await import("~/lib/security.server");
 
     // Apply rate limiting
     const rateLimitResult = await rateLimit(

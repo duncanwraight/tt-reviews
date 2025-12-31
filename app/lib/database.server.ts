@@ -152,10 +152,13 @@ export class DatabaseService {
 
   /**
    * Execute database operation with logging and performance monitoring
+   * Note: fn returns a Supabase query builder which is thenable but TypeScript
+   * doesn't recognize PostgrestBuilder as PromiseLike, hence the 'any' type
    */
   private async withLogging<T>(
     operation: string,
-    fn: () => Promise<{ data: T; error: any }>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fn: () => any,
     metadata?: any
   ): Promise<T> {
     const context = this.context || { requestId: "unknown" };
@@ -210,7 +213,7 @@ export class DatabaseService {
 
   // Equipment methods
   async getEquipment(slug: string): Promise<Equipment | null> {
-    return this.withLogging(
+    return this.withLogging<Equipment | null>(
       "get_equipment",
       () =>
         this.supabase
@@ -223,7 +226,7 @@ export class DatabaseService {
   }
 
   async getEquipmentById(id: string): Promise<Equipment | null> {
-    return this.withLogging(
+    return this.withLogging<Equipment | null>(
       "get_equipment_by_id",
       () =>
         this.supabase.from("equipment").select("*").eq("id", id).maybeSingle(),
@@ -232,7 +235,7 @@ export class DatabaseService {
   }
 
   async searchEquipment(query: string): Promise<Equipment[]> {
-    return this.withLogging(
+    return this.withLogging<Equipment[]>(
       "search_equipment",
       () =>
         this.supabase
@@ -241,11 +244,11 @@ export class DatabaseService {
           .textSearch("name", query)
           .limit(10),
       { query, limit: 10 }
-    ).catch(() => []);
+    ).catch((): Equipment[] => []);
   }
 
   async getRecentEquipment(limit = 10): Promise<Equipment[]> {
-    return this.withLogging(
+    return this.withLogging<Equipment[]>(
       "get_recent_equipment",
       () =>
         this.supabase
@@ -254,7 +257,7 @@ export class DatabaseService {
           .order("created_at", { ascending: false })
           .limit(limit),
       { limit }
-    ).catch(() => []);
+    ).catch((): Equipment[] => []);
   }
 
   async getAllEquipment(options?: {
@@ -265,7 +268,7 @@ export class DatabaseService {
     sortBy?: "name" | "created_at" | "manufacturer";
     sortOrder?: "asc" | "desc";
   }): Promise<Equipment[]> {
-    return this.withLogging(
+    return this.withLogging<Equipment[]>(
       "get_all_equipment",
       async () => {
         let query = this.supabase.from("equipment").select("*");
@@ -296,11 +299,11 @@ export class DatabaseService {
         return await query;
       },
       options
-    ).catch(() => []);
+    ).catch((): Equipment[] => []);
   }
 
   async getEquipmentByCategory(category: string): Promise<Equipment[]> {
-    return this.withLogging(
+    return this.withLogging<Equipment[]>(
       "get_equipment_by_category",
       () =>
         this.supabase
@@ -309,7 +312,7 @@ export class DatabaseService {
           .eq("category", category)
           .order("name", { ascending: true }),
       { category }
-    ).catch(() => []);
+    ).catch((): Equipment[] => []);
   }
 
   async getEquipmentCategories(): Promise<
@@ -589,7 +592,7 @@ export class DatabaseService {
     equipmentId: string,
     status: "approved" | "all" = "approved"
   ): Promise<EquipmentReview[]> {
-    return this.withLogging(
+    return this.withLogging<EquipmentReview[]>(
       "get_equipment_reviews",
       async () => {
         let query = this.supabase
@@ -616,7 +619,7 @@ export class DatabaseService {
         return await query;
       },
       { equipmentId, status }
-    ).catch(() => []);
+    ).catch((): EquipmentReview[] => []);
   }
 
   async getRecentReviews(limit = 10): Promise<EquipmentReview[]> {
@@ -1125,7 +1128,7 @@ export class DatabaseService {
     equipmentId: string,
     limit = 6
   ): Promise<Equipment[]> {
-    return this.withLogging(
+    return this.withLogging<Equipment[]>(
       "get_similar_equipment",
       async () => {
         // First get current equipment details
@@ -1140,14 +1143,15 @@ export class DatabaseService {
           .limit(limit);
       },
       { equipmentId, limit }
-    ).catch(() => []);
+    ).catch((): Equipment[] => []);
   }
 
   // Get players using specific equipment
   async getPlayersUsingEquipment(
     equipmentId: string
   ): Promise<Array<{ id: string; name: string; slug: string }>> {
-    return this.withLogging(
+    type PlayerResult = { id: string; name: string; slug: string };
+    return this.withLogging<PlayerResult[]>(
       "get_players_using_equipment",
       async () => {
         const result = await this.supabase
@@ -1168,7 +1172,7 @@ export class DatabaseService {
 
         if (result.data) {
           // Extract unique players (remove duplicates if player has multiple setups with same equipment)
-          const uniquePlayers = new Map();
+          const uniquePlayers = new Map<string, PlayerResult>();
           result.data.forEach((setup: any) => {
             const player = setup.players;
             if (player && !uniquePlayers.has(player.id)) {
@@ -1184,7 +1188,7 @@ export class DatabaseService {
         return result;
       },
       { equipmentId }
-    ).catch(() => []);
+    ).catch((): PlayerResult[] => []);
   }
 
   // General search
@@ -1247,7 +1251,9 @@ export class DatabaseService {
     editId: string,
     messageId: string
   ): Promise<void> {
+    const context = this.context || { requestId: "unknown" };
     return withDatabaseCorrelation(
+      "update_player_edit_discord_message_id",
       async () => {
         const { error } = await this.supabase
           .from("player_edits")
@@ -1258,6 +1264,7 @@ export class DatabaseService {
           throw new Error(`Failed to update Discord message ID: ${error.message}`);
         }
       },
+      context,
       { editId, messageId }
     );
   }

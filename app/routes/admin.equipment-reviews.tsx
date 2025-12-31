@@ -287,7 +287,8 @@ export default function AdminEquipmentReviews({
               {Object.entries(review.category_ratings).map(
                 ([category, rating]) => (
                   <span key={category} className="text-xs">
-                    <strong>{getCategoryLabel(category)}:</strong> {rating}/10
+                    <strong>{getCategoryLabel(category)}:</strong>{" "}
+                    {String(rating)}/10
                   </span>
                 )
               )}
@@ -301,15 +302,14 @@ export default function AdminEquipmentReviews({
             <div className="mt-2 text-sm text-gray-600">
               <strong>Reviewer Info:</strong>
               <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
-                {Object.entries(review.reviewer_context).map(
-                  ([key, value]) =>
-                    value && (
-                      <span key={key} className="text-xs">
-                        <strong>{getCategoryLabel(key)}:</strong>{" "}
-                        {String(value)}
-                      </span>
-                    )
-                )}
+                {Object.entries(review.reviewer_context)
+                  .filter(([, value]) => value != null)
+                  .map(([key, value]) => (
+                    <span key={key} className="text-xs">
+                      <strong>{getCategoryLabel(key)}:</strong>{" "}
+                      {String(value)}
+                    </span>
+                  ))}
               </div>
             </div>
           )}
