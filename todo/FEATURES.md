@@ -15,13 +15,19 @@
 **Rationale**: Prevents accidental submission for wrong player; better UX flow
 **Implemented**: Fixed URL param to pass player UUID; form shows locked player banner with hidden input when navigating from player page
 
-## Equipment Setup: Use Equipment Search Instead of Free Text
+## Equipment Setup: Use Equipment Search Instead of Free Text - DONE
 
 **Location**: `/submissions/player_equipment_setup/submit` - rubber/blade fields
 **Current**: Free text input for equipment names
 **Requested**: Searchable dropdown that queries existing equipment in database
 **Additional**: Add helper text: "If you can't find this player's equipment, make sure you've submitted it [here]" linking to `/submissions/equipment/submit`
 **Rationale**: Ensures data consistency, links setups to actual equipment records, prevents typos/duplicates
+**Implemented**:
+- Created EquipmentCombobox component with search filtering and keyboard navigation
+- Added blade_id, forehand_rubber_id, backhand_rubber_id columns to submissions table
+- Updated form to use comboboxes for blade/rubber selection
+- Admin approval now creates verified record in player_equipment_setups table
+- Admin UI updated to match other submission pages (redirect after action, status sections, rejection modal)
 
 ## Equipment Comparison Page (Disabled)
 
