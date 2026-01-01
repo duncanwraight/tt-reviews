@@ -47,3 +47,19 @@
 - Approval action copies `image_key` from submission to main record
 - Public equipment/player pages display images via LazyImage component using R2 API
 
+## Admin Equipment Import from Revspin - DONE
+
+**Location**: `/admin/import`
+**Purpose**: Allow admins to bulk import equipment data from revspin.net
+**Implemented**:
+- Revspin parser service (`app/lib/revspin.server.ts`) with rate-limited fetching and HTML parsing
+- Admin import route with category tabs (Blades, Rubbers, Short Pips, Long Pips)
+- Fetch button with animated progress bar to load products from revspin.net
+- Product list with checkboxes for batch selection
+- "Already imported" indicator for existing equipment (duplicate detection by slug)
+- Subcategory selector for rubber imports (Inverted, Short Pips, Long Pips, Anti-Spin)
+- Direct insert to equipment table (bypasses submission workflow for admin imports)
+- HTML entity decoding for product names (e.g., `&amp;` → `&`, `&sup2;` → `²`)
+- Manufacturer detection from product names (60+ known brands)
+- Products with unknown manufacturer are filtered out
+
