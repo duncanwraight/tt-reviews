@@ -247,9 +247,10 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Send Discord notification using unified system
     const requestId = request.headers.get("X-Request-ID") || "unknown";
+    console.log(`[Discord] Starting notification for ${submissionType}, submission ID: ${submission?.id}`);
     try {
       const discordService = new DiscordService(context);
-      
+
       // For reviews, fetch equipment name for Discord notification
       let notificationData = { ...submission, submitter_email: user.email };
       if (submissionType === "review" && submission.equipment_id) {
@@ -264,14 +265,15 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         }
       }
       
-      await discordService.notifySubmission(
+      const result = await discordService.notifySubmission(
         submissionType,
         notificationData,
         requestId
       );
+      console.log(`[Discord] Notification result:`, JSON.stringify(result));
     } catch (error) {
       // Discord notification failure should not block the submission
-      // Error is already logged by the Discord service
+      console.error("[Discord] Notification error:", error instanceof Error ? error.message : String(error));
     }
 
     return data(
