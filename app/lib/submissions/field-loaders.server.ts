@@ -243,10 +243,12 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
   player_equipment_setup: [
     {
       paramName: "player_id",
-      fieldName: "player_id", 
+      fieldName: "player_id",
       handler: async (playerId, fieldOptions) => {
         const selectedPlayer = fieldOptions.player_id?.find((p: any) => p.value === playerId);
-        return selectedPlayer ? { player_id: playerId } : {};
+        return selectedPlayer
+          ? { player_id: playerId, player_name: selectedPlayer.label, player_locked: true }
+          : {};
       },
     },
   ],

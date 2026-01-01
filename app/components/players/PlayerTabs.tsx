@@ -139,7 +139,7 @@ export function PlayerTabs({
         {activeTab === "timeline" && (
           <EquipmentTimeline
             equipmentSetups={equipmentSetups}
-            playerId={player.slug}
+            playerId={player.id}
             playerName={player.name}
             showAddButton={showEditButtons}
           />

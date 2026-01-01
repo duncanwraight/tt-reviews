@@ -7,7 +7,7 @@ interface EquipmentTimelineProps {
     forehand_rubber?: { name: string; slug: string };
     backhand_rubber?: { name: string; slug: string };
   })[];
-  playerId: string; // This is actually the player slug
+  playerId: string; // Player UUID for URL parameter
   playerName: string;
   showAddButton?: boolean;
 }

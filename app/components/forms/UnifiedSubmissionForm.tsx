@@ -141,8 +141,34 @@ export function UnifiedSubmissionForm({
               >
                 <CSRFToken token={csrfToken} />
 
+                {/* Locked player display - shown when navigating from a player page */}
+                {preSelectedValues.player_locked && preSelectedValues.player_name && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0">
+                        <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm text-purple-600 font-medium">Submitting equipment setup for</p>
+                        <p className="text-lg font-bold text-purple-900">{preSelectedValues.player_name}</p>
+                      </div>
+                    </div>
+                    <input type="hidden" name="player_id" value={preSelectedValues.player_id} />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {config.form.fields.map((field: FormFieldConfig) => (
+                  {config.form.fields
+                    .filter((field: FormFieldConfig) => {
+                      // Hide player_id field when player is locked
+                      if (field.name === "player_id" && preSelectedValues.player_locked) {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map((field: FormFieldConfig) => (
                     <FormField
                       key={field.name}
                       field={field}
