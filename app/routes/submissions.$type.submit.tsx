@@ -36,15 +36,9 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
   // Validate submission type
   const submissionType = params.type as SubmissionType;
   const validTypes = getAllSubmissionTypes();
-  
+
   if (!validTypes.includes(submissionType)) {
     throw new Response("Invalid submission type", { status: 404 });
-  }
-
-  // Check rate limiting
-  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION);
-  if (!rateLimitResult.success) {
-    throw new Response("Too many requests", { status: 429 });
   }
 
   const sbServerClient = getServerClient(request, context);
@@ -52,6 +46,14 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Check rate limiting (skip for admins)
+  if (user.role !== "admin") {
+    const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION);
+    if (!rateLimitResult.success) {
+      throw new Response("Too many requests", { status: 429 });
+    }
   }
 
   const config = getSubmissionConfig(submissionType);
@@ -93,18 +95,9 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 export async function action({ request, context, params }: Route.ActionArgs) {
   const submissionType = params.type as SubmissionType;
   const validTypes = getAllSubmissionTypes();
-  
+
   if (!validTypes.includes(submissionType)) {
     throw new Response("Invalid submission type", { status: 404 });
-  }
-
-  // Check rate limiting
-  const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION);
-  if (!rateLimitResult.success) {
-    return createSecureResponse(
-      JSON.stringify({ error: "Too many requests. Please try again later." }),
-      { status: 429, isApi: true }
-    );
   }
 
   const sbServerClient = getServerClient(request, context);
@@ -112,6 +105,17 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
   if (!user) {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  // Check rate limiting (skip for admins)
+  if (user.role !== "admin") {
+    const rateLimitResult = await rateLimit(request, RATE_LIMITS.FORM_SUBMISSION);
+    if (!rateLimitResult.success) {
+      return createSecureResponse(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, isApi: true }
+      );
+    }
   }
 
   // Validate CSRF
