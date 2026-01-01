@@ -1,10 +1,14 @@
-import { type ComponentProps, useState, useEffect } from "react";
+import { useState } from "react";
+import { Link } from "react-router";
+import { EquipmentCombobox, type EquipmentOption } from "~/components/ui/EquipmentCombobox";
 
 interface PlayerEquipmentSetupProps {
   includeEquipment: boolean;
   onToggleEquipment: (include: boolean) => void;
   isSubmitting: boolean;
   standalone?: boolean;
+  blades?: EquipmentOption[];
+  rubbers?: EquipmentOption[];
 }
 
 const SOURCE_TYPES = [
@@ -19,9 +23,14 @@ export function PlayerEquipmentSetup({
   onToggleEquipment,
   isSubmitting,
   standalone = false,
+  blades = [],
+  rubbers = [],
 }: PlayerEquipmentSetupProps) {
   const [forehandSide, setForehandSide] = useState<string>("");
   const [backhandSide, setBackhandSide] = useState<string>("");
+  const [bladeId, setBladeId] = useState<string>("");
+  const [forehandRubberId, setForehandRubberId] = useState<string>("");
+  const [backhandRubberId, setBackhandRubberId] = useState<string>("");
 
   // Auto-select logic: when one side is selected, auto-select the opposite for the other rubber
   const handleForehandSideChange = (value: string) => {
@@ -42,6 +51,20 @@ export function PlayerEquipmentSetup({
   if (standalone) {
     return (
       <div className="space-y-6">
+        {/* Helper text */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            Can't find the equipment you're looking for?{" "}
+            <Link
+              to="/submissions/equipment/submit"
+              className="font-medium underline hover:text-blue-600"
+            >
+              Submit it here first
+            </Link>
+            , then come back to add the player's setup.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Year */}
           <div>
@@ -67,19 +90,19 @@ export function PlayerEquipmentSetup({
           {/* Blade */}
           <div>
             <label
-              htmlFor="blade_name"
+              htmlFor="blade_id"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
               Blade <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              id="blade_name"
-              name="blade_name"
-              required
+            <EquipmentCombobox
+              name="blade_id"
+              options={blades}
+              placeholder="Search for a blade..."
               disabled={isSubmitting}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-              placeholder="e.g., Butterfly Viscaria"
+              required
+              value={bladeId}
+              onChange={(id) => setBladeId(id)}
             />
           </div>
         </div>
@@ -91,6 +114,9 @@ export function PlayerEquipmentSetup({
           isSubmitting={isSubmitting}
           selectedSide={forehandSide}
           onSideChange={handleForehandSideChange}
+          rubbers={rubbers}
+          rubberId={forehandRubberId}
+          onRubberChange={(id) => setForehandRubberId(id)}
         />
 
         {/* Backhand Setup */}
@@ -100,6 +126,9 @@ export function PlayerEquipmentSetup({
           isSubmitting={isSubmitting}
           selectedSide={backhandSide}
           onSideChange={handleBackhandSideChange}
+          rubbers={rubbers}
+          rubberId={backhandRubberId}
+          onRubberChange={(id) => setBackhandRubberId(id)}
         />
 
         {/* Source Information */}
@@ -167,6 +196,19 @@ export function PlayerEquipmentSetup({
 
       {includeEquipment && (
         <div className="space-y-6">
+          {/* Helper text */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              Can't find equipment?{" "}
+              <Link
+                to="/submissions/equipment/submit"
+                className="font-medium underline hover:text-blue-600"
+              >
+                Submit it first
+              </Link>
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Year */}
             <div>
@@ -191,18 +233,18 @@ export function PlayerEquipmentSetup({
             {/* Blade */}
             <div>
               <label
-                htmlFor="blade_name"
+                htmlFor="blade_id"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Blade
               </label>
-              <input
-                type="text"
-                id="blade_name"
-                name="blade_name"
+              <EquipmentCombobox
+                name="blade_id"
+                options={blades}
+                placeholder="Search for a blade..."
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="e.g., Butterfly Viscaria"
+                value={bladeId}
+                onChange={(id) => setBladeId(id)}
               />
             </div>
           </div>
@@ -214,6 +256,9 @@ export function PlayerEquipmentSetup({
             isSubmitting={isSubmitting}
             selectedSide={forehandSide}
             onSideChange={handleForehandSideChange}
+            rubbers={rubbers}
+            rubberId={forehandRubberId}
+            onRubberChange={(id) => setForehandRubberId(id)}
           />
 
           {/* Backhand Setup */}
@@ -223,6 +268,9 @@ export function PlayerEquipmentSetup({
             isSubmitting={isSubmitting}
             selectedSide={backhandSide}
             onSideChange={handleBackhandSideChange}
+            rubbers={rubbers}
+            rubberId={backhandRubberId}
+            onRubberChange={(id) => setBackhandRubberId(id)}
           />
 
           {/* Source Information */}
@@ -277,29 +325,39 @@ interface RubberSetupProps {
   isSubmitting: boolean;
   selectedSide: string;
   onSideChange: (value: string) => void;
+  rubbers?: EquipmentOption[];
+  rubberId?: string;
+  onRubberChange?: (id: string) => void;
 }
 
-function RubberSetup({ side, label, isSubmitting, selectedSide, onSideChange }: RubberSetupProps) {
+function RubberSetup({
+  side,
+  label,
+  isSubmitting,
+  selectedSide,
+  onSideChange,
+  rubbers = [],
+  rubberId = "",
+  onRubberChange,
+}: RubberSetupProps) {
   return (
     <div>
       <h4 className="text-md font-medium text-gray-900 mb-3">{label}</h4>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label
-            htmlFor={`${side}_rubber_name`}
+            htmlFor={`${side}_rubber_id`}
             className="block text-sm font-medium text-gray-700 mb-2"
           >
             Rubber
           </label>
-          <input
-            type="text"
-            id={`${side}_rubber_name`}
-            name={`${side}_rubber_name`}
+          <EquipmentCombobox
+            name={`${side}_rubber_id`}
+            options={rubbers}
+            placeholder={side === "forehand" ? "Search rubbers..." : "Search rubbers..."}
             disabled={isSubmitting}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-            placeholder={
-              side === "forehand" ? "e.g., Hurricane 3" : "e.g., Tenergy 64"
-            }
+            value={rubberId}
+            onChange={(id) => onRubberChange?.(id)}
           />
         </div>
         <div>
@@ -341,8 +399,7 @@ function RubberSetup({ side, label, isSubmitting, selectedSide, onSideChange }: 
                 htmlFor={`${side}_forehand`}
                 className="flex items-center text-sm text-gray-700"
               >
-                <span className="text-red-600 mr-1">🔴</span>
-                Forehand
+                <span className="text-red-600 mr-1">Red</span>
               </label>
             </div>
             <div className="flex items-center">
@@ -360,8 +417,7 @@ function RubberSetup({ side, label, isSubmitting, selectedSide, onSideChange }: 
                 htmlFor={`${side}_backhand`}
                 className="flex items-center text-sm text-gray-700"
               >
-                <span className="text-gray-900 mr-1">⚫</span>
-                Backhand
+                <span className="text-gray-900 mr-1">Black</span>
               </label>
             </div>
           </div>

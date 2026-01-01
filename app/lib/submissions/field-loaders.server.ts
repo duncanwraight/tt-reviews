@@ -114,8 +114,17 @@ const optionLoaders: Record<SubmissionType, Record<string, OptionLoaderConfig>> 
       orderBy: "name",
       formatter: playerFormatter,
     },
+    // Note: blades and rubbers are loaded separately in loadFieldOptions
+    // because they need different structure (id, name, manufacturer)
   },
 };
+
+// Equipment option format for combobox (different from standard value/label)
+export interface EquipmentOption {
+  id: string;
+  name: string;
+  manufacturer: string;
+}
 
 /**
  * Load equipment-specific rating categories for reviews using existing categories system
@@ -150,9 +159,11 @@ export async function loadReviewRatingCategories(
   }));
 }
 
-// Type for field options - most fields use value/label, but rating_categories uses name/label/description/min_label/max_label
+// Type for field options - most fields use value/label, but some have special formats
 type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
   rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+  blades?: EquipmentOption[];
+  rubbers?: EquipmentOption[];
 };
 
 /**
@@ -187,6 +198,25 @@ export async function loadFieldOptions(
     const ratingCategories = await loadReviewRatingCategories(additionalData.equipmentId, sbClient);
     // Pass through as-is - RatingCategories component expects { name, label, description }
     fieldOptions.rating_categories = ratingCategories;
+  }
+
+  // For player_equipment_setup, load blades and rubbers for combobox selection
+  if (submissionType === "player_equipment_setup") {
+    const [bladesResult, rubbersResult] = await Promise.all([
+      sbClient
+        .from("equipment")
+        .select("id, name, manufacturer")
+        .eq("category", "blade")
+        .order("name"),
+      sbClient
+        .from("equipment")
+        .select("id, name, manufacturer")
+        .eq("category", "rubber")
+        .order("name"),
+    ]);
+
+    fieldOptions.blades = (bladesResult.data as EquipmentOption[]) || [];
+    fieldOptions.rubbers = (rubbersResult.data as EquipmentOption[]) || [];
   }
 
   return fieldOptions;

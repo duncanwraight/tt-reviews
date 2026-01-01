@@ -6,6 +6,7 @@ import { PlayerEquipmentSetup } from "~/components/players/PlayerEquipmentSetup"
 import { RatingSlider } from "./RatingSlider";
 import { RatingCategories } from "./RatingCategories";
 import { createBrowserClient } from "@supabase/ssr";
+import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
 
 interface FormFieldProps {
   field: FormFieldConfig;
@@ -22,6 +23,9 @@ interface FormFieldProps {
   allValues?: Record<string, any>;
   // For rating categories
   ratingCategories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+  // For equipment setup
+  blades?: EquipmentOption[];
+  rubbers?: EquipmentOption[];
 }
 
 export function FormField({
@@ -34,6 +38,8 @@ export function FormField({
   env,
   allValues = {},
   ratingCategories = [],
+  blades = [],
+  rubbers = [],
 }: FormFieldProps) {
   const [dynamicOptions, setDynamicOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingDynamicOptions, setLoadingDynamicOptions] = useState(false);
@@ -255,6 +261,8 @@ export function FormField({
             includeEquipment={Boolean(allValues.include_equipment)}
             onToggleEquipment={(include) => onChange("include_equipment", include)}
             isSubmitting={disabled}
+            blades={blades}
+            rubbers={rubbers}
           />
         );
 
@@ -265,6 +273,8 @@ export function FormField({
             onToggleEquipment={() => {}}
             isSubmitting={disabled}
             standalone={true}
+            blades={blades}
+            rubbers={rubbers}
           />
         );
 

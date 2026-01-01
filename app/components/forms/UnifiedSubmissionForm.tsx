@@ -4,6 +4,7 @@ import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { CSRFToken } from "~/components/ui/CSRFToken";
 import { FormField } from "./fields/FormField";
 import type { SubmissionConfig, FormField as FormFieldConfig } from "~/lib/submissions/registry";
+import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
 
 interface UnifiedSubmissionFormProps {
   config: SubmissionConfig;
@@ -11,6 +12,8 @@ interface UnifiedSubmissionFormProps {
   // Server-provided options for select fields and rating categories
   fieldOptions?: Record<string, Array<{ value: string; label: string }>> & {
     rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+    blades?: EquipmentOption[];
+    rubbers?: EquipmentOption[];
   };
   // Pre-selected values (e.g., from URL params)
   preSelectedValues?: Record<string, any>;
@@ -180,6 +183,8 @@ export function UnifiedSubmissionForm({
                       env={env}
                       allValues={formValues}
                       ratingCategories={fieldOptions.rating_categories || []}
+                      blades={fieldOptions.blades || []}
+                      rubbers={fieldOptions.rubbers || []}
                     />
                   ))}
                 </div>
