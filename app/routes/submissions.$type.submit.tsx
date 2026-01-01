@@ -229,6 +229,32 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       }
     }
 
+    // Handle player_edit - transform fields into edit_data JSONB
+    if (submissionType === "player_edit") {
+      const editData: Record<string, any> = {};
+      const editableFields = ["name", "highest_rating", "active_years", "playing_style", "active"];
+
+      for (const fieldName of editableFields) {
+        if (submissionData[fieldName] !== undefined && submissionData[fieldName] !== "") {
+          // Convert "true"/"false" strings to booleans for active field
+          if (fieldName === "active") {
+            editData[fieldName] = submissionData[fieldName] === "true";
+          } else {
+            editData[fieldName] = submissionData[fieldName];
+          }
+          delete submissionData[fieldName];
+        }
+      }
+
+      // Store edit_reason in edit_data as well
+      if (submissionData.edit_reason) {
+        editData.edit_reason = submissionData.edit_reason;
+        delete submissionData.edit_reason;
+      }
+
+      submissionData.edit_data = editData;
+    }
+
     // Note: submitter_email is not stored in database, but used for Discord notifications
 
     // Handle image upload if present
@@ -254,7 +280,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           // Generate a unique key for the submission image
           // Use a temporary UUID since we don't have the submission ID yet
           const tempId = crypto.randomUUID();
-          const category = submissionType === "player" ? "player" : "equipment";
+          const category = (submissionType === "player" || submissionType === "player_edit") ? "player" : "equipment";
           const key = generateImageKey(category, `submission-${tempId}`, imageFile.name);
 
           // Upload to R2

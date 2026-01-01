@@ -145,6 +145,44 @@ export async function action({ request, context }: Route.ActionArgs) {
       "admin_ui",
       moderatorNotes
     );
+
+    // If fully approved, apply the edits to the player record
+    if (result.success && result.newStatus === "approved") {
+      const { data: edit } = await supabase
+        .from("player_edits")
+        .select("*")
+        .eq("id", editId)
+        .single();
+
+      if (edit && edit.player_id) {
+        // Build update object from edit_data, excluding edit_reason
+        const updateData: Record<string, any> = {};
+        if (edit.edit_data) {
+          const { edit_reason, ...editableFields } = edit.edit_data;
+          Object.assign(updateData, editableFields);
+        }
+
+        // Include image_key if present
+        if (edit.image_key) {
+          updateData.image_key = edit.image_key;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await supabase
+            .from("players")
+            .update(updateData)
+            .eq("id", edit.player_id);
+
+          if (updateError) {
+            console.error("Failed to apply player edit:", updateError);
+            return data(
+              { error: `Approved but failed to apply changes: ${updateError.message}` },
+              { status: 500, headers: sbServerClient.headers }
+            );
+          }
+        }
+      }
+    }
   } else if (actionType === "rejected") {
     if (!rejectionCategory || !rejectionReason) {
       return data(
@@ -264,7 +302,15 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
       <div className="px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">👤</span>
+            {edit.image_key ? (
+              <img
+                src={`/api/images/${edit.image_key}`}
+                alt={edit.players?.name || "Player"}
+                className="w-16 h-16 object-cover rounded-full mr-3 border border-gray-200"
+              />
+            ) : (
+              <span className="text-2xl mr-3">👤</span>
+            )}
             <div>
               <p className="text-sm font-medium text-gray-900">
                 Edit for {edit.players?.name || "Unknown Player"}
