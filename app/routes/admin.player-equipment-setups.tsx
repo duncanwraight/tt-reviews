@@ -120,14 +120,63 @@ export async function action({ request, context }: Route.ActionArgs) {
   const supabase = createSupabaseAdminClient(context);
 
   if (actionType === "approved") {
-    // Approve the equipment setup submission - update status
-    const { error } = await supabase
+    // First, fetch the submission data
+    const { data: submission, error: fetchError } = await supabase
+      .from("player_equipment_setup_submissions")
+      .select("*")
+      .eq("id", setupId)
+      .single();
+
+    if (fetchError || !submission) {
+      console.error("Error fetching equipment setup:", fetchError);
+      return data(
+        { error: "Failed to fetch equipment setup" },
+        { status: 500, headers: sbServerClient.headers }
+      );
+    }
+
+    // Map forehand_side/backhand_side to colors
+    // In the form: "forehand" radio = red, "backhand" radio = black
+    const mapSideToColor = (side: string | null): "red" | "black" | null => {
+      if (side === "forehand") return "red";
+      if (side === "backhand") return "black";
+      return null;
+    };
+
+    // Create the actual player equipment setup record
+    const { error: insertError } = await supabase
+      .from("player_equipment_setups")
+      .insert({
+        player_id: submission.player_id,
+        year: submission.year,
+        blade_id: submission.blade_id,
+        forehand_rubber_id: submission.forehand_rubber_id,
+        forehand_thickness: submission.forehand_thickness,
+        forehand_color: mapSideToColor(submission.forehand_side),
+        backhand_rubber_id: submission.backhand_rubber_id,
+        backhand_thickness: submission.backhand_thickness,
+        backhand_color: mapSideToColor(submission.backhand_side),
+        source_url: submission.source_url,
+        source_type: submission.source_type,
+        verified: true,
+      });
+
+    if (insertError) {
+      console.error("Error creating equipment setup:", insertError);
+      return data(
+        { error: "Failed to create equipment setup record" },
+        { status: 500, headers: sbServerClient.headers }
+      );
+    }
+
+    // Update the submission status to approved
+    const { error: updateError } = await supabase
       .from("player_equipment_setup_submissions")
       .update({ status: "approved", moderator_id: user.id })
       .eq("id", setupId);
 
-    if (error) {
-      console.error("Error approving equipment setup:", error);
+    if (updateError) {
+      console.error("Error approving equipment setup:", updateError);
       return data(
         { error: "Failed to approve equipment setup" },
         { status: 500, headers: sbServerClient.headers }
