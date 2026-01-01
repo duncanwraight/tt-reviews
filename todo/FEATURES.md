@@ -1,10 +1,11 @@
 # Features
 
-## Single Approval for Admin UI
+## Single Approval for Admin UI - DONE
 
 **Current**: All submissions require 2 approvals regardless of source
 **Requested**: Submissions approved via Admin UI should only need 1 approval; Discord approvals still require 2
 **Rationale**: Admin UI users are trusted moderators with full context; Discord approvals are quicker/lighter-weight so benefit from second review
+**Implemented**: Updated `update_submission_status()` trigger to check approval source - admin_ui approvals immediately approve
 
 ## Pre-fill and Lock Player on Equipment Setup Submission
 
