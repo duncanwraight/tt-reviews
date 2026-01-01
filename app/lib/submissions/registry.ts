@@ -201,7 +201,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createDiscordField("Category", data.category || "Unknown"),
         ...createOptionalDiscordField("Subcategory", data.subcategory),
         createSubmitterField(data.submitter_email),
-        ...createTruncatedTextField("Specifications", data.specifications),
+        ...createTruncatedTextField("Specifications", data.specifications?.notes),
       ],
     }),
   },
