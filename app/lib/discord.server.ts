@@ -387,13 +387,25 @@ export class DiscordService {
       return await this.handleRejectPlayerSubmission(submissionId, user);
     }
 
-    if (customId.startsWith("approve_")) {
-      const reviewId = customId.replace("approve_", "");
+    // Handle video submissions
+    if (customId.startsWith("approve_video_")) {
+      const submissionId = customId.replace("approve_video_", "");
+      return await this.handleApproveVideoSubmission(submissionId, user);
+    }
+
+    if (customId.startsWith("reject_video_")) {
+      const submissionId = customId.replace("reject_video_", "");
+      return await this.handleRejectVideoSubmission(submissionId, user);
+    }
+
+    // Handle review submissions (must be explicit, not catch-all)
+    if (customId.startsWith("approve_review_")) {
+      const reviewId = customId.replace("approve_review_", "");
       return await this.handleApproveReview(reviewId, user);
     }
 
-    if (customId.startsWith("reject_")) {
-      const reviewId = customId.replace("reject_", "");
+    if (customId.startsWith("reject_review_")) {
+      const reviewId = customId.replace("reject_review_", "");
       return await this.handleRejectReview(reviewId, user);
     }
 
@@ -583,7 +595,7 @@ export class DiscordService {
       }
 
       const result = await this.moderationService.recordApproval(
-        "equipment_review",
+        "review",
         reviewId,
         discordModeratorId,
         "discord",
@@ -670,7 +682,7 @@ export class DiscordService {
 
       // For Discord rejections, use a generic rejection category and reason
       const result = await this.moderationService.recordRejection(
-        "equipment_review",
+        "review",
         reviewId,
         discordModeratorId,
         "discord",
@@ -1468,6 +1480,180 @@ export class DiscordService {
           type: 4,
           data: {
             content: `❌ **Error**: Failed to process player equipment setup rejection`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle video submission approval
+   */
+  private async handleApproveVideoSubmission(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const result = await this.moderationService.recordApproval(
+        "video",
+        submissionId,
+        discordModeratorId,
+        "discord",
+        undefined,
+        true // isDiscordModerator
+      );
+
+      if (result.success) {
+        let message = "Your approval has been recorded.";
+        if (result.newStatus === "approved") {
+          message = "Video submission has been fully approved and will be published.";
+        } else if (result.newStatus === "awaiting_second_approval") {
+          message = "Video submission needs one more approval before being published.";
+        }
+
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `✅ **Video Approved by ${user.username}**\nSubmission ${submissionId}: ${message}`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to process approval"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling approve video submission:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process video submission approval`,
+            flags: 64,
+          },
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle video submission rejection
+   */
+  private async handleRejectVideoSubmission(
+    submissionId: string,
+    user: DiscordUser
+  ): Promise<Response> {
+    try {
+      // Get or create Discord moderator
+      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+      if (!discordModeratorId) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: Failed to create Discord moderator record`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // For Discord rejections, use a generic rejection category and reason
+      const result = await this.moderationService.recordRejection(
+        "video",
+        submissionId,
+        discordModeratorId,
+        "discord",
+        {
+          category: "other",
+          reason: `Rejected via Discord by ${user.username}`,
+        },
+        this.context.cloudflare?.env?.R2_BUCKET,
+        true // isDiscordModerator
+      );
+
+      if (result.success) {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Video Rejected by ${user.username}**\nSubmission ${submissionId} has been rejected and will not be published.`,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            type: 4,
+            data: {
+              content: `❌ **Error**: ${result.error || "Failed to reject video submission"}`,
+              flags: 64,
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling reject video submission:", error);
+      return new Response(
+        JSON.stringify({
+          type: 4,
+          data: {
+            content: `❌ **Error**: Failed to process video submission rejection`,
             flags: 64,
           },
         }),

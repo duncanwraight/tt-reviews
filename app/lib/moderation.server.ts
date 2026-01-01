@@ -21,7 +21,7 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
+    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -92,7 +92,7 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
+    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -250,7 +250,7 @@ export class ModerationService {
     moderatorId: string
   ): Promise<ApprovalResult> {
     return this.recordApproval(
-      "equipment_review",
+      "review",
       reviewId,
       moderatorId,
       "admin_ui"
@@ -265,7 +265,7 @@ export class ModerationService {
     r2Bucket?: R2Bucket
   ): Promise<ApprovalResult> {
     return this.recordRejection(
-      "equipment_review",
+      "review",
       reviewId,
       moderatorId,
       "admin_ui",
@@ -275,7 +275,7 @@ export class ModerationService {
   }
 
   private async getSubmissionStatus(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
+    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -289,7 +289,7 @@ export class ModerationService {
   }
 
   private async deleteSubmissionImage(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup",
+    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -347,7 +347,7 @@ export class ModerationService {
   }
 
   private getTableName(
-    submissionType: "equipment" | "player" | "player_edit" | "equipment_review" | "video" | "player_equipment_setup"
+    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup"
   ): string {
     switch (submissionType) {
       case "equipment":
@@ -356,10 +356,12 @@ export class ModerationService {
         return "player_submissions";
       case "player_edit":
         return "player_edits";
-      case "equipment_review":
+      case "review":
         return "equipment_reviews";
       case "video":
         return "video_submissions";
+      case "player_equipment_setup":
+        return "player_equipment_setup_submissions";
       default:
         throw new Error(`Unknown submission type: ${submissionType}`);
     }
