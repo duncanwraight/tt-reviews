@@ -7,12 +7,13 @@
 **Rationale**: Admin UI users are trusted moderators with full context; Discord approvals are quicker/lighter-weight so benefit from second review
 **Implemented**: Updated `update_submission_status()` trigger to check approval source - admin_ui approvals immediately approve
 
-## Pre-fill and Lock Player on Equipment Setup Submission
+## Pre-fill and Lock Player on Equipment Setup Submission - DONE
 
 **Location**: "Add Equipment Setup" link from player detail page → `/submissions/player_equipment_setup/submit`
 **Current**: Player dropdown is empty, user must select player manually
 **Requested**: When navigating from a player page, pre-fill the player and make it read-only (or hidden)
 **Rationale**: Prevents accidental submission for wrong player; better UX flow
+**Implemented**: Fixed URL param to pass player UUID; form shows locked player banner with hidden input when navigating from player page
 
 ## Equipment Setup: Use Equipment Search Instead of Free Text
 
