@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useComparison } from "~/contexts/ComparisonContext";
+import { LazyImage } from "~/components/ui/LazyImage";
 
 interface Equipment {
   id: string;
@@ -10,6 +11,7 @@ interface Equipment {
   manufacturer: string;
   rating?: number;
   reviewCount?: number;
+  image_key?: string;
 }
 
 interface ComparisonCardProps {
@@ -104,7 +106,22 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
 
       <Link to={`/equipment/${equipment.slug}`} className="block p-6">
         <div className="flex items-start space-x-4">
-          <div className="text-4xl">{getCategoryIcon(equipment.category)}</div>
+          {/* Equipment Image/Icon */}
+          <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+            {equipment.image_key ? (
+              <LazyImage
+                src={`/api/images/${equipment.image_key}`}
+                alt={equipment.name}
+                className="w-full h-full"
+                placeholder="skeleton"
+                fallbackIcon={
+                  <span className="text-3xl text-gray-300">{getCategoryIcon(equipment.category)}</span>
+                }
+              />
+            ) : (
+              <span className="text-3xl text-gray-300">{getCategoryIcon(equipment.category)}</span>
+            )}
+          </div>
 
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">

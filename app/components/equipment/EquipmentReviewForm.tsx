@@ -71,12 +71,17 @@ export function EquipmentReviewForm({
           {/* Equipment Info Header */}
           <div className="bg-gray-50 p-6 rounded-lg">
             <div className="flex items-center gap-4">
-              {equipment.image_url && (
+              {/* Prefer image_key (R2) over image_url */}
+              {(equipment.image_key || equipment.image_url) ? (
                 <img
-                  src={equipment.image_url}
+                  src={equipment.image_key ? `/api/images/${equipment.image_key}` : equipment.image_url}
                   alt={equipment.name}
                   className="w-16 h-16 object-cover rounded"
                 />
+              ) : (
+                <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-2xl text-gray-400">
+                  {equipment.category === "blade" ? "🏓" : equipment.category === "rubber" ? "⚫" : "🟠"}
+                </div>
               )}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
