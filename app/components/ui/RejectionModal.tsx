@@ -11,9 +11,12 @@ interface RejectionModalProps {
     | "player"
     | "player_edit"
     | "equipment_review"
-    | "video";
+    | "video"
+    | "player_equipment_setup";
   submissionName: string;
   csrfToken?: string;
+  /** Override the field name for the submission ID (default: "submissionId") */
+  fieldName?: string;
 }
 
 const REJECTION_CATEGORIES: Array<{ value: RejectionCategory; label: string }> =
@@ -34,6 +37,7 @@ export function RejectionModal({
   submissionType,
   submissionName,
   csrfToken,
+  fieldName = "submissionId",
 }: RejectionModalProps) {
   const [category, setCategory] = useState<RejectionCategory>("other");
   const [reason, setReason] = useState("");
@@ -75,7 +79,7 @@ export function RejectionModal({
             {csrfToken && (
               <input type="hidden" name="_csrf" value={csrfToken} />
             )}
-            <input type="hidden" name="submissionId" value={submissionId} />
+            <input type="hidden" name={fieldName} value={submissionId} />
             <input type="hidden" name="action" value="rejected" />
 
             <div className="text-left">
