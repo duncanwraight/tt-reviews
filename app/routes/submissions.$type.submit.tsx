@@ -170,9 +170,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     // Handle player_equipment_setup - extract individual fields rendered by the component
     if (submissionType === "player_equipment_setup") {
       const equipmentFields = [
-        'year', 'blade_name',
-        'forehand_rubber_name', 'forehand_thickness', 'forehand_side',
-        'backhand_rubber_name', 'backhand_thickness', 'backhand_side',
+        'year', 'blade_id',
+        'forehand_rubber_id', 'forehand_thickness', 'forehand_side',
+        'backhand_rubber_id', 'backhand_thickness', 'backhand_side',
         'source_type', 'source_url'
       ];
 
