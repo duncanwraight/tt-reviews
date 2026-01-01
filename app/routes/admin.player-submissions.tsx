@@ -159,6 +159,7 @@ export async function action({ request, context }: Route.ActionArgs) {
             birth_country: submission.birth_country,
             represents: submission.represents,
             active: true,
+            image_key: submission.image_key,
           });
 
           if (insertError) {
@@ -294,7 +295,15 @@ export default function AdminPlayerSubmissions({
       <div className="px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">👤</span>
+            {submission.image_key ? (
+              <img
+                src={`/api/images/${submission.image_key}`}
+                alt={submission.name}
+                className="w-16 h-16 object-cover rounded-full mr-3 border border-gray-200"
+              />
+            ) : (
+              <span className="text-2xl mr-3">👤</span>
+            )}
             <div>
               <p className="text-sm font-medium text-gray-900">
                 {submission.name}

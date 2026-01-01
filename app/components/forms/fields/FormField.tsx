@@ -241,7 +241,9 @@ export function FormField({
           <ImageUpload
             name={field.name}
             label={field.label}
+            helpText={field.placeholder}
             disabled={disabled}
+            required={field.required}
             maxSize={10}
             preview={true}
           />

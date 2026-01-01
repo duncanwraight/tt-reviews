@@ -1,4 +1,5 @@
-import type { Player } from "~/lib/database.server";
+import type { Player } from "~/lib/types";
+import { LazyImage } from "../ui/LazyImage";
 
 interface PlayerHeaderProps {
   player: Player;
@@ -47,9 +48,19 @@ export function PlayerHeader({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="player-info grid grid-cols-1 lg:grid-cols-6 gap-8 items-center">
           <div className="player-photo lg:col-span-1">
-            <div className="w-36 h-36 bg-gray-200 rounded-lg flex items-center justify-center text-6xl text-gray-400 mx-auto lg:mx-0">
-              📷
-            </div>
+            {player.image_key ? (
+              <LazyImage
+                src={`/api/images/${player.image_key}`}
+                alt={player.name}
+                className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
+                placeholder="skeleton"
+                fallbackIcon={<span className="text-6xl text-gray-400">📷</span>}
+              />
+            ) : (
+              <div className="w-36 h-36 bg-gray-200 rounded-lg flex items-center justify-center text-6xl text-gray-400 mx-auto lg:mx-0">
+                📷
+              </div>
+            )}
           </div>
 
           <div className="player-details lg:col-span-4 text-center lg:text-left">

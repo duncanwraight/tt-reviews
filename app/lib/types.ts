@@ -67,6 +67,7 @@ export interface Player {
   birth_country?: string; // ISO 3166-1 alpha-3 country code for birth country
   represents?: string; // ISO 3166-1 alpha-3 country code for represented country
   gender?: "male" | "female";
+  image_key?: string; // R2 storage key for player photo
   // Optional: expanded equipment setup data from joined queries
   equipment_setups?: Array<{
     blade_name?: string;
@@ -87,6 +88,7 @@ export interface Equipment {
   manufacturer: string;
   specifications: Record<string, unknown>;
   image_url?: string;
+  image_key?: string; // R2 storage key for equipment photo
   created_at: string;
   updated_at: string;
 }

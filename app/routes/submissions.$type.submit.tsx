@@ -227,6 +227,47 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Note: submitter_email is not stored in database, but used for Discord notifications
 
+    // Handle image upload if present
+    const imageFile = formData.get("image") as File | null;
+    if (imageFile && imageFile.size > 0) {
+      const { validateImageFile, generateImageKey, uploadImageToR2Native } = await import(
+        "~/lib/r2-native.server"
+      );
+
+      // Validate the image
+      const validation = validateImageFile(imageFile);
+      if (!validation.valid) {
+        return data(
+          { error: validation.error || "Invalid image file" },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
+      // Get the R2 bucket from context
+      const env = context.cloudflare.env as Cloudflare.Env;
+      if (env.IMAGE_BUCKET) {
+        try {
+          // Generate a unique key for the submission image
+          // Use a temporary UUID since we don't have the submission ID yet
+          const tempId = crypto.randomUUID();
+          const category = submissionType === "player" ? "player" : "equipment";
+          const key = generateImageKey(category, `submission-${tempId}`, imageFile.name);
+
+          // Upload to R2
+          await uploadImageToR2Native(env.IMAGE_BUCKET, key, imageFile, {
+            submissionType,
+            uploadedBy: user.id,
+          });
+
+          // Store the key in submission data
+          submissionData.image_key = key;
+        } catch (uploadError) {
+          console.error("Image upload error:", uploadError);
+          // Don't fail the submission if image upload fails, just log it
+        }
+      }
+    }
+
     // Insert into appropriate table using admin client
     const { createSupabaseAdminClient } = await import("~/lib/database.server");
     const adminClient = createSupabaseAdminClient(context);

@@ -35,15 +35,15 @@
 **Status**: Route disabled - half-finished implementation
 **TODO**: Complete the comparison feature with side-by-side specs, ratings, pro usage, etc.
 
-## Image Upload for Equipment and Players
+## Image Upload for Equipment and Players - DONE
 
 **Location**: Equipment and player submission forms
-**Current**: No image upload fields in forms
-**Infrastructure**: R2 upload/delete utilities exist in `app/lib/r2-native.server.ts`
-**TODO**:
-- Add image upload field to equipment submission form
-- Add image upload field to player submission form
-- Handle upload in submission action, store key in submission record
-- Display uploaded images in admin moderation views
-- Display images on public equipment/player pages
+**Implemented**:
+- Database migration adds `image_key` columns to `equipment_submissions`, `player_submissions`, `equipment`, and `players` tables
+- Added image field type to submission registry for equipment (product photo) and player (upper-body photo) forms
+- ImageUpload component with drag-and-drop, preview, validation (JPEG/PNG/WebP, max 10MB)
+- Form submission handler validates and uploads to R2, stores key in submission record
+- Admin moderation views display image thumbnails for submissions
+- Approval action copies `image_key` from submission to main record
+- Public equipment/player pages display images via LazyImage component using R2 API
 

@@ -4,28 +4,32 @@ import { LazyImage } from "./LazyImage";
 interface ImageUploadProps {
   name: string;
   label?: string;
+  helpText?: string;
   required?: boolean;
   disabled?: boolean;
   accept?: string;
   maxSize?: number; // in MB
   className?: string;
   preview?: boolean;
+  existingImageUrl?: string;
   onFileChange?: (file: File | null) => void;
 }
 
 export function ImageUpload({
   name,
   label,
+  helpText,
   required = false,
   disabled = false,
   accept = "image/jpeg,image/png,image/webp",
   maxSize = 10,
   className = "",
   preview = true,
+  existingImageUrl,
   onFileChange,
 }: ImageUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(existingImageUrl || null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +157,10 @@ export function ImageUpload({
         </label>
       )}
 
+      {helpText && (
+        <p className="text-sm text-gray-500">{helpText}</p>
+      )}
+
       <div className="flex flex-col space-y-3">
         {/* File Input (Hidden) */}
         <input
@@ -167,7 +175,7 @@ export function ImageUpload({
         />
 
         {/* Upload Area */}
-        {!selectedFile && (
+        {!selectedFile && !previewUrl && (
           <div
             onClick={handleClick}
             onDragEnter={handleDragEnter}
@@ -219,7 +227,7 @@ export function ImageUpload({
         )}
 
         {/* Preview Area */}
-        {selectedFile && (
+        {(selectedFile || previewUrl) && (
           <div className="border border-gray-300 rounded-lg p-4">
             <div className="flex items-start space-x-4">
               {/* Image Preview */}
@@ -236,12 +244,30 @@ export function ImageUpload({
 
               {/* File Info */}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {selectedFile.name}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </div>
+                {selectedFile ? (
+                  <>
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {selectedFile.name}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-medium text-gray-900">
+                      Existing image
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClick}
+                      disabled={disabled}
+                      className="text-sm text-purple-600 hover:text-purple-800"
+                    >
+                      Click to replace
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Remove Button */}

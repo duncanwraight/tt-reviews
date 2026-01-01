@@ -10,6 +10,7 @@ interface Equipment {
   subcategory?: string;
   manufacturer: string;
   specifications: Record<string, unknown>;
+  image_key?: string;
 }
 
 interface Player {
@@ -62,7 +63,10 @@ export function EquipmentHeader({
     }
   };
 
-  const imageUrl = equipment.specifications?.image_url as string;
+  // Prefer image_key (R2 storage) over specifications.image_url
+  const imageUrl = equipment.image_key
+    ? `/api/images/${equipment.image_key}`
+    : (equipment.specifications?.image_url as string);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
