@@ -1,9 +1,8 @@
 import type { Route } from "./+types/admin.player-equipment-setups";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useNavigation } from "react-router";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
-import { useState } from "react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -26,13 +25,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const supabase = createSupabaseAdminClient(context);
 
-  // Get all unverified player equipment setups with related data
+  // Get all pending player equipment setup submissions with related data
   const { data: equipmentSetups, error } = await supabase
-    .from("player_equipment_setups")
+    .from("player_equipment_setup_submissions")
     .select(
       `
       *,
-      players (
+      players:player_id (
         id,
         name,
         slug
@@ -54,7 +53,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       )
     `
     )
-    .eq("verified", false)
+    .eq("status", "pending")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -111,10 +110,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const supabase = createSupabaseAdminClient(context);
 
   if (action === "approve") {
-    // Approve the equipment setup
+    // Approve the equipment setup submission - update status
     const { error } = await supabase
-      .from("player_equipment_setups")
-      .update({ verified: true })
+      .from("player_equipment_setup_submissions")
+      .update({ status: "approved", moderator_id: user.id })
       .eq("id", setupId);
 
     if (error) {
@@ -130,10 +129,10 @@ export async function action({ request, context }: Route.ActionArgs) {
       { headers: sbServerClient.headers }
     );
   } else if (action === "reject") {
-    // Delete the equipment setup
+    // Reject the equipment setup submission - update status
     const { error } = await supabase
-      .from("player_equipment_setups")
-      .delete()
+      .from("player_equipment_setup_submissions")
+      .update({ status: "rejected", moderator_id: user.id })
       .eq("id", setupId);
 
     if (error) {
@@ -145,7 +144,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     return data(
-      { success: "Equipment setup rejected and removed" },
+      { success: "Equipment setup rejected" },
       { headers: sbServerClient.headers }
     );
   }
@@ -160,11 +159,8 @@ export default function AdminPlayerEquipmentSetups({
   loaderData,
 }: Route.ComponentProps) {
   const { equipmentSetups, user, csrfToken } = loaderData;
-  const [processingSetup, setProcessingSetup] = useState<string | null>(null);
-
-  const handleAction = (setupId: string) => {
-    setProcessingSetup(setupId);
-  };
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
 
   return (
     <div className="space-y-6">
@@ -219,29 +215,27 @@ export default function AdminPlayerEquipmentSetups({
                   </div>
                   <div className="flex space-x-3">
                     <Form method="post" className="inline">
-                      <input type="hidden" name="csrfToken" value={csrfToken} />
+                      <input type="hidden" name="_csrf" value={csrfToken} />
                       <input type="hidden" name="setupId" value={setup.id} />
                       <input type="hidden" name="action" value="approve" />
                       <button
                         type="submit"
-                        disabled={processingSetup === setup.id}
-                        onClick={() => handleAction(setup.id)}
+                        disabled={isSubmitting}
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                       >
-                        ✓ Approve
+                        {isSubmitting ? "..." : "Approve"}
                       </button>
                     </Form>
                     <Form method="post" className="inline">
-                      <input type="hidden" name="csrfToken" value={csrfToken} />
+                      <input type="hidden" name="_csrf" value={csrfToken} />
                       <input type="hidden" name="setupId" value={setup.id} />
                       <input type="hidden" name="action" value="reject" />
                       <button
                         type="submit"
-                        disabled={processingSetup === setup.id}
-                        onClick={() => handleAction(setup.id)}
+                        disabled={isSubmitting}
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                       >
-                        ✗ Reject
+                        {isSubmitting ? "..." : "Reject"}
                       </button>
                     </Form>
                   </div>

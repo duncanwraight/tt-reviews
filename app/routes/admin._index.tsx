@@ -45,11 +45,11 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         .select("status")
         .not("status", "is", null),
 
-      // Get player equipment setups (unverified count)
+      // Get player equipment setup submissions grouped by status
       supabase
-        .from("player_equipment_setups")
-        .select("verified")
-        .eq("verified", false),
+        .from("player_equipment_setup_submissions")
+        .select("status")
+        .not("status", "is", null),
 
       // Get total equipment count
       supabase
@@ -99,6 +99,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         playerEdits: getStatusCounts(playerEditsQuery.data),
         equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
         videoSubmissions: getStatusCounts(videoSubmissionsQuery.data),
+        playerEquipmentSetups: getStatusCounts(playerEquipmentSetupsQuery.data),
       },
     };
 
@@ -132,6 +133,12 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
           rejected: 0,
         },
         playerEdits: {
+          pending: 0,
+          awaiting_second_approval: 0,
+          approved: 0,
+          rejected: 0,
+        },
+        playerEquipmentSetups: {
           pending: 0,
           awaiting_second_approval: 0,
           approved: 0,
@@ -197,6 +204,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     playerEdits: playerEditsByStatus,
     equipmentReviews: equipmentReviewsByStatus,
     videoSubmissions: videoSubmissionsByStatus,
+    playerEquipmentSetups: playerEquipmentSetupsByStatus,
   } = dashboardCounts.byStatus;
 
   // Extract individual status counts for easier access
@@ -228,6 +236,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     videoSubmissionsByStatus.awaiting_second_approval;
   const approvedVideoSubmissions = videoSubmissionsByStatus.approved;
   const rejectedVideoSubmissions = videoSubmissionsByStatus.rejected;
+
+  const pendingPlayerEquipmentSetups = playerEquipmentSetupsByStatus.pending;
+  const awaitingPlayerEquipmentSetups =
+    playerEquipmentSetupsByStatus.awaiting_second_approval;
+  const approvedPlayerEquipmentSetups = playerEquipmentSetupsByStatus.approved;
+  const rejectedPlayerEquipmentSetups = playerEquipmentSetupsByStatus.rejected;
 
   return data({
     stats: {
@@ -265,6 +279,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         (pendingVideoSubmissions || 0) + (awaitingVideoSubmissions || 0),
       videoSubmissionsApproved: approvedVideoSubmissions || 0,
       videoSubmissionsRejected: rejectedVideoSubmissions || 0,
+      // Player equipment setups status breakdown
+      playerEquipmentSetupsPending:
+        (pendingPlayerEquipmentSetups || 0) + (awaitingPlayerEquipmentSetups || 0),
+      playerEquipmentSetupsApproved: approvedPlayerEquipmentSetups || 0,
+      playerEquipmentSetupsRejected: rejectedPlayerEquipmentSetups || 0,
     },
   });
 }
@@ -303,9 +322,9 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
     {
       title: "Equipment Setups",
       total: stats.playerEquipmentSetups,
-      pending: stats.playerEquipmentSetups, // All unverified setups are "pending"
-      approved: 0, // We don't track approved count (just verified/unverified)
-      rejected: 0, // We don't track rejected count (they're deleted)
+      pending: stats.playerEquipmentSetupsPending,
+      approved: stats.playerEquipmentSetupsApproved,
+      rejected: stats.playerEquipmentSetupsRejected,
       link: "/admin/player-equipment-setups",
       color: "bg-teal-500",
     },
@@ -355,7 +374,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         {stats.equipmentPending +
           stats.playerSubmissionsPending +
           stats.playerEditsPending +
-          stats.playerEquipmentSetups +
+          stats.playerEquipmentSetupsPending +
           stats.videoSubmissionsPending >
           0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -372,7 +391,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                   {stats.equipmentPending +
                     stats.playerSubmissionsPending +
                     stats.playerEditsPending +
-                    stats.playerEquipmentSetups +
+                    stats.playerEquipmentSetupsPending +
                     stats.videoSubmissionsPending}{" "}
                   items waiting for review.
                 </div>
