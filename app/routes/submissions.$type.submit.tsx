@@ -150,7 +150,11 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         // Handle specifications as JSON for equipment submissions
         if (field.name === "specifications" && submissionType === "equipment") {
           submissionData[field.name] = { notes: value };
-        } 
+        }
+        // Skip image fields - handled separately below with R2 upload
+        else if (field.type === "image") {
+          continue;
+        }
         // Skip rating_categories field - handled separately below
         else if (field.name === "rating_categories" && submissionType === "review") {
           // Will be processed below in review-specific section
