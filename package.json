@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "test:discord": "vitest run app/lib/__tests__/discord.test.ts",
     "test:e2e": "playwright test",
-    "test:smoke": "playwright test --config=playwright.smoke.config.ts"
+    "test:smoke": "playwright test --config=playwright.smoke.config.ts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@react-router/fs-routes": "^7.6.2",
@@ -36,10 +37,13 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "dotenv": "^16.4.7",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "husky": "^9.1.7",
     "prettier": "^3.5.2",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.59.0",
     "vite": "^6.3.3",
     "vite-plugin-devtools-json": "^0.2.0",
     "vite-tsconfig-paths": "^5.1.4",
