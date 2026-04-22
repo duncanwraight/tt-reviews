@@ -51,11 +51,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     // Silently handle bot requests
   } else if (isAppPath) {
     // Log app-related 404s as warnings - these might indicate broken links or missing content
+    // eslint-disable-next-line no-console
     console.warn(
       `404 - App content not found: ${url.pathname} (Referrer: ${request.headers.get("referer") || "none"})`
     );
   } else {
     // Log other 404s as info
+    // eslint-disable-next-line no-console
     console.info(`404 - Page not found: ${url.pathname}`);
   }
 

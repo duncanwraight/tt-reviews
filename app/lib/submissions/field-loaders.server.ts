@@ -9,17 +9,21 @@ import { createCategoryService } from "~/lib/categories.server";
 interface OptionLoaderConfig {
   table: string;
   columns: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   filters: Record<string, any>;
   orderBy?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   formatter?: (item: any) => { value: string; label: string };
 }
 
 // Default formatters
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const defaultFormatter = (item: any) => ({
   value: item.value || item.id,
   label: item.name,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const countryFormatter = (country: any) => ({
   value: country.value,
   label: country.flag_emoji
@@ -27,11 +31,13 @@ const countryFormatter = (country: any) => ({
     : country.name,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const equipmentFormatter = (eq: any) => ({
   value: eq.id,
   label: `${eq.name} (${eq.manufacturer})`,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const playerFormatter = (player: any) => ({
   value: player.id,
   label: player.name,
@@ -252,8 +258,10 @@ interface PreSelectionHandler {
   fieldName: string;
   handler: (
     paramValue: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fieldOptions: any,
     sbClient: SupabaseClient
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<Record<string, any>>;
 }
 
@@ -266,6 +274,7 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       fieldName: "player_id",
       handler: async (playerId, fieldOptions) => {
         const selectedPlayer = fieldOptions.player_id?.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (p: any) => p.value === playerId
         );
         return selectedPlayer ? { player_id: playerId } : {};
@@ -278,6 +287,7 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       fieldName: "player_id",
       handler: async (playerName, fieldOptions) => {
         const selectedPlayer = fieldOptions.player_id?.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (p: any) => p.label === playerName
         );
         return selectedPlayer ? { player_id: selectedPlayer.value } : {};
@@ -310,6 +320,7 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       fieldName: "player_id",
       handler: async (playerId, fieldOptions) => {
         const selectedPlayer = fieldOptions.player_id?.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (p: any) => p.value === playerId
         );
         return selectedPlayer
@@ -330,10 +341,13 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
 export async function handlePreSelections(
   submissionType: SubmissionType,
   url: URL,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldOptions: any,
   sbClient: SupabaseClient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<Record<string, any>> {
   const handlers = preSelectionHandlers[submissionType] || [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const preSelectedValues: Record<string, any> = {};
 
   for (const handler of handlers) {

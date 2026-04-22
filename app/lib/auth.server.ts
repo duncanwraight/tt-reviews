@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "./database.server";
 import type { AppLoadContext } from "react-router";
 
 // Decode JWT payload on server-side
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decodeJWTPayload(token: string): any {
   try {
     return JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
@@ -14,6 +15,7 @@ export function decodeJWTPayload(token: string): any {
 
 // Get user role from session
 export async function getUserRoleFromSession(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseClient: any
 ): Promise<string | null> {
   try {
@@ -30,6 +32,7 @@ export async function getUserRoleFromSession(
 
 // Get authenticated user with role information for consistent navigation
 export async function getUserWithRole(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseServerClient: any,
   context?: AppLoadContext
 ) {

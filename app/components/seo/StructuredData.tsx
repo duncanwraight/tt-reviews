@@ -1,6 +1,7 @@
 import { schemaService } from "~/lib/schema.server";
 
 interface StructuredDataProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema: any | any[];
 }
 
@@ -25,6 +26,7 @@ export function StructuredData({ schema }: StructuredDataProps) {
  * Hook for generating structured data in route meta functions
  * Returns the script tag as a meta object for React Router
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useStructuredDataMeta(schema: any | any[]) {
   const jsonLd = Array.isArray(schema)
     ? schemaService.generateMultipleSchemas(schema)

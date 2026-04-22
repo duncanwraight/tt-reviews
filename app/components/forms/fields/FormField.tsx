@@ -10,7 +10,9 @@ import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
 
 interface FormFieldProps {
   field: FormFieldConfig;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (name: string, value: any) => void;
   error?: string;
   disabled?: boolean;
@@ -20,6 +22,7 @@ interface FormFieldProps {
     SUPABASE_ANON_KEY: string;
   };
   // For dependency handling
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   allValues?: Record<string, any>;
   // For rating categories
   ratingCategories?: Array<{
@@ -60,12 +63,15 @@ export function FormField({
       env &&
       allValues[field.dynamicOptions.dependsOn]
     ) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       loadDynamicOptions();
     } else if (field.type === "dynamic_select") {
       setDynamicOptions([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     field.dynamicOptions?.dependsOn,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     allValues[field.dynamicOptions?.dependsOn || ""],
   ]);
 

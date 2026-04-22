@@ -59,6 +59,7 @@ export class ModerationService {
       }
 
       // Record the approval
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const insertData: any = {
         submission_type: submissionType,
         submission_id: submissionId,
@@ -116,6 +117,7 @@ export class ModerationService {
   ): Promise<ApprovalResult> {
     try {
       // Record the rejection
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const insertData: any = {
         submission_type: submissionType,
         submission_id: submissionId,

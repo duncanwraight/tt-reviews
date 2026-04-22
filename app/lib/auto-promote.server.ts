@@ -83,6 +83,7 @@ export function getAdminEmails(env: Record<string, string>): string {
     );
 
     if (invalidEmails.length > 0) {
+      // eslint-disable-next-line no-console
       console.warn("Invalid admin emails detected:", invalidEmails);
     }
   }

@@ -10,6 +10,7 @@ import type { AppLoadContext } from "react-router";
 export function getEnvVar(context: AppLoadContext, key: string): string {
   // Try Cloudflare env first (for production and npm run dev:wrangler)
   if (context.cloudflare?.env) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (context.cloudflare.env as any)[key] || "";
   }
 

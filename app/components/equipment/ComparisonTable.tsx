@@ -3,7 +3,9 @@ import type { Equipment } from "~/lib/types";
 interface ComparisonTableProps {
   equipment1: Equipment;
   equipment2: Equipment;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviews1: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviews2: any[];
   averageRating1?: number | null;
   averageRating2?: number | null;
@@ -18,6 +20,7 @@ export function ComparisonTable({
   averageRating2,
 }: ComparisonTableProps) {
   // Helper function to render specification value
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderSpecValue = (value: any) => {
     if (value === null || value === undefined || value === "") {
       return <span className="text-gray-400">Not specified</span>;
@@ -29,6 +32,7 @@ export function ComparisonTable({
   };
 
   // Helper function to get category-specific rating breakdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getCategoryRatings = (reviews: any[], category: string) => {
     const ratings = reviews
       .map(review => review.ratings?.[category])

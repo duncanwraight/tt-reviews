@@ -112,6 +112,7 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
 
           // Redirect to homepage after 2 seconds
           setTimeout(() => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigate("/");
           }, 2000);
         }
@@ -123,6 +124,7 @@ export default function AuthCallback({ loaderData }: Route.ComponentProps) {
       }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     handleAuthCallback();
   }, [searchParams, env, navigate]);
 

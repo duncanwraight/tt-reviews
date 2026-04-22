@@ -60,6 +60,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         acc[approval.submission_id].push(approval);
         return acc;
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as Record<string, any[]>
     );
 
@@ -235,23 +236,28 @@ export default function AdminVideoSubmissions({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getApprovalCount = (submission: any) => {
     if (!submission.moderator_approvals) return 0;
     return submission.moderator_approvals.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.action === "approved"
     ).length;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canApprove = (submission: any) => {
     if (submission.status === "approved" || submission.status === "rejected")
       return false;
     const approvals = submission.moderator_approvals || [];
     const userApproval = approvals.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.moderator_id === user.id && a.action === "approved"
     );
     return !userApproval;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canReject = (submission: any) => {
     return submission.status !== "approved" && submission.status !== "rejected";
   };
@@ -267,6 +273,7 @@ export default function AdminVideoSubmissions({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderSubmissionItem = (submission: any) => (
     <li key={submission.id}>
       <div className="px-4 py-4 sm:px-6">
@@ -307,6 +314,7 @@ export default function AdminVideoSubmissions({
                 Videos:
               </h4>
               <div className="space-y-2">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {submission.videos.map((video: any, index: number) => (
                   <div
                     key={index}
@@ -390,6 +398,7 @@ export default function AdminVideoSubmissions({
               </h4>
               <div className="space-y-1">
                 {submission.moderator_approvals.map(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   (approval: any, index: number) => (
                     <div key={index} className="text-sm flex justify-between">
                       <span

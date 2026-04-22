@@ -66,6 +66,7 @@ export const loader = withLoaderCorrelation(
     request,
     context,
     logContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }: Route.LoaderArgs & { logContext: any }) => {
     const sbServerClient = getServerClient(request, context);
     const user = await getUserWithRole(sbServerClient, context);

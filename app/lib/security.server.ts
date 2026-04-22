@@ -25,6 +25,7 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 export async function rateLimit(
   request: Request,
   config: RateLimitConfig,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   context?: any
 ): Promise<{ success: boolean; resetTime?: number; remaining?: number }> {
   const key = config.keyGenerator

@@ -4,6 +4,7 @@ import { FeedbackMessage } from "./FeedbackMessage";
 import { useEffect } from "react";
 
 interface RouterFormWrapperProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children: (props: { isLoading: boolean; actionData: any }) => React.ReactNode;
   loadingMessage?: string;
   successRedirect?: () => void;

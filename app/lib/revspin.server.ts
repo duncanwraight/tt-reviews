@@ -127,7 +127,9 @@ function parseProductTable(
       : `${category}/`;
 
   // DEBUG: Log HTML length
+  // eslint-disable-next-line no-console
   console.log(`[REVSPIN DEBUG] HTML length: ${html.length}`);
+  // eslint-disable-next-line no-console
   console.log(`[REVSPIN DEBUG] Category prefix: ${categoryPrefix}`);
 
   // First, let's find ALL links ending in .html to understand the patterns
@@ -148,6 +150,7 @@ function parseProductTable(
 
     // DEBUG: Log first 10 links to see patterns
     if (totalLinks <= 10) {
+      // eslint-disable-next-line no-console
       console.log(
         `[REVSPIN DEBUG] Link ${totalLinks}: href="${href.substring(0, 60)}", name="${name.substring(0, 30)}"`
       );
@@ -197,6 +200,7 @@ function parseProductTable(
 
     // DEBUG: Log first few products' cells
     if (categoryLinks <= 5) {
+      // eslint-disable-next-line no-console
       console.log(
         `[REVSPIN DEBUG] Product "${name}" has ${cells.length} cells: ${JSON.stringify(cells.slice(0, 8))}`
       );
@@ -232,6 +236,7 @@ function parseProductTable(
   }
 
   // DEBUG: Summary
+  // eslint-disable-next-line no-console
   console.log(
     `[REVSPIN DEBUG] Summary: ${totalLinks} total links, ${categoryLinks} matching category, ${products.length} products parsed`
   );
@@ -336,16 +341,20 @@ export async function fetchProductList(
   const path = getCategoryPath(category);
   const url = `${REVSPIN_BASE_URL}${path}`;
 
+  // eslint-disable-next-line no-console
   console.log(`[REVSPIN DEBUG] Fetching URL: ${url}`);
 
   try {
     const response = await rateLimitedFetch(url);
+    // eslint-disable-next-line no-console
     console.log(`[REVSPIN DEBUG] Response status: ${response.status}`);
 
     const html = await response.text();
+    // eslint-disable-next-line no-console
     console.log(`[REVSPIN DEBUG] Response HTML length: ${html.length}`);
 
     const products = parseProductTable(html, category);
+    // eslint-disable-next-line no-console
     console.log(`[REVSPIN DEBUG] Parsed ${products.length} products`);
 
     return products;

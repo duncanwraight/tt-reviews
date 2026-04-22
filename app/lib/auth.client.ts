@@ -15,6 +15,7 @@ export function getUserRoleFromSession(env: {
     );
 
     // This is a quick way to get session, but normally you'd use context
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.access_token) {
         const payload = JSON.parse(atob(session.access_token.split(".")[1]));
@@ -29,6 +30,7 @@ export function getUserRoleFromSession(env: {
 }
 
 // Simple JWT decode for client-side
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decodeJWT(token: string): any {
   try {
     return JSON.parse(atob(token.split(".")[1]));

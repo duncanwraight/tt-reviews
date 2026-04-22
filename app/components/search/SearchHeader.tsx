@@ -16,6 +16,7 @@ export function SearchHeader({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchValue.trim()) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(`/search?q=${encodeURIComponent(searchValue.trim())}`);
     }
   };

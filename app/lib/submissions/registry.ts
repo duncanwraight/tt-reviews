@@ -74,6 +74,7 @@ export interface SubmissionConfig {
     titlePrefix: string;
   };
   // Function to transform submission data into Discord notification format (optional)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   formatForDiscord?: (data: any) => DiscordNotificationData;
 }
 
@@ -231,6 +232,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "🏓",
       titlePrefix: "Equipment Submission",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => ({
       id: data.id,
       submissionType: "equipment",
@@ -329,6 +331,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "👤",
       titlePrefix: "Player Submission",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => ({
       id: data.id,
       submissionType: "player",
@@ -438,6 +441,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "✏️",
       titlePrefix: "Player Edit",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => {
       // Create a summary of the changes
       const changes = [];
@@ -512,6 +516,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "📹",
       titlePrefix: "Video Submission",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => ({
       id: data.id,
       submissionType: "video",
@@ -528,7 +533,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         ),
         createSubmitterField(data.submitter_email),
         ...(data.videos && data.videos.length > 0
-          ? data.videos.slice(0, 3).map((video: any, index: number) => ({
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data.videos.slice(0, 3).map((video: any, index: number) => ({
               name: "Video " + (index + 1),
               value: video.title + " (" + (video.platform || "Unknown") + ")",
               inline: false,
@@ -633,6 +639,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "⭐",
       titlePrefix: "Equipment Review",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => ({
       id: data.id,
       submissionType: "review",
@@ -686,6 +693,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       emoji: "🏓",
       titlePrefix: "Player Equipment Setup",
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => ({
       id: data.id,
       submissionType: "player_equipment_setup",
@@ -755,6 +763,7 @@ export function getSubmissionTableName(type: SubmissionType): string {
 
 export function formatSubmissionForDiscord(
   type: SubmissionType,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
 ): DiscordNotificationData {
   const config = getSubmissionConfig(type);

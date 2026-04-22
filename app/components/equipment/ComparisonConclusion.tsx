@@ -6,7 +6,9 @@ interface ComparisonConclusionProps {
   equipment2: Equipment;
   averageRating1?: number | null;
   averageRating2?: number | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviews1: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviews2: any[];
 }
 

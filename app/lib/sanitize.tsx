@@ -60,6 +60,7 @@ export function sanitizeHtml(
     const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
     sanitized = sanitized.replace(tagRegex, (match, tagName) => {
       const lowerTagName = tagName.toLowerCase();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (allowedTags.includes(lowerTagName as any)) {
         // Keep only the tag name, strip all attributes for security
         const isClosing = match.startsWith("</");

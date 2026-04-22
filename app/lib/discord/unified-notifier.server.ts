@@ -46,6 +46,7 @@ export class UnifiedDiscordNotifier {
    */
   async notifySubmission(
     submissionType: SubmissionType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
   ): Promise<{ success: boolean; message?: string }> {
@@ -178,6 +179,7 @@ export class UnifiedDiscordNotifier {
    */
   private async sendToDiscord(
     message: DiscordMessage,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logContext: any
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const botToken = this.env.DISCORD_BOT_TOKEN;
@@ -232,6 +234,7 @@ export class UnifiedDiscordNotifier {
   /**
    * Validate Discord bot configuration
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private validateDiscordConfig(logContext: any): {
     isValid: boolean;
     issues: string[];

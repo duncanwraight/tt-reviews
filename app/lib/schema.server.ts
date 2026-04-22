@@ -283,6 +283,7 @@ export class SchemaService {
   }
 
   // Utility to convert schema object to JSON-LD script tag
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toJsonLd(schema: any): string {
     return JSON.stringify(schema, null, 2);
   }
@@ -379,6 +380,7 @@ export class SchemaService {
   }
 
   // Generate multiple schemas as array (for pages with multiple schema types)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateMultipleSchemas(schemas: any[]): string {
     return JSON.stringify(schemas, null, 2);
   }

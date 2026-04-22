@@ -25,6 +25,7 @@ interface UnifiedSubmissionFormProps {
     rubbers?: EquipmentOption[];
   };
   // Pre-selected values (e.g., from URL params)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   preSelectedValues?: Record<string, any>;
   env?: {
     SUPABASE_URL: string;
@@ -41,9 +42,11 @@ export function UnifiedSubmissionForm({
 }: UnifiedSubmissionFormProps) {
   const navigate = useNavigate();
   const [formValues, setFormValues] =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useState<Record<string, any>>(preSelectedValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFieldChange = (name: string, value: any) => {
     setFormValues(prev => ({ ...prev, [name]: value }));
 

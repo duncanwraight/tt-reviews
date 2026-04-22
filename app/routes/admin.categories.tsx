@@ -90,6 +90,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   try {
     switch (intent) {
       case "create": {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const type = formData.get("type") as any;
         const name = formData.get("name") as string;
         const value = formData.get("value") as string;

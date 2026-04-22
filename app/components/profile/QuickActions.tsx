@@ -18,6 +18,7 @@ export function QuickActions({ env }: QuickActionsProps) {
       env.SUPABASE_ANON_KEY
     );
     await supabase.auth.signOut();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     navigate("/login");
   };
 

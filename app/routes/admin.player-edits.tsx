@@ -64,6 +64,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         acc[approval.submission_id].push(approval);
         return acc;
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as Record<string, any[]>
     );
 
@@ -156,6 +157,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
       if (edit && edit.player_id) {
         // Build update object from edit_data, excluding edit_reason
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: Record<string, any> = {};
         if (edit.edit_data) {
           const { edit_reason, ...editableFields } = edit.edit_data;
@@ -269,25 +271,31 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getApprovalCount = (edit: any) => {
     if (!edit.moderator_approvals) return 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return edit.moderator_approvals.filter((a: any) => a.action === "approved")
       .length;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canApprove = (edit: any) => {
     if (edit.status === "approved" || edit.status === "rejected") return false;
     const approvals = edit.moderator_approvals || [];
     const userApproval = approvals.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.moderator_id === user.id && a.action === "approved"
     );
     return !userApproval;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canReject = (edit: any) => {
     return edit.status !== "approved" && edit.status !== "rejected";
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatEditData = (editData: any) => {
     return Object.entries(editData)
       .map(([key, value]) => {
@@ -299,6 +307,7 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
       .join(", ");
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderEditItem = (edit: any) => (
     <li key={edit.id}>
       <div className="px-4 py-4 sm:px-6">
@@ -403,6 +412,7 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
               Approval History:
             </h4>
             <div className="space-y-1">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {edit.moderator_approvals.map((approval: any, index: number) => (
                 <div key={index} className="text-sm flex justify-between">
                   <span

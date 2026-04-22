@@ -67,10 +67,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         acc[approval.submission_id].push(approval);
         return acc;
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as Record<string, any[]>
     );
 
     // Add approvals to each review
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reviews.forEach((review: any) => {
       review.approvals = approvalsByReview[review.id] || [];
     });
@@ -169,10 +171,12 @@ export default function AdminEquipmentReviews({
 
   // Group reviews by status
   const pendingReviews = reviews.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (r: any) =>
       r.status === "pending" || r.status === "awaiting_second_approval"
   );
   const processedReviews = reviews.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (r: any) => r.status === "approved" || r.status === "rejected"
   );
 
@@ -211,21 +215,26 @@ export default function AdminEquipmentReviews({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getApprovalCount = (review: any) => {
     if (!review.approvals) return 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return review.approvals.filter((a: any) => a.action === "approved").length;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canApprove = (review: any) => {
     if (review.status === "approved" || review.status === "rejected")
       return false;
     const approvals = review.approvals || [];
     const userApproval = approvals.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.moderator_id === user.id && a.action === "approved"
     );
     return !userApproval;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canReject = (review: any) => {
     return review.status !== "approved" && review.status !== "rejected";
   };
@@ -254,6 +263,7 @@ export default function AdminEquipmentReviews({
     );
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderReviewItem = (review: any) => (
     <li key={review.id}>
       <div className="px-4 py-4 sm:px-6">
@@ -361,6 +371,7 @@ export default function AdminEquipmentReviews({
               Approval History:
             </h4>
             <div className="space-y-1">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {review.approvals.map((approval: any, index: number) => (
                 <div key={index} className="text-sm flex justify-between">
                   <span

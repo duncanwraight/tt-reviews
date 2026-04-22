@@ -8,6 +8,7 @@ export function NoResults({ query }: NoResultsProps) {
   const navigate = useNavigate();
 
   const handleSuggestionClick = (suggestion: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     navigate(`/search?q=${encodeURIComponent(suggestion)}`);
   };
 

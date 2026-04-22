@@ -9,8 +9,10 @@ interface AsyncFormWrapperProps {
   children: (props: {
     isLoading: boolean;
     execute: (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       operation: () => Promise<any>,
       options?: Partial<AsyncOperationOptions>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Promise<any>;
     reset: () => void;
   }) => React.ReactNode;

@@ -44,6 +44,7 @@ interface ClientLogEntry {
     stack?: string;
     componentStack?: string;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any;
 }
 
@@ -83,6 +84,7 @@ export class EnhancedErrorBoundary extends Component<
 
     // Send to external monitoring service in production
     if (process.env.NODE_ENV === "production") {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.sendToMonitoringService(error, errorInfo);
     }
   }
@@ -113,9 +115,12 @@ export class EnhancedErrorBoundary extends Component<
           width: window.innerWidth,
           height: window.innerHeight,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         connection: (navigator as any).connection
           ? {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               effectiveType: (navigator as any).connection.effectiveType,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               downlink: (navigator as any).connection.downlink,
             }
           : undefined,
@@ -170,6 +175,7 @@ export class EnhancedErrorBoundary extends Component<
       // });
     } catch (logError) {
       // Silently fail to avoid recursive errors
+      // eslint-disable-next-line no-console
       console.warn("Failed to send error to monitoring service:", logError);
     }
   }
@@ -186,6 +192,7 @@ export class EnhancedErrorBoundary extends Component<
         url: window.location.href,
       };
 
+      // eslint-disable-next-line no-console
       console.log(
         JSON.stringify({
           timestamp: new Date().toISOString(),
@@ -346,6 +353,7 @@ export function RouteErrorBoundary({ requestId }: { requestId?: string }) {
  * Hook for manual error reporting from components
  */
 export function useErrorReporting() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reportError = (error: Error, context?: any) => {
     // Create a synthetic ErrorBoundary instance for manual reporting
     const boundary = new EnhancedErrorBoundary({

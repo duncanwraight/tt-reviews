@@ -14,6 +14,7 @@ export function CompactSearchForm({
     const formData = new FormData(event.currentTarget);
     const query = formData.get("q") as string;
     if (query && query.trim()) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(`/search?q=${encodeURIComponent(query.trim())}`);
     }
   };

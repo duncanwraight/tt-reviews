@@ -116,6 +116,7 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
       // Verify the recovery token and update password
       const { error: verifyError } = await supabase.auth.verifyOtp({
         token_hash: token_hash!,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: type as any,
       });
 
@@ -143,6 +144,7 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
 
         // Redirect to login page after 3 seconds
         setTimeout(() => {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate("/login");
         }, 3000);
       }

@@ -24,6 +24,7 @@ export interface LogMetadata {
   level: LogLevel;
   message: string;
   context: LogContext;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any;
   error?: {
     name: string;
@@ -89,6 +90,7 @@ class LoggerService {
     level: LogLevel,
     message: string,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data?: any
   ): LogMetadata {
     const userId = context?.userId;
@@ -148,18 +150,22 @@ class LoggerService {
         console.error(formattedLog);
         break;
       case LogLevel.WARN:
+        // eslint-disable-next-line no-console
         console.warn(formattedLog);
         break;
       case LogLevel.DEBUG:
+        // eslint-disable-next-line no-console
         this.isDevelopment && console.debug(formattedLog);
         break;
       default:
+        // eslint-disable-next-line no-console
         console.log(formattedLog);
         break;
     }
 
     // In production, could send to external logging service
     if (!this.isDevelopment && logEntry.level === LogLevel.ERROR) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.sendToExternalService(logEntry);
     }
   }
@@ -184,6 +190,7 @@ class LoggerService {
   /**
    * Log informational messages
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   info(message: string, context: LogContext, data?: any): void {
     const logEntry = this.createLogEntry(LogLevel.INFO, message, context, data);
     this.output(logEntry);
@@ -192,6 +199,7 @@ class LoggerService {
   /**
    * Log warning messages
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   warn(message: string, context: LogContext, data?: any): void {
     const logEntry = this.createLogEntry(LogLevel.WARN, message, context, data);
     this.output(logEntry);
@@ -200,6 +208,7 @@ class LoggerService {
   /**
    * Log error messages with optional Error object
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error(message: string, context: LogContext, error?: Error, data?: any): void {
     const logEntry = this.createLogEntry(
       LogLevel.ERROR,
@@ -222,6 +231,7 @@ class LoggerService {
   /**
    * Log debug messages (only in development)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debug(message: string, context: LogContext, data?: any): void {
     const logEntry = this.createLogEntry(
       LogLevel.DEBUG,
@@ -239,6 +249,7 @@ class LoggerService {
     metric: string,
     value: number,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): void {
     const logEntry = this.createLogEntry(
@@ -261,6 +272,7 @@ class LoggerService {
     operation: string,
     duration: number,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): void {
     const logEntry = this.createLogEntry(
@@ -298,6 +310,7 @@ class LoggerService {
     operation: string,
     fn: () => Promise<T>,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): Promise<T> {
     const startTime = Date.now();
@@ -332,18 +345,22 @@ class ChildLogger {
     return { ...context, ...this.additionalContext };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   info(message: string, context: LogContext, data?: any): void {
     this.parent.info(message, this.mergeContext(context), data);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   warn(message: string, context: LogContext, data?: any): void {
     this.parent.warn(message, this.mergeContext(context), data);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error(message: string, context: LogContext, error?: Error, data?: any): void {
     this.parent.error(message, this.mergeContext(context), error, data);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debug(message: string, context: LogContext, data?: any): void {
     this.parent.debug(message, this.mergeContext(context), data);
   }
@@ -352,6 +369,7 @@ class ChildLogger {
     metric: string,
     value: number,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): void {
     this.parent.metric(metric, value, this.mergeContext(context), metadata);
@@ -361,6 +379,7 @@ class ChildLogger {
     operation: string,
     duration: number,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): void {
     this.parent.performance(
@@ -375,6 +394,7 @@ class ChildLogger {
     operation: string,
     fn: () => Promise<T>,
     context: LogContext,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): Promise<T> {
     return this.parent.timeOperation(

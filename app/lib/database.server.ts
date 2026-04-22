@@ -163,6 +163,7 @@ export class DatabaseService {
     operation: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fn: () => any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): Promise<T> {
     const context = this.context || { requestId: "unknown" };
@@ -208,6 +209,7 @@ export class DatabaseService {
   private async executeQuery<T>(
     operation: string,
     queryFn: () => Promise<T>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any
   ): Promise<T> {
     const context = this.context || { requestId: "unknown" };
@@ -343,6 +345,7 @@ export class DatabaseService {
     }
 
     const categoryCount: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fallbackData.forEach((item: any) => {
       categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
     });
@@ -380,6 +383,7 @@ export class DatabaseService {
     }
 
     const subcategoryCount: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fallbackData.forEach((item: any) => {
       if (item.subcategory) {
         subcategoryCount[item.subcategory] =
@@ -879,6 +883,7 @@ export class DatabaseService {
       { averageRating: number; reviewCount: number }
     >();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     equipmentWithReviews?.forEach((item: any) => {
       if (!equipmentStatsMap.has(item.id)) {
         equipmentStatsMap.set(item.id, { averageRating: 0, reviewCount: 0 });
@@ -896,6 +901,7 @@ export class DatabaseService {
     })[] = [];
     const processedIds = new Set<string>();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     equipmentWithReviews?.forEach((item: any) => {
       if (processedIds.has(item.id)) return;
       processedIds.add(item.id);
@@ -1047,6 +1053,7 @@ export class DatabaseService {
       ]);
 
       // Process the results to get status counts
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const getStatusCounts = (data: any[] | null): Record<string, number> => {
         const counts: Record<string, number> = {
           pending: 0,
@@ -1058,6 +1065,7 @@ export class DatabaseService {
         if (data) {
           // This is a workaround - we get all data and count by status in memory
           // In a real app, we'd use GROUP BY in the database
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data.forEach((item: any) => {
             if (item.status && counts.hasOwnProperty(item.status)) {
               counts[item.status]++;
@@ -1179,6 +1187,7 @@ export class DatabaseService {
         if (result.data) {
           // Extract unique players (remove duplicates if player has multiple setups with same equipment)
           const uniquePlayers = new Map<string, PlayerResult>();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           result.data.forEach((setup: any) => {
             const player = setup.players;
             if (player && !uniquePlayers.has(player.id)) {
@@ -1299,6 +1308,7 @@ export class DatabaseService {
       }
 
       if (!allRecords || allRecords.length === 0) {
+        // eslint-disable-next-line no-console
         console.warn(`${submissionType} record ${submissionId} does not exist`);
         return null;
       }
@@ -1314,6 +1324,7 @@ export class DatabaseService {
 
       const record = allRecords[0];
       if (!record.discord_message_id) {
+        // eslint-disable-next-line no-console
         console.warn(
           `${submissionType} ${submissionId} has no Discord message ID stored`
         );

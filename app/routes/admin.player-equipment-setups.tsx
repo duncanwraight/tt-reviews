@@ -240,10 +240,12 @@ export default function AdminPlayerEquipmentSetups({
 
   // Group submissions by status
   const pendingSubmissions = equipmentSetups.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (s: any) =>
       s.status === "pending" || s.status === "awaiting_second_approval"
   );
   const processedSubmissions = equipmentSetups.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (s: any) => s.status === "approved" || s.status === "rejected"
   );
 
@@ -279,6 +281,7 @@ export default function AdminPlayerEquipmentSetups({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderSetupItem = (setup: any) => {
     const playerName = setup.players?.name || "Unknown Player";
     const submissionName = `${playerName} - ${setup.year}`;
@@ -492,6 +495,7 @@ export default function AdminPlayerEquipmentSetups({
               <p className="text-2xl font-bold text-green-900">
                 {
                   processedSubmissions.filter(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (s: any) => s.status === "approved"
                   ).length
                 }
@@ -509,6 +513,7 @@ export default function AdminPlayerEquipmentSetups({
               <p className="text-2xl font-bold text-red-900">
                 {
                   processedSubmissions.filter(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (s: any) => s.status === "rejected"
                   ).length
                 }

@@ -5,6 +5,7 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 
 // Helper function to get dashboard counts using admin client
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAdminDashboardCountsWithClient(supabase: any) {
   try {
     // Use admin client to bypass RLS policies - same logic as DatabaseService but with admin access
@@ -59,6 +60,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
     ]);
 
     // Process the results to get status counts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const getStatusCounts = (data: any[] | null): Record<string, number> => {
       const counts: Record<string, number> = {
         pending: 0,
@@ -68,6 +70,7 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
       };
 
       if (data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.forEach((item: any) => {
           if (item.status && counts.hasOwnProperty(item.status)) {
             counts[item.status]++;

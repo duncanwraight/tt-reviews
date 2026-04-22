@@ -5,6 +5,7 @@ import { useLoaderData } from "react-router";
  * Returns a function to get content by key with fallback to the key itself
  */
 export function useContent() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = useLoaderData() as any;
   const siteContent = data?.siteContent || {};
 

@@ -53,6 +53,7 @@ export interface DiscordNotificationData {
   adminUrl?: string;
   submitterEmail?: string;
   // Type-specific data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 

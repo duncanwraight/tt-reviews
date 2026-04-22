@@ -173,6 +173,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
   try {
     // Parse form data based on submission type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const submissionData: any = {
       user_id: user.id,
       status: "pending",
@@ -267,6 +268,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       }
 
       // Build reviewer context from playing_level and experience_duration
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reviewerContext: any = {};
       const playingLevel = formData.get("playing_level");
       const experienceDuration = formData.get("experience_duration");
@@ -285,6 +287,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Handle player_edit - transform fields into edit_data JSONB
     if (submissionType === "player_edit") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editData: Record<string, any> = {};
       const editableFields = [
         "name",
@@ -387,6 +390,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Send Discord notification using unified system
     const requestId = request.headers.get("X-Request-ID") || "unknown";
+    // eslint-disable-next-line no-console
     console.log(
       `[Discord] Starting notification for ${submissionType}, submission ID: ${submission?.id}`
     );
@@ -412,6 +416,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         notificationData,
         requestId
       );
+      // eslint-disable-next-line no-console
       console.log(`[Discord] Notification result:`, JSON.stringify(result));
     } catch (error) {
       // Discord notification failure should not block the submission

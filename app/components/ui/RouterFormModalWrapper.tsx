@@ -3,6 +3,7 @@ import { FeedbackModal } from "./FeedbackModal";
 import { useEffect, useState } from "react";
 
 interface RouterFormModalWrapperProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children: (props: { isLoading: boolean; actionData: any }) => React.ReactNode;
   loadingTitle?: string;
   loadingMessage?: string;

@@ -14,6 +14,7 @@ export default tseslint.config(
       "worker-configuration.d.ts",
       "coverage/**",
       "supabase/migrations/**",
+      "scripts/**",
     ],
   },
   js.configs.recommended,
@@ -38,13 +39,14 @@ export default tseslint.config(
     },
     rules: {
       // High-value rules from todo/RELIABILITY.md Phase 5.
-      // Starting at warn; a snapshot commit will flip them to error
-      // after adding eslint-disable-next-line to existing sites.
-      "@typescript-eslint/no-explicit-any": "warn",
-      "no-console": ["warn", { allow: ["error"] }],
-      "@typescript-eslint/no-floating-promises": "warn",
-      "react-hooks/rules-of-hooks": "warn",
-      "react-hooks/exhaustive-deps": "warn",
+      // Existing violations at the time of Phase 5b were snapshotted
+      // with eslint-disable-next-line so `error` here only catches
+      // NEW instances.
+      "@typescript-eslint/no-explicit-any": "error",
+      "no-console": ["error", { allow: ["error"] }],
+      "@typescript-eslint/no-floating-promises": "error",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
 
       // Noise tamers — these rules catch a lot and mostly aren't the
       // bug classes we care about. Turn off to keep the signal on the

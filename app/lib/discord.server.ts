@@ -205,6 +205,7 @@ export class DiscordService {
     const commandName = data.name;
 
     // Get user from either interaction.user or interaction.member.user
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = interaction.user || (interaction.member as any)?.user;
 
     if (!user && (commandName === "approve" || commandName === "reject")) {
@@ -276,6 +277,7 @@ export class DiscordService {
   /**
    * Handle Discord prefix commands (!command)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handlePrefixCommand(message: DiscordMessage): Promise<any> {
     const content = message.content.trim();
 
@@ -332,6 +334,7 @@ export class DiscordService {
     const customId = interaction.data.custom_id!;
 
     // Get user from either interaction.user or interaction.member.user
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = interaction.user || (interaction.member as any)?.user;
 
     if (!user) {
@@ -501,6 +504,7 @@ export class DiscordService {
   /**
    * Search equipment and format for Discord
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async searchEquipment(query: string): Promise<any> {
     try {
       const equipment = await this.dbService.searchEquipment(query);
@@ -539,6 +543,7 @@ export class DiscordService {
   /**
    * Search players and format for Discord
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async searchPlayer(query: string): Promise<any> {
     try {
       const players = await this.dbService.searchPlayers(query);
@@ -1710,8 +1715,10 @@ export class DiscordService {
    * Send notification about new review submission
    */
   async notifyNewReview(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reviewData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "review",
@@ -1724,8 +1731,10 @@ export class DiscordService {
    * Send notification about new player edit submission
    */
   async notifyNewPlayerEdit(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     editData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "player_edit",
@@ -1738,8 +1747,10 @@ export class DiscordService {
    * Send notification about new equipment submission
    */
   async notifyNewEquipmentSubmission(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "equipment",
@@ -1752,8 +1763,10 @@ export class DiscordService {
    * Send notification about new player submission
    */
   async notifyNewPlayerSubmission(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "player",
@@ -1768,6 +1781,7 @@ export class DiscordService {
   async updateDiscordMessage(
     channelId: string,
     messageId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: any
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -1810,6 +1824,7 @@ export class DiscordService {
   private createInitialButtons(
     submissionType: "equipment" | "player" | "player_edit" | "video",
     submissionId: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any[] {
     // Create proper custom_id based on submission type
     let approveCustomId: string;
@@ -1873,6 +1888,7 @@ export class DiscordService {
     submissionId: string,
     currentApprovals: number,
     requiredApprovals: number = 2
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any[] {
     // Create proper custom_id based on submission type
     let approveCustomId: string;
@@ -1910,6 +1926,7 @@ export class DiscordService {
   /**
    * Create disabled buttons for final state
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private createDisabledButtons(finalStatus: "approved" | "rejected"): any[] {
     return [
       {
@@ -1938,9 +1955,11 @@ export class DiscordService {
    * Create updated embed with moderation status
    */
   private createUpdatedEmbed(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     originalEmbed: any,
     status: string,
     moderatorUsername?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any {
     const updatedEmbed = { ...originalEmbed };
 
@@ -1949,6 +1968,7 @@ export class DiscordService {
 
     // Remove existing status field if present
     updatedEmbed.fields = updatedEmbed.fields.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (field: any) => field.name !== "Status"
     );
 
@@ -2028,7 +2048,9 @@ export class DiscordService {
       }
 
       // Determine components and embed based on status
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let components: any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let updatedEmbed: any;
 
       if (newStatus === "approved" || newStatus === "rejected") {
@@ -2140,6 +2162,7 @@ export class DiscordService {
   /**
    * Send notification about approved review
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async notifyReviewApproved(reviewData: any): Promise<any> {
     // TODO: Implement approved review notification
     return { success: true };
@@ -2148,6 +2171,7 @@ export class DiscordService {
   /**
    * Send notification about rejected review
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async notifyReviewRejected(reviewData: any): Promise<any> {
     // TODO: Implement rejected review notification
     return { success: true };
@@ -2157,8 +2181,10 @@ export class DiscordService {
    * Send notification about new video submission
    */
   async notifyNewVideoSubmission(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "video",
@@ -2168,8 +2194,10 @@ export class DiscordService {
   }
 
   async notifyNewPlayerEquipmentSetup(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     equipmentData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       "player_equipment_setup",
@@ -2184,8 +2212,10 @@ export class DiscordService {
    */
   async notifySubmission(
     submissionType: SubmissionType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return this.unifiedNotifier.notifySubmission(
       submissionType,

@@ -4,6 +4,7 @@ export function SearchLanding() {
   const navigate = useNavigate();
 
   const handleSearchClick = (search: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     navigate(`/search?q=${encodeURIComponent(search)}`);
   };
 

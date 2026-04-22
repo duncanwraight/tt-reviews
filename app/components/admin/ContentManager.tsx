@@ -38,6 +38,7 @@ export function ContentManager({ content }: ContentManagerProps) {
     formData.append("description", updatedContent.description);
     formData.append("category", updatedContent.category);
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     submit(formData, { method: "post" });
     setEditingContent(null);
   };
@@ -47,6 +48,7 @@ export function ContentManager({ content }: ContentManagerProps) {
       const formData = new FormData();
       formData.append("intent", "delete");
       formData.append("key", key);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       submit(formData, { method: "post" });
     }
   };

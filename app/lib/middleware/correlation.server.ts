@@ -21,10 +21,12 @@ export interface CorrelatedRequest {
 /**
  * Higher-order function that wraps route loaders with correlation and logging
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withCorrelation<T extends (...args: any[]) => any>(
   handler: T,
   operationType: "loader" | "action" = "loader"
 ): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (async (...args: any[]) => {
     // Generate unique request ID
     const requestId = crypto.randomUUID();
@@ -87,6 +89,7 @@ export function withCorrelation<T extends (...args: any[]) => any>(
 /**
  * Specific wrapper for route loaders
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withLoaderCorrelation<T extends (...args: any[]) => any>(
   handler: T
 ): T {
@@ -96,6 +99,7 @@ export function withLoaderCorrelation<T extends (...args: any[]) => any>(
 /**
  * Specific wrapper for route actions
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withActionCorrelation<T extends (...args: any[]) => any>(
   handler: T
 ): T {
@@ -128,6 +132,7 @@ export async function withDatabaseCorrelation<T>(
   operation: string,
   fn: () => Promise<T>,
   context: LogContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): Promise<T> {
   return Logger.timeOperation(`db_${operation}`, fn, context, {
@@ -144,6 +149,7 @@ export async function withServiceCorrelation<T>(
   operation: string,
   fn: () => Promise<T>,
   context: LogContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): Promise<T> {
   return Logger.timeOperation(`${service}_${operation}`, fn, context, {
@@ -159,6 +165,7 @@ export async function withServiceCorrelation<T>(
 export function createOperationContext(
   baseContext: LogContext,
   operation: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): LogContext {
   return {
@@ -174,6 +181,7 @@ export function createOperationContext(
 export function logUserAction(
   action: string,
   context: LogContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): void {
   Logger.metric(`user_action_${action}`, 1, context, {
@@ -189,6 +197,7 @@ export function logBusinessEvent(
   event: string,
   value: number,
   context: LogContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): void {
   Logger.metric(`business_event_${event}`, value, context, {
@@ -203,6 +212,7 @@ export function logBusinessEvent(
 export function logSecurityEvent(
   event: string,
   context: LogContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any
 ): void {
   Logger.warn(`Security event: ${event}`, context, {

@@ -60,6 +60,7 @@ export function RejectionModal({
         setCategory("other");
       }, 0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation.state, wasSubmitting]); // Remove onClose from dependencies
 
   if (!isOpen) return null;

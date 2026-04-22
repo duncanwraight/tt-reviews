@@ -89,6 +89,7 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
       try {
         const { error } = await supabase.auth.verifyOtp({
           token_hash,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           type: type as any,
         });
 
@@ -103,6 +104,7 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
 
           // Redirect to login page after 3 seconds
           setTimeout(() => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigate("/login");
           }, 3000);
         }
@@ -112,6 +114,7 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
       }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     confirmEmail();
   }, [searchParams, env, navigate]);
 
