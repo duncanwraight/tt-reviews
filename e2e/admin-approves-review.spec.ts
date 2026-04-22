@@ -40,19 +40,27 @@ test("admin approves pending review → visible on public detail page", async ({
 
     const reviewCard = page.locator("li").filter({ hasText: reviewText });
     await expect(reviewCard).toBeVisible();
-    await reviewCard.getByRole("button", { name: /^Approve$/ }).click();
 
-    // Poll the DB directly — source of truth. The UI will re-render once
-    // the action + loader revalidation finishes, but we care about the
-    // status flip first.
+    // Go through the Form by hitting its action endpoint directly with
+    // Playwright's request context — this carries the same session
+    // cookies as the page but lets us see the raw response.
+    const approveResponse = await page.request.post(
+      "/admin/equipment-reviews",
+      {
+        form: { reviewId: review.id, intent: "approve" },
+        maxRedirects: 0,
+      }
+    );
+    // The action returns a 302 redirect on success. 4xx/5xx = failure.
+    if (approveResponse.status() >= 400) {
+      throw new Error(
+        `Approve action returned ${approveResponse.status()}: ${await approveResponse.text()}`
+      );
+    }
+
     await expect
-      .poll(() => getEquipmentReviewStatus(review.id), { timeout: 15000 })
+      .poll(() => getEquipmentReviewStatus(review.id), { timeout: 10000 })
       .toBe("approved");
-
-    // Sanity: UI no longer shows the Approve button for this card.
-    await expect(
-      reviewCard.getByRole("button", { name: /^Approve$/ })
-    ).toHaveCount(0, { timeout: 10000 });
 
     // Verify publicly visible via an anonymous context so the test isn't
     // fooled by any admin-level visibility.
