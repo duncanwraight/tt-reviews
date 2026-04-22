@@ -17,40 +17,19 @@ import {
   createUnifiedDiscordNotifier,
   type UnifiedDiscordNotifier,
 } from "./discord/unified-notifier.server";
+import * as dispatch from "./discord/dispatch";
 import * as messages from "./discord/messages";
 import * as moderation from "./discord/moderation";
 import * as notifications from "./discord/notifications";
 import * as search from "./discord/search";
 import type {
   DiscordContext,
+  DiscordInteraction,
   DiscordMember,
+  DiscordMessage,
   DiscordUser,
 } from "./discord/types";
 import type { SubmissionType } from "./types";
-
-interface DiscordInteraction {
-  type: number;
-  data: {
-    name: string;
-    custom_id?: string;
-    options?: Array<{ value: string }>;
-  };
-  user?: DiscordUser;
-  member: DiscordMember & { user?: DiscordUser };
-  guild_id: string;
-}
-
-interface DiscordMessage {
-  content: string;
-  member: DiscordMember;
-  guild_id: string;
-}
-
-interface ModerationResult {
-  success: boolean;
-  status: "first_approval" | "fully_approved" | "already_approved" | "error";
-  message: string;
-}
 
 export class DiscordService {
   private dbService: DatabaseService;
@@ -88,249 +67,19 @@ export class DiscordService {
     return messages.verifySignature(this.ctx, signature, timestamp, body);
   }
 
-  /**
-   * Handle Discord slash commands
-   */
   async handleSlashCommand(interaction: DiscordInteraction): Promise<Response> {
-    // Handle ping challenge first (before checking permissions or data)
-    if (interaction.type === 1) {
-      return new Response(JSON.stringify({ type: 1 }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const { data } = interaction;
-    const commandName = data.name;
-
-    // Get user from either interaction.user or interaction.member.user
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = interaction.user || (interaction.member as any)?.user;
-
-    if (!user && (commandName === "approve" || commandName === "reject")) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content: "❌ **Error**: Unable to identify user from interaction.",
-            flags: 64, // Ephemeral flag
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Check user permissions
-    const hasPermission = await this.checkUserPermissions(
-      interaction.member,
-      interaction.guild_id
-    );
-    if (!hasPermission) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content: "❌ You do not have permission to use this command.",
-            flags: 64, // Ephemeral flag
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    switch (commandName) {
-      case "equipment":
-        return await this.handleEquipmentSearch(data.options?.[0]?.value || "");
-      case "player":
-        return await this.handlePlayerSearch(data.options?.[0]?.value || "");
-      case "approve":
-        return await this.handleApproveReview(
-          data.options?.[0]?.value || "",
-          user
-        );
-      case "reject":
-        return await this.handleRejectReview(
-          data.options?.[0]?.value || "",
-          user
-        );
-      default:
-        return new Response(
-          JSON.stringify({
-            type: 4,
-            data: {
-              content: "❌ Unknown command.",
-              flags: 64,
-            },
-          }),
-          {
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-    }
+    return dispatch.handleSlashCommand(this.ctx, interaction);
   }
 
-  /**
-   * Handle Discord prefix commands (!command)
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handlePrefixCommand(message: DiscordMessage): Promise<any> {
-    const content = message.content.trim();
-
-    // Check user permissions
-    const hasPermission = await this.checkUserPermissions(
-      message.member,
-      message.guild_id
-    );
-    if (!hasPermission) {
-      return {
-        content: "❌ You do not have permission to use this command.",
-      };
-    }
-
-    if (content.startsWith("!equipment ")) {
-      const query = content.slice(11).trim();
-      return await this.searchEquipment(query);
-    }
-
-    if (content.startsWith("!player ")) {
-      const query = content.slice(8).trim();
-      return await this.searchPlayer(query);
-    }
-
-    return null;
+    return dispatch.handlePrefixCommand(this.ctx, message);
   }
 
-  /**
-   * Handle message components (buttons, select menus)
-   */
   async handleMessageComponent(
     interaction: DiscordInteraction
   ): Promise<Response> {
-    // Check user permissions first
-    const hasPermission = await this.checkUserPermissions(
-      interaction.member,
-      interaction.guild_id
-    );
-    if (!hasPermission) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content: "❌ You do not have permission to use this command.",
-            flags: 64, // Ephemeral flag
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const customId = interaction.data.custom_id!;
-
-    // Get user from either interaction.user or interaction.member.user
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = interaction.user || (interaction.member as any)?.user;
-
-    if (!user) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content: "❌ **Error**: Unable to identify user from interaction.",
-            flags: 64, // Ephemeral flag
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (customId.startsWith("approve_player_edit_")) {
-      const editId = customId.replace("approve_player_edit_", "");
-      return await this.handleApprovePlayerEdit(editId, user);
-    }
-
-    if (customId.startsWith("reject_player_edit_")) {
-      const editId = customId.replace("reject_player_edit_", "");
-      return await this.handleRejectPlayerEdit(editId, user);
-    }
-
-    if (customId.startsWith("approve_equipment_")) {
-      const submissionId = customId.replace("approve_equipment_", "");
-      return await this.handleApproveEquipmentSubmission(submissionId, user);
-    }
-
-    if (customId.startsWith("reject_equipment_")) {
-      const submissionId = customId.replace("reject_equipment_", "");
-      return await this.handleRejectEquipmentSubmission(submissionId, user);
-    }
-
-    // Handle player_equipment_setup BEFORE player_ to avoid prefix collision
-    if (customId.startsWith("approve_player_equipment_setup_")) {
-      const submissionId = customId.replace(
-        "approve_player_equipment_setup_",
-        ""
-      );
-      return await this.handleApprovePlayerEquipmentSetup(submissionId, user);
-    }
-
-    if (customId.startsWith("reject_player_equipment_setup_")) {
-      const submissionId = customId.replace(
-        "reject_player_equipment_setup_",
-        ""
-      );
-      return await this.handleRejectPlayerEquipmentSetup(submissionId, user);
-    }
-
-    if (customId.startsWith("approve_player_")) {
-      const submissionId = customId.replace("approve_player_", "");
-      return await this.handleApprovePlayerSubmission(submissionId, user);
-    }
-
-    if (customId.startsWith("reject_player_")) {
-      const submissionId = customId.replace("reject_player_", "");
-      return await this.handleRejectPlayerSubmission(submissionId, user);
-    }
-
-    // Handle video submissions
-    if (customId.startsWith("approve_video_")) {
-      const submissionId = customId.replace("approve_video_", "");
-      return await this.handleApproveVideoSubmission(submissionId, user);
-    }
-
-    if (customId.startsWith("reject_video_")) {
-      const submissionId = customId.replace("reject_video_", "");
-      return await this.handleRejectVideoSubmission(submissionId, user);
-    }
-
-    // Handle review submissions (must be explicit, not catch-all)
-    if (customId.startsWith("approve_review_")) {
-      const reviewId = customId.replace("approve_review_", "");
-      return await this.handleApproveReview(reviewId, user);
-    }
-
-    if (customId.startsWith("reject_review_")) {
-      const reviewId = customId.replace("reject_review_", "");
-      return await this.handleRejectReview(reviewId, user);
-    }
-
-    return new Response(
-      JSON.stringify({
-        type: 4,
-        data: {
-          content: "❌ Unknown interaction.",
-          flags: 64,
-        },
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return dispatch.handleMessageComponent(this.ctx, interaction);
   }
 
   private async handleEquipmentSearch(query: string): Promise<Response> {

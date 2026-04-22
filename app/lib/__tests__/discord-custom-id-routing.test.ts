@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DiscordService } from "../discord.server";
+import * as moderation from "../discord/moderation";
 import type { AppLoadContext } from "react-router";
 
 // Build a context object that satisfies the constructor — no real network
@@ -39,20 +40,17 @@ const makeInteraction = (customId: string) =>
 // reorders the branches; this test pins the ordering.
 describe("DiscordService.handleMessageComponent — custom_id routing", () => {
   let service: DiscordService;
-  let approveSetup: ReturnType<typeof vi.spyOn>;
-  let rejectSetup: ReturnType<typeof vi.spyOn>;
-  let approvePlayer: ReturnType<typeof vi.spyOn>;
-  let rejectPlayer: ReturnType<typeof vi.spyOn>;
+  // Spies on module exports — specific signatures don't fit the generic
+  // vi.spyOn return type, so use any and rely on the runtime assertions.
+  let approveSetup: any;
+  let rejectSetup: any;
+  let approvePlayer: any;
+  let rejectPlayer: any;
 
   beforeEach(() => {
     service = new DiscordService(context);
 
-    vi.spyOn(
-      service as unknown as {
-        checkUserPermissions: () => Promise<boolean>;
-      },
-      "checkUserPermissions"
-    ).mockResolvedValue(true);
+    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
 
     const ok = () =>
       Promise.resolve(
@@ -60,28 +58,16 @@ describe("DiscordService.handleMessageComponent — custom_id routing", () => {
       );
 
     approveSetup = vi
-      .spyOn(
-        service as unknown as Record<string, () => Promise<Response>>,
-        "handleApprovePlayerEquipmentSetup"
-      )
+      .spyOn(moderation, "approvePlayerEquipmentSetup")
       .mockImplementation(ok);
     rejectSetup = vi
-      .spyOn(
-        service as unknown as Record<string, () => Promise<Response>>,
-        "handleRejectPlayerEquipmentSetup"
-      )
+      .spyOn(moderation, "rejectPlayerEquipmentSetup")
       .mockImplementation(ok);
     approvePlayer = vi
-      .spyOn(
-        service as unknown as Record<string, () => Promise<Response>>,
-        "handleApprovePlayerSubmission"
-      )
+      .spyOn(moderation, "approvePlayerSubmission")
       .mockImplementation(ok);
     rejectPlayer = vi
-      .spyOn(
-        service as unknown as Record<string, () => Promise<Response>>,
-        "handleRejectPlayerSubmission"
-      )
+      .spyOn(moderation, "rejectPlayerSubmission")
       .mockImplementation(ok);
   });
 
@@ -91,7 +77,10 @@ describe("DiscordService.handleMessageComponent — custom_id routing", () => {
     );
 
     expect(approveSetup).toHaveBeenCalledTimes(1);
+    // First arg is now the DiscordContext (injected by dispatch);
+    // second is the submissionId, third is the user.
     expect(approveSetup).toHaveBeenCalledWith(
+      expect.any(Object),
       "abc-123-def",
       expect.objectContaining({ id: "mod-user" })
     );
@@ -104,7 +93,11 @@ describe("DiscordService.handleMessageComponent — custom_id routing", () => {
     );
 
     expect(rejectSetup).toHaveBeenCalledTimes(1);
-    expect(rejectSetup).toHaveBeenCalledWith("uuid-42", expect.any(Object));
+    expect(rejectSetup).toHaveBeenCalledWith(
+      expect.any(Object),
+      "uuid-42",
+      expect.any(Object)
+    );
     expect(rejectPlayer).not.toHaveBeenCalled();
   });
 
@@ -115,6 +108,7 @@ describe("DiscordService.handleMessageComponent — custom_id routing", () => {
 
     expect(approvePlayer).toHaveBeenCalledTimes(1);
     expect(approvePlayer).toHaveBeenCalledWith(
+      expect.any(Object),
       "plain-uuid",
       expect.any(Object)
     );

@@ -44,3 +44,29 @@ export interface DiscordUser {
 export interface DiscordMember {
   roles: string[];
 }
+
+/**
+ * Discord interaction envelope — covers both slash commands (type 2)
+ * and message components / buttons (type 3), plus the ping challenge
+ * (type 1) that registration sends.
+ */
+export interface DiscordInteraction {
+  type: number;
+  data: {
+    name: string;
+    custom_id?: string;
+    options?: Array<{ value: string }>;
+  };
+  user?: DiscordUser;
+  member: DiscordMember & { user?: DiscordUser };
+  guild_id: string;
+}
+
+/**
+ * Legacy prefix-command message shape ("!equipment ...", "!player ...").
+ */
+export interface DiscordMessage {
+  content: string;
+  member: DiscordMember;
+  guild_id: string;
+}
