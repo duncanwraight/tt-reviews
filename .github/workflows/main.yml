@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -29,14 +29,14 @@ jobs:
           echo "Supabase start PID: $(cat /tmp/supabase-start.pid)"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
@@ -46,7 +46,7 @@ jobs:
         run: npm ci
 
       - name: Cache React Router types
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .react-router/types
           key: rr-types-${{ runner.os }}-${{ hashFiles('app/routes/**', 'app/routes.ts', 'react-router.config.ts') }}
@@ -71,7 +71,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: cache-playwright
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload Supabase start log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: supabase-start-log
           path: /tmp/supabase-start.log
@@ -159,7 +159,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: /tmp/test-results/
@@ -179,17 +179,17 @@ jobs:
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
@@ -199,7 +199,7 @@ jobs:
         run: npm ci
 
       - name: Download test results from checks
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: test-results
           path: /tmp/test-results/
@@ -299,7 +299,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: cache-playwright
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -321,7 +321,7 @@ jobs:
 
       - name: Upload smoke-preview report
         if: always() && steps.smoke_preview.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: smoke-preview-report
           path: playwright-report/
@@ -347,7 +347,7 @@ jobs:
 
       - name: Upload smoke-prod report
         if: always() && steps.smoke_prod.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: smoke-prod-report
           path: playwright-report/
@@ -388,9 +388,25 @@ jobs:
                 skipped=$(jq '.stats.skipped // 0' "$file")
                 ;;
               pgtap)
-                passed=$(grep -cE '^ok [0-9]+' "$file" || true)
-                failed=$(grep -cE '^not ok [0-9]+' "$file" || true)
-                skipped=$(grep -cE '# SKIP' "$file" || true)
+                # pg_prove brief output: "Files=N, Tests=M" line + "Result: PASS|FAIL"
+                total=$(grep -oE 'Tests=[0-9]+' "$file" | head -1 | grep -oE '[0-9]+' || true)
+                total=${total:-0}
+                if grep -q '^Result: PASS' "$file"; then
+                  passed=$total
+                  failed=0
+                else
+                  failed=$(grep -oE 'Failed: [0-9]+' "$file" | awk '{s+=$2} END {print s+0}')
+                  [ -z "$failed" ] && failed=0
+                  if [ "$failed" -eq 0 ] && [ "$total" -gt 0 ]; then
+                    failed=1
+                  fi
+                  if [ "$total" -gt "$failed" ]; then
+                    passed=$((total - failed))
+                  else
+                    passed=0
+                  fi
+                fi
+                skipped=0
                 ;;
             esac
             if [ "${failed:-0}" -gt 0 ]; then
