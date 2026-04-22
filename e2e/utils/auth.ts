@@ -29,6 +29,20 @@ export async function createUser(
 }
 
 export async function deleteUser(userId: string): Promise<void> {
+  // moderator_approvals.moderator_id has no ON DELETE CASCADE (intentional:
+  // we want to preserve the approval audit trail if a prod user is ever
+  // removed). For test cleanup that means we need to clear their approvals
+  // first, otherwise the auth delete fails with a 23503 FK violation.
+  const approvalRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/moderator_approvals?moderator_id=eq.${userId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!approvalRes.ok && approvalRes.status !== 404) {
+    throw new Error(
+      `deleteUser: cleanup moderator_approvals failed (${approvalRes.status}): ${await approvalRes.text()}`
+    );
+  }
+
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
     method: "DELETE",
     headers: adminHeaders(),
