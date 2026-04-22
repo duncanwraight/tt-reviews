@@ -82,6 +82,10 @@ Logger usage: `import { Logger, createLogContext } from "~/lib/logger.server"`, 
 
 Any new feature or any change touching UI / routes / forms / submissions / admin queues / moderation / Discord interactions **must** ship with a Playwright spec. Run `npm run test:e2e` before declaring done. See `docs/E2E.md` for helpers and patterns. No exceptions — the test is part of the feature.
 
+## GitHub Actions
+
+When editing `.github/workflows/`, use the latest major of any third-party action rather than whatever version is already pinned. Check with `gh api repos/<owner>/<action>/releases --jq '.[0].tag_name'` and read the release notes for breaking changes before bumping. Stale majors accumulate Node-runtime deprecation warnings and eventually break.
+
 ## `/ultrareview` — opt-in second opinion
 
 For changes to `app/lib/submissions/**`, `app/lib/moderation.server.ts`, auth, or RLS migrations, ask me to run `/ultrareview` before pushing. Cheap second opinion on the risky paths.

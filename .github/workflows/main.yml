@@ -3,6 +3,10 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "todo/**"
   pull_request:
 
 concurrency:
