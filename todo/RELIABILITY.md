@@ -153,6 +153,14 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ## Phase 5 — Lint and pre-push enforcement
 
+**Status:** Shipped 2026-04-22 across five sub-commits:
+
+- **5a** (commit `2d1c0b9`): installed eslint 9 + typescript-eslint 8 + eslint-plugin-react-hooks 5, flat config in `eslint.config.mjs`, rules at `warn` level.
+- **5b** (commit `5bccceb`): `scripts/eslint-disable-existing.mjs` codemod inserted `// eslint-disable-next-line` (or `{/* */}` in JSX) above each of the 237 existing violations; rules flipped to `error`; `npm run lint` wired into CI checks job.
+- **5c** (commit `e6328ba`): replaced `prettier --write . && git add .` pre-commit with `lint-staged`. Also gitignored `.claude/scheduled_tasks.lock` + `.claude/settings.local.json`.
+- **5d** (commit `35894c0`): added husky `pre-push` running `npm run typecheck && npm run lint`. `npm test` was intentionally omitted — the discord integration tests need a running local Supabase, so enforcing them on every push would be high-friction.
+- **5e** (this commit): Phase 2's pre-git hook (`.claude/hooks/pre-git-check.sh`) now runs `npm run lint` in addition to typecheck.
+
 **Goal:** Stop the bug classes that currently slip through — `any`, raw `console`, floating promises, missing hook deps.
 
 **Steps:**
@@ -171,6 +179,14 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 - `git commit` with a new `any` or `console.log` fails.
 - Pre-push catches a broken push locally before CI has to.
+
+**Notes from rollout:**
+
+- Actual violation counts diverged from the plan's estimates: 196 `any` (not 171), 21 `console` (not ~80), plus 17 floating promises and 3 exhaustive-deps. Total snapshot = 237 disables.
+- `projectService: true` scoped to `app/**` and `workers/**` only. E2E, tests, and root config files (`playwright.config.ts`, `vitest.config.ts`, etc.) use syntax-only parsing so they don't need to be in any tsconfig include.
+- `.well-known.$.tsx` starts with a dot so `app/**/*` doesn't match it in the tsconfig. Single-file `allowDefaultProject` entry handles it.
+- `no-empty-pattern`, `no-case-declarations`, `prefer-const`, and similar noise rules from `js.configs.recommended` are turned off — they aren't the bug classes we care about and would balloon the snapshot.
+- The codemod's JSX-vs-JS heuristic (`// eslint-disable-next-line` vs `{/* */}`): use `{/* */}` when the target line begins with a JSX tag (`<Foo`) OR begins with `{` and the previous non-blank line ends with a `>` (closing JSX tag). `=>` endings excluded so arrow-fn returns don't misfire.
 
 ---
 

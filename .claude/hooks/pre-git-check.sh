@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse hook for Bash.
-# Runs full typecheck before git commit / git push; blocks on failure.
+# Runs typecheck + lint before git commit / git push; blocks on failure.
 set -u
 
 INPUT=$(cat)
@@ -20,21 +20,31 @@ esac
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT" || exit 0
 
-if OUTPUT=$(npm run typecheck 2>&1); then
-  exit 0
+block() {
+  local phase="$1"
+  local output="$2"
+  local errors
+  errors=$(printf '%s\n' "$output" | grep -E 'error TS[0-9]+:|error  |^npm ERR!|Error:|Parsing error' || true)
+  {
+    echo "BLOCKED: \`npm run ${phase}\` failed — refusing ${CMD%% *} ${CMD#* }."
+    echo
+    if [ -n "$errors" ]; then
+      printf '%s\n' "$errors" | head -40
+    else
+      printf '%s\n' "$output" | tail -40
+    fi
+    echo
+    echo "Fix the ${phase} errors, then retry the git command."
+  } >&2
+  exit 2
+}
+
+if ! OUTPUT=$(npm run typecheck 2>&1); then
+  block typecheck "$OUTPUT"
 fi
 
-ERRORS=$(printf '%s\n' "$OUTPUT" | grep -E 'error TS[0-9]+:|^npm ERR!|Error:' || true)
+if ! OUTPUT=$(npm run lint 2>&1); then
+  block lint "$OUTPUT"
+fi
 
-{
-  echo "BLOCKED: \`npm run typecheck\` failed — refusing ${CMD%% *} ${CMD#* }."
-  echo
-  if [ -n "$ERRORS" ]; then
-    printf '%s\n' "$ERRORS" | head -40
-  else
-    printf '%s\n' "$OUTPUT" | tail -40
-  fi
-  echo
-  echo "Fix the type errors, then retry the git command."
-} >&2
-exit 2
+exit 0
