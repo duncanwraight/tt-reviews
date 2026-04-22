@@ -122,7 +122,7 @@ jobs:
           DISCORD_BOT_TOKEN=stub
           DISCORD_CHANNEL_ID=stub
           DISCORD_GUILD_ID=stub
-          DISCORD_ALLOWED_ROLES=stub
+          DISCORD_ALLOWED_ROLES=role_e2e_moderator
           EOF
 
       - name: E2E tests

@@ -61,6 +61,10 @@ export function buildButtonInteraction(params: {
       component_type: 2, // BUTTON
     },
     member: {
+      // Must match at least one role from DISCORD_ALLOWED_ROLES or the
+      // handler's checkUserPermissions rejects with "You do not have
+      // permission to use this command."
+      roles: ["role_e2e_moderator"],
       user: {
         id: params.userId ?? "1234567890",
         username: params.username ?? "e2e-discord-mod",
