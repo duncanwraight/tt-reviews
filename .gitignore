@@ -93,3 +93,8 @@ temp/
 
 # Old application
 .archive/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/

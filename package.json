@@ -14,7 +14,8 @@
     "check": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:discord": "vitest run app/lib/__tests__/discord.test.ts"
+    "test:discord": "vitest run app/lib/__tests__/discord.test.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@react-router/fs-routes": "^7.6.2",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.12",
+    "@playwright/test": "^1.59.1",
     "@react-router/dev": "^7.5.3",
     "@tailwindcss/vite": "^4.1.4",
     "@types/node": "^20",
