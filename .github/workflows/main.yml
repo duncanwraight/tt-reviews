@@ -178,12 +178,61 @@ jobs:
         with:
           version: latest
 
+      - name: Upload worker version (no traffic)
+        id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          OUTPUT=$(npx wrangler versions upload 2>&1 | tee /tmp/wrangler-upload.log)
+          VERSION_ID=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+          PREVIEW_URL=$(echo "$OUTPUT" | grep -oE 'https://[a-zA-Z0-9._-]+\.workers\.dev' | head -1)
+          if [ -z "$VERSION_ID" ] || [ -z "$PREVIEW_URL" ]; then
+            echo "::error::Failed to parse version ID or preview URL from wrangler output"
+            exit 1
+          fi
+          echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "Uploaded version $VERSION_ID → $PREVIEW_URL"
+
       - name: Deploy migrations
         run: supabase db push --db-url ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+      - name: Cache Playwright browsers
+        id: cache-playwright
+        uses: actions/cache@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Smoke test preview
+        env:
+          PLAYWRIGHT_SMOKE_BASE_URL: ${{ steps.upload.outputs.preview_url }}
+        run: npm run test:smoke
+
+      - name: Upload smoke-preview report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-preview-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Promote version to 100% traffic
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION_ID: ${{ steps.upload.outputs.version_id }}
+        run: |
+          npx wrangler versions deploy "$VERSION_ID@100%" \
+            --message "CI promote ${{ github.sha }}" \
+            --yes
