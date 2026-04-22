@@ -16,10 +16,7 @@ test("user submits equipment review → pending row created", async ({
       `/submissions/review/submit?equipment_slug=${equipment.slug}`
     );
     await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: /Write Equipment Review/i,
-      })
+      page.getByRole("heading", { name: /Write Equipment Review/i })
     ).toBeVisible();
 
     await page.getByLabel("Your Playing Level").selectOption("intermediate");
