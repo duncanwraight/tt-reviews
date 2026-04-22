@@ -67,6 +67,21 @@ jobs:
         if: steps.cache-playwright.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      - name: Write stub .dev.vars for e2e
+        run: |
+          cat > .dev.vars <<'EOF'
+          SUPABASE_URL=http://127.0.0.1:54321
+          SUPABASE_ANON_KEY=stub-anon-key-for-e2e
+          SUPABASE_SERVICE_ROLE_KEY=stub-service-role-key-for-e2e
+          SESSION_SECRET=stub-session-secret
+          SITE_URL=http://localhost:5173
+          DISCORD_PUBLIC_KEY=stub
+          DISCORD_BOT_TOKEN=stub
+          DISCORD_CHANNEL_ID=stub
+          DISCORD_GUILD_ID=stub
+          DISCORD_ALLOWED_ROLES=stub
+          EOF
+
       - name: E2E tests
         run: npm run test:e2e
 

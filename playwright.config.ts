@@ -26,7 +26,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run dev",
-    url: BASE_URL,
+    url: `${BASE_URL}/e2e-health`,
     reuseExistingServer: !IS_CI,
     timeout: 120_000,
     stdout: "pipe",
