@@ -192,6 +192,16 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ## Phase 6 — Component and RLS tests
 
+**Status:** Shipped 2026-04-22 across seven sub-commits:
+
+- **6a** (commit `c6841fa`): installed `@testing-library/react`, `/user-event`, `/jest-dom`, `happy-dom`. Per-file env via `// @vitest-environment happy-dom` pragma so the existing node-env Discord tests aren't disturbed. `app/vitest-env.d.ts` carries the jest-dom type reference so matchers like `toBeInTheDocument` typecheck.
+- **6b** (commit `3b891f3`): RatingSlider (5 tests) + RatingCategories (6 tests) — includes the regression for "all sliders move together".
+- **6c** (commit `98279b7`): EquipmentCombobox (9 tests) — keyboard nav, manufacturer-or-name search, click-to-select, Escape closes without firing onChange.
+- **6d** (commit `4ee3d0c`): UnifiedSubmissionForm (6 tests) — validation false-positive guard. React Router / RouterFormModalWrapper / CSRFToken / FormField mocked at module scope to isolate the form's own logic.
+- **6e** (commit `281ba67`): Discord custom*id routing precedence (4 tests) — pins `approve_player_equipment_setup*_`before`approve*player*_`via`vi.spyOn`on`DiscordService` methods.
+- **6f** (commit `7e52ba4`): `supabase/tests/rls.sql` — 6 pgTAP assertions on `player_equipment_setup_submissions`: anon denied; user sees own; user can't see another's; admin sees all; admin can UPDATE any; non-admin UPDATE on someone else's silently no-ops. Wired `supabase test db` into CI checks after Supabase readiness probe.
+- **6g** (this commit): RELIABILITY.md status update.
+
 **Goal:** Attack the bug class that dominates `todo/BUGS.md` — form field mapping, validation, approval-flow edges, RLS regressions.
 
 **Steps:**
@@ -212,6 +222,16 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 - A regression in any `BUGS.md` bug class fails a test.
 - RLS SQL tests run in CI Phase 1 checks.
+
+**Notes from rollout:**
+
+- Total landed: 36 assertions across 6 test files. Went over the 10–15 plan estimate because most components were simple enough to add several small assertions cheaply.
+- **Test env isolation**: `vitest.config.ts` stays on `node` env globally; component tests opt into `happy-dom` with a file pragma. Avoided splitting vitest into projects (less config surface). The existing Discord integration tests (which require real Supabase) keep running in node env.
+- **jest-dom types**: `import "@testing-library/jest-dom/vitest"` in `vitest.setup.ts` is wrapped in a `typeof document !== "undefined"` guard so node-env tests don't blow up at setup time. A separate `app/vitest-env.d.ts` with a triple-slash reference supplies the matcher types — placed inside `app/` so the existing tsconfig `app/**/*` include picks it up.
+- **Route mocking for UnifiedSubmissionForm**: pulling in the real `react-router` providers + `RouterFormModalWrapper` was too much plumbing. Module-level `vi.mock` for `react-router`, the wrapper, `CSRFToken`, and `FormField` cut the setup to a handful of lines and keeps the assertions focused on validation logic.
+- **Discord router test** uses `vi.spyOn(service as unknown as Record<string, () => Promise<Response>>, "handleApprovePlayerEquipmentSetup")` to stub private methods without disabling TypeScript on the assertion itself. No real Supabase or Discord traffic.
+- **pgTAP** runs via `supabase test db` inside the already-started Supabase container — no extra pg_prove install. `SET LOCAL ROLE anon / authenticated` combined with `SET LOCAL request.jwt.claims TO '{...}'` simulates Supabase's JWT-claim-based RLS policies. Transaction wrapped in `BEGIN ... ROLLBACK` so no seed data persists.
+- **eslint test-file overrides**: component tests use `as any` in a few spots (test config object shape). The eslint config already turns off `no-explicit-any` under `__tests__/**`, so the `eslint --fix` pass stripped the redundant disable directives on the first lint run — a minor but visible artifact of running lint after writing.
 
 ---
 
