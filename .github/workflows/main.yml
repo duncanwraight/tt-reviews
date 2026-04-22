@@ -60,8 +60,11 @@ jobs:
       - name: Prettier
         run: npx prettier --check .
 
+      - name: Prepare test-results dir
+        run: mkdir -p /tmp/test-results
+
       - name: Tests
-        run: npm test
+        run: npm test -- --reporter=default --reporter=json --outputFile=/tmp/test-results/vitest.json
 
       - name: Build
         run: npm run build
@@ -114,7 +117,9 @@ jobs:
           echo "Supabase ready after ${ELAPSED}s total"
 
       - name: RLS tests (pgTAP)
-        run: supabase test db
+        run: |
+          set -o pipefail
+          supabase test db 2>&1 | tee /tmp/test-results/pgtap.txt
 
       - name: Write .dev.vars for e2e
         run: |
@@ -132,6 +137,8 @@ jobs:
           EOF
 
       - name: E2E tests
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: /tmp/test-results/e2e.json
         run: npm run test:e2e
 
       - name: Upload Playwright report
@@ -149,6 +156,15 @@ jobs:
           name: supabase-start-log
           path: /tmp/supabase-start.log
           retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: /tmp/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
   deploy:
     name: Deploy
@@ -182,6 +198,12 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
+      - name: Download test results from checks
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: /tmp/test-results/
+
       - name: Build
         run: npm run build
 
@@ -208,28 +230,65 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Uploaded version $VERSION_ID → $PREVIEW_URL"
 
-      - name: Schema diff summary
+      - name: Migration plan summary
         run: |
+          set +e
+          RAW=$(supabase migration list --db-url "${{ secrets.SUPABASE_DB_URL }}" 2>&1)
+          LIST_RC=$?
+          set -e
+          # A migration row has Local | Remote | Time. Local/Remote use 14-digit
+          # timestamps (no separators); Time uses `YYYY-MM-DD HH:MM:SS`. A row
+          # with exactly one 14-digit match is Local-only → pending.
+          PENDING=$(echo "$RAW" | awk '
+            {
+              n = 0
+              rest = $0
+              while (match(rest, /[0-9]{14}/)) {
+                n++
+                if (n == 1) ts = substr(rest, RSTART, RLENGTH)
+                rest = substr(rest, RSTART + RLENGTH)
+              }
+              if (n == 1) print ts
+            }
+          ')
+          MIGRATIONS_IN_COMMIT=$(git diff-tree --no-commit-id --name-only -r HEAD -- supabase/migrations/ 2>/dev/null | grep -E '\.sql$' || true)
           {
             echo "## Migration plan"
             echo ""
-            echo "### Pending migrations (local ahead of remote)"
-            echo ""
-            echo '```'
-            supabase migration list --db-url "${{ secrets.SUPABASE_DB_URL }}" 2>&1 || true
-            echo '```'
-            echo ""
-            MIGRATIONS_IN_COMMIT=$(git diff-tree --no-commit-id --name-only -r HEAD -- supabase/migrations/ 2>/dev/null | grep -E '\.sql$' || true)
+            if [ "$LIST_RC" -ne 0 ]; then
+              echo "### Could not list migrations"
+              echo ""
+              echo '```'
+              echo "$RAW"
+              echo '```'
+              echo ""
+            elif [ -n "$PENDING" ]; then
+              COUNT=$(echo "$PENDING" | wc -l | tr -d ' ')
+              echo "### Pending migrations ($COUNT)"
+              echo ""
+              echo "$PENDING" | while IFS= read -r ts; do
+                [ -z "$ts" ] && continue
+                echo "- \`$ts\`"
+              done
+              echo ""
+            else
+              echo "### Pending migrations"
+              echo ""
+              echo "_None — remote is up to date with local._"
+              echo ""
+            fi
             if [ -n "$MIGRATIONS_IN_COMMIT" ]; then
               echo "### Migrations added in this commit"
               echo ""
               while IFS= read -r file; do
                 [ -z "$file" ] && continue
-                echo "#### \`$file\`"
+                echo "<details><summary><code>$file</code></summary>"
                 echo ""
                 echo '```sql'
                 cat "$file"
                 echo '```'
+                echo ""
+                echo "</details>"
                 echo ""
               done <<< "$MIGRATIONS_IN_COMMIT"
             fi
@@ -257,6 +316,7 @@ jobs:
         id: smoke_preview
         env:
           PLAYWRIGHT_SMOKE_BASE_URL: ${{ steps.upload.outputs.preview_url }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: /tmp/test-results/smoke-preview.json
         run: npm run test:smoke
 
       - name: Upload smoke-preview report
@@ -282,6 +342,7 @@ jobs:
         continue-on-error: true
         env:
           PLAYWRIGHT_SMOKE_BASE_URL: https://tabletennis.reviews
+          PLAYWRIGHT_JSON_OUTPUT_NAME: /tmp/test-results/smoke-prod.json
         run: npm run test:smoke
 
       - name: Upload smoke-prod report
@@ -304,3 +365,49 @@ jobs:
             --yes
           echo "::error::Prod smoke failed, rolled back to previous deployment"
           exit 1
+
+      - name: Test results summary
+        if: always()
+        run: |
+          row() {
+            local name="$1" file="$2" kind="$3"
+            local passed=0 failed=0 skipped=0 status="not run"
+            if [ ! -f "$file" ]; then
+              printf '| %s | — | — | — | not run |\n' "$name"
+              return
+            fi
+            case "$kind" in
+              vitest)
+                passed=$(jq '.numPassedTests // 0' "$file")
+                failed=$(jq '.numFailedTests // 0' "$file")
+                skipped=$(jq '.numPendingTests // 0' "$file")
+                ;;
+              playwright)
+                passed=$(jq '.stats.expected // 0' "$file")
+                failed=$(jq '.stats.unexpected // 0' "$file")
+                skipped=$(jq '.stats.skipped // 0' "$file")
+                ;;
+              pgtap)
+                passed=$(grep -cE '^ok [0-9]+' "$file" || true)
+                failed=$(grep -cE '^not ok [0-9]+' "$file" || true)
+                skipped=$(grep -cE '# SKIP' "$file" || true)
+                ;;
+            esac
+            if [ "${failed:-0}" -gt 0 ]; then
+              status="fail"
+            else
+              status="pass"
+            fi
+            printf '| %s | %s | %s | %s | %s |\n' "$name" "$passed" "$failed" "$skipped" "$status"
+          }
+          {
+            echo "## Test results"
+            echo ""
+            echo "| Suite | Passed | Failed | Skipped | Status |"
+            echo "|---|---:|---:|---:|---|"
+            row "Unit (vitest)"       /tmp/test-results/vitest.json        vitest
+            row "RLS (pgTAP)"         /tmp/test-results/pgtap.txt          pgtap
+            row "E2E (playwright)"    /tmp/test-results/e2e.json           playwright
+            row "Smoke — preview"     /tmp/test-results/smoke-preview.json playwright
+            row "Smoke — prod"        /tmp/test-results/smoke-prod.json    playwright
+          } >> "$GITHUB_STEP_SUMMARY"

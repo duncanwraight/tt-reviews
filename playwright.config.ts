@@ -1,8 +1,23 @@
-import { defineConfig, devices } from "@playwright/test";
+import {
+  defineConfig,
+  devices,
+  type ReporterDescription,
+} from "@playwright/test";
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT ?? 5173);
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
 const IS_CI = !!process.env.CI;
+
+const ciReporters: ReporterDescription[] = [
+  ["github"],
+  ["html", { open: "never" }],
+];
+if (process.env.PLAYWRIGHT_JSON_OUTPUT_NAME) {
+  ciReporters.push([
+    "json",
+    { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_NAME },
+  ]);
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -10,7 +25,7 @@ export default defineConfig({
   forbidOnly: IS_CI,
   retries: IS_CI ? 1 : 0,
   workers: IS_CI ? 1 : undefined,
-  reporter: IS_CI ? [["github"], ["html", { open: "never" }]] : "list",
+  reporter: IS_CI ? ciReporters : "list",
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
