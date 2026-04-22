@@ -113,6 +113,9 @@ jobs:
           done
           echo "Supabase ready after ${ELAPSED}s total"
 
+      - name: RLS tests (pgTAP)
+        run: supabase test db
+
       - name: Write .dev.vars for e2e
         run: |
           cat > .dev.vars <<'EOF'
