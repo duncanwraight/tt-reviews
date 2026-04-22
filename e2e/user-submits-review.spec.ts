@@ -28,8 +28,10 @@ test("user submits equipment review → pending row created", async ({
     // events so React state stays in sync.
     await page.locator("#overall_rating").fill("8");
 
+    // Label renders as "Review*" for required fields; anchor the regex so
+    // it doesn't also match "Reviewing", "Submit Review", etc.
     await page
-      .getByLabel("Review", { exact: true })
+      .getByLabel(/^Review\*?$/)
       .fill("Playwright e2e test review — please ignore.");
 
     await page.getByRole("button", { name: /Submit Review/i }).click();
