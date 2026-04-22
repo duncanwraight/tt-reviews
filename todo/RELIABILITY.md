@@ -288,17 +288,14 @@ Smaller modules are easier to test in isolation. Opportunistic, not gated.
 
 ## Post-Phase-7 — CI pipeline speed
 
-**Goal:** Get the full pipeline back under ~3 min. It drifted to ~5+ min during Phase 3/4 as we added `supabase start`, Playwright, browser caching, and the staged deploy flow.
+**Status:** Resolved without code changes 2026-04-22 — pulled timing data from run `24799240715` (the 7e commit) and the pipeline was 3:02 end-to-end (checks 1:56, deploy 1:01), already under the 3-min target. The earlier 5+ min observation was on cache-miss runs during phases 3/4 when Playwright browsers + `node_modules` were still being populated for the first time. Once those caches were warm the wall time fell back under target.
 
-Places to look when we get to this:
+Small wins still on the table if this flares up again:
 
-- `supabase start` cold-boot dominates checks wall time. Options: prebuilt Supabase Docker image, or split the parts of the suite that don't need Supabase out into a parallel job that runs concurrently.
-- Playwright install on cache miss is ~30s+; evaluate `actions/cache` hit rate.
-- Build runs in both `checks` and `deploy` — cache `build/` between jobs or move build into `checks` only and hand the artifact to `deploy`.
-- E2E suite parallelism is capped at `workers: 1` in CI (flake guard). Revisit once the suite stabilises.
-- The staged deploy adds a second `npm ci` + Playwright install in the `deploy` job. Consolidating jobs or using a composite action would cut 30-60s.
-
-Not yet a phase — gather timing data first (check `gh run view --log` breakdowns) and attack the biggest single contributor.
+- Share `build/` output from the `checks` job to `deploy` via `actions/upload-artifact` (~8s).
+- Share the Playwright browsers cache key across jobs so the deploy-job install-deps step hits the warmed cache (~15s).
+- `supabase start` cold-boot would dominate if we ever needed to speed up the first ever run of a freshly-forked runner — prebuilt Supabase Docker image, or split Supabase-needing steps into a parallel job.
+- E2E suite parallelism is capped at `workers: 1` in CI (flake guard). Revisit if the suite grows.
 
 ---
 
