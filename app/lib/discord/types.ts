@@ -28,3 +28,19 @@ export type ModeratableSubmissionType =
   | "player"
   | "player_edit"
   | "video";
+
+/**
+ * Minimal shape of the Discord user passed into moderation handlers.
+ */
+export interface DiscordUser {
+  id: string;
+  username: string;
+}
+
+/**
+ * Discord guild member as it arrives in interactions — we only look at
+ * the `roles` array for permission checks.
+ */
+export interface DiscordMember {
+  roles: string[];
+}
