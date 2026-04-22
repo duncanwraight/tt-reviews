@@ -153,69 +153,6 @@ export async function updateDiscordMessage(
 }
 
 /**
- * Initial two-button (Approve/Reject) action row for new submissions.
- * Not currently called by the runtime — UnifiedDiscordNotifier owns the
- * new-submission button construction. Retained for the legacy code path.
- */
-export function createInitialButtons(
-  submissionType: ModeratableSubmissionType,
-  submissionId: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any[] {
-  let approveCustomId: string;
-  let rejectCustomId: string;
-  let approveLabel: string;
-  let rejectLabel: string;
-
-  if (submissionType === "player_edit") {
-    approveCustomId = `approve_player_edit_${submissionId}`;
-    rejectCustomId = `reject_player_edit_${submissionId}`;
-    approveLabel = "Approve Player Edit";
-    rejectLabel = "Reject Player Edit";
-  } else if (submissionType === "equipment") {
-    approveCustomId = `approve_${submissionType}_${submissionId}`;
-    rejectCustomId = `reject_${submissionType}_${submissionId}`;
-    approveLabel = "Approve Equipment";
-    rejectLabel = "Reject Equipment";
-  } else if (submissionType === "player") {
-    approveCustomId = `approve_${submissionType}_${submissionId}`;
-    rejectCustomId = `reject_${submissionType}_${submissionId}`;
-    approveLabel = "Approve Player";
-    rejectLabel = "Reject Player";
-  } else if (submissionType === "video") {
-    approveCustomId = `approve_${submissionType}_${submissionId}`;
-    rejectCustomId = `reject_${submissionType}_${submissionId}`;
-    approveLabel = "Approve Video";
-    rejectLabel = "Reject Video";
-  } else {
-    approveCustomId = `approve_${submissionType}_${submissionId}`;
-    rejectCustomId = `reject_${submissionType}_${submissionId}`;
-    approveLabel = "Approve";
-    rejectLabel = "Reject";
-  }
-
-  return [
-    {
-      type: 1,
-      components: [
-        {
-          type: 2,
-          style: 3,
-          label: approveLabel,
-          custom_id: approveCustomId,
-        },
-        {
-          type: 2,
-          style: 4,
-          label: rejectLabel,
-          custom_id: rejectCustomId,
-        },
-      ],
-    },
-  ];
-}
-
-/**
  * Button row showing progress toward the two-approval threshold.
  */
 export function createProgressButtons(
@@ -283,67 +220,6 @@ export function createDisabledButtons(
       ],
     },
   ];
-}
-
-/**
- * Produce a status-updated copy of an existing embed. Not currently
- * called — updateDiscordMessageAfterModeration builds a minimal embed
- * from scratch rather than copying the original. Retained for the full
- * reconstruction path.
- */
-export function createUpdatedEmbed(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  originalEmbed: any,
-  status: string,
-  moderatorUsername?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any {
-  const updatedEmbed = { ...originalEmbed };
-  if (!updatedEmbed.fields) updatedEmbed.fields = [];
-  updatedEmbed.fields = updatedEmbed.fields.filter(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (field: any) => field.name !== "Status"
-  );
-  let statusValue = "";
-  if (status === "approved") {
-    statusValue = "✅ **Approved**";
-    updatedEmbed.color = 0x2ecc71;
-  } else if (status === "rejected") {
-    statusValue = "❌ **Rejected**";
-    updatedEmbed.color = 0xe74c3c;
-  } else if (status === "awaiting_second_approval") {
-    statusValue = "⏳ **Awaiting Second Approval** (1/2)";
-    updatedEmbed.color = 0xf39c12;
-  }
-  if (moderatorUsername) {
-    statusValue += `\nModerated by: ${moderatorUsername}`;
-  }
-  updatedEmbed.fields.push({
-    name: "Status",
-    value: statusValue,
-    inline: false,
-  });
-  return updatedEmbed;
-}
-
-/**
- * Count how many approvals a submission currently has.
- */
-export async function getApprovalCount(
-  ctx: DiscordContext,
-  submissionType: ModeratableSubmissionType,
-  submissionId: string
-): Promise<number> {
-  try {
-    const approvals = await ctx.moderationService.getSubmissionApprovals(
-      submissionType,
-      submissionId
-    );
-    return approvals.filter(approval => approval.action === "approved").length;
-  } catch (error) {
-    console.error("Error getting approval count:", error);
-    return 0;
-  }
 }
 
 /**
