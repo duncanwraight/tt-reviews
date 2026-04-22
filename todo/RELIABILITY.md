@@ -198,7 +198,7 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - **6b** (commit `3b891f3`): RatingSlider (5 tests) + RatingCategories (6 tests) — includes the regression for "all sliders move together".
 - **6c** (commit `98279b7`): EquipmentCombobox (9 tests) — keyboard nav, manufacturer-or-name search, click-to-select, Escape closes without firing onChange.
 - **6d** (commit `4ee3d0c`): UnifiedSubmissionForm (6 tests) — validation false-positive guard. React Router / RouterFormModalWrapper / CSRFToken / FormField mocked at module scope to isolate the form's own logic.
-- **6e** (commit `281ba67`): Discord custom*id routing precedence (4 tests) — pins `approve_player_equipment_setup*_`before`approve*player*_`via`vi.spyOn`on`DiscordService` methods.
+- **6e** (commit `281ba67`): Discord `custom_id` routing precedence (4 tests) — pins `approve_player_equipment_setup_*` before `approve_player_*` via `vi.spyOn` on `DiscordService` methods.
 - **6f** (commit `7e52ba4`): `supabase/tests/rls.sql` — 6 pgTAP assertions on `player_equipment_setup_submissions`: anon denied; user sees own; user can't see another's; admin sees all; admin can UPDATE any; non-admin UPDATE on someone else's silently no-ops. Wired `supabase test db` into CI checks after Supabase readiness probe.
 - **6g** (this commit): RELIABILITY.md status update.
 
