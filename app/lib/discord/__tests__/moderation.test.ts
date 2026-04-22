@@ -1,0 +1,342 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as moderation from "../moderation";
+import * as messages from "../messages";
+import type { DiscordContext, DiscordUser } from "../types";
+
+/**
+ * Unit tests for moderation handlers — approve/reject × 6 submission types,
+ * plus checkUserPermissions. approveReview / rejectReview get the full
+ * error-path matrix; other handlers are smoke-tested for correct
+ * submissionType routing and (where applicable) message-edit side effects.
+ */
+
+function makeCtx(
+  env: Record<string, string | undefined> = {},
+  modService: Record<string, ReturnType<typeof vi.fn>> = {}
+): DiscordContext {
+  return {
+    env: {
+      DISCORD_ALLOWED_ROLES: "moderator",
+      R2_BUCKET: undefined,
+      ...env,
+       
+    } as any,
+    context: {
+      cloudflare: { env: { R2_BUCKET: undefined } },
+       
+    } as any,
+     
+    dbService: {} as any,
+    moderationService: {
+      getOrCreateDiscordModerator: vi.fn().mockResolvedValue("mod-row-id"),
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+      recordRejection: vi.fn().mockResolvedValue({ success: true }),
+      ...modService,
+       
+    } as any,
+     
+    unifiedNotifier: {} as any,
+  };
+}
+
+const user: DiscordUser = { id: "discord-uid", username: "modname" };
+
+ 
+const asJson = async (r: Response): Promise<any> => JSON.parse(await r.text());
+
+describe("moderation.checkUserPermissions", () => {
+  it("rejects when member is missing", async () => {
+     
+    const result = await moderation.checkUserPermissions(
+      makeCtx(),
+      null as any,
+      "g"
+    );
+    expect(result).toBe(false);
+  });
+
+  it("rejects when member.roles is missing", async () => {
+     
+    const result = await moderation.checkUserPermissions(
+      makeCtx(),
+      {} as any,
+      "g"
+    );
+    expect(result).toBe(false);
+  });
+
+  it("allows any user when DISCORD_ALLOWED_ROLES is not configured", async () => {
+    const result = await moderation.checkUserPermissions(
+      makeCtx({ DISCORD_ALLOWED_ROLES: undefined }),
+      { roles: ["whatever"] },
+      "g"
+    );
+    expect(result).toBe(true);
+  });
+
+  it("allows user whose role matches an allowed role", async () => {
+    const result = await moderation.checkUserPermissions(
+      makeCtx({ DISCORD_ALLOWED_ROLES: "r1,r2,r3" }),
+      { roles: ["unrelated", "r2"] },
+      "g"
+    );
+    expect(result).toBe(true);
+  });
+
+  it("rejects user with no matching role", async () => {
+    const result = await moderation.checkUserPermissions(
+      makeCtx({ DISCORD_ALLOWED_ROLES: "r1,r2" }),
+      { roles: ["other"] },
+      "g"
+    );
+    expect(result).toBe(false);
+  });
+});
+
+// ============================================================
+// Review — full error-path coverage
+// ============================================================
+describe("moderation.approveReview — full flow", () => {
+  it("returns ephemeral error when moderator creation fails", async () => {
+    const ctx = makeCtx({}, {
+      getOrCreateDiscordModerator: vi.fn().mockResolvedValue(null),
+       
+    } as any);
+    const response = await moderation.approveReview(ctx, "rev-1", user);
+    const body = await asJson(response);
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("Failed to create Discord moderator");
+  });
+
+  it("passes 'review' and review id through to moderationService.recordApproval", async () => {
+    const ctx = makeCtx();
+    await moderation.approveReview(ctx, "rev-id", user);
+    expect(ctx.moderationService.recordApproval).toHaveBeenCalledWith(
+      "review",
+      "rev-id",
+      "mod-row-id",
+      "discord",
+      expect.stringContaining("modname"),
+      true
+    );
+  });
+
+  it("reports 'fully approved and published' when status is approved", async () => {
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+       
+    } as any);
+    const body = await asJson(await moderation.approveReview(ctx, "r", user));
+    expect(body.data.content).toContain("fully approved and published");
+  });
+
+  it("reports 'received first approval' when status is not approved", async () => {
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+       
+    } as any);
+    const body = await asJson(await moderation.approveReview(ctx, "r", user));
+    expect(body.data.content).toContain("received first approval");
+  });
+
+  it("surfaces the recordApproval error message on failure", async () => {
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: false, error: "RLS denied" }),
+       
+    } as any);
+    const body = await asJson(await moderation.approveReview(ctx, "r", user));
+    expect(body.data.content).toContain("RLS denied");
+  });
+
+  it("catches thrown exceptions and returns an ephemeral error", async () => {
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockRejectedValue(new Error("boom")),
+       
+    } as any);
+    const body = await asJson(await moderation.approveReview(ctx, "r", user));
+    expect(body.data.content).toContain("Failed to approve review");
+    expect(body.data.content).toContain("boom");
+  });
+});
+
+describe("moderation.rejectReview", () => {
+  it("passes env.R2_BUCKET into recordRejection (review is the only path using env.R2_BUCKET, others use context.cloudflare.env.R2_BUCKET)", async () => {
+    const ctx = makeCtx({
+       
+      R2_BUCKET: "bucket-from-env" as any,
+    });
+    await moderation.rejectReview(ctx, "rev-id", user);
+    expect(ctx.moderationService.recordRejection).toHaveBeenCalledWith(
+      "review",
+      "rev-id",
+      "mod-row-id",
+      "discord",
+      expect.objectContaining({ category: "other" }),
+      "bucket-from-env",
+      true
+    );
+  });
+
+  it("returns success content on successful rejection", async () => {
+    const body = await asJson(
+      await moderation.rejectReview(makeCtx(), "r1", user)
+    );
+    expect(body.data.content).toContain("Review rejected");
+  });
+
+  it("catches thrown errors", async () => {
+    const ctx = makeCtx({}, {
+      recordRejection: vi.fn().mockRejectedValue(new Error("nope")),
+       
+    } as any);
+    const body = await asJson(await moderation.rejectReview(ctx, "r", user));
+    expect(body.data.content).toContain("Failed to reject review");
+  });
+});
+
+// ============================================================
+// Smoke tests — every other approve/reject pair
+// ============================================================
+describe("moderation approve/reject smoke tests", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // Spy on messages.updateDiscordMessageAfterModeration so handlers
+    // that call it don't try to hit Discord.
+    vi.spyOn(messages, "updateDiscordMessageAfterModeration").mockResolvedValue(
+      undefined
+    );
+  });
+
+  const cases: Array<{
+    name: string;
+    fn: (
+      ctx: DiscordContext,
+      id: string,
+      user: DiscordUser
+    ) => Promise<Response>;
+    expectedType: string;
+    isApproval: boolean;
+    updatesMessage: boolean;
+  }> = [
+    {
+      name: "approvePlayerEdit",
+      fn: moderation.approvePlayerEdit,
+      expectedType: "player_edit",
+      isApproval: true,
+      updatesMessage: true,
+    },
+    {
+      name: "rejectPlayerEdit",
+      fn: moderation.rejectPlayerEdit,
+      expectedType: "player_edit",
+      isApproval: false,
+      updatesMessage: true,
+    },
+    {
+      name: "approveEquipmentSubmission",
+      fn: moderation.approveEquipmentSubmission,
+      expectedType: "equipment",
+      isApproval: true,
+      updatesMessage: true,
+    },
+    {
+      name: "rejectEquipmentSubmission",
+      fn: moderation.rejectEquipmentSubmission,
+      expectedType: "equipment",
+      isApproval: false,
+      updatesMessage: true,
+    },
+    {
+      name: "approvePlayerSubmission",
+      fn: moderation.approvePlayerSubmission,
+      expectedType: "player",
+      isApproval: true,
+      updatesMessage: true,
+    },
+    {
+      name: "rejectPlayerSubmission",
+      fn: moderation.rejectPlayerSubmission,
+      expectedType: "player",
+      isApproval: false,
+      updatesMessage: true,
+    },
+    {
+      name: "approvePlayerEquipmentSetup",
+      fn: moderation.approvePlayerEquipmentSetup,
+      expectedType: "player_equipment_setup",
+      isApproval: true,
+      updatesMessage: false,
+    },
+    {
+      name: "rejectPlayerEquipmentSetup",
+      fn: moderation.rejectPlayerEquipmentSetup,
+      expectedType: "player_equipment_setup",
+      isApproval: false,
+      updatesMessage: false,
+    },
+    {
+      name: "approveVideoSubmission",
+      fn: moderation.approveVideoSubmission,
+      expectedType: "video",
+      isApproval: true,
+      updatesMessage: false,
+    },
+    {
+      name: "rejectVideoSubmission",
+      fn: moderation.rejectVideoSubmission,
+      expectedType: "video",
+      isApproval: false,
+      updatesMessage: false,
+    },
+  ];
+
+  for (const tc of cases) {
+    it(`${tc.name}: passes '${tc.expectedType}' to the moderation service`, async () => {
+      const ctx = makeCtx();
+      await tc.fn(ctx, "the-id", user);
+      const call = tc.isApproval ? "recordApproval" : "recordRejection";
+      // Arg count differs between recordApproval (6) and recordRejection (7),
+      // so assert the first two positional args (type + id) and the
+      // isDiscordModerator flag at the end — those are the ones routing
+      // regressions would break.
+      const spy = ctx.moderationService[call] as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      expect(spy).toHaveBeenCalledTimes(1);
+      const callArgs = spy.mock.calls[0];
+      expect(callArgs[0]).toBe(tc.expectedType);
+      expect(callArgs[1]).toBe("the-id");
+      expect(callArgs[callArgs.length - 1]).toBe(true);
+    });
+
+    it(`${tc.name}: returns ephemeral error when moderator creation fails`, async () => {
+      const ctx = makeCtx({}, {
+        getOrCreateDiscordModerator: vi.fn().mockResolvedValue(null),
+         
+      } as any);
+      const body = await asJson(await tc.fn(ctx, "x", user));
+      expect(body.data.flags).toBe(64);
+      expect(body.data.content).toContain("Failed to create Discord moderator");
+    });
+
+    if (tc.updatesMessage) {
+      it(`${tc.name}: triggers Discord message refresh on success`, async () => {
+        const ctx = makeCtx();
+        await tc.fn(ctx, "the-id", user);
+        expect(
+          messages.updateDiscordMessageAfterModeration
+        ).toHaveBeenCalledTimes(1);
+      });
+    }
+  }
+});
