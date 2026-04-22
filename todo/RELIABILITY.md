@@ -117,6 +117,12 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ## Phase 4 — Staged deploys with auto-rollback
 
+**Status:** Shipped 2026-04-22 across three sub-commits:
+
+- **4a — smoke suite** (commit `8b05ad3`): new `e2e-smoke/` dir with 5 read-only specs, separate `playwright.smoke.config.ts`, and `npm run test:smoke` script.
+- **4b — upload + smoke-preview + promote** (commit `fa97e63`): replaced single-step `wrangler deploy` with `wrangler versions upload` → migrate → smoke-preview against the preview URL → `wrangler versions deploy <id>@100%`. Parses version ID and preview URL out of the `versions upload` stdout.
+- **4c — smoke-prod + rollback** (commit `c9adc01`): after promote, runs the smoke suite against `https://tabletennis.reviews`. On failure, `wrangler rollback` to the previous deployment and fail the workflow.
+
 **Goal:** Every push to main goes to a preview version first, gets smoke-tested, and only promotes to prod if smoke tests pass. Prod failures auto-rollback.
 
 **Steps:**
@@ -133,10 +139,15 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - A deliberately broken UI commit fails the promote step; prod stays on the previous version.
 - A passing commit lands on prod with post-deploy smoke confirming it.
 
-**Risks:**
+**Notes from rollout:**
 
-- Wrangler versions behaviour with bound R2/Supabase needs verification — preview may share bindings with prod.
-- Smoke tests hitting shared Supabase from the preview stage could mutate prod data. Use read-only paths and seeded fixtures.
+- Preview URLs (`<version>-<worker>.<subdomain>.workers.dev`) required enabling the workers.dev subdomain and preview URLs in the Cloudflare dashboard.
+- Preview versions share the prod Supabase + R2 bindings. The smoke suite is therefore strictly read-only (no form submissions, no mutations). See `e2e-smoke/README.md`.
+- `wrangler versions deploy <id>@100%` + `--yes` is non-interactive; no separate promote prompt to suppress.
+- For rollback we use `wrangler rollback` (no args) which auto-targets the previous deployment. This avoids having to parse Version IDs vs Deployment IDs out of `wrangler deployments list` — the two are distinct UUIDs in v4 output and grabbing the wrong one would roll back to nothing useful.
+- Migrations apply before the promote gate, so a preview-smoke failure leaves prod code old + schema new. Acceptable because the repo only uses backward-compatible migrations.
+- Rollback-on-prod-smoke-failure is fail-open on binding problems: if prod is serving errors because Supabase is actually down, the rollback won't help (both versions would fail smoke). That's fine — the workflow still fails loudly.
+- First run (commit `fa97e63`) validated the 4b flow end-to-end: smoke-preview 5/5 green in 4.9s, promote succeeded.
 
 ---
 
@@ -220,6 +231,22 @@ Split `app/lib/discord.server.ts` (2135 lines) and `app/lib/database.server.ts` 
 - `database/equipment.ts`, `database/players.ts`, `database/reviews.ts`
 
 Smaller modules are easier to test in isolation. Opportunistic, not gated.
+
+---
+
+## Post-Phase-7 — CI pipeline speed
+
+**Goal:** Get the full pipeline back under ~3 min. It drifted to ~5+ min during Phase 3/4 as we added `supabase start`, Playwright, browser caching, and the staged deploy flow.
+
+Places to look when we get to this:
+
+- `supabase start` cold-boot dominates checks wall time. Options: prebuilt Supabase Docker image, or split the parts of the suite that don't need Supabase out into a parallel job that runs concurrently.
+- Playwright install on cache miss is ~30s+; evaluate `actions/cache` hit rate.
+- Build runs in both `checks` and `deploy` — cache `build/` between jobs or move build into `checks` only and hand the artifact to `deploy`.
+- E2E suite parallelism is capped at `workers: 1` in CI (flake guard). Revisit once the suite stabilises.
+- The staged deploy adds a second `npm ci` + Playwright install in the `deploy` job. Consolidating jobs or using a composite action would cut 30-60s.
+
+Not yet a phase — gather timing data first (check `gh run view --log` breakdowns) and attack the biggest single contributor.
 
 ---
 
