@@ -19,13 +19,11 @@ function makeCtx(
       DISCORD_ALLOWED_ROLES: "moderator",
       R2_BUCKET: undefined,
       ...env,
-       
     } as any,
     context: {
       cloudflare: { env: { R2_BUCKET: undefined } },
-       
     } as any,
-     
+
     dbService: {} as any,
     moderationService: {
       getOrCreateDiscordModerator: vi.fn().mockResolvedValue("mod-row-id"),
@@ -34,21 +32,18 @@ function makeCtx(
         .mockResolvedValue({ success: true, newStatus: "approved" }),
       recordRejection: vi.fn().mockResolvedValue({ success: true }),
       ...modService,
-       
     } as any,
-     
+
     unifiedNotifier: {} as any,
   };
 }
 
 const user: DiscordUser = { id: "discord-uid", username: "modname" };
 
- 
 const asJson = async (r: Response): Promise<any> => JSON.parse(await r.text());
 
 describe("moderation.checkUserPermissions", () => {
   it("rejects when member is missing", async () => {
-     
     const result = await moderation.checkUserPermissions(
       makeCtx(),
       null as any,
@@ -58,7 +53,6 @@ describe("moderation.checkUserPermissions", () => {
   });
 
   it("rejects when member.roles is missing", async () => {
-     
     const result = await moderation.checkUserPermissions(
       makeCtx(),
       {} as any,
@@ -102,7 +96,6 @@ describe("moderation.approveReview — full flow", () => {
   it("returns ephemeral error when moderator creation fails", async () => {
     const ctx = makeCtx({}, {
       getOrCreateDiscordModerator: vi.fn().mockResolvedValue(null),
-       
     } as any);
     const response = await moderation.approveReview(ctx, "rev-1", user);
     const body = await asJson(response);
@@ -129,7 +122,6 @@ describe("moderation.approveReview — full flow", () => {
       recordApproval: vi
         .fn()
         .mockResolvedValue({ success: true, newStatus: "approved" }),
-       
     } as any);
     const body = await asJson(await moderation.approveReview(ctx, "r", user));
     expect(body.data.content).toContain("fully approved and published");
@@ -141,7 +133,6 @@ describe("moderation.approveReview — full flow", () => {
         success: true,
         newStatus: "awaiting_second_approval",
       }),
-       
     } as any);
     const body = await asJson(await moderation.approveReview(ctx, "r", user));
     expect(body.data.content).toContain("received first approval");
@@ -152,7 +143,6 @@ describe("moderation.approveReview — full flow", () => {
       recordApproval: vi
         .fn()
         .mockResolvedValue({ success: false, error: "RLS denied" }),
-       
     } as any);
     const body = await asJson(await moderation.approveReview(ctx, "r", user));
     expect(body.data.content).toContain("RLS denied");
@@ -161,7 +151,6 @@ describe("moderation.approveReview — full flow", () => {
   it("catches thrown exceptions and returns an ephemeral error", async () => {
     const ctx = makeCtx({}, {
       recordApproval: vi.fn().mockRejectedValue(new Error("boom")),
-       
     } as any);
     const body = await asJson(await moderation.approveReview(ctx, "r", user));
     expect(body.data.content).toContain("Failed to approve review");
@@ -172,7 +161,6 @@ describe("moderation.approveReview — full flow", () => {
 describe("moderation.rejectReview", () => {
   it("passes env.R2_BUCKET into recordRejection (review is the only path using env.R2_BUCKET, others use context.cloudflare.env.R2_BUCKET)", async () => {
     const ctx = makeCtx({
-       
       R2_BUCKET: "bucket-from-env" as any,
     });
     await moderation.rejectReview(ctx, "rev-id", user);
@@ -197,7 +185,6 @@ describe("moderation.rejectReview", () => {
   it("catches thrown errors", async () => {
     const ctx = makeCtx({}, {
       recordRejection: vi.fn().mockRejectedValue(new Error("nope")),
-       
     } as any);
     const body = await asJson(await moderation.rejectReview(ctx, "r", user));
     expect(body.data.content).toContain("Failed to reject review");
@@ -322,7 +309,6 @@ describe("moderation approve/reject smoke tests", () => {
     it(`${tc.name}: returns ephemeral error when moderator creation fails`, async () => {
       const ctx = makeCtx({}, {
         getOrCreateDiscordModerator: vi.fn().mockResolvedValue(null),
-         
       } as any);
       const body = await asJson(await tc.fn(ctx, "x", user));
       expect(body.data.flags).toBe(64);

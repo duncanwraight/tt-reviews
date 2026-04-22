@@ -19,15 +19,14 @@ import type { DiscordContext } from "../types";
 
 function makeCtx(): DiscordContext {
   return {
-     
     env: {} as any,
-     
+
     context: {} as any,
-     
+
     dbService: {} as any,
-     
+
     moderationService: {} as any,
-     
+
     unifiedNotifier: {} as any,
   };
 }
@@ -39,11 +38,9 @@ const okResponse = () =>
     })
   );
 
- 
 const asJson = async (response: Response): Promise<any> =>
   JSON.parse(await response.text());
 
- 
 function makeInteraction(overrides: Record<string, any> = {}): any {
   return {
     type: 3,
@@ -65,7 +62,6 @@ describe("dispatch.handleSlashCommand", () => {
   it("responds to the ping challenge (type 1) with type 1", async () => {
     const response = await dispatch.handleSlashCommand(makeCtx(), {
       type: 1,
-       
     } as any);
     const body = await asJson(response);
     expect(body.type).toBe(1);
@@ -78,7 +74,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "approve", options: [{ value: "rid" }] },
       member: { roles: ["moderator"] }, // no user anywhere
       guild_id: "g",
-       
     } as any);
     const body = await asJson(response);
     expect(body.type).toBe(4);
@@ -93,7 +88,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "equipment", options: [{ value: "q" }] },
       member: { user: { id: "u", username: "u" }, roles: [] },
       guild_id: "g",
-       
     } as any);
     const body = await asJson(response);
     expect(body.data.content).toContain("do not have permission");
@@ -110,7 +104,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "equipment", options: [{ value: "butterfly" }] },
       member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
       guild_id: "g",
-       
     } as any);
     expect(spy).toHaveBeenCalledWith(expect.any(Object), "butterfly");
   });
@@ -125,7 +118,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "player", options: [{ value: "ma long" }] },
       member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
       guild_id: "g",
-       
     } as any);
     expect(spy).toHaveBeenCalledWith(expect.any(Object), "ma long");
   });
@@ -140,7 +132,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "approve", options: [{ value: "r-id" }] },
       member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
       guild_id: "g",
-       
     } as any);
     expect(spy).toHaveBeenCalledWith(
       expect.any(Object),
@@ -159,7 +150,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "reject", options: [{ value: "r-id" }] },
       member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
       guild_id: "g",
-       
     } as any);
     expect(spy).toHaveBeenCalledWith(
       expect.any(Object),
@@ -175,7 +165,6 @@ describe("dispatch.handleSlashCommand", () => {
       data: { name: "nonsense", options: [] },
       member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
       guild_id: "g",
-       
     } as any);
     const body = await asJson(response);
     expect(body.data.content).toContain("Unknown command");
@@ -235,29 +224,28 @@ describe("dispatch.handlePrefixCommand", () => {
 });
 
 describe("dispatch.handleMessageComponent — custom_id routing", () => {
-   
   let approveReview: any;
-   
+
   let rejectReview: any;
-   
+
   let approvePlayerEdit: any;
-   
+
   let rejectPlayerEdit: any;
-   
+
   let approveEquipment: any;
-   
+
   let rejectEquipment: any;
-   
+
   let approvePlayer: any;
-   
+
   let rejectPlayer: any;
-   
+
   let approveSetup: any;
-   
+
   let rejectSetup: any;
-   
+
   let approveVideo: any;
-   
+
   let rejectVideo: any;
 
   beforeEach(() => {

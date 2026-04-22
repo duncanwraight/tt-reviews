@@ -62,11 +62,7 @@ export async function handleSlashCommand(
         user
       );
     case "reject":
-      return moderation.rejectReview(
-        ctx,
-        data.options?.[0]?.value || "",
-        user
-      );
+      return moderation.rejectReview(ctx, data.options?.[0]?.value || "", user);
     default:
       return ephemeralJson("❌ Unknown command.");
   }

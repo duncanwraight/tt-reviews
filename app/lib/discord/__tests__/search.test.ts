@@ -9,28 +9,25 @@ import type { DiscordContext } from "../types";
 
 function makeCtx(
   dbOverrides: Partial<{
-     
     searchEquipment: (query: string) => Promise<any[]>;
-     
+
     searchPlayers: (query: string) => Promise<any[]>;
   }> = {}
 ): DiscordContext {
   return {
     env: {
       SITE_URL: "https://tt-reviews.local",
-       
     } as any,
-     
+
     context: {} as any,
     dbService: {
       searchEquipment: vi.fn().mockResolvedValue([]),
       searchPlayers: vi.fn().mockResolvedValue([]),
       ...dbOverrides,
-       
     } as any,
-     
+
     moderationService: {} as any,
-     
+
     unifiedNotifier: {} as any,
   };
 }
@@ -97,12 +94,16 @@ describe("search.searchPlayer", () => {
     const ctx = makeCtx({
       searchPlayers: vi
         .fn()
-        .mockResolvedValue([{ name: "Ma Long", active: true, slug: "ma-long" }]),
+        .mockResolvedValue([
+          { name: "Ma Long", active: true, slug: "ma-long" },
+        ]),
     });
     const result = await search.searchPlayer(ctx, "ma long");
     expect(result.content).toContain("Ma Long");
     expect(result.content).toContain("Active");
-    expect(result.content).toContain("https://tt-reviews.local/players/ma-long");
+    expect(result.content).toContain(
+      "https://tt-reviews.local/players/ma-long"
+    );
   });
 
   it("renders 'Inactive' for inactive players", async () => {

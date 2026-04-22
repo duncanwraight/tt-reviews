@@ -1,9 +1,5 @@
 import * as messages from "./messages";
-import type {
-  DiscordContext,
-  DiscordMember,
-  DiscordUser,
-} from "./types";
+import type { DiscordContext, DiscordMember, DiscordUser } from "./types";
 
 /**
  * Discord approve/reject handlers — one pair per moderated submission

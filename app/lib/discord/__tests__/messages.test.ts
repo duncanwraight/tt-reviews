@@ -9,7 +9,6 @@ import type { DiscordContext } from "../types";
  * or network connection; fetch is stubbed per-test.
  */
 
- 
 function makeCtx(envOverrides: Record<string, any> = {}): DiscordContext {
   return {
     env: {
@@ -20,17 +19,15 @@ function makeCtx(envOverrides: Record<string, any> = {}): DiscordContext {
       DISCORD_ALLOWED_ROLES: "moderator",
       SITE_URL: "https://tt-reviews.local",
       ...envOverrides,
-       
     } as any,
-     
+
     context: {} as any,
     dbService: {
       getDiscordMessageId: vi.fn(),
-       
     } as any,
-     
+
     moderationService: {} as any,
-     
+
     unifiedNotifier: {} as any,
   };
 }
@@ -92,9 +89,7 @@ describe("messages.getStatusText", () => {
 describe("messages.createProgressButtons", () => {
   it("uses approve_player_edit_<id> for player_edit type", () => {
     const buttons = messages.createProgressButtons("player_edit", "abc", 1, 2);
-    expect(buttons[0].components[0].custom_id).toBe(
-      "approve_player_edit_abc"
-    );
+    expect(buttons[0].components[0].custom_id).toBe("approve_player_edit_abc");
     expect(buttons[0].components[1].custom_id).toBe("reject_player_edit_abc");
   });
 
@@ -150,9 +145,7 @@ describe("messages.validateBotConfig", () => {
       logCtx
     );
     expect(result.isValid).toBe(false);
-    expect(result.issues.some(i => i.includes("DISCORD_BOT_TOKEN"))).toBe(
-      true
-    );
+    expect(result.issues.some(i => i.includes("DISCORD_BOT_TOKEN"))).toBe(true);
   });
 
   it("flags DISCORD_BOT_TOKEN that is too short", () => {
@@ -229,9 +222,8 @@ describe("messages.verifySignature", () => {
 });
 
 describe("messages.updateDiscordMessage", () => {
-   
   let originalFetch: any;
-   
+
   let fetchMock: any;
 
   beforeEach(() => {
@@ -275,9 +267,7 @@ describe("messages.updateDiscordMessage", () => {
   });
 
   it("surfaces Discord API error text on non-2xx", async () => {
-    fetchMock.mockResolvedValue(
-      new Response("rate limited", { status: 429 })
-    );
+    fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
     const ctx = makeCtx();
     const result = await messages.updateDiscordMessage(ctx, "c1", "m1", {});
     expect(result.success).toBe(false);
@@ -294,9 +284,8 @@ describe("messages.updateDiscordMessage", () => {
 });
 
 describe("messages.updateDiscordMessageAfterModeration", () => {
-   
   let originalFetch: any;
-   
+
   let fetchMock: any;
 
   beforeEach(() => {
@@ -311,9 +300,9 @@ describe("messages.updateDiscordMessageAfterModeration", () => {
 
   it("no-ops silently when no Discord message id is tracked", async () => {
     const ctx = makeCtx();
-    (ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>).mockResolvedValue(
-      null
-    );
+    (
+      ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(null);
     await messages.updateDiscordMessageAfterModeration(
       ctx,
       "equipment",
@@ -326,9 +315,9 @@ describe("messages.updateDiscordMessageAfterModeration", () => {
 
   it("no-ops when bot config is invalid", async () => {
     const ctx = makeCtx({ DISCORD_BOT_TOKEN: undefined });
-    (ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "msg-id-1"
-    );
+    (
+      ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>
+    ).mockResolvedValue("msg-id-1");
     await messages.updateDiscordMessageAfterModeration(
       ctx,
       "equipment",
@@ -341,9 +330,9 @@ describe("messages.updateDiscordMessageAfterModeration", () => {
 
   it("patches with disabled buttons when status is approved", async () => {
     const ctx = makeCtx();
-    (ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "msg-id-1"
-    );
+    (
+      ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>
+    ).mockResolvedValue("msg-id-1");
     await messages.updateDiscordMessageAfterModeration(
       ctx,
       "equipment",
@@ -361,9 +350,9 @@ describe("messages.updateDiscordMessageAfterModeration", () => {
 
   it("patches with progress buttons (1/2) when awaiting second approval", async () => {
     const ctx = makeCtx();
-    (ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "msg-id-1"
-    );
+    (
+      ctx.dbService.getDiscordMessageId as ReturnType<typeof vi.fn>
+    ).mockResolvedValue("msg-id-1");
     await messages.updateDiscordMessageAfterModeration(
       ctx,
       "equipment",

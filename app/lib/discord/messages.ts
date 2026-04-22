@@ -1,8 +1,4 @@
-import {
-  Logger,
-  createLogContext,
-  type LogContext,
-} from "../logger.server";
+import { Logger, createLogContext, type LogContext } from "../logger.server";
 import type { DiscordContext, ModeratableSubmissionType } from "./types";
 
 /**

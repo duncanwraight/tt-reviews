@@ -20,17 +20,15 @@ function makeCtx(): {
   return {
     notifySubmission,
     ctx: {
-       
       env: {} as any,
-       
+
       context: {} as any,
-       
+
       dbService: {} as any,
-       
+
       moderationService: {} as any,
       unifiedNotifier: {
         notifySubmission,
-         
       } as any,
     },
   };
@@ -39,11 +37,7 @@ function makeCtx(): {
 describe("notifications.notifyNewReview", () => {
   it("delegates to unifiedNotifier with 'review' type and passes data + requestId", async () => {
     const { ctx, notifySubmission } = makeCtx();
-    await notifications.notifyNewReview(
-      ctx,
-      { id: "r1", text: "x" },
-      "req-1"
-    );
+    await notifications.notifyNewReview(ctx, { id: "r1", text: "x" }, "req-1");
     expect(notifySubmission).toHaveBeenCalledWith(
       "review",
       { id: "r1", text: "x" },
@@ -68,10 +62,9 @@ describe("notifications.notify* type mapping", () => {
       string,
       (
         ctx: DiscordContext,
-         
+
         data: any,
         requestId?: string
-         
       ) => Promise<any>,
       SubmissionType,
     ]
@@ -117,11 +110,7 @@ describe("notifications.notifySubmission (generic)", () => {
   it("forwards the supplied submission type", async () => {
     const { ctx, notifySubmission } = makeCtx();
     await notifications.notifySubmission(ctx, "video", { id: "v1" }, "r-1");
-    expect(notifySubmission).toHaveBeenCalledWith(
-      "video",
-      { id: "v1" },
-      "r-1"
-    );
+    expect(notifySubmission).toHaveBeenCalledWith("video", { id: "v1" }, "r-1");
   });
 });
 

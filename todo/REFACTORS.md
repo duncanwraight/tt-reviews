@@ -32,9 +32,14 @@ Submodules export pure functions taking `ctx: DiscordContext` as the first arg. 
 ```ts
 // app/lib/discord/types.ts
 export interface DiscordContext {
-  botToken: string; publicKey: string; webhookUrl: string;
-  guildId: string; channelId: string; allowedRoles: string[];
-  supabase: SupabaseClient; logger: typeof Logger;
+  botToken: string;
+  publicKey: string;
+  webhookUrl: string;
+  guildId: string;
+  channelId: string;
+  allowedRoles: string[];
+  supabase: SupabaseClient;
+  logger: typeof Logger;
 }
 ```
 
@@ -72,7 +77,7 @@ Moderation imports notifications (approve → notify-approved). Dispatch imports
 **Step 7 — comprehensive test coverage.** The whole point of the refactor. One test file per extracted module under `app/lib/discord/__tests__/`:
 
 - `messages.test.ts` — Ed25519 verify (valid/invalid/malformed sig), button builders (initial/progress/disabled), embed helpers (`getEmbedTitle`, `getStatusColor`, `getStatusText`, `createUpdatedEmbed`), `hexToUint8Array`.
-- `dispatch.test.ts` — custom_id routing (all 9 prefixes + `player_equipment_setup`/`player_` collision), ping challenge (type 1 → type 1), unknown commands, missing-user guards, permission gate. Absorbs the existing `discord-custom-id-routing.test.ts`.
+- `dispatch.test.ts` — custom*id routing (all 9 prefixes + `player_equipment_setup`/`player*`collision), ping challenge (type 1 → type 1), unknown commands, missing-user guards, permission gate. Absorbs the existing`discord-custom-id-routing.test.ts`.
 - `notifications.test.ts` — each `notifyNew*` delegates to `unifiedNotifier.notifySubmission` with the correct type.
 - `search.test.ts` — empty/populated/truncated results, error paths, with mocked `DatabaseService`.
 - `moderation.test.ts` — each approve/reject handler × (happy / first-approval / fully-approved / moderator-creation-fail / `recordApproval`-fail / `updateDiscordMessage`-fail).
