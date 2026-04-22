@@ -98,3 +98,7 @@ temp/
 playwright-report/
 test-results/
 blob-report/
+
+# Claude Code harness runtime state (settings.json + hooks are tracked)
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

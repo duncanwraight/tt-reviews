@@ -19,6 +19,10 @@
     "test:smoke": "playwright test --config=playwright.smoke.config.ts",
     "lint": "eslint ."
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml,css}": "prettier --write",
+    "*.{ts,tsx}": "eslint --fix"
+  },
   "dependencies": {
     "@react-router/fs-routes": "^7.6.2",
     "@supabase/ssr": "^0.6.1",
@@ -40,6 +44,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^5.2.0",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.5.2",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
