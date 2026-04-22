@@ -155,6 +155,12 @@ jobs:
     needs: checks
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Binds this job to the `production` GitHub Environment. If that
+    # environment has a required reviewer configured in repo Settings
+    # → Environments, the deploy pauses here for manual approval.
+    # Until that's set up this line is a no-op; configuring the reviewer
+    # is a one-time repo-settings change, not a workflow change.
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
