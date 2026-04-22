@@ -42,14 +42,17 @@ test("admin approves pending review → visible on public detail page", async ({
     await expect(reviewCard).toBeVisible();
     await reviewCard.getByRole("button", { name: /^Approve$/ }).click();
 
-    // After POST the action redirects to the same admin page; the approve
-    // button for this review should be gone because canApprove returns
-    // false for non-pending rows.
+    // Poll the DB directly — source of truth. The UI will re-render once
+    // the action + loader revalidation finishes, but we care about the
+    // status flip first.
+    await expect
+      .poll(() => getEquipmentReviewStatus(review.id), { timeout: 15000 })
+      .toBe("approved");
+
+    // Sanity: UI no longer shows the Approve button for this card.
     await expect(
       reviewCard.getByRole("button", { name: /^Approve$/ })
-    ).toHaveCount(0);
-
-    expect(await getEquipmentReviewStatus(review.id)).toBe("approved");
+    ).toHaveCount(0, { timeout: 10000 });
 
     // Verify publicly visible via an anonymous context so the test isn't
     // fooled by any admin-level visibility.
