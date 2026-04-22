@@ -19,6 +19,7 @@ import {
 } from "./discord/unified-notifier.server";
 import * as messages from "./discord/messages";
 import * as notifications from "./discord/notifications";
+import * as search from "./discord/search";
 import type { DiscordContext } from "./discord/types";
 import type { SubmissionType } from "./types";
 
@@ -336,148 +337,22 @@ export class DiscordService {
     );
   }
 
-  /**
-   * Handle equipment search slash command
-   */
   private async handleEquipmentSearch(query: string): Promise<Response> {
-    if (!query.trim()) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content:
-              "❌ Please provide a search query. Example: `/equipment query:butterfly`",
-            flags: 64,
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const result = await this.searchEquipment(query);
-
-    return new Response(
-      JSON.stringify({
-        type: 4,
-        data: result,
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return search.handleEquipmentSearch(this.ctx, query);
   }
 
-  /**
-   * Handle player search slash command
-   */
   private async handlePlayerSearch(query: string): Promise<Response> {
-    if (!query.trim()) {
-      return new Response(
-        JSON.stringify({
-          type: 4,
-          data: {
-            content:
-              "❌ Please provide a search query. Example: `/player query:messi`",
-            flags: 64,
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const result = await this.searchPlayer(query);
-
-    return new Response(
-      JSON.stringify({
-        type: 4,
-        data: result,
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return search.handlePlayerSearch(this.ctx, query);
   }
 
-  /**
-   * Search equipment and format for Discord
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async searchEquipment(query: string): Promise<any> {
-    try {
-      const equipment = await this.dbService.searchEquipment(query);
-
-      if (equipment.length === 0) {
-        return {
-          content: `🔍 No equipment found for "${query}"`,
-        };
-      }
-
-      const results = equipment
-        .slice(0, 5)
-        .map(
-          item =>
-            `**${item.name}** by ${item.manufacturer}\n` +
-            `Type: ${item.category}\n` +
-            `${this.env.SITE_URL}/equipment/${item.slug}`
-        )
-        .join("\n\n");
-
-      return {
-        content:
-          `🏓 **Equipment Search Results for "${query}"**\n\n${results}` +
-          (equipment.length > 5
-            ? `\n\n*Showing top 5 of ${equipment.length} results*`
-            : ""),
-      };
-    } catch (error) {
-      console.error("Equipment search error:", error);
-      return {
-        content: "❌ Error searching equipment. Please try again later.",
-      };
-    }
+    return search.searchEquipment(this.ctx, query);
   }
 
-  /**
-   * Search players and format for Discord
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async searchPlayer(query: string): Promise<any> {
-    try {
-      const players = await this.dbService.searchPlayers(query);
-
-      if (players.length === 0) {
-        return {
-          content: `🔍 No players found for "${query}"`,
-        };
-      }
-
-      const results = players
-        .slice(0, 5)
-        .map(
-          player =>
-            `**${player.name}**\n` +
-            `Status: ${player.active ? "Active" : "Inactive"}\n` +
-            `${this.env.SITE_URL}/players/${player.slug}`
-        )
-        .join("\n\n");
-
-      return {
-        content:
-          `🏓 **Player Search Results for "${query}"**\n\n${results}` +
-          (players.length > 5
-            ? `\n\n*Showing top 5 of ${players.length} results*`
-            : ""),
-      };
-    } catch (error) {
-      console.error("Player search error:", error);
-      return {
-        content: "❌ Error searching players. Please try again later.",
-      };
-    }
+    return search.searchPlayer(this.ctx, query);
   }
 
   /**
