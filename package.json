@@ -17,7 +17,9 @@
     "test:discord": "vitest run app/lib/__tests__/discord.test.ts",
     "test:e2e": "playwright test",
     "test:smoke": "playwright test --config=playwright.smoke.config.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "logs": "wrangler tail --format=pretty",
+    "logs:errors": "wrangler tail --format=json --status error"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml,css}": "prettier --write",
