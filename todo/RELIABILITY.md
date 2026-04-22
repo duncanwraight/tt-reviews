@@ -237,6 +237,14 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ## Phase 7 — Production gates, observability, CLAUDE.md overhaul
 
+**Status:** Shipped 2026-04-22 across four commits (7c + 7d landed together):
+
+- **7a** (commit `60e469a`): `environment: production` on the deploy job. Activates when a required reviewer is configured in repo Settings → Environments → production. No-op until then.
+- **7b** (commit `d27f983`): schema-diff step writes `supabase migration list` output + the full SQL of any migrations added in the current commit to `$GITHUB_STEP_SUMMARY` before `supabase db push` runs.
+- **7c** (part of commit `98b5e21`): top-level try/catch in `workers/app.ts` emits structured JSON (`source: "worker-entry"`) for uncaught errors; `npm run logs` / `npm run logs:errors` wrap `wrangler tail`; `docs/OBSERVABILITY.md` documents the Claude-Code workflow. Deviated from the plan's Sentry suggestion — wrangler-tail + Workers Observability (already on) is free, Claude-Code-usable out of the box, and sufficient for this site's volume.
+- **7d** (part of commit `98b5e21`): CLAUDE.md trimmed from ~20k chars to ~4.7k. Extracted `docs/AUTH.md` (auth patterns + RBAC), `docs/RLS.md` (policy patterns), `docs/E2E.md` (test rule + helpers). Removed honour-system "MUST run npm run typecheck / test" lines since the pre-git (Phase 2) and pre-push (Phase 5) hooks enforce them mechanically. Added `/ultrareview` pointer.
+- **7e** (this commit): RELIABILITY.md status update.
+
 **Goal:** Final hardening. Make prod changes reviewable, errors visible, and CLAUDE.md concise enough to actually be read.
 
 **Steps:**
@@ -256,6 +264,14 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - Prod deploys pause for explicit approval.
 - CLAUDE.md fits comfortably on one screen.
 - A prod error surfaces in Sentry within seconds.
+
+**Notes from rollout:**
+
+- **Observability deviated from the plan.** Plan said "integrate Sentry (or Logpush)" but during rollout the user asked for a Claude-Code-compatible, open-source/free solution. Landed on `wrangler tail` + Workers Observability (already enabled). `npm run logs` / `npm run logs:errors` are the entry points; `docs/OBSERVABILITY.md` is the doc. If volume outgrows this, Sentry's Cloudflare Workers SDK remains the drop-in upgrade — the top-level error handler in `workers/app.ts` already emits structured JSON ready to forward.
+- **Required reviewer is a manual one-time step.** Adding `environment: production` to the workflow doesn't configure protection rules — GitHub creates the environment on first run but leaves it unprotected unless you add reviewers in repo Settings. Action item: go to Settings → Environments → production → Required reviewers and add @duncanwraight.
+- **Schema-diff summary** scope: shows migrations added in the current commit and pending on remote. If a push bundles several commits' worth of migrations, only the topmost commit's new files are inlined — the `supabase migration list` output still shows all pending. Acceptable trade-off to keep the step simple.
+- **CLAUDE.md final size:** 4.7k chars, 4 reference doc pointers (AUTH, RLS, E2E, OBSERVABILITY). Fits comfortably in the first screen of editor/terminal. Each extracted doc is 2.8k–5k chars — still small enough to read cover-to-cover when the topic is relevant.
+- **Stop hook (Phase 2) note about unrun `test:e2e`**: after the CLAUDE.md trim, the rule that "UI changes need a Playwright spec" now lives in `docs/E2E.md`. The Phase 2 Stop hook still calls this out from its checklist script; no hook change needed since it doesn't quote CLAUDE.md directly.
 
 ---
 
