@@ -36,9 +36,7 @@ test("admin approves pending review → visible on public detail page", async ({
 
     await page.goto("/admin/equipment-reviews");
     // Admin-only route — if role didn't land in JWT we'd be redirected to /.
-    await expect(
-      page.getByRole("heading", { name: /Equipment Reviews/i }).first()
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/equipment-reviews$/);
 
     const reviewCard = page.locator("li").filter({ hasText: reviewText });
     await expect(reviewCard).toBeVisible();
