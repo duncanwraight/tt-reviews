@@ -18,6 +18,7 @@ import {
   type UnifiedDiscordNotifier,
 } from "./discord/unified-notifier.server";
 import * as messages from "./discord/messages";
+import * as notifications from "./discord/notifications";
 import type { DiscordContext } from "./discord/types";
 import type { SubmissionType } from "./types";
 
@@ -1611,65 +1612,45 @@ export class DiscordService {
     return member.roles.some((roleId: string) => allowedRoles.includes(roleId));
   }
 
-  /**
-   * Send notification about new review submission
-   */
   async notifyNewReview(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reviewData: any,
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "review",
-      reviewData,
-      requestId
-    );
+    return notifications.notifyNewReview(this.ctx, reviewData, requestId);
   }
 
-  /**
-   * Send notification about new player edit submission
-   */
   async notifyNewPlayerEdit(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     editData: any,
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "player_edit",
-      editData,
-      requestId
-    );
+    return notifications.notifyNewPlayerEdit(this.ctx, editData, requestId);
   }
 
-  /**
-   * Send notification about new equipment submission
-   */
   async notifyNewEquipmentSubmission(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "equipment",
+    return notifications.notifyNewEquipmentSubmission(
+      this.ctx,
       submissionData,
       requestId
     );
   }
 
-  /**
-   * Send notification about new player submission
-   */
   async notifyNewPlayerSubmission(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "player",
+    return notifications.notifyNewPlayerSubmission(
+      this.ctx,
       submissionData,
       requestId
     );
@@ -1710,35 +1691,24 @@ export class DiscordService {
     );
   }
 
-  /**
-   * Send notification about approved review
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async notifyReviewApproved(reviewData: any): Promise<any> {
-    // TODO: Implement approved review notification
-    return { success: true };
+    return notifications.notifyReviewApproved(this.ctx, reviewData);
   }
 
-  /**
-   * Send notification about rejected review
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async notifyReviewRejected(reviewData: any): Promise<any> {
-    // TODO: Implement rejected review notification
-    return { success: true };
+    return notifications.notifyReviewRejected(this.ctx, reviewData);
   }
 
-  /**
-   * Send notification about new video submission
-   */
   async notifyNewVideoSubmission(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submissionData: any,
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "video",
+    return notifications.notifyNewVideoSubmission(
+      this.ctx,
       submissionData,
       requestId
     );
@@ -1750,17 +1720,13 @@ export class DiscordService {
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
-      "player_equipment_setup",
+    return notifications.notifyNewPlayerEquipmentSetup(
+      this.ctx,
       equipmentData,
       requestId
     );
   }
 
-  /**
-   * Generic notification method for any submission type
-   * Use this for new submission types or when you want to be explicit about the type
-   */
   async notifySubmission(
     submissionType: SubmissionType,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1768,7 +1734,8 @@ export class DiscordService {
     requestId: string = "unknown"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(
+    return notifications.notifySubmission(
+      this.ctx,
       submissionType,
       submissionData,
       requestId
