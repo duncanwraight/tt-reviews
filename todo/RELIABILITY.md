@@ -275,17 +275,6 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ---
 
-## Ongoing (not a phase)
-
-Split `app/lib/discord.server.ts` (2135 lines) and `app/lib/database.server.ts` (1330 lines) by feature as they're touched:
-
-- `discord/notifications.ts`, `discord/commands.ts`, `discord/moderation.ts`
-- `database/equipment.ts`, `database/players.ts`, `database/reviews.ts`
-
-Smaller modules are easier to test in isolation. Opportunistic, not gated.
-
----
-
 ## Post-Phase-7 — CI pipeline speed
 
 **Status:** Resolved without code changes 2026-04-22 — pulled timing data from run `24799240715` (the 7e commit) and the pipeline was 3:02 end-to-end (checks 1:56, deploy 1:01), already under the 3-min target. The earlier 5+ min observation was on cache-miss runs during phases 3/4 when Playwright browsers + `node_modules` were still being populated for the first time. Once those caches were warm the wall time fell back under target.
