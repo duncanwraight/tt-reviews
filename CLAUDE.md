@@ -427,6 +427,36 @@ npm run typecheck
 # Only push if you haven't introduced NEW errors
 ```
 
+### E2E Test Requirements (MANDATORY)
+
+**CRITICAL**: Any new feature — or any change that touches UI, routes, forms, submission flows, admin queues, moderation, or Discord interactions — MUST be accompanied by a Playwright spec that covers it end-to-end. No exceptions. The test is part of the feature, not a follow-up.
+
+Non-negotiables:
+
+1. **Write or update the spec alongside the code.** A feature landing without a passing test is not done. If the feature's primary value is UI-level behaviour, the test must drive the UI (clicks, form fills, assertions against rendered content), not just poke the database.
+2. **Run `npm run test:e2e` before declaring the task complete** and include the result in your summary. CI will block the deploy on failure anyway, but find out locally so you can iterate fast.
+3. **If the test fails because of a real bug, fix the bug — do not paper over it in the test.** "Workarounds to get green" are forbidden. The whole point of this pipeline is that tests surface what's broken.
+4. **Keep the full suite under ~60 seconds.** If a new spec pushes past that, look for a faster seeding path (service-role REST insert instead of multi-page UI setup, for example) before accepting the slowdown.
+
+Where to hook in:
+
+- Specs live in `e2e/`. Config is `playwright.config.ts` (chromium only, `reuseExistingServer: !CI`, readiness probe at `/e2e-health`).
+- Reusable helpers already exist — use them, don't rewrite:
+  - `e2e/utils/auth.ts` — `createUser`, `deleteUser`, `setUserRole("admin"|"moderator"|"user")`, `login`, `logout`, `generateTestEmail`, `TEST_PASSWORD`.
+  - `e2e/utils/data.ts` — `getFirstEquipment`, `insertPendingEquipmentReview`, `getEquipmentReviewStatus`.
+  - `e2e/utils/discord.ts` — `signDiscordRequest`, `buildButtonInteraction` (Ed25519 signing for `/api/discord/interactions`).
+  - `e2e/utils/supabase.ts` — demo `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` and `adminHeaders()` for any bespoke REST fetches.
+- Existing specs to copy the pattern from: `e2e/anon-browse.spec.ts` (anon reads), `e2e/user-submits-review.spec.ts` (auth'd form submission), `e2e/admin-approves-review.spec.ts` (admin UI click + public visibility check in a fresh anon context), `e2e/discord-approve-review.spec.ts` (signed API POST).
+
+Authoring rules — steal from these patterns:
+
+- Use `getByRole`/`getByLabel` with exact or anchored regex matches (`/^Review\*?$/` rather than `"Review"`, since required fields render their label as `"Label*"`).
+- Seeding for setup is best done via service-role REST (cheap, deterministic). Driving the feature under test must go through the real UI.
+- Always put cleanup in `finally`: delete any users you created, delete any rows you inserted that don't cascade.
+- `moderator_approvals.moderator_id` has no `ON DELETE CASCADE` — `deleteUser` in the auth helper already clears approvals first, but keep that in mind if you add new approval-touching helpers.
+- JWT `user_role` claim only updates at login — after `setUserRole`, re-login to get the new role in the session.
+- Generate unique emails per test (`generateTestEmail("prefix")`) so parallel tests never collide.
+
 ### Workflow Check Rules
 
 1. **Always run `npm run typecheck`** before committing/pushing code changes

@@ -25,6 +25,8 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 ## Phase 1 — CI gates the deploy
 
+**Status:** Shipped 2026-04-22 (commits `b84d343`, `9af7297`, `80b2c22`).
+
 **Goal:** Green checks become the precondition for deployment. Push-to-main still works; a failing typecheck or test blocks the deploy step.
 
 **Steps:**
@@ -40,9 +42,17 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - A commit on `main` with a failing typecheck does not deploy.
 - Workflow completes in under 3 min for a no-op commit.
 
+**Notes from rollout:**
+
+- Needed a one-time `prettier --write .` sweep (62 files) before the new check gate could turn green — the husky pre-commit hook only runs when Claude routes through it, so drift had accumulated.
+- Added `.prettierignore` for `.react-router/`, `worker-configuration.d.ts`, build output, lockfiles, `.dev.vars`.
+- Added `concurrency: cancel-in-progress` so superseded commits don't tie up the runner.
+
 ---
 
 ## Phase 2 — Claude Code hooks as the review layer
+
+**Status:** Shipped 2026-04-22 (commit `75c343e`).
 
 **Goal:** Since there is no human reviewer, Claude's harness must prevent shipping broken code. Hooks turn CLAUDE.md's honour-system rules into mechanical blocks. This is the largest behavioural lever for this workflow — doing it early means every subsequent phase benefits.
 
@@ -59,9 +69,20 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - A Claude session that edits a `.tsx` file introducing a type error cannot run `git commit` until the error is fixed.
 - The Stop hook surfaces uncommitted type errors, preventing a turn from ending in a broken state.
 
+**Notes from rollout:**
+
+- `npm run lint` doesn't exist yet (Phase 5) — the PreToolUse git hook currently runs `npm run typecheck` only. Add `&& npm run lint` once Phase 5 lands.
+- Hook scripts live in `.claude/hooks/` (checked in). Output filtered through `grep -E 'error TS[0-9]+:' | head -40` so typegen noise doesn't drown the real error.
+- `.claude/settings.local.json` deny list now explicitly blocks `git reset --hard:*`, `git push --force:*`, `supabase db reset:*`.
+
 ---
 
 ## Phase 3 — Playwright E2E, runnable by Claude
+
+**Status:** Shipped 2026-04-22. Broken into two sub-phases during rollout:
+
+- **3a — plumbing** (commit `2b12cf0` + fix `60d3606`): installed `@playwright/test`, wrote `playwright.config.ts` with `webServer: npm run dev, reuseExistingServer: true`, added a loader-less `/e2e-health` fixture route so Playwright's readiness probe doesn't depend on Supabase, wired `npm run test:e2e` into the checks job with browser caching.
+- **3b — real flows on a real Supabase** (commits `eec6491`, `aa2a283`, `64877b3`, `404cc8b`, `0a6bf5a`, `4c46f9f`, `26d2fd7`, `d939c9e`, `870f47a`, `8fce74e`, `0e7d9eb`, `c9467e4`, `ab6f373`, `9b1e00c`, `7af8f17`, `dda2405`, `522b744`): `supabase start` in CI with the standard demo keys, then the four plan flows.
 
 **Goal:** Directly kill the "manual testing is exhausting" pain. Give Claude a command it runs itself before declaring a UI task done.
 
@@ -71,10 +92,10 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - Configure `playwright.config.ts` with `webServer` that boots `npm run dev` and tears it down automatically.
 - Add `npm run test:e2e` script; wire into CI checks.
 - Write the first 4 flows:
-  1. Anon: homepage → equipment list → equipment detail renders reviews.
-  2. Auth'd user: submit an equipment review → appears in admin queue.
-  3. Admin: approves a pending submission → appears on the public page.
-  4. Discord approval button handler → submission status flips (API-level is fine for this one).
+  1. Anon: homepage → equipment list → equipment detail renders reviews. (`e2e/anon-browse.spec.ts`)
+  2. Auth'd user: submit an equipment review → appears in admin queue. (`e2e/user-submits-review.spec.ts`)
+  3. Admin: approves a pending submission → appears on the public page. (`e2e/admin-approves-review.spec.ts`)
+  4. Discord approval button handler → submission status flips (API-level is fine for this one). (`e2e/discord-approve-review.spec.ts`)
 - Keep the suite under ~60s total.
 
 **Acceptance:**
@@ -82,7 +103,15 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 - `npm run test:e2e` runs end-to-end with no manual setup.
 - Suite runs green locally and in CI.
 
-**CLAUDE.md addition:** _"For any change touching UI, routes, or forms, run `npm run test:e2e` before declaring the task complete and include the result in the summary."_ The Stop hook from Phase 2 enforces this.
+**CLAUDE.md addition:** landed — see the "E2E Test Requirements" section in `CLAUDE.md`.
+
+**Notes from rollout:**
+
+- Flow 3 surfaced a real prod bug: the `update_submission_status` trigger (migration `20260101120000`) writes `approval_count` on `equipment_reviews` and `player_equipment_setup_submissions`, but the column was never added to those two tables. Every admin-UI approval for equipment reviews had been silently failing (insert rolled back, action redirect made admins think it worked). Fixed in migration `20260422170000_add_approval_count_to_reviews_and_setups.sql` and by making the admin.equipment-reviews action check `result.success` from moderation calls instead of ignoring it.
+- `SUPABASE_URL` in CI `.dev.vars` must use `localhost` to match Playwright's baseURL — `127.0.0.1` triggers Chromium's Private Network Access block on the browser-side Supabase fetches.
+- `moderator_approvals.moderator_id` has no `ON DELETE CASCADE` (intentional for prod audit trails), so the `deleteUser` test helper clears approvals first.
+- Flow 4 (Discord) uses a test-only Ed25519 keypair in `e2e/utils/discord.ts`; the public half is provisioned into `.dev.vars` by the workflow. `DISCORD_ALLOWED_ROLES` in CI is pinned to `role_e2e_moderator` so the interaction payload's `member.roles` matches. Spec is skipped locally because real `.dev.vars` has the real Discord public key.
+- Reusable helpers: `e2e/utils/auth.ts` (createUser / deleteUser / setUserRole / login / logout / generateTestEmail), `e2e/utils/data.ts` (getFirstEquipment / insertPendingEquipmentReview / getEquipmentReviewStatus), `e2e/utils/discord.ts` (signDiscordRequest / buildButtonInteraction), `e2e/utils/supabase.ts` (demo JWTs + adminHeaders).
 
 ---
 
