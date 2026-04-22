@@ -215,12 +215,13 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Smoke test preview
+        id: smoke_preview
         env:
           PLAYWRIGHT_SMOKE_BASE_URL: ${{ steps.upload.outputs.preview_url }}
         run: npm run test:smoke
 
       - name: Upload smoke-preview report
-        if: failure()
+        if: always() && steps.smoke_preview.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: smoke-preview-report
@@ -236,3 +237,31 @@ jobs:
           npx wrangler versions deploy "$VERSION_ID@100%" \
             --message "CI promote ${{ github.sha }}" \
             --yes
+
+      - name: Smoke test prod
+        id: smoke_prod
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_SMOKE_BASE_URL: https://tabletennis.reviews
+        run: npm run test:smoke
+
+      - name: Upload smoke-prod report
+        if: always() && steps.smoke_prod.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-prod-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Rollback on prod smoke failure
+        if: steps.smoke_prod.outcome == 'failure'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Prod smoke failed — rolling back to previous deployment"
+          npx wrangler rollback \
+            --message "CI rollback from ${{ github.sha }} (prod smoke failed)" \
+            --yes
+          echo "::error::Prod smoke failed, rolled back to previous deployment"
+          exit 1
