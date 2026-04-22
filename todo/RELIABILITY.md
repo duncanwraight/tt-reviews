@@ -71,7 +71,7 @@ Goal: make the CI pipeline and Claude Code hooks function as the review layer. L
 
 **Notes from rollout:**
 
-- `npm run lint` doesn't exist yet (Phase 5) — the PreToolUse git hook currently runs `npm run typecheck` only. Add `&& npm run lint` once Phase 5 lands.
+- The PreToolUse git hook originally ran only `npm run typecheck` because `npm run lint` didn't exist yet. Phase 5e extended it to run both.
 - Hook scripts live in `.claude/hooks/` (checked in). Output filtered through `grep -E 'error TS[0-9]+:' | head -40` so typegen noise doesn't drown the real error.
 - `.claude/settings.local.json` deny list now explicitly blocks `git reset --hard:*`, `git push --force:*`, `supabase db reset:*`.
 
