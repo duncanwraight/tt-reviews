@@ -13,11 +13,12 @@ import {
   type ModerationService,
 } from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
-import { Logger, createLogContext, type LogContext } from "./logger.server";
 import {
   createUnifiedDiscordNotifier,
   type UnifiedDiscordNotifier,
 } from "./discord/unified-notifier.server";
+import * as messages from "./discord/messages";
+import type { DiscordContext } from "./discord/types";
 import type { SubmissionType } from "./types";
 
 interface DiscordUser {
@@ -58,8 +59,8 @@ export class DiscordService {
   private moderationService: ModerationService;
   private env: Cloudflare.Env;
   private context: AppLoadContext;
-  private logger = Logger;
   private unifiedNotifier: UnifiedDiscordNotifier;
+  private ctx: DiscordContext;
 
   constructor(context: AppLoadContext) {
     this.context = context;
@@ -69,76 +70,13 @@ export class DiscordService {
     this.moderationService = createModerationService(supabase);
     this.env = context.cloudflare.env as Cloudflare.Env;
     this.unifiedNotifier = createUnifiedDiscordNotifier(context);
-  }
-
-  /**
-   * Validate Discord bot configuration and environment
-   */
-  private validateBotConfig(logContext: LogContext): {
-    isValid: boolean;
-    botToken?: string;
-    channelId?: string;
-    issues: string[];
-  } {
-    const issues: string[] = [];
-    let botToken: string | undefined;
-    let channelId: string | undefined;
-
-    // Check if bot token is configured
-    if (!this.env.DISCORD_BOT_TOKEN) {
-      issues.push("DISCORD_BOT_TOKEN environment variable not set");
-    } else {
-      botToken = this.env.DISCORD_BOT_TOKEN;
-
-      // Check for placeholder values
-      if (
-        botToken.includes("your_actual_bot_token_here") ||
-        botToken.includes("placeholder") ||
-        botToken.length < 50
-      ) {
-        issues.push("DISCORD_BOT_TOKEN appears to be a placeholder value");
-      }
-    }
-
-    // Check if channel ID is configured
-    if (!this.env.DISCORD_CHANNEL_ID) {
-      issues.push("DISCORD_CHANNEL_ID environment variable not set");
-    } else {
-      channelId = this.env.DISCORD_CHANNEL_ID;
-
-      // Check for placeholder values
-      if (
-        channelId.includes("your_channel_id") ||
-        channelId.includes("placeholder") ||
-        channelId.length < 15
-      ) {
-        issues.push("DISCORD_CHANNEL_ID appears to be a placeholder value");
-      }
-    }
-
-    // Check for other required environment variables
-    if (!this.env.SITE_URL) {
-      issues.push(
-        "SITE_URL environment variable not set (needed for Discord embed links)"
-      );
-    }
-
-    const isValid = issues.length === 0;
-
-    if (!isValid) {
-      this.logger.warn(
-        "Discord bot configuration issues detected",
-        logContext,
-        {
-          issues,
-          hasBotToken: !!botToken,
-          hasChannelId: !!channelId,
-          hasSiteUrl: !!this.env.SITE_URL,
-        }
-      );
-    }
-
-    return { isValid, botToken, channelId, issues };
+    this.ctx = {
+      env: this.env,
+      context: this.context,
+      dbService: this.dbService,
+      moderationService: this.moderationService,
+      unifiedNotifier: this.unifiedNotifier,
+    };
   }
 
   /**
@@ -149,45 +87,7 @@ export class DiscordService {
     timestamp: string,
     body: string
   ): Promise<boolean> {
-    const PUBLIC_KEY = this.env.DISCORD_PUBLIC_KEY;
-    if (!PUBLIC_KEY) {
-      throw new Error("Discord verification key not configured");
-    }
-
-    // Check for placeholder values that indicate misconfiguration
-    if (
-      PUBLIC_KEY === "your_discord_application_public_key_here" ||
-      PUBLIC_KEY.length < 32
-    ) {
-      throw new Error("Discord verification key is not properly configured");
-    }
-
-    try {
-      // Use global TextEncoder and crypto available in Cloudflare Workers
-      const encoder = new globalThis.TextEncoder();
-      const data = encoder.encode(timestamp + body);
-      const sig = hexToUint8Array(signature);
-
-      // Import the public key
-      // In Cloudflare Workers, crypto is available on globalThis
-      const crypto = globalThis.crypto;
-      const key = await crypto.subtle.importKey(
-        "raw",
-        hexToUint8Array(PUBLIC_KEY),
-        {
-          name: "Ed25519",
-          namedCurve: "Ed25519",
-        },
-        false,
-        ["verify"]
-      );
-
-      // Verify the signature
-      return await crypto.subtle.verify("Ed25519", key, sig, data);
-    } catch (error) {
-      console.error("Signature verification error:", error);
-      return false;
-    }
+    return messages.verifySignature(this.ctx, signature, timestamp, body);
   }
 
   /**
@@ -1784,238 +1684,12 @@ export class DiscordService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: any
   ): Promise<{ success: boolean; error?: string }> {
-    try {
-      // Validate configuration
-      const config = this.validateBotConfig(createLogContext("update-message"));
-      if (!config.isValid) {
-        return { success: false, error: "Discord bot not configured" };
-      }
-
-      const response = await globalThis.fetch(
-        `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bot ${config.botToken}`,
-            "User-Agent": "tt-reviews-bot/1.0",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (response.ok) {
-        return { success: true };
-      } else {
-        const errorText = await response.text();
-        return { success: false, error: `Discord API error: ${errorText}` };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  }
-
-  /**
-   * Create initial buttons for new submissions with descriptive labels
-   */
-  private createInitialButtons(
-    submissionType: "equipment" | "player" | "player_edit" | "video",
-    submissionId: string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any[] {
-    // Create proper custom_id based on submission type
-    let approveCustomId: string;
-    let rejectCustomId: string;
-    let approveLabel: string;
-    let rejectLabel: string;
-
-    if (submissionType === "player_edit") {
-      approveCustomId = `approve_player_edit_${submissionId}`;
-      rejectCustomId = `reject_player_edit_${submissionId}`;
-      approveLabel = "Approve Player Edit";
-      rejectLabel = "Reject Player Edit";
-    } else if (submissionType === "equipment") {
-      approveCustomId = `approve_${submissionType}_${submissionId}`;
-      rejectCustomId = `reject_${submissionType}_${submissionId}`;
-      approveLabel = "Approve Equipment";
-      rejectLabel = "Reject Equipment";
-    } else if (submissionType === "player") {
-      approveCustomId = `approve_${submissionType}_${submissionId}`;
-      rejectCustomId = `reject_${submissionType}_${submissionId}`;
-      approveLabel = "Approve Player";
-      rejectLabel = "Reject Player";
-    } else if (submissionType === "video") {
-      approveCustomId = `approve_${submissionType}_${submissionId}`;
-      rejectCustomId = `reject_${submissionType}_${submissionId}`;
-      approveLabel = "Approve Video";
-      rejectLabel = "Reject Video";
-    } else {
-      approveCustomId = `approve_${submissionType}_${submissionId}`;
-      rejectCustomId = `reject_${submissionType}_${submissionId}`;
-      approveLabel = "Approve";
-      rejectLabel = "Reject";
-    }
-
-    return [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: approveLabel,
-            custom_id: approveCustomId,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: rejectLabel,
-            custom_id: rejectCustomId,
-          },
-        ],
-      },
-    ];
-  }
-
-  /**
-   * Create progress buttons based on current approval count
-   */
-  private createProgressButtons(
-    submissionType: "equipment" | "player" | "player_edit" | "video",
-    submissionId: string,
-    currentApprovals: number,
-    requiredApprovals: number = 2
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any[] {
-    // Create proper custom_id based on submission type
-    let approveCustomId: string;
-    let rejectCustomId: string;
-
-    if (submissionType === "player_edit") {
-      approveCustomId = `approve_player_edit_${submissionId}`;
-      rejectCustomId = `reject_player_edit_${submissionId}`;
-    } else {
-      approveCustomId = `approve_${submissionType}_${submissionId}`;
-      rejectCustomId = `reject_${submissionType}_${submissionId}`;
-    }
-
-    return [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: 3, // Success/Green
-            label: `Approve (${currentApprovals}/${requiredApprovals})`,
-            custom_id: approveCustomId,
-          },
-          {
-            type: 2, // Button
-            style: 4, // Danger/Red
-            label: "Reject",
-            custom_id: rejectCustomId,
-          },
-        ],
-      },
-    ];
-  }
-
-  /**
-   * Create disabled buttons for final state
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private createDisabledButtons(finalStatus: "approved" | "rejected"): any[] {
-    return [
-      {
-        type: 1, // Action Row
-        components: [
-          {
-            type: 2, // Button
-            style: finalStatus === "approved" ? 3 : 2, // Green if approved, Gray if rejected
-            label: finalStatus === "approved" ? "Approved" : "Approve",
-            custom_id: "disabled_approve",
-            disabled: true,
-          },
-          {
-            type: 2, // Button
-            style: finalStatus === "rejected" ? 4 : 2, // Red if rejected, Gray if approved
-            label: finalStatus === "rejected" ? "Rejected" : "Reject",
-            custom_id: "disabled_reject",
-            disabled: true,
-          },
-        ],
-      },
-    ];
-  }
-
-  /**
-   * Create updated embed with moderation status
-   */
-  private createUpdatedEmbed(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    originalEmbed: any,
-    status: string,
-    moderatorUsername?: string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any {
-    const updatedEmbed = { ...originalEmbed };
-
-    // Add status field
-    if (!updatedEmbed.fields) updatedEmbed.fields = [];
-
-    // Remove existing status field if present
-    updatedEmbed.fields = updatedEmbed.fields.filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (field: any) => field.name !== "Status"
+    return messages.updateDiscordMessage(
+      this.ctx,
+      channelId,
+      messageId,
+      payload
     );
-
-    // Add new status field
-    let statusValue = "";
-    if (status === "approved") {
-      statusValue = "✅ **Approved**";
-      updatedEmbed.color = 0x2ecc71; // Green
-    } else if (status === "rejected") {
-      statusValue = "❌ **Rejected**";
-      updatedEmbed.color = 0xe74c3c; // Red
-    } else if (status === "awaiting_second_approval") {
-      statusValue = "⏳ **Awaiting Second Approval** (1/2)";
-      updatedEmbed.color = 0xf39c12; // Orange
-    }
-
-    if (moderatorUsername) {
-      statusValue += `\nModerated by: ${moderatorUsername}`;
-    }
-
-    updatedEmbed.fields.push({
-      name: "Status",
-      value: statusValue,
-      inline: false,
-    });
-
-    return updatedEmbed;
-  }
-
-  /**
-   * Get current approval count for a submission
-   */
-  private async getApprovalCount(
-    submissionType: "equipment" | "player" | "player_edit" | "video",
-    submissionId: string
-  ): Promise<number> {
-    try {
-      const approvals = await this.moderationService.getSubmissionApprovals(
-        submissionType,
-        submissionId
-      );
-      return approvals.filter(approval => approval.action === "approved")
-        .length;
-    } catch (error) {
-      console.error("Error getting approval count:", error);
-      return 0;
-    }
   }
 
   /**
@@ -2027,136 +1701,13 @@ export class DiscordService {
     newStatus: string,
     moderatorUsername: string
   ): Promise<void> {
-    try {
-      // Get Discord message ID from database
-      const messageId = await this.dbService.getDiscordMessageId(
-        submissionType,
-        submissionId
-      );
-
-      if (!messageId) {
-        // Skip message update for older submissions without Discord message tracking
-        return;
-      }
-
-      // Get Discord channel ID from config
-      const config = this.validateBotConfig(
-        createLogContext("update-after-moderation")
-      );
-      if (!config.isValid || !config.channelId) {
-        return;
-      }
-
-      // Determine components and embed based on status
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let components: any[];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let updatedEmbed: any;
-
-      if (newStatus === "approved" || newStatus === "rejected") {
-        // Final state - disable all buttons
-        components = this.createDisabledButtons(
-          newStatus as "approved" | "rejected"
-        );
-      } else if (newStatus === "awaiting_second_approval") {
-        // Show progress (1/2 approvals)
-        components = this.createProgressButtons(
-          submissionType,
-          submissionId,
-          1,
-          2
-        );
-      } else {
-        // Default to first approval state
-        components = this.createProgressButtons(
-          submissionType,
-          submissionId,
-          0,
-          2
-        );
-      }
-
-      // For now, we'll update the embed minimally (just add status)
-      // In a full implementation, you'd want to reconstruct the original embed
-      updatedEmbed = {
-        title: this.getEmbedTitle(submissionType),
-        description: "Submission status updated",
-        color: this.getStatusColor(newStatus),
-        fields: [
-          {
-            name: "Status",
-            value: this.getStatusText(newStatus, moderatorUsername),
-            inline: false,
-          },
-        ],
-        timestamp: new Date().toISOString(),
-      };
-
-      // Update the Discord message
-      const updateResult = await this.updateDiscordMessage(
-        config.channelId,
-        messageId,
-        {
-          embeds: [updatedEmbed],
-          components: components,
-        }
-      );
-
-      if (!updateResult.success) {
-        console.error("Failed to update Discord message:", updateResult.error);
-      }
-    } catch (error) {
-      console.error("Error updating Discord message after moderation:", error);
-    }
-  }
-
-  private getEmbedTitle(
-    submissionType: "equipment" | "player" | "player_edit" | "video"
-  ): string {
-    switch (submissionType) {
-      case "equipment":
-        return "⚙️ Equipment Submission";
-      case "player":
-        return "👤 Player Submission";
-      case "player_edit":
-        return "🏓 Player Edit";
-      case "video":
-        return "🎥 Video Submission";
-      default:
-        return "📝 Submission";
-    }
-  }
-
-  private getStatusColor(status: string): number {
-    switch (status) {
-      case "approved":
-        return 0x2ecc71; // Green
-      case "rejected":
-        return 0xe74c3c; // Red
-      case "awaiting_second_approval":
-        return 0xf39c12; // Orange
-      default:
-        return 0x9b59b6; // Purple (default)
-    }
-  }
-
-  private getStatusText(status: string, moderatorUsername: string): string {
-    let statusText = "";
-    switch (status) {
-      case "approved":
-        statusText = "✅ **Approved**";
-        break;
-      case "rejected":
-        statusText = "❌ **Rejected**";
-        break;
-      case "awaiting_second_approval":
-        statusText = "⏳ **Awaiting Second Approval** (1/2)";
-        break;
-      default:
-        statusText = "⏳ **Pending Review**";
-    }
-
-    return `${statusText}\nModerated by: ${moderatorUsername}`;
+    return messages.updateDiscordMessageAfterModeration(
+      this.ctx,
+      submissionType,
+      submissionId,
+      newStatus,
+      moderatorUsername
+    );
   }
 
   /**
@@ -2223,15 +1774,4 @@ export class DiscordService {
       requestId
     );
   }
-}
-
-/**
- * Convert hex string to Uint8Array
- */
-function hexToUint8Array(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-  }
-  return bytes;
 }
