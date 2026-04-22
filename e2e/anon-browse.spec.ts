@@ -11,7 +11,13 @@ test("anon browse: homepage → equipment list → equipment detail", async ({
     })
   ).toBeVisible();
 
-  await page.getByRole("link", { name: /View All Equipment/i }).click();
+  // Use the global nav's Equipment link; the "View All Equipment" CTA on
+  // the homepage only renders once there are ≥6 featured items (i.e. when
+  // reviews exist), which isn't guaranteed for this anon flow.
+  await page
+    .getByRole("link", { name: "Equipment", exact: true })
+    .first()
+    .click();
   await page.waitForURL(/\/equipment$/);
   await expect(
     page.getByRole("heading", { level: 1, name: /Equipment Reviews/i })
