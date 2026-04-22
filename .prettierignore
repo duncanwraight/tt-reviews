@@ -1,0 +1,21 @@
+# Generated
+.react-router/
+worker-configuration.d.ts
+*.tsbuildinfo
+
+# Build output
+build/
+dist/
+.output/
+coverage/
+
+# Dependencies / tooling caches
+node_modules/
+.wrangler/
+
+# Lockfiles
+package-lock.json
+
+# Env
+.dev.vars
+.env*
