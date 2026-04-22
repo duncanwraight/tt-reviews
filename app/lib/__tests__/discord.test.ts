@@ -201,7 +201,8 @@ describe("Discord Integration Tests", () => {
           expect(capturedPayload.embeds).toHaveLength(1);
 
           const embed = capturedPayload.embeds[0];
-          expect(embed).toHaveProperty("title", "⚙️ Equipment Submission");
+          // Assert text only — emoji may change without breaking this contract
+          expect(embed.title).toContain("Equipment Submission");
           expect(embed).toHaveProperty("description");
           expect(embed).toHaveProperty("color", 0x9b59b6); // Purple color
           expect(embed).toHaveProperty("fields");
@@ -211,7 +212,7 @@ describe("Discord Integration Tests", () => {
           expect(embed.fields).toEqual(
             expect.arrayContaining([
               expect.objectContaining({
-                name: "Equipment Name",
+                name: "Equipment",
                 value: "Test Blade",
                 inline: true,
               }),
@@ -222,7 +223,7 @@ describe("Discord Integration Tests", () => {
               }),
               expect.objectContaining({
                 name: "Category",
-                value: "Blade",
+                value: "blade",
                 inline: true,
               }),
             ])
@@ -234,12 +235,13 @@ describe("Discord Integration Tests", () => {
 
           const actionRow = capturedPayload.components[0];
           expect(actionRow.type).toBe(1); // Action Row
-          expect(actionRow.components).toHaveLength(2);
+          // Approve, Reject, and View (link to admin) — 3 buttons when adminUrl is set
+          expect(actionRow.components).toHaveLength(3);
 
           const approveButton = actionRow.components[0];
           expect(approveButton.type).toBe(2); // Button
           expect(approveButton.style).toBe(3); // Success/Green
-          expect(approveButton.label).toBe("Approve Equipment");
+          expect(approveButton.label).toBe("Approve");
           expect(approveButton.custom_id).toBe(
             "approve_equipment_test-equipment-123"
           );
@@ -247,10 +249,16 @@ describe("Discord Integration Tests", () => {
           const rejectButton = actionRow.components[1];
           expect(rejectButton.type).toBe(2); // Button
           expect(rejectButton.style).toBe(4); // Danger/Red
-          expect(rejectButton.label).toBe("Reject Equipment");
+          expect(rejectButton.label).toBe("Reject");
           expect(rejectButton.custom_id).toBe(
             "reject_equipment_test-equipment-123"
           );
+
+          const viewButton = actionRow.components[2];
+          expect(viewButton.type).toBe(2); // Button
+          expect(viewButton.style).toBe(5); // Link
+          expect(viewButton.label).toBe("View");
+          expect(viewButton.url).toMatch(/\/admin\/equipment/);
         } finally {
           global.fetch = originalFetch;
         }
@@ -297,7 +305,8 @@ describe("Discord Integration Tests", () => {
 
           // Validate Discord embed structure
           const embed = capturedPayload.embeds[0];
-          expect(embed).toHaveProperty("title", "🏓 Player Edit Submitted");
+          // Assert text only — emoji may change without breaking this contract
+          expect(embed.title).toContain("Player Edit Submitted");
           expect(embed).toHaveProperty("color", 0xe67e22); // Orange color
 
           // Validate changes field
