@@ -165,7 +165,9 @@ export async function action({ request, context }: Route.ActionArgs) {
           if (insertError) {
             console.error("Failed to create player record:", insertError);
             return data(
-              { error: `Approved but failed to create player: ${insertError.message}` },
+              {
+                error: `Approved but failed to create player: ${insertError.message}`,
+              },
               { status: 500, headers: sbServerClient.headers }
             );
           }

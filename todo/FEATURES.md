@@ -23,6 +23,7 @@
 **Additional**: Add helper text: "If you can't find this player's equipment, make sure you've submitted it [here]" linking to `/submissions/equipment/submit`
 **Rationale**: Ensures data consistency, links setups to actual equipment records, prevents typos/duplicates
 **Implemented**:
+
 - Created EquipmentCombobox component with search filtering and keyboard navigation
 - Added blade_id, forehand_rubber_id, backhand_rubber_id columns to submissions table
 - Updated form to use comboboxes for blade/rubber selection
@@ -39,6 +40,7 @@
 
 **Location**: Equipment and player submission forms
 **Implemented**:
+
 - Database migration adds `image_key` columns to `equipment_submissions`, `player_submissions`, `equipment`, and `players` tables
 - Added image field type to submission registry for equipment (product photo) and player (upper-body photo) forms
 - ImageUpload component with drag-and-drop, preview, validation (JPEG/PNG/WebP, max 10MB)
@@ -52,6 +54,7 @@
 **Location**: `/admin/import`
 **Purpose**: Allow admins to bulk import equipment data from revspin.net
 **Implemented**:
+
 - Revspin parser service (`app/lib/revspin.server.ts`) with rate-limited fetching and HTML parsing
 - Admin import route with category tabs (Blades, Rubbers, Short Pips, Long Pips)
 - Fetch button with animated progress bar to load products from revspin.net
@@ -62,4 +65,3 @@
 - HTML entity decoding for product names (e.g., `&amp;` → `&`, `&sup2;` → `²`)
 - Manufacturer detection from product names (60+ known brands)
 - Products with unknown manufacturer are filtered out
-

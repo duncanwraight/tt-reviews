@@ -81,7 +81,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     try {
       const revspinProducts = await fetchProductList(category);
       const products = revspinProducts
-        .map((item) => {
+        .map(item => {
           const product = listItemToProduct(item, category);
           if (!product) return null;
           return {
@@ -169,33 +169,45 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
     new Set()
   );
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>(
-    category === "rubber" ? "inverted" :
-    category === "pips_short" ? "short_pips" :
-    category === "pips_long" ? "long_pips" : ""
+    category === "rubber"
+      ? "inverted"
+      : category === "pips_short"
+        ? "short_pips"
+        : category === "pips_long"
+          ? "long_pips"
+          : ""
   );
 
   // Get products from fetcher data
   const fetcherData = fetcher.data as
-    | { intent: "fetch"; products: RevspinProductWithSlug[]; fetchError: string | null }
+    | {
+        intent: "fetch";
+        products: RevspinProductWithSlug[];
+        fetchError: string | null;
+      }
     | undefined;
   const importData = importFetcher.data as
-    | { intent: "import"; results: { success: number; failed: number; errors: string[] } }
+    | {
+        intent: "import";
+        results: { success: number; failed: number; errors: string[] };
+      }
     | undefined;
 
-  const isFetching = fetcher.state === "submitting" || fetcher.state === "loading";
+  const isFetching =
+    fetcher.state === "submitting" || fetcher.state === "loading";
   const isImporting = importFetcher.state === "submitting";
 
   // Mark products with import status (using server-generated slug)
   const existingSlugSet = new Set(existingSlugs);
   const products: ProductWithStatus[] = (fetcherData?.products || []).map(
-    (product) => ({
+    product => ({
       ...product,
       alreadyImported: existingSlugSet.has(product.generatedSlug),
     })
   );
 
-  const availableProducts = products.filter((p) => !p.alreadyImported);
-  const importedProducts = products.filter((p) => p.alreadyImported);
+  const availableProducts = products.filter(p => !p.alreadyImported);
+  const importedProducts = products.filter(p => p.alreadyImported);
 
   const toggleProduct = (slug: string) => {
     const newSelected = new Set(selectedProducts);
@@ -208,7 +220,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
   };
 
   const selectAll = () => {
-    setSelectedProducts(new Set(availableProducts.map((p) => p.slug)));
+    setSelectedProducts(new Set(availableProducts.map(p => p.slug)));
   };
 
   const clearSelection = () => {
@@ -216,7 +228,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
   };
 
   const getSelectedProducts = (): RevspinProductWithSlug[] => {
-    return availableProducts.filter((p) => selectedProducts.has(p.slug));
+    return availableProducts.filter(p => selectedProducts.has(p.slug));
   };
 
   const categoryLabels: Record<RevspinCategory, string> = {
@@ -245,25 +257,25 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
       {/* Category Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex space-x-8">
-          {(
-            Object.entries(categoryLabels) as [RevspinCategory, string][]
-          ).map(([key, label]) => (
-            <a
-              key={key}
-              href={`/admin/import?category=${key}`}
-              onClick={() => {
-                // Clear products when switching categories
-                setSelectedProducts(new Set());
-              }}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                category === key
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {label}
-            </a>
-          ))}
+          {(Object.entries(categoryLabels) as [RevspinCategory, string][]).map(
+            ([key, label]) => (
+              <a
+                key={key}
+                href={`/admin/import?category=${key}`}
+                onClick={() => {
+                  // Clear products when switching categories
+                  setSelectedProducts(new Set());
+                }}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  category === key
+                    ? "border-purple-500 text-purple-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {label}
+              </a>
+            )
+          )}
         </nav>
       </div>
 
@@ -387,13 +399,16 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
                 {/* Subcategory selector for rubbers */}
                 {category !== "blade" && (
                   <div className="flex items-center space-x-2">
-                    <label htmlFor="subcategory" className="text-sm text-gray-600">
+                    <label
+                      htmlFor="subcategory"
+                      className="text-sm text-gray-600"
+                    >
                       Type:
                     </label>
                     <select
                       id="subcategory"
                       value={selectedSubcategory}
-                      onChange={(e) => setSelectedSubcategory(e.target.value)}
+                      onChange={e => setSelectedSubcategory(e.target.value)}
                       className="text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-white"
                     >
                       <option value="inverted">Inverted</option>
@@ -412,7 +427,11 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
                     value={JSON.stringify(getSelectedProducts())}
                   />
                   {category !== "blade" && (
-                    <input type="hidden" name="subcategory" value={selectedSubcategory} />
+                    <input
+                      type="hidden"
+                      name="subcategory"
+                      value={selectedSubcategory}
+                    />
                   )}
                   <button
                     type="submit"
@@ -462,7 +481,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {products.map((product) => (
+                {products.map(product => (
                   <tr
                     key={product.slug}
                     className={
@@ -543,7 +562,8 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
       {!isFetching && products.length === 0 && !fetcherData?.fetchError && (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
           <p className="text-gray-500">
-            Click "Fetch from Revspin" to load {categoryLabels[category].toLowerCase()}.
+            Click "Fetch from Revspin" to load{" "}
+            {categoryLabels[category].toLowerCase()}.
           </p>
         </div>
       )}

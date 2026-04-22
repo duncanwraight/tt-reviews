@@ -14,7 +14,10 @@ import {
 } from "./moderation.server";
 import { createSupabaseAdminClient } from "./database.server";
 import { Logger, createLogContext, type LogContext } from "./logger.server";
-import { createUnifiedDiscordNotifier, type UnifiedDiscordNotifier } from "./discord/unified-notifier.server";
+import {
+  createUnifiedDiscordNotifier,
+  type UnifiedDiscordNotifier,
+} from "./discord/unified-notifier.server";
 import type { SubmissionType } from "./types";
 
 interface DiscordUser {
@@ -200,10 +203,10 @@ export class DiscordService {
 
     const { data } = interaction;
     const commandName = data.name;
-    
+
     // Get user from either interaction.user or interaction.member.user
     const user = interaction.user || (interaction.member as any)?.user;
-    
+
     if (!user && (commandName === "approve" || commandName === "reject")) {
       return new Response(
         JSON.stringify({
@@ -327,10 +330,10 @@ export class DiscordService {
     }
 
     const customId = interaction.data.custom_id!;
-    
+
     // Get user from either interaction.user or interaction.member.user
     const user = interaction.user || (interaction.member as any)?.user;
-    
+
     if (!user) {
       return new Response(
         JSON.stringify({
@@ -368,12 +371,18 @@ export class DiscordService {
 
     // Handle player_equipment_setup BEFORE player_ to avoid prefix collision
     if (customId.startsWith("approve_player_equipment_setup_")) {
-      const submissionId = customId.replace("approve_player_equipment_setup_", "");
+      const submissionId = customId.replace(
+        "approve_player_equipment_setup_",
+        ""
+      );
       return await this.handleApprovePlayerEquipmentSetup(submissionId, user);
     }
 
     if (customId.startsWith("reject_player_equipment_setup_")) {
-      const submissionId = customId.replace("reject_player_equipment_setup_", "");
+      const submissionId = customId.replace(
+        "reject_player_equipment_setup_",
+        ""
+      );
       return await this.handleRejectPlayerEquipmentSetup(submissionId, user);
     }
 
@@ -574,10 +583,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -604,10 +614,11 @@ export class DiscordService {
       );
 
       if (result.success) {
-        const statusText = result.newStatus === "approved" 
-          ? "fully approved and published"
-          : "received first approval";
-        
+        const statusText =
+          result.newStatus === "approved"
+            ? "fully approved and published"
+            : "received first approval";
+
         return new Response(
           JSON.stringify({
             type: 4,
@@ -660,10 +671,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -747,10 +759,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -845,10 +858,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -939,10 +953,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1037,10 +1052,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1131,10 +1147,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1229,10 +1246,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1323,10 +1341,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1413,10 +1432,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1499,10 +1519,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1531,9 +1552,11 @@ export class DiscordService {
       if (result.success) {
         let message = "Your approval has been recorded.";
         if (result.newStatus === "approved") {
-          message = "Video submission has been fully approved and will be published.";
+          message =
+            "Video submission has been fully approved and will be published.";
         } else if (result.newStatus === "awaiting_second_approval") {
-          message = "Video submission needs one more approval before being published.";
+          message =
+            "Video submission needs one more approval before being published.";
         }
 
         return new Response(
@@ -1587,10 +1610,11 @@ export class DiscordService {
   ): Promise<Response> {
     try {
       // Get or create Discord moderator
-      const discordModeratorId = await this.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+      const discordModeratorId =
+        await this.moderationService.getOrCreateDiscordModerator(
+          user.id,
+          user.username
+        );
 
       if (!discordModeratorId) {
         return new Response(
@@ -1689,7 +1713,11 @@ export class DiscordService {
     reviewData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("review", reviewData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "review",
+      reviewData,
+      requestId
+    );
   }
 
   /**
@@ -1699,7 +1727,11 @@ export class DiscordService {
     editData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("player_edit", editData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "player_edit",
+      editData,
+      requestId
+    );
   }
 
   /**
@@ -1709,7 +1741,11 @@ export class DiscordService {
     submissionData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("equipment", submissionData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "equipment",
+      submissionData,
+      requestId
+    );
   }
 
   /**
@@ -1719,7 +1755,11 @@ export class DiscordService {
     submissionData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("player", submissionData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "player",
+      submissionData,
+      requestId
+    );
   }
 
   /**
@@ -1743,7 +1783,7 @@ export class DiscordService {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bot ${config.botToken}`,
+            Authorization: `Bot ${config.botToken}`,
             "User-Agent": "tt-reviews-bot/1.0",
           },
           body: JSON.stringify(payload),
@@ -1776,7 +1816,7 @@ export class DiscordService {
     let rejectCustomId: string;
     let approveLabel: string;
     let rejectLabel: string;
-    
+
     if (submissionType === "player_edit") {
       approveCustomId = `approve_player_edit_${submissionId}`;
       rejectCustomId = `reject_player_edit_${submissionId}`;
@@ -1837,7 +1877,7 @@ export class DiscordService {
     // Create proper custom_id based on submission type
     let approveCustomId: string;
     let rejectCustomId: string;
-    
+
     if (submissionType === "player_edit") {
       approveCustomId = `approve_player_edit_${submissionId}`;
       rejectCustomId = `reject_player_edit_${submissionId}`;
@@ -1903,15 +1943,15 @@ export class DiscordService {
     moderatorUsername?: string
   ): any {
     const updatedEmbed = { ...originalEmbed };
-    
+
     // Add status field
     if (!updatedEmbed.fields) updatedEmbed.fields = [];
-    
+
     // Remove existing status field if present
     updatedEmbed.fields = updatedEmbed.fields.filter(
       (field: any) => field.name !== "Status"
     );
-    
+
     // Add new status field
     let statusValue = "";
     if (status === "approved") {
@@ -1950,7 +1990,8 @@ export class DiscordService {
         submissionType,
         submissionId
       );
-      return approvals.filter((approval) => approval.action === "approved").length;
+      return approvals.filter(approval => approval.action === "approved")
+        .length;
     } catch (error) {
       console.error("Error getting approval count:", error);
       return 0;
@@ -1979,7 +2020,9 @@ export class DiscordService {
       }
 
       // Get Discord channel ID from config
-      const config = this.validateBotConfig(createLogContext("update-after-moderation"));
+      const config = this.validateBotConfig(
+        createLogContext("update-after-moderation")
+      );
       if (!config.isValid || !config.channelId) {
         return;
       }
@@ -1990,13 +2033,25 @@ export class DiscordService {
 
       if (newStatus === "approved" || newStatus === "rejected") {
         // Final state - disable all buttons
-        components = this.createDisabledButtons(newStatus as "approved" | "rejected");
+        components = this.createDisabledButtons(
+          newStatus as "approved" | "rejected"
+        );
       } else if (newStatus === "awaiting_second_approval") {
         // Show progress (1/2 approvals)
-        components = this.createProgressButtons(submissionType, submissionId, 1, 2);
+        components = this.createProgressButtons(
+          submissionType,
+          submissionId,
+          1,
+          2
+        );
       } else {
         // Default to first approval state
-        components = this.createProgressButtons(submissionType, submissionId, 0, 2);
+        components = this.createProgressButtons(
+          submissionType,
+          submissionId,
+          0,
+          2
+        );
       }
 
       // For now, we'll update the embed minimally (just add status)
@@ -2016,10 +2071,14 @@ export class DiscordService {
       };
 
       // Update the Discord message
-      const updateResult = await this.updateDiscordMessage(config.channelId, messageId, {
-        embeds: [updatedEmbed],
-        components: components,
-      });
+      const updateResult = await this.updateDiscordMessage(
+        config.channelId,
+        messageId,
+        {
+          embeds: [updatedEmbed],
+          components: components,
+        }
+      );
 
       if (!updateResult.success) {
         console.error("Failed to update Discord message:", updateResult.error);
@@ -2029,7 +2088,9 @@ export class DiscordService {
     }
   }
 
-  private getEmbedTitle(submissionType: "equipment" | "player" | "player_edit" | "video"): string {
+  private getEmbedTitle(
+    submissionType: "equipment" | "player" | "player_edit" | "video"
+  ): string {
     switch (submissionType) {
       case "equipment":
         return "⚙️ Equipment Submission";
@@ -2072,7 +2133,7 @@ export class DiscordService {
       default:
         statusText = "⏳ **Pending Review**";
     }
-    
+
     return `${statusText}\nModerated by: ${moderatorUsername}`;
   }
 
@@ -2099,14 +2160,22 @@ export class DiscordService {
     submissionData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("video", submissionData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "video",
+      submissionData,
+      requestId
+    );
   }
 
   async notifyNewPlayerEquipmentSetup(
     equipmentData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission("player_equipment_setup", equipmentData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      "player_equipment_setup",
+      equipmentData,
+      requestId
+    );
   }
 
   /**
@@ -2118,9 +2187,12 @@ export class DiscordService {
     submissionData: any,
     requestId: string = "unknown"
   ): Promise<any> {
-    return this.unifiedNotifier.notifySubmission(submissionType, submissionData, requestId);
+    return this.unifiedNotifier.notifySubmission(
+      submissionType,
+      submissionData,
+      requestId
+    );
   }
-
 }
 
 /**

@@ -17,7 +17,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       request.headers.get("X-Request-ID") || "logout-action",
       { route: "/logout", method: "POST" }
     );
-    Logger.error("Logout error", logContext, error instanceof Error ? error : undefined);
+    Logger.error(
+      "Logout error",
+      logContext,
+      error instanceof Error ? error : undefined
+    );
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 }

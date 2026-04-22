@@ -89,12 +89,18 @@ const DISCORD_COLORS = {
 
 // Helper function to create admin URL
 function createAdminUrl(type: SubmissionType, id: string): string {
-  const path = type === "player_equipment_setup" ? "player-equipment-setups" : type.replace("_", "-") + "s";
+  const path =
+    type === "player_equipment_setup"
+      ? "player-equipment-setups"
+      : type.replace("_", "-") + "s";
   return `/admin/${path}#${id}`;
 }
 
 // Field factory functions for DRY form definitions
-const createNameField = (type: 'equipment' | 'player', placeholder: string): FormField => {
+const createNameField = (
+  type: "equipment" | "player",
+  placeholder: string
+): FormField => {
   const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
   return {
     name: "name",
@@ -106,7 +112,12 @@ const createNameField = (type: 'equipment' | 'player', placeholder: string): For
   };
 };
 
-const createSelectField = (name: string, label: string, colSpan: 1 | 2 = 1, required: boolean = false): FormField => ({
+const createSelectField = (
+  name: string,
+  label: string,
+  colSpan: 1 | 2 = 1,
+  required: boolean = false
+): FormField => ({
   name,
   label,
   type: "select",
@@ -114,7 +125,12 @@ const createSelectField = (name: string, label: string, colSpan: 1 | 2 = 1, requ
   layout: { colSpan },
 });
 
-const createTextAreaField = (name: string, label: string, placeholder: string, required: boolean = false): FormField => ({
+const createTextAreaField = (
+  name: string,
+  label: string,
+  placeholder: string,
+  required: boolean = false
+): FormField => ({
   name,
   label,
   type: "textarea",
@@ -124,24 +140,39 @@ const createTextAreaField = (name: string, label: string, placeholder: string, r
 });
 
 // Discord field utilities for DRY notification formatting
-const createDiscordField = (name: string, value: string, inline: boolean = true) => ({
+const createDiscordField = (
+  name: string,
+  value: string,
+  inline: boolean = true
+) => ({
   name,
   value,
   inline,
 });
 
-const createOptionalDiscordField = (name: string, value: string | undefined, inline: boolean = true) =>
-  value ? [createDiscordField(name, value, inline)] : [];
+const createOptionalDiscordField = (
+  name: string,
+  value: string | undefined,
+  inline: boolean = true
+) => (value ? [createDiscordField(name, value, inline)] : []);
 
-const createSubmitterField = (email: string | undefined) => 
+const createSubmitterField = (email: string | undefined) =>
   createDiscordField("Submitted by", email || "Anonymous", false);
 
-const createTruncatedTextField = (name: string, text: string | undefined, maxLength: number = 200) =>
-  text ? [createDiscordField(
-    name,
-    text.length > maxLength ? text.substring(0, maxLength) + "..." : text,
-    false
-  )] : [];
+const createTruncatedTextField = (
+  name: string,
+  text: string | undefined,
+  maxLength: number = 200
+) =>
+  text
+    ? [
+        createDiscordField(
+          name,
+          text.length > maxLength ? text.substring(0, maxLength) + "..." : text,
+          false
+        ),
+      ]
+    : [];
 
 // Registry of all submission types
 export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
@@ -155,10 +186,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       description: "Add a new piece of table tennis equipment to our database.",
       submitButtonText: "Submit Equipment",
       successTitle: "Equipment Submitted!",
-      successMessage: "Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
+      successMessage:
+        "Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
       redirectPath: "/profile",
       fields: [
-        createNameField('equipment', 'e.g., Hurricane 3'),
+        createNameField("equipment", "e.g., Hurricane 3"),
         {
           name: "manufacturer",
           label: "Manufacturer",
@@ -167,7 +199,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "e.g., DHS, Butterfly, Yasaka",
           layout: { colSpan: 1 },
         },
-        createSelectField('category', 'Category', 1, true),
+        createSelectField("category", "Category", 1, true),
         {
           name: "subcategory",
           label: "Subcategory",
@@ -187,7 +219,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "Upload the manufacturer's official product photo",
           layout: { colSpan: 2 },
         },
-        createTextAreaField('specifications', 'Additional Specifications (Optional)', 'Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)'),
+        createTextAreaField(
+          "specifications",
+          "Additional Specifications (Optional)",
+          "Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)"
+        ),
       ],
     },
     discord: {
@@ -199,7 +235,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       id: data.id,
       submissionType: "equipment",
       title: "🏓 Equipment Submission",
-      description: "A new piece of equipment has been submitted and needs moderation.",
+      description:
+        "A new piece of equipment has been submitted and needs moderation.",
       color: DISCORD_COLORS.PURPLE,
       adminUrl: createAdminUrl("equipment", data.id),
       submitterEmail: data.submitter_email,
@@ -209,7 +246,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createDiscordField("Category", data.category || "Unknown"),
         ...createOptionalDiscordField("Subcategory", data.subcategory),
         createSubmitterField(data.submitter_email),
-        ...createTruncatedTextField("Specifications", data.specifications?.notes),
+        ...createTruncatedTextField(
+          "Specifications",
+          data.specifications?.notes
+        ),
       ],
     }),
   },
@@ -221,13 +261,15 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/player-submissions",
     form: {
       title: "Submit New Player",
-      description: "Add a new professional table tennis player to our database.",
+      description:
+        "Add a new professional table tennis player to our database.",
       submitButtonText: "Submit Player",
       successTitle: "Player Submitted!",
-      successMessage: "Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
+      successMessage:
+        "Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
       redirectPath: "/profile",
       fields: [
-        createNameField('player', 'e.g., Ma Long'),
+        createNameField("player", "e.g., Ma Long"),
         {
           name: "highest_rating",
           label: "Highest Rating",
@@ -244,9 +286,9 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "e.g., 2005-present",
           layout: { colSpan: 1 },
         },
-        createSelectField('playing_style', 'Playing Style'),
-        createSelectField('birth_country', 'Birth Country'),
-        createSelectField('represents', 'Represents'),
+        createSelectField("playing_style", "Playing Style"),
+        createSelectField("birth_country", "Birth Country"),
+        createSelectField("represents", "Represents"),
         {
           name: "image",
           label: "Player Photo (Optional)",
@@ -302,8 +344,24 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         ...createOptionalDiscordField("Birth Country", data.birth_country),
         ...createOptionalDiscordField("Represents", data.represents),
         createSubmitterField(data.submitter_email),
-        ...(data.equipment_data ? [createDiscordField("Equipment Info", "Includes equipment setup data", false)] : []),
-        ...(data.videos && data.videos.length > 0 ? [createDiscordField("Videos", data.videos.length + " video(s) included", false)] : []),
+        ...(data.equipment_data
+          ? [
+              createDiscordField(
+                "Equipment Info",
+                "Includes equipment setup data",
+                false
+              ),
+            ]
+          : []),
+        ...(data.videos && data.videos.length > 0
+          ? [
+              createDiscordField(
+                "Videos",
+                data.videos.length + " video(s) included",
+                false
+              ),
+            ]
+          : []),
       ],
     }),
   },
@@ -318,10 +376,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       description: "Suggest updates to player information in our database.",
       submitButtonText: "Submit Changes",
       successTitle: "Changes Submitted!",
-      successMessage: "Your suggested changes have been submitted and will be reviewed by our team.",
+      successMessage:
+        "Your suggested changes have been submitted and will be reviewed by our team.",
       redirectPath: "/profile",
       fields: [
-        createSelectField('player_id', 'Player', 2, true),
+        createSelectField("player_id", "Player", 2, true),
         {
           name: "name",
           label: "Player Name",
@@ -346,7 +405,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "Leave blank to keep current years",
           layout: { colSpan: 1 },
         },
-        createSelectField('playing_style', 'Playing Style'),
+        createSelectField("playing_style", "Playing Style"),
         {
           name: "active",
           label: "Player Status",
@@ -366,7 +425,12 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "Upload a new upper-body photo of the player",
           layout: { colSpan: 2 },
         },
-        createTextAreaField('edit_reason', 'Reason for Changes', 'Please explain why these changes should be made...', true),
+        createTextAreaField(
+          "edit_reason",
+          "Reason for Changes",
+          "Please explain why these changes should be made...",
+          true
+        ),
       ],
     },
     discord: {
@@ -378,15 +442,21 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       // Create a summary of the changes
       const changes = [];
       if (data.edit_data?.name) changes.push("Name: " + data.edit_data.name);
-      if (data.edit_data?.highest_rating) changes.push("Rating: " + data.edit_data.highest_rating);
-      if (data.edit_data?.active_years) changes.push("Active: " + data.edit_data.active_years);
-      if (data.edit_data?.active !== undefined) changes.push("Status: " + (data.edit_data.active ? "Active" : "Inactive"));
+      if (data.edit_data?.highest_rating)
+        changes.push("Rating: " + data.edit_data.highest_rating);
+      if (data.edit_data?.active_years)
+        changes.push("Active: " + data.edit_data.active_years);
+      if (data.edit_data?.active !== undefined)
+        changes.push(
+          "Status: " + (data.edit_data.active ? "Active" : "Inactive")
+        );
 
       return {
         id: data.id,
         submissionType: "player_edit",
         title: "✏️ Player Edit Submitted",
-        description: "A player information update has been submitted and needs moderation.",
+        description:
+          "A player information update has been submitted and needs moderation.",
         color: DISCORD_COLORS.ORANGE,
         adminUrl: createAdminUrl("player_edit", data.id),
         submitterEmail: data.submitter_email,
@@ -403,7 +473,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           },
           {
             name: "Changes",
-            value: changes.length > 0 ? changes.join("\n") : "No changes specified",
+            value:
+              changes.length > 0 ? changes.join("\n") : "No changes specified",
             inline: false,
           },
         ],
@@ -418,13 +489,15 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/video-submissions",
     form: {
       title: "Submit Video Information",
-      description: "Add training videos, match footage, or other video content for professional table tennis players.",
+      description:
+        "Add training videos, match footage, or other video content for professional table tennis players.",
       submitButtonText: "Submit Videos",
       successTitle: "Videos Submitted!",
-      successMessage: "Your videos have been successfully submitted and will be reviewed by our team.",
+      successMessage:
+        "Your videos have been successfully submitted and will be reviewed by our team.",
       redirectPath: "/profile",
       fields: [
-        createSelectField('player_id', 'Player', 2, true),
+        createSelectField("player_id", "Player", 2, true),
         {
           name: "videos",
           label: "Videos",
@@ -449,18 +522,27 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       submitterEmail: data.submitter_email,
       fields: [
         createDiscordField("Player", data.player_name || "Unknown Player"),
-        createDiscordField("Video Count", (data.videos?.length || 0).toString()),
+        createDiscordField(
+          "Video Count",
+          (data.videos?.length || 0).toString()
+        ),
         createSubmitterField(data.submitter_email),
-        ...(data.videos && data.videos.length > 0 ? data.videos.slice(0, 3).map((video: any, index: number) => ({
-          name: "Video " + (index + 1),
-          value: video.title + " (" + (video.platform || "Unknown") + ")",
-          inline: false,
-        })) : []),
-        ...(data.videos && data.videos.length > 3 ? [{
-          name: "Additional Videos",
-          value: "... and " + (data.videos.length - 3) + " more video(s)",
-          inline: false,
-        }] : []),
+        ...(data.videos && data.videos.length > 0
+          ? data.videos.slice(0, 3).map((video: any, index: number) => ({
+              name: "Video " + (index + 1),
+              value: video.title + " (" + (video.platform || "Unknown") + ")",
+              inline: false,
+            }))
+          : []),
+        ...(data.videos && data.videos.length > 3
+          ? [
+              {
+                name: "Additional Videos",
+                value: "... and " + (data.videos.length - 3) + " more video(s)",
+                inline: false,
+              },
+            ]
+          : []),
       ],
     }),
   },
@@ -472,10 +554,12 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/equipment-reviews",
     form: {
       title: "Write Equipment Review",
-      description: "Share your experience with table tennis equipment to help other players.",
+      description:
+        "Share your experience with table tennis equipment to help other players.",
       submitButtonText: "Submit Review",
       successTitle: "Review Submitted!",
-      successMessage: "Your review has been submitted and will be reviewed by our team.",
+      successMessage:
+        "Your review has been submitted and will be reviewed by our team.",
       redirectPath: "/profile",
       fields: [
         {
@@ -536,7 +620,12 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           layout: { colSpan: 2 },
           validation: { min: 1, max: 10 },
         },
-        createTextAreaField('review_text', 'Review', 'Share your experience with this equipment...', true),
+        createTextAreaField(
+          "review_text",
+          "Review",
+          "Share your experience with this equipment...",
+          true
+        ),
       ],
     },
     discord: {
@@ -548,13 +637,20 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       id: data.id,
       submissionType: "review",
       title: "⭐ Equipment Review",
-      description: "A new equipment review has been submitted and needs moderation.",
+      description:
+        "A new equipment review has been submitted and needs moderation.",
       color: DISCORD_COLORS.BLUE,
       adminUrl: createAdminUrl("review", data.id),
       submitterEmail: data.submitter_email,
       fields: [
-        createDiscordField("Equipment", data.equipment_name || "Unknown Equipment"),
-        createDiscordField("Rating", data.overall_rating ? data.overall_rating + "/10" : "No rating"),
+        createDiscordField(
+          "Equipment",
+          data.equipment_name || "Unknown Equipment"
+        ),
+        createDiscordField(
+          "Rating",
+          data.overall_rating ? data.overall_rating + "/10" : "No rating"
+        ),
         createDiscordField("Reviewer", data.submitter_email || "Anonymous"),
         ...createTruncatedTextField("Review", data.review_text),
       ],
@@ -571,10 +667,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       description: "Add equipment setup information for a professional player.",
       submitButtonText: "Submit Setup",
       successTitle: "Setup Submitted!",
-      successMessage: "The equipment setup has been submitted and will be verified by our team.",
+      successMessage:
+        "The equipment setup has been submitted and will be verified by our team.",
       redirectPath: "/profile",
       fields: [
-        createSelectField('player_id', 'Player', 2, true),
+        createSelectField("player_id", "Player", 2, true),
         {
           name: "equipment_setup",
           label: "Equipment Details",
@@ -593,7 +690,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       id: data.id,
       submissionType: "player_equipment_setup",
       title: "🏓 Player Equipment Setup",
-      description: "A new player equipment setup has been submitted and needs verification.",
+      description:
+        "A new player equipment setup has been submitted and needs verification.",
       color: DISCORD_COLORS.PURPLE,
       adminUrl: createAdminUrl("player_equipment_setup", data.id),
       submitterEmail: data.submitter_email,
@@ -602,19 +700,37 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createDiscordField("Year", (data.year || "Unknown").toString()),
         createSubmitterField(data.submitter_email),
         ...createOptionalDiscordField("Blade", data.blade_name),
-        ...(data.forehand_rubber_name ? [createDiscordField(
-          "Forehand Rubber",
-          data.forehand_rubber_name + (data.forehand_thickness ? " (" + data.forehand_thickness + ")" : "")
-        )] : []),
-        ...(data.backhand_rubber_name ? [createDiscordField(
-          "Backhand Rubber", 
-          data.backhand_rubber_name + (data.backhand_thickness ? " (" + data.backhand_thickness + ")" : "")
-        )] : []),
-        ...(data.source_url ? [createDiscordField(
-          "Source",
-          (data.source_type || "Unknown") + ": " + data.source_url,
-          false
-        )] : []),
+        ...(data.forehand_rubber_name
+          ? [
+              createDiscordField(
+                "Forehand Rubber",
+                data.forehand_rubber_name +
+                  (data.forehand_thickness
+                    ? " (" + data.forehand_thickness + ")"
+                    : "")
+              ),
+            ]
+          : []),
+        ...(data.backhand_rubber_name
+          ? [
+              createDiscordField(
+                "Backhand Rubber",
+                data.backhand_rubber_name +
+                  (data.backhand_thickness
+                    ? " (" + data.backhand_thickness + ")"
+                    : "")
+              ),
+            ]
+          : []),
+        ...(data.source_url
+          ? [
+              createDiscordField(
+                "Source",
+                (data.source_type || "Unknown") + ": " + data.source_url,
+                false
+              ),
+            ]
+          : []),
       ],
     }),
   },
@@ -637,7 +753,10 @@ export function getSubmissionTableName(type: SubmissionType): string {
   return getSubmissionConfig(type).tableName;
 }
 
-export function formatSubmissionForDiscord(type: SubmissionType, data: any): DiscordNotificationData {
+export function formatSubmissionForDiscord(
+  type: SubmissionType,
+  data: any
+): DiscordNotificationData {
   const config = getSubmissionConfig(type);
   if (!config.formatForDiscord) {
     // Fallback for submission types without custom Discord formatting

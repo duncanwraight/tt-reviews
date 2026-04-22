@@ -102,7 +102,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   const formData = await request.formData();
   const actionType = formData.get("action") as string;
   const setupId = formData.get("setupId") as string;
-  const rejectionCategory = formData.get("category") as RejectionCategory | null;
+  const rejectionCategory = formData.get(
+    "category"
+  ) as RejectionCategory | null;
   const rawRejectionReason = formData.get("reason") as string | null;
 
   // Sanitize rejection reason to prevent XSS attacks
@@ -238,7 +240,8 @@ export default function AdminPlayerEquipmentSetups({
 
   // Group submissions by status
   const pendingSubmissions = equipmentSetups.filter(
-    (s: any) => s.status === "pending" || s.status === "awaiting_second_approval"
+    (s: any) =>
+      s.status === "pending" || s.status === "awaiting_second_approval"
   );
   const processedSubmissions = equipmentSetups.filter(
     (s: any) => s.status === "approved" || s.status === "rejected"
@@ -487,7 +490,11 @@ export default function AdminPlayerEquipmentSetups({
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">Approved</p>
               <p className="text-2xl font-bold text-green-900">
-                {processedSubmissions.filter((s: any) => s.status === "approved").length}
+                {
+                  processedSubmissions.filter(
+                    (s: any) => s.status === "approved"
+                  ).length
+                }
               </p>
             </div>
           </div>
@@ -500,7 +507,11 @@ export default function AdminPlayerEquipmentSetups({
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">Rejected</p>
               <p className="text-2xl font-bold text-red-900">
-                {processedSubmissions.filter((s: any) => s.status === "rejected").length}
+                {
+                  processedSubmissions.filter(
+                    (s: any) => s.status === "rejected"
+                  ).length
+                }
               </p>
             </div>
           </div>

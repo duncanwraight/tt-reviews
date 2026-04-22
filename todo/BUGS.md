@@ -7,6 +7,7 @@
 **Actual**: Shows "Rating categories not available" warning, falls back to overall rating only
 **Root Cause**: Rating categories in database have no `parent_id` set - they need to be linked to equipment categories/subcategories
 **Fix Applied**:
+
 - Admin UI now shows parent name badge (or "No parent!" warning) for each category
 - Parent selection is now required when creating review_rating_category types
 - Added parent_id selector to edit form for existing categories
@@ -28,6 +29,7 @@
 **Current**: Sliders show labels like "Poor", "Good", "Very Good" based on rating value
 **Problem**: These value judgments don't make sense for equipment characteristics - slow equipment isn't "poor", it's just slow
 **Fix Applied**:
+
 - Added `min_label` and `max_label` columns to categories table
 - Admin can now set custom endpoint labels per rating category (e.g., "Slow" ↔ "Fast" for Speed)
 - Slider now shows just the number value, with custom labels at endpoints
@@ -39,6 +41,7 @@
 **Current**: Overall score is automatically calculated as average of all category ratings
 **Problem**: Equipment quality isn't determined by averaging characteristics - a blade could be excellent despite having low speed if that's its design intent
 **Fix Applied**:
+
 - Removed auto-calculation from RatingCategories component
 - Added independent overall_rating slider field to review form
 - Users now set overall score independently from category ratings
@@ -49,10 +52,12 @@
 **Expected**: Form should submit successfully when all fields are completed
 **Actual**: Shows red error "Equipment Details is required" even when all boxes are filled
 **Root Cause**: Multiple issues:
+
 1. Validation checked for `formValues["equipment_setup"]` but the component renders individual inputs
 2. The registry pointed to `player_equipment_setups` (final verified table) instead of a submissions table
 3. The final table has different schema (equipment IDs vs names, verified vs status)
-**Fix Applied**:
+   **Fix Applied**:
+
 - Set `required: false` for equipment_setup field since individual fields handle their own validation
 - Created new `player_equipment_setup_submissions` table following the established submission pattern
 - Updated registry to use the new submissions table with proper moderation workflow
@@ -63,8 +68,9 @@
 **Location**: Discord bot approval interaction
 **Expected**: Clicking Approve in Discord should approve the player equipment setup submission
 **Actual**: Error: `Failed to record approval: invalid input syntax for type uuid: "equipment_setup_9c46155b-3495-4f41-b145-763f9e64b8d7"`
-**Root Cause**: The custom_id `approve_player_equipment_setup_UUID` was matching `approve_player_` pattern first, stripping to `equipment_setup_UUID` (invalid UUID)
+**Root Cause**: The custom*id `approve_player_equipment_setup_UUID` was matching `approve_player*`pattern first, stripping to`equipment_setup_UUID` (invalid UUID)
 **Fix Applied**:
+
 - Added specific handling for `approve_player_equipment_setup_` and `reject_player_equipment_setup_` BEFORE the generic `approve_player_` pattern
 - Added `handleApprovePlayerEquipmentSetup` and `handleRejectPlayerEquipmentSetup` handler methods
 - Added `player_equipment_setup` to moderation service type unions
@@ -84,6 +90,7 @@
 **Actual**: Approve button does nothing / doesn't work
 **Root Cause**: Missing try-catch wrapper caused silent failures; player insert errors (e.g., duplicate slug) were not caught
 **Fix Applied**:
+
 - Added try-catch wrapper matching equipment-submissions pattern
 - Added specific error handling for player record creation
 - Added console logging for debugging
@@ -92,12 +99,13 @@
 
 **Location**: `/submissions/player_equipment_setup/submit`
 **Issues**:
+
 - Has "Include Equipment Setup" checkbox - but that's the entire point of this form
 - Year field appears twice
 - Source URL field appears twice
 - Source Type field appears twice
-**Root Cause**: Form config defined year/source_url/source_type fields AND the PlayerEquipmentSetup component rendered them internally
-**Fix Applied**:
+  **Root Cause**: Form config defined year/source_url/source_type fields AND the PlayerEquipmentSetup component rendered them internally
+  **Fix Applied**:
 - Removed duplicate fields from player_equipment_setup registry config
 - Added `standalone` prop to PlayerEquipmentSetup component
 - Created `equipment_setup_standalone` field type that skips the checkbox UI
@@ -109,6 +117,7 @@
 **Progress**: Reduced from 191 errors to 0 errors (100% fixed)
 
 ### All Issues Fixed
+
 - ✅ Stale route types - Moved disabled compare route to `app/routes-disabled/`
 - ✅ Equipment type - Added `image_url` property
 - ✅ Player type - Added `gender` and `equipment_setups` properties
@@ -123,9 +132,8 @@
 - ✅ Promise.all() inference - Separated async calls for proper type inference
 - ✅ Supabase generics - Used explicit type parameters on withLogging calls
 - ✅ unified-notifier.server.ts - Fixed Logger.error and timeOperation signatures
-- ✅ api.discord.*.tsx - Added proper type assertions for request bodies
+- ✅ api.discord.\*.tsx - Added proper type assertions for request bodies
 - ✅ admin.equipment-reviews.tsx - Fixed Object.entries map types
 - ✅ schema.server.ts - Made review user and text optional
 - ✅ RejectionModal - Made csrfToken optional, expanded submission types
 - ✅ submissions/registry.ts - Made formatForDiscord optional with fallback
-

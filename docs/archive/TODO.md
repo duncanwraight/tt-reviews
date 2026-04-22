@@ -4,11 +4,11 @@
 
 These items need manual verification:
 
-| Item | Notes |
-|------|-------|
+| Item                          | Notes                                                              |
+| ----------------------------- | ------------------------------------------------------------------ |
 | Discord Webhook Notifications | Check if notifications are being sent when submissions are created |
-| Security Validation / Pentest | Manual security testing needed |
-| Auth Edge Cases | Manual testing of authentication flows |
+| Security Validation / Pentest | Manual security testing needed                                     |
+| Auth Edge Cases               | Manual testing of authentication flows                             |
 
 ---
 
@@ -71,33 +71,33 @@ These items need manual verification:
 
 The following items were listed as TODO but are already implemented:
 
-| Item | Evidence |
-|------|----------|
-| Signup Modal Message | `login.tsx:93-96` - Shows "check your email" message |
-| Password Reset Landing Pages | `reset-password.tsx` - Full branded flow |
-| Enhanced Auth Error Handling | All auth routes have hash parameter error detection |
-| Error Boundaries | `ErrorBoundary.tsx` - Comprehensive implementation |
-| Two-Approval Workflow (Discord) | 10+ files reference `awaiting_second_approval` |
-| Client-Side Form Validation | `UnifiedSubmissionForm.tsx` with validation |
-| Basic Cache Headers | Exists in sitemap, robots, images routes |
-| Discord Tests | `discord.test.ts` exists |
+| Item                            | Evidence                                             |
+| ------------------------------- | ---------------------------------------------------- |
+| Signup Modal Message            | `login.tsx:93-96` - Shows "check your email" message |
+| Password Reset Landing Pages    | `reset-password.tsx` - Full branded flow             |
+| Enhanced Auth Error Handling    | All auth routes have hash parameter error detection  |
+| Error Boundaries                | `ErrorBoundary.tsx` - Comprehensive implementation   |
+| Two-Approval Workflow (Discord) | 10+ files reference `awaiting_second_approval`       |
+| Client-Side Form Validation     | `UnifiedSubmissionForm.tsx` with validation          |
+| Basic Cache Headers             | Exists in sitemap, robots, images routes             |
+| Discord Tests                   | `discord.test.ts` exists                             |
 
 ---
 
 ## Not Required / Removed
 
-| Item | Reason |
-|------|--------|
-| Rejection Reason Collection (Discord Modal) | Low value - admin UI sufficient |
-| Manual Account Linking Route | Low value - automatic mapping works |
-| Enhanced Status Notifications (Ephemeral) | Nice-to-have, not essential |
-| Advanced Slash Commands | Low priority enhancement |
-| Affiliate Partnership Program | Business decision, not dev work |
-| Tournament Equipment Tracking | Feature scope creep |
-| User-Generated Content Systems | Already have reviews |
-| Real-time Alerting | Over-engineering for current scale |
-| Custom Dashboards | Over-engineering for current scale |
-| Distributed Tracing | Over-engineering for current scale |
-| SWR Patterns | Basic caching sufficient |
-| Edge Caching | Basic caching sufficient |
-| Progressive Enhancement (no-JS) | React Router Forms already work |
+| Item                                        | Reason                              |
+| ------------------------------------------- | ----------------------------------- |
+| Rejection Reason Collection (Discord Modal) | Low value - admin UI sufficient     |
+| Manual Account Linking Route                | Low value - automatic mapping works |
+| Enhanced Status Notifications (Ephemeral)   | Nice-to-have, not essential         |
+| Advanced Slash Commands                     | Low priority enhancement            |
+| Affiliate Partnership Program               | Business decision, not dev work     |
+| Tournament Equipment Tracking               | Feature scope creep                 |
+| User-Generated Content Systems              | Already have reviews                |
+| Real-time Alerting                          | Over-engineering for current scale  |
+| Custom Dashboards                           | Over-engineering for current scale  |
+| Distributed Tracing                         | Over-engineering for current scale  |
+| SWR Patterns                                | Basic caching sufficient            |
+| Edge Caching                                | Basic caching sufficient            |
+| Progressive Enhancement (no-JS)             | React Router Forms already work     |

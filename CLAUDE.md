@@ -263,12 +263,12 @@ CREATE POLICY "admin_only" ON my_table
 
 ### RLS Policy Patterns
 
-| Access Level | Policy Pattern |
-|--------------|----------------|
-| Public read | `FOR SELECT USING (true)` |
-| Authenticated read | `FOR SELECT TO authenticated USING (true)` |
-| Own records only | `USING (auth.uid() = user_id)` |
-| Admin only | `USING ((auth.jwt() ->> 'user_role') = 'admin')` |
+| Access Level       | Policy Pattern                                                   |
+| ------------------ | ---------------------------------------------------------------- |
+| Public read        | `FOR SELECT USING (true)`                                        |
+| Authenticated read | `FOR SELECT TO authenticated USING (true)`                       |
+| Own records only   | `USING (auth.uid() = user_id)`                                   |
+| Admin only         | `USING ((auth.jwt() ->> 'user_role') = 'admin')`                 |
 | Admin or moderator | `USING ((auth.jwt() ->> 'user_role') IN ('admin', 'moderator'))` |
 
 ### Before Creating RLS Migrations
@@ -280,11 +280,11 @@ CREATE POLICY "admin_only" ON my_table
 
 ### Common RLS Issues
 
-| Symptom | Likely Cause |
-|---------|--------------|
-| "permission denied for table user_roles" | RLS policy queries user_roles instead of using JWT claims |
-| Empty results for admin | Missing admin SELECT policy (only public SELECT exists) |
-| Update/delete fails silently | USING clause doesn't match, or missing policy for operation |
+| Symptom                                  | Likely Cause                                                |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| "permission denied for table user_roles" | RLS policy queries user_roles instead of using JWT claims   |
+| Empty results for admin                  | Missing admin SELECT policy (only public SELECT exists)     |
+| Update/delete fails silently             | USING clause doesn't match, or missing policy for operation |
 
 ## React Router v7 File-Based Routing
 
@@ -362,6 +362,7 @@ When you have nested routes (e.g., `equipment.*`):
 1. **Always define explicit types** for function parameters, return types, and component props
 2. **Never use `any`** unless absolutely necessary - use `unknown` and narrow the type
 3. **Use proper type guards** for runtime type checking:
+
    ```typescript
    // Good: Type guard
    if ("success" in actionData && actionData.success) { ... }
@@ -371,11 +372,12 @@ When you have nested routes (e.g., `equipment.*`):
    ```
 
 4. **Add new properties to type definitions** when extending interfaces:
+
    ```typescript
    // When adding a field to Equipment, update app/lib/types.ts
    export interface Equipment {
      // ... existing fields
-     new_field?: string;  // Add here
+     new_field?: string; // Add here
    }
    ```
 
@@ -387,18 +389,19 @@ When you have nested routes (e.g., `equipment.*`):
 
 #### Common Type Pitfalls to Avoid
 
-| Pitfall | Solution |
-|---------|----------|
-| Adding new field types | Add to `FieldType` union in `app/lib/submissions/registry.ts` |
-| New submission types | Add to all relevant union types in `types.ts`, `moderation.server.ts`, `database.server.ts` |
-| Renamed/deleted routes | Delete stale types in `.react-router/types/app/routes/+types/` |
-| Promise.all() results | Use explicit type annotations or separate fetches for different return types |
-| Supabase query results | Cast results appropriately: `data as Equipment[]` |
-| Optional vs null | Use `?? undefined` not `|| null` when interface expects `undefined` |
+| Pitfall                | Solution                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------- | --- | -------------------------------------- |
+| Adding new field types | Add to `FieldType` union in `app/lib/submissions/registry.ts`                               |
+| New submission types   | Add to all relevant union types in `types.ts`, `moderation.server.ts`, `database.server.ts` |
+| Renamed/deleted routes | Delete stale types in `.react-router/types/app/routes/+types/`                              |
+| Promise.all() results  | Use explicit type annotations or separate fetches for different return types                |
+| Supabase query results | Cast results appropriately: `data as Equipment[]`                                           |
+| Optional vs null       | Use `?? undefined` not `                                                                    |     | null`when interface expects`undefined` |
 
 #### LogContext Usage
 
 When using the Logger service, pass objects that extend LogContext:
+
 ```typescript
 import { createLogContext, type LogContext } from "~/lib/logger.server";
 

@@ -58,15 +58,12 @@ export class UnifiedDiscordNotifier {
     return this.logger.timeOperation(
       `discord_${submissionType}_notification`,
       async () => {
-        this.logger.info(
-          "Sending unified Discord notification",
-          logContext,
-          {
-            submissionType,
-            submissionId: submissionData.id,
-            submissionTitle: submissionData.name || submissionData.player_name || "Unknown",
-          }
-        );
+        this.logger.info("Sending unified Discord notification", logContext, {
+          submissionType,
+          submissionId: submissionData.id,
+          submissionTitle:
+            submissionData.name || submissionData.player_name || "Unknown",
+        });
 
         // Validate Discord configuration
         const validation = this.validateDiscordConfig(logContext);
@@ -81,7 +78,10 @@ export class UnifiedDiscordNotifier {
 
         try {
           // Format submission data using registry
-          const notificationData = formatSubmissionForDiscord(submissionType, submissionData);
+          const notificationData = formatSubmissionForDiscord(
+            submissionType,
+            submissionData
+          );
 
           // Create Discord message
           const message = this.createDiscordMessage(notificationData);
@@ -184,7 +184,10 @@ export class UnifiedDiscordNotifier {
     const channelId = this.env.DISCORD_CHANNEL_ID;
 
     if (!botToken || !channelId) {
-      return { success: false, error: "Discord bot token or channel ID not configured" };
+      return {
+        success: false,
+        error: "Discord bot token or channel ID not configured",
+      };
     }
 
     try {
@@ -193,7 +196,7 @@ export class UnifiedDiscordNotifier {
         {
           method: "POST",
           headers: {
-            "Authorization": `Bot ${botToken}`,
+            Authorization: `Bot ${botToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(message),
@@ -202,17 +205,15 @@ export class UnifiedDiscordNotifier {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(
-          "Discord API error",
-          logContext,
-          undefined,
-          {
-            status: response.status,
-            statusText: response.statusText,
-            errorText,
-          }
-        );
-        return { success: false, error: `Discord API error: ${response.status} ${errorText}` };
+        this.logger.error("Discord API error", logContext, undefined, {
+          status: response.status,
+          statusText: response.statusText,
+          errorText,
+        });
+        return {
+          success: false,
+          error: `Discord API error: ${response.status} ${errorText}`,
+        };
       }
 
       const result = (await response.json()) as { id: string };
@@ -258,22 +259,20 @@ export class UnifiedDiscordNotifier {
     }
 
     if (!this.env.SITE_URL) {
-      issues.push("SITE_URL environment variable not set (needed for Discord embed links)");
+      issues.push(
+        "SITE_URL environment variable not set (needed for Discord embed links)"
+      );
     }
 
     const isValid = issues.length === 0;
 
     if (!isValid) {
-      this.logger.warn(
-        "Discord configuration issues detected",
-        logContext,
-        {
-          issues,
-          hasBotToken: !!this.env.DISCORD_BOT_TOKEN,
-          hasChannelId: !!this.env.DISCORD_CHANNEL_ID,
-          hasSiteUrl: !!this.env.SITE_URL,
-        }
-      );
+      this.logger.warn("Discord configuration issues detected", logContext, {
+        issues,
+        hasBotToken: !!this.env.DISCORD_BOT_TOKEN,
+        hasChannelId: !!this.env.DISCORD_CHANNEL_ID,
+        hasSiteUrl: !!this.env.SITE_URL,
+      });
     }
 
     return { isValid, issues };
@@ -283,6 +282,8 @@ export class UnifiedDiscordNotifier {
 /**
  * Factory function to create notifier instance
  */
-export function createUnifiedDiscordNotifier(context: AppLoadContext): UnifiedDiscordNotifier {
+export function createUnifiedDiscordNotifier(
+  context: AppLoadContext
+): UnifiedDiscordNotifier {
   return new UnifiedDiscordNotifier(context);
 }

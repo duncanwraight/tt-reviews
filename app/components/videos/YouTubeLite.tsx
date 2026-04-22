@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { extractYouTubeVideoId, getYouTubeThumbnailUrl, createYouTubeEmbedUrl, isYouTubeUrl } from "~/lib/video-utils";
+import {
+  extractYouTubeVideoId,
+  getYouTubeThumbnailUrl,
+  createYouTubeEmbedUrl,
+  isYouTubeUrl,
+} from "~/lib/video-utils";
 
 interface YouTubeLiteProps {
   url: string;
@@ -23,10 +28,10 @@ const PlayButton = () => (
 
 export function YouTubeLite({ url, title, className = "" }: YouTubeLiteProps) {
   const [isClicked, setIsClicked] = useState(false);
-  
+
   // Extract video ID for YouTube videos
   const videoId = isYouTubeUrl(url) ? extractYouTubeVideoId(url) : null;
-  
+
   // If not YouTube or can't extract ID, show fallback link
   if (!videoId) {
     return (
@@ -96,19 +101,19 @@ export function YouTubeLite({ url, title, className = "" }: YouTubeLiteProps) {
     >
       <div className="aspect-video relative overflow-hidden">
         <img
-          src={getYouTubeThumbnailUrl(videoId, 'maxres')}
+          src={getYouTubeThumbnailUrl(videoId, "maxres")}
           alt={title}
           className="w-full h-full object-cover"
-          onError={(e) => {
+          onError={e => {
             // Fallback to high quality if maxres fails
-            e.currentTarget.src = getYouTubeThumbnailUrl(videoId, 'high');
+            e.currentTarget.src = getYouTubeThumbnailUrl(videoId, "high");
           }}
         />
         <PlayButton />
-        
+
         {/* Video duration overlay could be added here if we had that data */}
       </div>
-      
+
       <div className="p-4">
         <h3 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors">
           {title}

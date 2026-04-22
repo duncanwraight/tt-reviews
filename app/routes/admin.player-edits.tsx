@@ -176,7 +176,9 @@ export async function action({ request, context }: Route.ActionArgs) {
           if (updateError) {
             console.error("Failed to apply player edit:", updateError);
             return data(
-              { error: `Approved but failed to apply changes: ${updateError.message}` },
+              {
+                error: `Approved but failed to apply changes: ${updateError.message}`,
+              },
               { status: 500, headers: sbServerClient.headers }
             );
           }

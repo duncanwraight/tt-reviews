@@ -52,14 +52,10 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
         .not("status", "is", null),
 
       // Get total equipment count
-      supabase
-        .from("equipment")
-        .select("*", { count: "exact", head: true }),
+      supabase.from("equipment").select("*", { count: "exact", head: true }),
 
       // Get total players count
-      supabase
-        .from("players")
-        .select("*", { count: "exact", head: true }),
+      supabase.from("players").select("*", { count: "exact", head: true }),
     ]);
 
     // Process the results to get status counts
@@ -281,7 +277,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       videoSubmissionsRejected: rejectedVideoSubmissions || 0,
       // Player equipment setups status breakdown
       playerEquipmentSetupsPending:
-        (pendingPlayerEquipmentSetups || 0) + (awaitingPlayerEquipmentSetups || 0),
+        (pendingPlayerEquipmentSetups || 0) +
+        (awaitingPlayerEquipmentSetups || 0),
       playerEquipmentSetupsApproved: approvedPlayerEquipmentSetups || 0,
       playerEquipmentSetupsRejected: rejectedPlayerEquipmentSetups || 0,
     },

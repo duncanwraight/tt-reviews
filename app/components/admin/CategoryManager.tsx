@@ -116,7 +116,10 @@ export function CategoryManager({
                     htmlFor="parent_id"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Parent Category {type === "review_rating_category" && <span className="text-red-500">*</span>}
+                    Parent Category{" "}
+                    {type === "review_rating_category" && (
+                      <span className="text-red-500">*</span>
+                    )}
                   </label>
                   <select
                     id="parent_id"
@@ -124,7 +127,11 @@ export function CategoryManager({
                     required={type === "review_rating_category"}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="">{type === "review_rating_category" ? "Select parent..." : "No Parent"}</option>
+                    <option value="">
+                      {type === "review_rating_category"
+                        ? "Select parent..."
+                        : "No Parent"}
+                    </option>
                     {parentCategories.map(parent => (
                       <option key={parent.id} value={parent.id}>
                         {parent.name}
@@ -133,7 +140,8 @@ export function CategoryManager({
                   </select>
                   {type === "review_rating_category" && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Rating categories must be linked to an equipment category or subcategory
+                      Rating categories must be linked to an equipment category
+                      or subcategory
                     </p>
                   )}
                 </div>
@@ -165,7 +173,8 @@ export function CategoryManager({
                     Slider Labels (optional)
                   </p>
                   <p className="text-xs text-purple-600 mb-3">
-                    Custom labels shown at the ends of the rating slider instead of generic "Poor"/"Excellent"
+                    Custom labels shown at the ends of the rating slider instead
+                    of generic "Poor"/"Excellent"
                   </p>
                 </div>
                 <div>
@@ -247,12 +256,14 @@ export function CategoryManager({
                 parentName={parent?.name}
                 onMoveUp={
                   index > 0
-                    ? () => handleReorder(category.id, category.display_order - 1)
+                    ? () =>
+                        handleReorder(category.id, category.display_order - 1)
                     : undefined
                 }
                 onMoveDown={
                   index < sortedCategories.length - 1
-                    ? () => handleReorder(category.id, category.display_order + 1)
+                    ? () =>
+                        handleReorder(category.id, category.display_order + 1)
                     : undefined
                 }
               />
@@ -371,7 +382,10 @@ function CategoryItem({
                   htmlFor={`edit-parent-${category.id}`}
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Parent Category {type === "review_rating_category" && <span className="text-red-500">*</span>}
+                  Parent Category{" "}
+                  {type === "review_rating_category" && (
+                    <span className="text-red-500">*</span>
+                  )}
                 </label>
                 <select
                   id={`edit-parent-${category.id}`}
@@ -380,7 +394,11 @@ function CategoryItem({
                   defaultValue={category.parent_id || ""}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">{type === "review_rating_category" ? "Select parent..." : "No Parent"}</option>
+                  <option value="">
+                    {type === "review_rating_category"
+                      ? "Select parent..."
+                      : "No Parent"}
+                  </option>
                   {parentCategories.map(parent => (
                     <option key={parent.id} value={parent.id}>
                       {parent.name}
@@ -434,7 +452,8 @@ function CategoryItem({
                   Slider Labels (optional)
                 </p>
                 <p className="text-xs text-purple-600 mb-3">
-                  Custom labels shown at the ends of the rating slider instead of generic "Poor"/"Excellent"
+                  Custom labels shown at the ends of the rating slider instead
+                  of generic "Poor"/"Excellent"
                 </p>
               </div>
               <div>

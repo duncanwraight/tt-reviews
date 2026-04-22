@@ -52,7 +52,10 @@ class LoggerService {
 
   constructor() {
     // Determine environment from globalThis or default to production
-    const global = globalThis as unknown as { process?: { env?: { NODE_ENV?: string } }; ENVIRONMENT?: string };
+    const global = globalThis as unknown as {
+      process?: { env?: { NODE_ENV?: string } };
+      ENVIRONMENT?: string;
+    };
     this.isDevelopment =
       global.process?.env?.NODE_ENV === "development" ||
       global.ENVIRONMENT === "development";

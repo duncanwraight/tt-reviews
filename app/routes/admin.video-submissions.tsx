@@ -33,10 +33,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Get all video submissions with player names
   const { data: submissions, error } = await supabase
     .from("video_submissions")
-    .select(`
+    .select(
+      `
       *,
       players!inner(name, slug)
-    `)
+    `
+    )
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -276,10 +278,9 @@ export default function AdminVideoSubmissions({
                 Videos for {submission.players.name}
               </p>
               <p className="text-sm text-gray-500">
-                {submission.videos && Array.isArray(submission.videos) 
-                  ? `${submission.videos.length} video${submission.videos.length !== 1 ? 's' : ''}`
-                  : 'No videos'
-                }
+                {submission.videos && Array.isArray(submission.videos)
+                  ? `${submission.videos.length} video${submission.videos.length !== 1 ? "s" : ""}`
+                  : "No videos"}
               </p>
             </div>
           </div>
@@ -298,34 +299,43 @@ export default function AdminVideoSubmissions({
         </div>
 
         {/* Video List */}
-        {submission.videos && Array.isArray(submission.videos) && submission.videos.length > 0 && (
-          <div className="mt-3 bg-gray-50 rounded-lg p-3">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Videos:</h4>
-            <div className="space-y-2">
-              {submission.videos.map((video: any, index: number) => (
-                <div key={index} className="flex items-start space-x-3 p-2 bg-white rounded border">
-                  <span className="text-lg">{getPlatformIcon(video.platform)}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {video.title}
-                    </p>
-                    <a 
-                      href={video.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 truncate block"
-                    >
-                      {video.url}
-                    </a>
-                    <p className="text-xs text-gray-500 capitalize">
-                      Platform: {video.platform}
-                    </p>
+        {submission.videos &&
+          Array.isArray(submission.videos) &&
+          submission.videos.length > 0 && (
+            <div className="mt-3 bg-gray-50 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                Videos:
+              </h4>
+              <div className="space-y-2">
+                {submission.videos.map((video: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-start space-x-3 p-2 bg-white rounded border"
+                  >
+                    <span className="text-lg">
+                      {getPlatformIcon(video.platform)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {video.title}
+                      </p>
+                      <a
+                        href={video.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 truncate block"
+                      >
+                        {video.url}
+                      </a>
+                      <p className="text-xs text-gray-500 capitalize">
+                        Platform: {video.platform}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {submission.moderator_notes && (
           <div className="mt-2 text-sm">
@@ -496,9 +506,7 @@ export default function AdminVideoSubmissions({
       </div>
 
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Video Submissions
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-900">Video Submissions</h2>
         <div className="text-sm text-gray-600">
           {submissions.length} total submissions
         </div>

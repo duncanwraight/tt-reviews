@@ -47,7 +47,6 @@ export default function Login({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const { modalState, execute, closeModal } = useAsyncOperationWithModal();
 
-
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);

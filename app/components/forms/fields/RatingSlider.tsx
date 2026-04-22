@@ -86,7 +86,7 @@ export function RatingSlider({
           [&::-moz-range-thumb]:border-0
           [&::-moz-range-thumb]:shadow-lg`}
         />
-        
+
         {/* Scale Labels */}
         <div className="flex justify-between text-sm text-gray-500 px-1">
           <span>{min}</span>
@@ -96,11 +96,7 @@ export function RatingSlider({
       </div>
 
       {/* Hidden input for form submission */}
-      <input
-        type="hidden"
-        name={name}
-        value={value || ""}
-      />
+      <input type="hidden" name={name} value={value || ""} />
     </div>
   );
 }

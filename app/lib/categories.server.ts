@@ -127,7 +127,6 @@ export class CategoryService {
     return this.getCategoriesByType("rejection_category");
   }
 
-
   /**
    * Create a new category (admin only)
    */
@@ -169,7 +168,9 @@ export class CategoryService {
 
     if (error) {
       console.error("Error updating category:", error);
-      throw new Error(`Failed to update category: ${error.message} (code: ${error.code})`);
+      throw new Error(
+        `Failed to update category: ${error.message} (code: ${error.code})`
+      );
     }
 
     return data;
@@ -293,7 +294,9 @@ export class CategoryService {
           .single();
 
         if (!equipmentCategory) {
-          console.error(`Equipment category '${equipmentCategoryValue}' not found`);
+          console.error(
+            `Equipment category '${equipmentCategoryValue}' not found`
+          );
           return [];
         }
 
@@ -303,7 +306,8 @@ export class CategoryService {
       // Get rating categories that are children of the determined parent
       const { data, error } = await this.supabase
         .from("categories")
-        .select(`
+        .select(
+          `
           id,
           name,
           value,
@@ -311,14 +315,18 @@ export class CategoryService {
           min_label,
           max_label,
           display_order
-        `)
+        `
+        )
         .eq("type", "review_rating_category")
         .eq("parent_id", parentId)
         .eq("is_active", true)
         .order("display_order");
 
       if (error) {
-        console.error(`Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}:`, error);
+        console.error(
+          `Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}:`,
+          error
+        );
         return [];
       }
 

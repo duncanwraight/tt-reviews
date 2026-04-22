@@ -51,7 +51,9 @@ export function EquipmentCombobox({
   // Scroll highlighted option into view
   useEffect(() => {
     if (isOpen && listRef.current) {
-      const highlighted = listRef.current.children[highlightedIndex] as HTMLElement;
+      const highlighted = listRef.current.children[
+        highlightedIndex
+      ] as HTMLElement;
       if (highlighted) {
         highlighted.scrollIntoView({ block: "nearest" });
       }
@@ -113,7 +115,9 @@ export function EquipmentCombobox({
         <div className="flex items-center w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
           <span className="flex-1 text-gray-900">
             {selectedOption.name}{" "}
-            <span className="text-gray-500">({selectedOption.manufacturer})</span>
+            <span className="text-gray-500">
+              ({selectedOption.manufacturer})
+            </span>
           </span>
           {!disabled && (
             <button
@@ -122,8 +126,18 @@ export function EquipmentCombobox({
               className="ml-2 text-gray-400 hover:text-gray-600"
               aria-label="Clear selection"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           )}
@@ -171,7 +185,9 @@ export function EquipmentCombobox({
                 }`}
               >
                 <span className="font-medium">{option.name}</span>
-                <span className="text-gray-500 ml-1">({option.manufacturer})</span>
+                <span className="text-gray-500 ml-1">
+                  ({option.manufacturer})
+                </span>
               </li>
             ))
           )}

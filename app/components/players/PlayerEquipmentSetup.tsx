@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { EquipmentCombobox, type EquipmentOption } from "~/components/ui/EquipmentCombobox";
+import {
+  EquipmentCombobox,
+  type EquipmentOption,
+} from "~/components/ui/EquipmentCombobox";
 
 interface PlayerEquipmentSetupProps {
   includeEquipment: boolean;
@@ -102,7 +105,7 @@ export function PlayerEquipmentSetup({
               disabled={isSubmitting}
               required
               value={bladeId}
-              onChange={(id) => setBladeId(id)}
+              onChange={id => setBladeId(id)}
             />
           </div>
         </div>
@@ -116,7 +119,7 @@ export function PlayerEquipmentSetup({
           onSideChange={handleForehandSideChange}
           rubbers={rubbers}
           rubberId={forehandRubberId}
-          onRubberChange={(id) => setForehandRubberId(id)}
+          onRubberChange={id => setForehandRubberId(id)}
         />
 
         {/* Backhand Setup */}
@@ -128,7 +131,7 @@ export function PlayerEquipmentSetup({
           onSideChange={handleBackhandSideChange}
           rubbers={rubbers}
           rubberId={backhandRubberId}
-          onRubberChange={(id) => setBackhandRubberId(id)}
+          onRubberChange={id => setBackhandRubberId(id)}
         />
 
         {/* Source Information */}
@@ -244,7 +247,7 @@ export function PlayerEquipmentSetup({
                 placeholder="Search for a blade..."
                 disabled={isSubmitting}
                 value={bladeId}
-                onChange={(id) => setBladeId(id)}
+                onChange={id => setBladeId(id)}
               />
             </div>
           </div>
@@ -258,7 +261,7 @@ export function PlayerEquipmentSetup({
             onSideChange={handleForehandSideChange}
             rubbers={rubbers}
             rubberId={forehandRubberId}
-            onRubberChange={(id) => setForehandRubberId(id)}
+            onRubberChange={id => setForehandRubberId(id)}
           />
 
           {/* Backhand Setup */}
@@ -270,7 +273,7 @@ export function PlayerEquipmentSetup({
             onSideChange={handleBackhandSideChange}
             rubbers={rubbers}
             rubberId={backhandRubberId}
-            onRubberChange={(id) => setBackhandRubberId(id)}
+            onRubberChange={id => setBackhandRubberId(id)}
           />
 
           {/* Source Information */}
@@ -354,10 +357,12 @@ function RubberSetup({
           <EquipmentCombobox
             name={`${side}_rubber_id`}
             options={rubbers}
-            placeholder={side === "forehand" ? "Search rubbers..." : "Search rubbers..."}
+            placeholder={
+              side === "forehand" ? "Search rubbers..." : "Search rubbers..."
+            }
             disabled={isSubmitting}
             value={rubberId}
-            onChange={(id) => onRubberChange?.(id)}
+            onChange={id => onRubberChange?.(id)}
           />
         </div>
         <div>
@@ -391,7 +396,7 @@ function RubberSetup({
                 name={`${side}_side`}
                 value="forehand"
                 checked={selectedSide === "forehand"}
-                onChange={(e) => onSideChange(e.target.value)}
+                onChange={e => onSideChange(e.target.value)}
                 disabled={isSubmitting}
                 className="mr-2 text-red-600 focus:ring-red-500"
               />
@@ -409,7 +414,7 @@ function RubberSetup({
                 name={`${side}_side`}
                 value="backhand"
                 checked={selectedSide === "backhand"}
-                onChange={(e) => onSideChange(e.target.value)}
+                onChange={e => onSideChange(e.target.value)}
                 disabled={isSubmitting}
                 className="mr-2 text-gray-900 focus:ring-gray-500"
               />

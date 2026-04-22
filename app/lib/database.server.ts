@@ -136,9 +136,13 @@ export class DatabaseService {
   private context?: LogContext;
   public content: ContentService;
 
-  constructor(context: AppLoadContext, supabaseClientOrLogContext?: SupabaseClient | LogContext, logContext?: LogContext) {
+  constructor(
+    context: AppLoadContext,
+    supabaseClientOrLogContext?: SupabaseClient | LogContext,
+    logContext?: LogContext
+  ) {
     // Handle both old and new constructor signatures
-    if (supabaseClientOrLogContext && 'from' in supabaseClientOrLogContext) {
+    if (supabaseClientOrLogContext && "from" in supabaseClientOrLogContext) {
       // New signature: DatabaseService(context, supabaseClient, logContext?)
       this.supabase = supabaseClientOrLogContext as SupabaseClient;
       this.context = logContext;
@@ -860,10 +864,12 @@ export class DatabaseService {
       console.error("Error fetching equipment with reviews:", error);
       // Fallback to basic equipment without stats
       // Remove "rating" sortBy since getAllEquipment doesn't support it
-      const fallbackOptions = options ? {
-        ...options,
-        sortBy: options.sortBy === "rating" ? "name" : options.sortBy,
-      } : undefined;
+      const fallbackOptions = options
+        ? {
+            ...options,
+            sortBy: options.sortBy === "rating" ? "name" : options.sortBy,
+          }
+        : undefined;
       return this.getAllEquipment(fallbackOptions);
     }
 
@@ -1261,7 +1267,9 @@ export class DatabaseService {
           .eq("id", editId);
 
         if (error) {
-          throw new Error(`Failed to update Discord message ID: ${error.message}`);
+          throw new Error(
+            `Failed to update Discord message ID: ${error.message}`
+          );
         }
       },
       context,
@@ -1275,7 +1283,7 @@ export class DatabaseService {
   ): Promise<string | null> {
     try {
       const tableName = this.getSubmissionTableName(submissionType);
-      
+
       // First check if the record exists at all
       const { data: allRecords, error: countError } = await this.supabase
         .from(tableName)
@@ -1283,7 +1291,10 @@ export class DatabaseService {
         .eq("id", submissionId);
 
       if (countError) {
-        console.error(`Database error checking ${submissionType} ${submissionId}:`, countError.message);
+        console.error(
+          `Database error checking ${submissionType} ${submissionId}:`,
+          countError.message
+        );
         return null;
       }
 
@@ -1293,20 +1304,28 @@ export class DatabaseService {
       }
 
       if (allRecords.length > 1) {
-        console.error(`Multiple ${submissionType} records found for ID ${submissionId}:`, allRecords.length);
+        console.error(
+          `Multiple ${submissionType} records found for ID ${submissionId}:`,
+          allRecords.length
+        );
         // Return the first one as fallback
         return allRecords[0].discord_message_id;
       }
 
       const record = allRecords[0];
       if (!record.discord_message_id) {
-        console.warn(`${submissionType} ${submissionId} has no Discord message ID stored`);
+        console.warn(
+          `${submissionType} ${submissionId} has no Discord message ID stored`
+        );
         return null;
       }
 
       return record.discord_message_id;
     } catch (error) {
-      console.error(`Error getting Discord message ID for ${submissionType} ${submissionId}:`, error);
+      console.error(
+        `Error getting Discord message ID for ${submissionType} ${submissionId}:`,
+        error
+      );
       return null;
     }
   }

@@ -22,7 +22,13 @@ interface FormFieldProps {
   // For dependency handling
   allValues?: Record<string, any>;
   // For rating categories
-  ratingCategories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+  ratingCategories?: Array<{
+    name: string;
+    label: string;
+    description?: string;
+    min_label?: string;
+    max_label?: string;
+  }>;
   // For equipment setup
   blades?: EquipmentOption[];
   rubbers?: EquipmentOption[];
@@ -41,7 +47,9 @@ export function FormField({
   blades = [],
   rubbers = [],
 }: FormFieldProps) {
-  const [dynamicOptions, setDynamicOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [loadingDynamicOptions, setLoadingDynamicOptions] = useState(false);
 
   // Handle dynamic options loading
@@ -56,17 +64,26 @@ export function FormField({
     } else if (field.type === "dynamic_select") {
       setDynamicOptions([]);
     }
-  }, [field.dynamicOptions?.dependsOn, allValues[field.dynamicOptions?.dependsOn || ""]]);
+  }, [
+    field.dynamicOptions?.dependsOn,
+    allValues[field.dynamicOptions?.dependsOn || ""],
+  ]);
 
   const loadDynamicOptions = async () => {
     if (!field.dynamicOptions || !env) return;
 
     setLoadingDynamicOptions(true);
     try {
-      const supabase = createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      const supabase = createBrowserClient(
+        env.SUPABASE_URL,
+        env.SUPABASE_ANON_KEY
+      );
       const { data, error } = await supabase.rpc(
         field.dynamicOptions.rpcFunction,
-        { [field.dynamicOptions.paramName]: allValues[field.dynamicOptions.dependsOn] }
+        {
+          [field.dynamicOptions.paramName]:
+            allValues[field.dynamicOptions.dependsOn],
+        }
       );
 
       if (error) {
@@ -88,21 +105,21 @@ export function FormField({
     if (!field.dependencies) return true;
 
     const dependentValue = allValues[field.dependencies.field];
-    
+
     if (field.dependencies.showWhen) {
-      const showWhen = Array.isArray(field.dependencies.showWhen) 
-        ? field.dependencies.showWhen 
+      const showWhen = Array.isArray(field.dependencies.showWhen)
+        ? field.dependencies.showWhen
         : [field.dependencies.showWhen];
       return showWhen.includes(String(dependentValue));
     }
-    
+
     if (field.dependencies.hideWhen) {
-      const hideWhen = Array.isArray(field.dependencies.hideWhen) 
-        ? field.dependencies.hideWhen 
+      const hideWhen = Array.isArray(field.dependencies.hideWhen)
+        ? field.dependencies.hideWhen
         : [field.dependencies.hideWhen];
       return !hideWhen.includes(String(dependentValue));
     }
-    
+
     return true;
   };
 
@@ -110,8 +127,9 @@ export function FormField({
     return null;
   }
 
-  const fieldClasses = `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 ${error ? 'border-red-500' : ''}`;
-  const colSpanClass = field.layout?.colSpan === 2 ? "md:col-span-2" : "md:col-span-1";
+  const fieldClasses = `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 ${error ? "border-red-500" : ""}`;
+  const colSpanClass =
+    field.layout?.colSpan === 2 ? "md:col-span-2" : "md:col-span-1";
 
   const renderField = () => {
     switch (field.type) {
@@ -122,7 +140,7 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
           />
         );
 
@@ -134,7 +152,7 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
             required={field.required}
             disabled={disabled || field.disabled}
             placeholder={field.placeholder}
@@ -149,7 +167,7 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
             required={field.required}
             disabled={disabled}
             placeholder={field.placeholder}
@@ -165,7 +183,7 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
             required={field.required}
             disabled={disabled}
             placeholder={field.placeholder}
@@ -181,13 +199,15 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
             required={field.required}
             disabled={disabled}
             className={fieldClasses}
           >
-            <option value="">{field.placeholder || `Select ${field.label.toLowerCase()}`}</option>
-            {selectOptions.map((option) => (
+            <option value="">
+              {field.placeholder || `Select ${field.label.toLowerCase()}`}
+            </option>
+            {selectOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -201,18 +221,17 @@ export function FormField({
             id={field.name}
             name={field.name}
             value={value || ""}
-            onChange={(e) => onChange(field.name, e.target.value)}
+            onChange={e => onChange(field.name, e.target.value)}
             required={field.required}
             disabled={disabled || loadingDynamicOptions}
             className={fieldClasses}
           >
             <option value="">
-              {loadingDynamicOptions 
-                ? "Loading..." 
-                : `Select ${field.label.toLowerCase()} (optional)`
-              }
+              {loadingDynamicOptions
+                ? "Loading..."
+                : `Select ${field.label.toLowerCase()} (optional)`}
             </option>
-            {dynamicOptions.map((option) => (
+            {dynamicOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -228,7 +247,7 @@ export function FormField({
               id={field.name}
               name={field.name}
               checked={Boolean(value)}
-              onChange={(e) => onChange(field.name, e.target.checked)}
+              onChange={e => onChange(field.name, e.target.checked)}
               disabled={disabled}
               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
             />
@@ -252,7 +271,7 @@ export function FormField({
       case "video_list":
         return (
           <VideoSubmissionSection
-            onVideosChange={(videos) => onChange(field.name, videos)}
+            onVideosChange={videos => onChange(field.name, videos)}
             showTitle={false}
           />
         );
@@ -261,7 +280,9 @@ export function FormField({
         return (
           <PlayerEquipmentSetup
             includeEquipment={Boolean(allValues.include_equipment)}
-            onToggleEquipment={(include) => onChange("include_equipment", include)}
+            onToggleEquipment={include =>
+              onChange("include_equipment", include)
+            }
             isSubmitting={disabled}
             blades={blades}
             rubbers={rubbers}
@@ -320,22 +341,23 @@ export function FormField({
 
   return (
     <div className={colSpanClass}>
-      {field.type !== "checkbox" && field.type !== "image" && field.type !== "hidden" && field.type !== "rating_categories" && (
-        <label
-          htmlFor={field.name}
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          {field.label}
-          {field.required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
-      
+      {field.type !== "checkbox" &&
+        field.type !== "image" &&
+        field.type !== "hidden" &&
+        field.type !== "rating_categories" && (
+          <label
+            htmlFor={field.name}
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
+
       {renderField()}
-      
-      {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
-      )}
-      
+
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+
       {field.type === "dynamic_select" && loadingDynamicOptions && (
         <p className="mt-1 text-xs text-gray-500">Loading options...</p>
       )}

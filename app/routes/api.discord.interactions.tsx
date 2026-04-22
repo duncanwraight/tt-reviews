@@ -12,7 +12,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   } = await import("~/lib/security.server");
 
   try {
-
     // Apply rate limiting
     const rateLimitResult = await rateLimit(
       request,

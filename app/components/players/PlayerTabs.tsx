@@ -8,7 +8,7 @@ interface PlayerFootage {
   player_id: string;
   url: string;
   title: string;
-  platform: 'youtube' | 'other';
+  platform: "youtube" | "other";
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -31,7 +31,13 @@ interface PlayerTabsProps {
 
 type TabType = "timeline" | "videos";
 
-function VideosSection({ footage, playerName }: { footage: PlayerFootage[]; playerName: string }) {
+function VideosSection({
+  footage,
+  playerName,
+}: {
+  footage: PlayerFootage[];
+  playerName: string;
+}) {
   if (footage.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,8 +86,18 @@ function VideosSection({ footage, playerName }: { footage: PlayerFootage[]; play
           href={`/submissions/video/submit?player=${encodeURIComponent(playerName)}`}
           className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Add Video
         </a>
@@ -89,18 +105,13 @@ function VideosSection({ footage, playerName }: { footage: PlayerFootage[]; play
 
       {/* Video Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {footage.map((video) => (
-          <YouTubeLite
-            key={video.id}
-            url={video.url}
-            title={video.title}
-          />
+        {footage.map(video => (
+          <YouTubeLite key={video.id} url={video.url} title={video.title} />
         ))}
       </div>
     </div>
   );
 }
-
 
 export function PlayerTabs({
   player,
@@ -144,7 +155,9 @@ export function PlayerTabs({
             showAddButton={showEditButtons}
           />
         )}
-        {activeTab === "videos" && <VideosSection footage={footage} playerName={player.name} />}
+        {activeTab === "videos" && (
+          <VideosSection footage={footage} playerName={player.name} />
+        )}
       </section>
     </>
   );

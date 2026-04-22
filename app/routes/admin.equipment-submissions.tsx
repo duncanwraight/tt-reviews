@@ -71,7 +71,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       request.headers.get("X-Request-ID") || "admin-equipment-submissions",
       { route: "/admin/equipment-submissions", method: "GET", userId: user?.id }
     );
-    Logger.error("Equipment submissions error", logContext, error instanceof Error ? error : undefined);
+    Logger.error(
+      "Equipment submissions error",
+      logContext,
+      error instanceof Error ? error : undefined
+    );
     return data(
       { submissions: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }

@@ -40,17 +40,19 @@ export function RatingCategories({
     return ratings;
   }, [categories, values, min]);
 
-  const handleSliderChange = useCallback((categoryName: string, newValue: number) => {
-    // Create new values object with the updated category
-    const newRatings = {
-      ...currentRatings,
-      [categoryName]: newValue
-    };
+  const handleSliderChange = useCallback(
+    (categoryName: string, newValue: number) => {
+      // Create new values object with the updated category
+      const newRatings = {
+        ...currentRatings,
+        [categoryName]: newValue,
+      };
 
-    // Notify parent
-    onChange(name, newRatings);
-  }, [name, currentRatings, onChange]);
-
+      // Notify parent
+      onChange(name, newRatings);
+    },
+    [name, currentRatings, onChange]
+  );
 
   const getRatingColor = (rating: number) => {
     if (rating === 0) return "text-gray-400";
@@ -60,7 +62,6 @@ export function RatingCategories({
     if (rating <= 8) return "text-blue-500";
     return "text-green-500";
   };
-
 
   if (!categories || categories.length === 0) {
     return (
@@ -72,7 +73,8 @@ export function RatingCategories({
               Rating categories not available
             </p>
             <p className="text-xs text-yellow-700 mt-1">
-              Equipment-specific rating categories require database setup. Using overall rating only for now.
+              Equipment-specific rating categories require database setup. Using
+              overall rating only for now.
             </p>
           </div>
         </div>
@@ -95,14 +97,22 @@ export function RatingCategories({
           const sliderId = `rating_${name}_${category.name}_${index}`;
 
           return (
-            <div key={sliderId} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div
+              key={sliderId}
+              className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
+            >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label htmlFor={sliderId} className="block text-xl font-bold text-gray-900">
+                  <label
+                    htmlFor={sliderId}
+                    className="block text-xl font-bold text-gray-900"
+                  >
                     {category.label}
                     {required && <span className="text-red-500 ml-1">*</span>}
                   </label>
-                  <div className={`text-2xl font-bold ${getRatingColor(currentValue)}`}>
+                  <div
+                    className={`text-2xl font-bold ${getRatingColor(currentValue)}`}
+                  >
                     {currentValue}/{max}
                   </div>
                 </div>
@@ -115,7 +125,7 @@ export function RatingCategories({
                     value={currentValue}
                     min={min}
                     max={max}
-                    onChange={(e) => {
+                    onChange={e => {
                       const newValue = parseInt(e.target.value);
                       handleSliderChange(category.name, newValue);
                     }}
@@ -142,12 +152,14 @@ export function RatingCategories({
 
                   <div className="flex justify-between text-sm text-gray-500 px-1">
                     <span>{category.min_label || min}</span>
-                    <span className="text-center font-medium">{currentValue}/{max}</span>
+                    <span className="text-center font-medium">
+                      {currentValue}/{max}
+                    </span>
                     <span>{category.max_label || max}</span>
                   </div>
                 </div>
               </div>
-              
+
               {category.description && (
                 <p className="text-sm text-gray-600 mt-3 italic leading-relaxed">
                   {category.description}
@@ -169,11 +181,7 @@ export function RatingCategories({
       ))}
 
       {/* Summary hidden input */}
-      <input
-        type="hidden"
-        name={name}
-        value={JSON.stringify(currentRatings)}
-      />
+      <input type="hidden" name={name} value={JSON.stringify(currentRatings)} />
     </div>
   );
 }

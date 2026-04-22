@@ -19,9 +19,9 @@ export type RejectionCategory =
   | "other";
 
 // Unified submission types
-export type SubmissionType = 
+export type SubmissionType =
   | "equipment"
-  | "player" 
+  | "player"
   | "player_edit"
   | "video"
   | "review"

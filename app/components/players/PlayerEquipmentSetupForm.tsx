@@ -132,8 +132,10 @@ export function PlayerEquipmentSetupForm({
 
             {/* Forehand Rubber */}
             <div className="space-y-4">
-              <h4 className="text-md font-medium text-gray-800">Forehand Side</h4>
-              
+              <h4 className="text-md font-medium text-gray-800">
+                Forehand Side
+              </h4>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label
@@ -204,8 +206,10 @@ export function PlayerEquipmentSetupForm({
 
             {/* Backhand Rubber */}
             <div className="space-y-4">
-              <h4 className="text-md font-medium text-gray-800">Backhand Side</h4>
-              
+              <h4 className="text-md font-medium text-gray-800">
+                Backhand Side
+              </h4>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label

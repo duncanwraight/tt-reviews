@@ -31,7 +31,9 @@ export function ResultCard({ item, type }: ResultCardProps) {
   if (type === "equipment" && !isPlayer(item)) {
     const equipment = item as Equipment;
     const categoryIcon = getEquipmentIcon(equipment.category);
-    const imageUrl = equipment.image_key ? `/api/images/${equipment.image_key}` : null;
+    const imageUrl = equipment.image_key
+      ? `/api/images/${equipment.image_key}`
+      : null;
 
     return (
       <Link
@@ -47,7 +49,9 @@ export function ResultCard({ item, type }: ResultCardProps) {
                 alt={equipment.name}
                 className="w-full h-full"
                 placeholder="skeleton"
-                fallbackIcon={<span className="text-3xl text-gray-300">{categoryIcon}</span>}
+                fallbackIcon={
+                  <span className="text-3xl text-gray-300">{categoryIcon}</span>
+                }
               />
             ) : (
               <span className="text-3xl text-gray-300">{categoryIcon}</span>
@@ -69,7 +73,9 @@ export function ResultCard({ item, type }: ResultCardProps) {
 
   if (type === "players" && isPlayer(item)) {
     const player = item as Player;
-    const imageUrl = player.image_key ? `/api/images/${player.image_key}` : null;
+    const imageUrl = player.image_key
+      ? `/api/images/${player.image_key}`
+      : null;
 
     return (
       <Link
@@ -85,7 +91,9 @@ export function ResultCard({ item, type }: ResultCardProps) {
                 alt={player.name}
                 className="w-full h-full rounded-full"
                 placeholder="skeleton"
-                fallbackIcon={<span className="text-3xl text-gray-300">👤</span>}
+                fallbackIcon={
+                  <span className="text-3xl text-gray-300">👤</span>
+                }
               />
             ) : (
               <span className="text-3xl text-gray-300">👤</span>

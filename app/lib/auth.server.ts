@@ -41,7 +41,10 @@ export async function getUserWithRole(
     try {
       // Auto-promote admin emails if context is provided
       if (context) {
-        const env = context.cloudflare?.env as unknown as Record<string, string>;
+        const env = context.cloudflare?.env as unknown as Record<
+          string,
+          string
+        >;
         const adminEmails = getAdminEmails(env);
 
         if (adminEmails) {

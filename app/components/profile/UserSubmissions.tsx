@@ -1,4 +1,8 @@
-import type { ReviewStatus, RejectionCategory, SubmissionType } from "~/lib/types";
+import type {
+  ReviewStatus,
+  RejectionCategory,
+  SubmissionType,
+} from "~/lib/types";
 import { SafeHtml } from "~/lib/sanitize";
 
 interface Submission {
@@ -138,7 +142,8 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
           No submissions yet
         </h3>
         <p className="text-gray-600 mb-4">
-          Start contributing to the community by submitting equipment, players, or reviews.
+          Start contributing to the community by submitting equipment, players,
+          or reviews.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <a
@@ -198,9 +203,12 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
                   </div>
 
                   <h4 className="text-base font-medium text-gray-900 mb-2">
-                    {submission.name || submission.player_name || submission.equipment_name ||
-                     (submission.type === "review" && submission.overall_rating ?
-                       `Review (${submission.overall_rating}/10)` : "Submission")}
+                    {submission.name ||
+                      submission.player_name ||
+                      submission.equipment_name ||
+                      (submission.type === "review" && submission.overall_rating
+                        ? `Review (${submission.overall_rating}/10)`
+                        : "Submission")}
                   </h4>
 
                   {submission.status === "rejected" &&

@@ -44,7 +44,7 @@ async function rateLimitedFetch(url: string): Promise<Response> {
   const timeSinceLastRequest = now - lastRequestTime;
 
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    await new Promise((resolve) =>
+    await new Promise(resolve =>
       setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest)
     );
   }
@@ -121,9 +121,10 @@ function parseProductTable(
   const seenSlugs = new Set<string>();
 
   // Get the category prefix for filtering links
-  const categoryPrefix = category === "pips_short" || category === "pips_long"
-    ? "pips/"
-    : `${category}/`;
+  const categoryPrefix =
+    category === "pips_short" || category === "pips_long"
+      ? "pips/"
+      : `${category}/`;
 
   // DEBUG: Log HTML length
   console.log(`[REVSPIN DEBUG] HTML length: ${html.length}`);
@@ -147,7 +148,9 @@ function parseProductTable(
 
     // DEBUG: Log first 10 links to see patterns
     if (totalLinks <= 10) {
-      console.log(`[REVSPIN DEBUG] Link ${totalLinks}: href="${href.substring(0, 60)}", name="${name.substring(0, 30)}"`);
+      console.log(
+        `[REVSPIN DEBUG] Link ${totalLinks}: href="${href.substring(0, 60)}", name="${name.substring(0, 30)}"`
+      );
     }
 
     // Skip if not a product link for this category
@@ -161,7 +164,11 @@ function parseProductTable(
     categoryLinks++;
 
     // Extract the slug from the URL
-    const slug = href.replace(/\.html$/, "").split("/").pop() || "";
+    const slug =
+      href
+        .replace(/\.html$/, "")
+        .split("/")
+        .pop() || "";
 
     // Skip duplicates
     if (seenSlugs.has(slug)) continue;
@@ -190,7 +197,9 @@ function parseProductTable(
 
     // DEBUG: Log first few products' cells
     if (categoryLinks <= 5) {
-      console.log(`[REVSPIN DEBUG] Product "${name}" has ${cells.length} cells: ${JSON.stringify(cells.slice(0, 8))}`);
+      console.log(
+        `[REVSPIN DEBUG] Product "${name}" has ${cells.length} cells: ${JSON.stringify(cells.slice(0, 8))}`
+      );
     }
 
     const item: RevspinListItem = {
@@ -223,7 +232,9 @@ function parseProductTable(
   }
 
   // DEBUG: Summary
-  console.log(`[REVSPIN DEBUG] Summary: ${totalLinks} total links, ${categoryLinks} matching category, ${products.length} products parsed`);
+  console.log(
+    `[REVSPIN DEBUG] Summary: ${totalLinks} total links, ${categoryLinks} matching category, ${products.length} products parsed`
+  );
 
   return products;
 }
@@ -299,9 +310,7 @@ function parseSpecifications(
     }
 
     // Look for materials like "Arylate Carbon", "Wood", etc.
-    const materialMatch = html.match(
-      /Materials?[:\s]+([^<\n]+)/i
-    );
+    const materialMatch = html.match(/Materials?[:\s]+([^<\n]+)/i);
     if (materialMatch) {
       specs.material = materialMatch[1].trim();
     }
@@ -341,7 +350,10 @@ export async function fetchProductList(
 
     return products;
   } catch (error) {
-    console.error(`[REVSPIN DEBUG] Error fetching product list for ${category}:`, error);
+    console.error(
+      `[REVSPIN DEBUG] Error fetching product list for ${category}:`,
+      error
+    );
     return [];
   }
 }
@@ -371,11 +383,20 @@ export async function fetchProductDetails(
     const specifications = parseSpecifications(html, category);
 
     // Extract slug from URL
-    const slug = url.replace(/\.html$/, "").split("/").pop() || "";
+    const slug =
+      url
+        .replace(/\.html$/, "")
+        .split("/")
+        .pop() || "";
 
     // Determine category and subcategory for our database
     let dbCategory: "blade" | "rubber" = "blade";
-    let subcategory: "inverted" | "long_pips" | "short_pips" | "anti" | undefined;
+    let subcategory:
+      | "inverted"
+      | "long_pips"
+      | "short_pips"
+      | "anti"
+      | undefined;
 
     if (category === "blade") {
       dbCategory = "blade";

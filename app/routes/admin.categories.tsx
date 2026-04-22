@@ -63,10 +63,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         all: allCategories,
       },
       env: {
-        SUPABASE_URL: (context.cloudflare.env as unknown as Record<string, string>)
-          .SUPABASE_URL!,
-        SUPABASE_ANON_KEY: (context.cloudflare.env as unknown as Record<string, string>)
-          .SUPABASE_ANON_KEY!,
+        SUPABASE_URL: (
+          context.cloudflare.env as unknown as Record<string, string>
+        ).SUPABASE_URL!,
+        SUPABASE_ANON_KEY: (
+          context.cloudflare.env as unknown as Record<string, string>
+        ).SUPABASE_ANON_KEY!,
       },
     },
     { headers: sbServerClient.headers }
@@ -242,7 +244,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
   } catch (error) {
     console.error("Category management error:", error);
-    const errorMessage = error instanceof Error ? error.message : "An error occurred while managing categories";
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "An error occurred while managing categories";
     return data(
       { error: errorMessage },
       { status: 500, headers: sbServerClient.headers }

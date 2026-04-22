@@ -22,7 +22,9 @@ const defaultFormatter = (item: any) => ({
 
 const countryFormatter = (country: any) => ({
   value: country.value,
-  label: country.flag_emoji ? `${country.flag_emoji} ${country.name}` : country.name,
+  label: country.flag_emoji
+    ? `${country.flag_emoji} ${country.name}`
+    : country.name,
 });
 
 const equipmentFormatter = (eq: any) => ({
@@ -36,7 +38,10 @@ const playerFormatter = (player: any) => ({
 });
 
 // Option loading configuration for each submission type
-const optionLoaders: Record<SubmissionType, Record<string, OptionLoaderConfig>> = {
+const optionLoaders: Record<
+  SubmissionType,
+  Record<string, OptionLoaderConfig>
+> = {
   equipment: {
     category: {
       table: "categories",
@@ -132,7 +137,15 @@ export interface EquipmentOption {
 export async function loadReviewRatingCategories(
   equipmentId: string,
   sbClient: SupabaseClient
-): Promise<Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>> {
+): Promise<
+  Array<{
+    name: string;
+    label: string;
+    description?: string;
+    min_label?: string;
+    max_label?: string;
+  }>
+> {
   // First get the equipment category and subcategory to determine which rating categories to show
   const { data: equipment } = await sbClient
     .from("equipment")
@@ -161,7 +174,13 @@ export async function loadReviewRatingCategories(
 
 // Type for field options - most fields use value/label, but some have special formats
 type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
-  rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+  rating_categories?: Array<{
+    name: string;
+    label: string;
+    description?: string;
+    min_label?: string;
+    max_label?: string;
+  }>;
   blades?: EquipmentOption[];
   rubbers?: EquipmentOption[];
 };
@@ -180,22 +199,27 @@ export async function loadFieldOptions(
   if (!loaders) return fieldOptions;
 
   // Load all options in parallel for better performance
-  const loadPromises = Object.entries(loaders).map(async ([fieldName, config]) => {
-    const { data } = await sbClient
-      .from(config.table)
-      .select(config.columns)
-      .match(config.filters)
-      .order(config.orderBy || "name");
+  const loadPromises = Object.entries(loaders).map(
+    async ([fieldName, config]) => {
+      const { data } = await sbClient
+        .from(config.table)
+        .select(config.columns)
+        .match(config.filters)
+        .order(config.orderBy || "name");
 
-    const formatter = config.formatter || defaultFormatter;
-    fieldOptions[fieldName] = data?.map(formatter) || [];
-  });
+      const formatter = config.formatter || defaultFormatter;
+      fieldOptions[fieldName] = data?.map(formatter) || [];
+    }
+  );
 
   await Promise.all(loadPromises);
 
   // For reviews, also load rating categories if we have equipment ID
   if (submissionType === "review" && additionalData?.equipmentId) {
-    const ratingCategories = await loadReviewRatingCategories(additionalData.equipmentId, sbClient);
+    const ratingCategories = await loadReviewRatingCategories(
+      additionalData.equipmentId,
+      sbClient
+    );
     // Pass through as-is - RatingCategories component expects { name, label, description }
     fieldOptions.rating_categories = ratingCategories;
   }
@@ -226,7 +250,11 @@ export async function loadFieldOptions(
 interface PreSelectionHandler {
   paramName: string;
   fieldName: string;
-  handler: (paramValue: string, fieldOptions: any, sbClient: SupabaseClient) => Promise<Record<string, any>>;
+  handler: (
+    paramValue: string,
+    fieldOptions: any,
+    sbClient: SupabaseClient
+  ) => Promise<Record<string, any>>;
 }
 
 const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
@@ -237,7 +265,9 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       paramName: "player_id",
       fieldName: "player_id",
       handler: async (playerId, fieldOptions) => {
-        const selectedPlayer = fieldOptions.player_id?.find((p: any) => p.value === playerId);
+        const selectedPlayer = fieldOptions.player_id?.find(
+          (p: any) => p.value === playerId
+        );
         return selectedPlayer ? { player_id: playerId } : {};
       },
     },
@@ -247,7 +277,9 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       paramName: "player",
       fieldName: "player_id",
       handler: async (playerName, fieldOptions) => {
-        const selectedPlayer = fieldOptions.player_id?.find((p: any) => p.label === playerName);
+        const selectedPlayer = fieldOptions.player_id?.find(
+          (p: any) => p.label === playerName
+        );
         return selectedPlayer ? { player_id: selectedPlayer.value } : {};
       },
     },
@@ -263,10 +295,12 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
           .eq("slug", slug)
           .single();
 
-        return equipment ? {
-          equipment_id: equipment.id,
-          equipment_display: `${equipment.name} (${equipment.manufacturer})`,
-        } : {};
+        return equipment
+          ? {
+              equipment_id: equipment.id,
+              equipment_display: `${equipment.name} (${equipment.manufacturer})`,
+            }
+          : {};
       },
     },
   ],
@@ -275,9 +309,15 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       paramName: "player_id",
       fieldName: "player_id",
       handler: async (playerId, fieldOptions) => {
-        const selectedPlayer = fieldOptions.player_id?.find((p: any) => p.value === playerId);
+        const selectedPlayer = fieldOptions.player_id?.find(
+          (p: any) => p.value === playerId
+        );
         return selectedPlayer
-          ? { player_id: playerId, player_name: selectedPlayer.label, player_locked: true }
+          ? {
+              player_id: playerId,
+              player_name: selectedPlayer.label,
+              player_locked: true,
+            }
           : {};
       },
     },

@@ -56,7 +56,9 @@ export function meta({ params, data }: Route.MetaArgs) {
     { property: "article:author", content: "TT Reviews" },
     { property: "og:site_name", content: "TT Reviews" },
     // Structured data from loader
-    ...(data?.multipleSchemas ? [{ "script:ld+json": data.multipleSchemas }] : []),
+    ...(data?.multipleSchemas
+      ? [{ "script:ld+json": data.multipleSchemas }]
+      : []),
   ];
 }
 
@@ -74,7 +76,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // Get equipment setups with related equipment data
   const equipmentSetups = await db.getPlayerEquipmentSetups(player.id);
-  
+
   // Get player footage/videos
   const footage = await db.getPlayerFootage(player.id);
 

@@ -3,7 +3,10 @@ import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { CSRFToken } from "~/components/ui/CSRFToken";
 import { FormField } from "./fields/FormField";
-import type { SubmissionConfig, FormField as FormFieldConfig } from "~/lib/submissions/registry";
+import type {
+  SubmissionConfig,
+  FormField as FormFieldConfig,
+} from "~/lib/submissions/registry";
 import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
 
 interface UnifiedSubmissionFormProps {
@@ -11,7 +14,13 @@ interface UnifiedSubmissionFormProps {
   csrfToken: string;
   // Server-provided options for select fields and rating categories
   fieldOptions?: Record<string, Array<{ value: string; label: string }>> & {
-    rating_categories?: Array<{ name: string; label: string; description?: string; min_label?: string; max_label?: string }>;
+    rating_categories?: Array<{
+      name: string;
+      label: string;
+      description?: string;
+      min_label?: string;
+      max_label?: string;
+    }>;
     blades?: EquipmentOption[];
     rubbers?: EquipmentOption[];
   };
@@ -31,7 +40,8 @@ export function UnifiedSubmissionForm({
   env,
 }: UnifiedSubmissionFormProps) {
   const navigate = useNavigate();
-  const [formValues, setFormValues] = useState<Record<string, any>>(preSelectedValues);
+  const [formValues, setFormValues] =
+    useState<Record<string, any>>(preSelectedValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleFieldChange = (name: string, value: any) => {
@@ -54,37 +64,58 @@ export function UnifiedSubmissionForm({
       // Custom validation
       if (formValues[field.name] && field.validation) {
         const value = formValues[field.name];
-        
+
         // Skip validation for rating_categories - they handle their own validation
         if (field.type === "rating_categories") {
           return;
         }
-        
+
         // Text/character length validation for text fields
-        if (field.type === "text" || field.type === "textarea" || field.type === "email") {
-          if (field.validation.min && String(value).length < field.validation.min) {
-            newErrors[field.name] = field.validation.message || `Minimum ${field.validation.min} characters required`;
+        if (
+          field.type === "text" ||
+          field.type === "textarea" ||
+          field.type === "email"
+        ) {
+          if (
+            field.validation.min &&
+            String(value).length < field.validation.min
+          ) {
+            newErrors[field.name] =
+              field.validation.message ||
+              `Minimum ${field.validation.min} characters required`;
           }
-          
-          if (field.validation.max && String(value).length > field.validation.max) {
-            newErrors[field.name] = field.validation.message || `Maximum ${field.validation.max} characters allowed`;
+
+          if (
+            field.validation.max &&
+            String(value).length > field.validation.max
+          ) {
+            newErrors[field.name] =
+              field.validation.message ||
+              `Maximum ${field.validation.max} characters allowed`;
           }
         }
-        
+
         // Numeric validation for number fields
         if (field.type === "number" || field.type === "rating_slider") {
           const numValue = Number(value);
           if (field.validation.min && numValue < field.validation.min) {
-            newErrors[field.name] = field.validation.message || `Minimum value is ${field.validation.min}`;
+            newErrors[field.name] =
+              field.validation.message ||
+              `Minimum value is ${field.validation.min}`;
           }
-          
+
           if (field.validation.max && numValue > field.validation.max) {
-            newErrors[field.name] = field.validation.message || `Maximum value is ${field.validation.max}`;
+            newErrors[field.name] =
+              field.validation.message ||
+              `Maximum value is ${field.validation.max}`;
           }
         }
-        
+
         // Pattern validation for all text-based fields
-        if (field.validation.pattern && !new RegExp(field.validation.pattern).test(String(value))) {
+        if (
+          field.validation.pattern &&
+          !new RegExp(field.validation.pattern).test(String(value))
+        ) {
           newErrors[field.name] = field.validation.message || "Invalid format";
         }
       }
@@ -99,7 +130,7 @@ export function UnifiedSubmissionForm({
       e.preventDefault();
       return;
     }
-    
+
     // Form is valid, let React Router handle the submission
     // Don't prevent default - let the form submit naturally
   };
@@ -129,11 +160,9 @@ export function UnifiedSubmissionForm({
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
                 {config.form.title}
               </h2>
-              
+
               {config.form.description && (
-                <p className="text-gray-600 mb-6">
-                  {config.form.description}
-                </p>
+                <p className="text-gray-600 mb-6">{config.form.description}</p>
               )}
 
               <Form
@@ -145,48 +174,70 @@ export function UnifiedSubmissionForm({
                 <CSRFToken token={csrfToken} />
 
                 {/* Locked player display - shown when navigating from a player page */}
-                {preSelectedValues.player_locked && preSelectedValues.player_name && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                {preSelectedValues.player_locked &&
+                  preSelectedValues.player_name && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          <svg
+                            className="w-5 h-5 text-purple-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-purple-600 font-medium">
+                            Submitting equipment setup for
+                          </p>
+                          <p className="text-lg font-bold text-purple-900">
+                            {preSelectedValues.player_name}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-purple-600 font-medium">Submitting equipment setup for</p>
-                        <p className="text-lg font-bold text-purple-900">{preSelectedValues.player_name}</p>
-                      </div>
+                      <input
+                        type="hidden"
+                        name="player_id"
+                        value={preSelectedValues.player_id}
+                      />
                     </div>
-                    <input type="hidden" name="player_id" value={preSelectedValues.player_id} />
-                  </div>
-                )}
+                  )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {config.form.fields
                     .filter((field: FormFieldConfig) => {
                       // Hide player_id field when player is locked
-                      if (field.name === "player_id" && preSelectedValues.player_locked) {
+                      if (
+                        field.name === "player_id" &&
+                        preSelectedValues.player_locked
+                      ) {
                         return false;
                       }
                       return true;
                     })
                     .map((field: FormFieldConfig) => (
-                    <FormField
-                      key={field.name}
-                      field={field}
-                      value={formValues[field.name]}
-                      onChange={handleFieldChange}
-                      error={errors[field.name]}
-                      disabled={isLoading}
-                      options={fieldOptions[field.name] || []}
-                      env={env}
-                      allValues={formValues}
-                      ratingCategories={fieldOptions.rating_categories || []}
-                      blades={fieldOptions.blades || []}
-                      rubbers={fieldOptions.rubbers || []}
-                    />
-                  ))}
+                      <FormField
+                        key={field.name}
+                        field={field}
+                        value={formValues[field.name]}
+                        onChange={handleFieldChange}
+                        error={errors[field.name]}
+                        disabled={isLoading}
+                        options={fieldOptions[field.name] || []}
+                        env={env}
+                        allValues={formValues}
+                        ratingCategories={fieldOptions.rating_categories || []}
+                        blades={fieldOptions.blades || []}
+                        rubbers={fieldOptions.rubbers || []}
+                      />
+                    ))}
                 </div>
 
                 {/* Submit Button */}

@@ -306,8 +306,7 @@ export default function AdminEquipmentReviews({
                   .filter(([, value]) => value != null)
                   .map(([key, value]) => (
                     <span key={key} className="text-xs">
-                      <strong>{getCategoryLabel(key)}:</strong>{" "}
-                      {String(value)}
+                      <strong>{getCategoryLabel(key)}:</strong> {String(value)}
                     </span>
                   ))}
               </div>

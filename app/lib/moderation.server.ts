@@ -21,7 +21,13 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "review"
+      | "video"
+      | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -67,7 +73,9 @@ export class ModerationService {
         insertData.moderator_id = moderatorId;
       }
 
-      const { error } = await this.supabase.from("moderator_approvals").insert(insertData);
+      const { error } = await this.supabase
+        .from("moderator_approvals")
+        .insert(insertData);
 
       if (error) {
         return {
@@ -92,7 +100,13 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "review"
+      | "video"
+      | "player_equipment_setup",
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -117,7 +131,9 @@ export class ModerationService {
         insertData.moderator_id = moderatorId;
       }
 
-      const { error } = await this.supabase.from("moderator_approvals").insert(insertData);
+      const { error } = await this.supabase
+        .from("moderator_approvals")
+        .insert(insertData);
 
       if (error) {
         return { success: false, error: "Failed to record rejection" };
@@ -145,7 +161,12 @@ export class ModerationService {
   }
 
   async getSubmissionApprovals(
-    submissionType: "equipment" | "player" | "player_edit" | "video" | "player_equipment_setup",
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "video"
+      | "player_equipment_setup",
     submissionId: string
   ): Promise<ModeratorApproval[]> {
     const { data, error } = await this.supabase
@@ -163,50 +184,56 @@ export class ModerationService {
   }
 
   async getUserSubmissions(userId: string, limit: number = 20) {
-    const [equipmentSubmissions, playerSubmissions, playerEdits, videoSubmissions, equipmentReviews, playerEquipmentSetups] =
-      await Promise.all([
-        this.supabase
-          .from("equipment_submissions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
+    const [
+      equipmentSubmissions,
+      playerSubmissions,
+      playerEdits,
+      videoSubmissions,
+      equipmentReviews,
+      playerEquipmentSetups,
+    ] = await Promise.all([
+      this.supabase
+        .from("equipment_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
 
-        this.supabase
-          .from("player_submissions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
+      this.supabase
+        .from("player_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
 
-        this.supabase
-          .from("player_edits")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
+      this.supabase
+        .from("player_edits")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
 
-        this.supabase
-          .from("video_submissions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
+      this.supabase
+        .from("video_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
 
-        this.supabase
-          .from("equipment_reviews")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
+      this.supabase
+        .from("equipment_reviews")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
 
-        this.supabase
-          .from("player_equipment_setups")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(limit),
-      ]);
+      this.supabase
+        .from("player_equipment_setups")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ]);
 
     const allSubmissions = [
       ...(equipmentSubmissions.data || []).map(s => ({
@@ -249,12 +276,7 @@ export class ModerationService {
     reviewId: string,
     moderatorId: string
   ): Promise<ApprovalResult> {
-    return this.recordApproval(
-      "review",
-      reviewId,
-      moderatorId,
-      "admin_ui"
-    );
+    return this.recordApproval("review", reviewId, moderatorId, "admin_ui");
   }
 
   async rejectEquipmentReview(
@@ -275,7 +297,13 @@ export class ModerationService {
   }
 
   private async getSubmissionStatus(
-    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "review"
+      | "video"
+      | "player_equipment_setup",
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -289,7 +317,13 @@ export class ModerationService {
   }
 
   private async deleteSubmissionImage(
-    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup",
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "review"
+      | "video"
+      | "player_equipment_setup",
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -347,7 +381,13 @@ export class ModerationService {
   }
 
   private getTableName(
-    submissionType: "equipment" | "player" | "player_edit" | "review" | "video" | "player_equipment_setup"
+    submissionType:
+      | "equipment"
+      | "player"
+      | "player_edit"
+      | "review"
+      | "video"
+      | "player_equipment_setup"
   ): string {
     switch (submissionType) {
       case "equipment":

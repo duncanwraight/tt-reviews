@@ -95,7 +95,9 @@ export function meta({ data }: Route.MetaArgs) {
       ? [{ property: "product:rating:count", content: reviewCount.toString() }]
       : []),
     // Structured data from loader
-    ...(data?.multipleSchemas ? [{ "script:ld+json": data.multipleSchemas }] : []),
+    ...(data?.multipleSchemas
+      ? [{ "script:ld+json": data.multipleSchemas }]
+      : []),
   ];
 }
 

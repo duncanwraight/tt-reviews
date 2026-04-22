@@ -115,11 +115,15 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
                 className="w-full h-full"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <span className="text-3xl text-gray-300">{getCategoryIcon(equipment.category)}</span>
+                  <span className="text-3xl text-gray-300">
+                    {getCategoryIcon(equipment.category)}
+                  </span>
                 }
               />
             ) : (
-              <span className="text-3xl text-gray-300">{getCategoryIcon(equipment.category)}</span>
+              <span className="text-3xl text-gray-300">
+                {getCategoryIcon(equipment.category)}
+              </span>
             )}
           </div>
 

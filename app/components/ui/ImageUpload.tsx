@@ -29,7 +29,9 @@ export function ImageUpload({
   onFileChange,
 }: ImageUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(existingImageUrl || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    existingImageUrl || null
+  );
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,9 +159,7 @@ export function ImageUpload({
         </label>
       )}
 
-      {helpText && (
-        <p className="text-sm text-gray-500">{helpText}</p>
-      )}
+      {helpText && <p className="text-sm text-gray-500">{helpText}</p>}
 
       <div className="flex flex-col space-y-3">
         {/* File Input (Hidden) */}
@@ -184,9 +184,10 @@ export function ImageUpload({
             onDrop={handleDrop}
             className={`
               border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
-              ${isDragOver 
-                ? "border-purple-500 bg-purple-50 border-solid" 
-                : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+              ${
+                isDragOver
+                  ? "border-purple-500 bg-purple-50 border-solid"
+                  : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
               }
               ${disabled ? "cursor-not-allowed opacity-50" : ""}
             `}

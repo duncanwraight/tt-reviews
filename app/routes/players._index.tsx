@@ -49,7 +49,9 @@ export function meta({ data }: Route.MetaArgs) {
     { name: "category", content: "Table Tennis Players" },
     { property: "article:section", content: "Player Database" },
     // Structured data from loader
-    ...(data?.breadcrumbSchema ? [{ "script:ld+json": data.breadcrumbSchema }] : []),
+    ...(data?.breadcrumbSchema
+      ? [{ "script:ld+json": data.breadcrumbSchema }]
+      : []),
   ];
 }
 
@@ -158,10 +160,16 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold mb-2">
-                  {content("players.expand_database.title", "Help Expand Our Player Database")}
+                  {content(
+                    "players.expand_database.title",
+                    "Help Expand Our Player Database"
+                  )}
                 </h3>
                 <p className="text-purple-100">
-                  {content("players.expand_database.description", "Create an account or log in to submit a new player and contribute to our growing community.")}
+                  {content(
+                    "players.expand_database.description",
+                    "Create an account or log in to submit a new player and contribute to our growing community."
+                  )}
                 </p>
               </div>
               <a
