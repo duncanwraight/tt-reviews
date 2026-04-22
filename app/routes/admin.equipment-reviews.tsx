@@ -106,11 +106,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   const moderation = createModerationService(supabase);
 
   try {
+    let result;
     switch (intent) {
       case "approve":
-        await moderation.approveEquipmentReview(reviewId, user.id);
+        result = await moderation.approveEquipmentReview(reviewId, user.id);
         break;
-      case "reject":
+      case "reject": {
         const rejectionCategory = formData.get(
           "rejectionCategory"
         ) as RejectionCategory;
@@ -121,7 +122,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           ? sanitizeAdminContent(rawRejectionReason.trim())
           : "";
 
-        await moderation.rejectEquipmentReview(
+        result = await moderation.rejectEquipmentReview(
           reviewId,
           user.id,
           rejectionCategory,
@@ -129,14 +130,28 @@ export async function action({ request, context }: Route.ActionArgs) {
           context.cloudflare?.env?.R2_BUCKET
         );
         break;
+      }
       default:
         throw new Response("Invalid action", { status: 400 });
+    }
+
+    if (!result.success) {
+      console.error(
+        "Moderation action returned failure:",
+        intent,
+        reviewId,
+        result.error
+      );
+      throw new Response(result.error ?? "Moderation action failed", {
+        status: 500,
+      });
     }
 
     return redirect("/admin/equipment-reviews", {
       headers: sbServerClient.headers,
     });
   } catch (error) {
+    if (error instanceof Response) throw error;
     console.error("Moderation action failed:", error);
     throw new Response("Action failed", { status: 500 });
   }

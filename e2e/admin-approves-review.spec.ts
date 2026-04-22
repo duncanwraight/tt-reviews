@@ -3,16 +3,17 @@ import {
   createUser,
   deleteUser,
   generateTestEmail,
+  login,
   setUserRole,
 } from "./utils/auth";
 import {
   getEquipmentReviewStatus,
   getFirstEquipment,
   insertPendingEquipmentReview,
-  recordAdminApproval,
 } from "./utils/data";
 
 test("admin approves pending review → visible on public detail page", async ({
+  page,
   browser,
 }) => {
   const reviewerEmail = generateTestEmail("reviewer3b5");
@@ -31,22 +32,28 @@ test("admin approves pending review → visible on public detail page", async ({
   });
 
   try {
-    // Approve via service-role REST. The UI click path is a known
-    // follow-up (see docs/TODO note in 3b.5 rollout) — the moderation
-    // service's fetch chain silently drops errors when called from the
-    // admin action handler, so we assert the approval pipeline here at
-    // the layer the public page actually depends on: the DB trigger.
-    await recordAdminApproval({
-      submissionType: "review",
-      submissionId: review.id,
-      moderatorId: adminId,
-    });
+    await login(page, adminEmail);
 
+    await page.goto("/admin/equipment-reviews");
+    await expect(page).toHaveURL(/\/admin\/equipment-reviews$/);
+
+    const reviewCard = page.locator("li").filter({ hasText: reviewText });
+    await expect(reviewCard).toBeVisible();
+    await reviewCard.getByRole("button", { name: /^Approve$/ }).click();
+
+    // DB is the source of truth; poll until the trigger flips status.
     await expect
       .poll(() => getEquipmentReviewStatus(review.id), { timeout: 10000 })
       .toBe("approved");
 
-    // Public page shows approved review to anonymous visitors.
+    // Approve button for this card should be gone after the redirect +
+    // loader revalidation.
+    await expect(
+      reviewCard.getByRole("button", { name: /^Approve$/ })
+    ).toHaveCount(0);
+
+    // Fresh anonymous context — verifies public visibility, not
+    // admin-only visibility.
     const anonContext = await browser.newContext();
     const anonPage = await anonContext.newPage();
     try {

@@ -26,35 +26,6 @@ export async function insertPendingEquipmentReview(params: {
   return { id: rows[0].id };
 }
 
-/**
- * Record an admin approval directly in moderator_approvals via the service
- * role. The `update_submission_status` trigger flips the parent row's
- * status (admin_ui is single-approver complete per migration
- * 20260101120000).
- */
-export async function recordAdminApproval(params: {
-  submissionType: "review" | "equipment" | "player" | "player_edit" | "video";
-  submissionId: string;
-  moderatorId: string;
-}): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/moderator_approvals`, {
-    method: "POST",
-    headers: { ...adminHeaders(), Prefer: "return=minimal" },
-    body: JSON.stringify({
-      submission_type: params.submissionType,
-      submission_id: params.submissionId,
-      moderator_id: params.moderatorId,
-      source: "admin_ui",
-      action: "approved",
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(
-      `recordAdminApproval failed (${res.status}): ${await res.text()}`
-    );
-  }
-}
-
 export async function getEquipmentReviewStatus(
   reviewId: string
 ): Promise<string> {
