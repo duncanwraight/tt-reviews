@@ -208,6 +208,33 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Uploaded version $VERSION_ID → $PREVIEW_URL"
 
+      - name: Schema diff summary
+        run: |
+          {
+            echo "## Migration plan"
+            echo ""
+            echo "### Pending migrations (local ahead of remote)"
+            echo ""
+            echo '```'
+            supabase migration list --db-url "${{ secrets.SUPABASE_DB_URL }}" 2>&1 || true
+            echo '```'
+            echo ""
+            MIGRATIONS_IN_COMMIT=$(git diff-tree --no-commit-id --name-only -r HEAD -- supabase/migrations/ 2>/dev/null | grep -E '\.sql$' || true)
+            if [ -n "$MIGRATIONS_IN_COMMIT" ]; then
+              echo "### Migrations added in this commit"
+              echo ""
+              while IFS= read -r file; do
+                [ -z "$file" ] && continue
+                echo "#### \`$file\`"
+                echo ""
+                echo '```sql'
+                cat "$file"
+                echo '```'
+                echo ""
+              done <<< "$MIGRATIONS_IN_COMMIT"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deploy migrations
         run: supabase db push --db-url ${{ secrets.SUPABASE_DB_URL }}
 
