@@ -32,7 +32,6 @@
 ### **Routing Architecture** ✅
 
 - [x] **File-Based Routing Migration**: Migrated from explicit route configuration to file-based routing ✅
-
   - ✅ Installed `@react-router/fs-routes` package
   - ✅ Updated `/app/routes.ts` to use `flatRoutes()` for automatic route discovery
   - ✅ Implemented proper nested route structure with layouts
@@ -42,7 +41,6 @@
   - ✅ Consolidated home page from `/home` to `/` (root route in `_index.tsx`)
 
 - [x] **Public Pages** (No auth required):
-
   - [x] Home page (`/`) - with search functionality ✅
   - [x] Equipment index (`/equipment`) ✅
   - [x] Equipment detail (`/equipment/:slug`) ✅
@@ -51,7 +49,6 @@
   - [x] Search page (`/search`) ✅
 
 - [x] **User Pages** (Auth required):
-
   - [x] Login/Signup (`/login`) ✅
   - [x] Profile page (`/profile`) ✅
     - ✅ User dashboard with account information
@@ -78,7 +75,6 @@
     - ✅ Navigation integration with edit buttons in player pages
 
 - [x] **Admin Pages** (Admin only): ✅
-
   - [x] Admin dashboard (`/admin`) ✅
     - ✅ Overview dashboard with submission/edit counts and pending items
     - ✅ Quick action buttons and content statistics
@@ -101,7 +97,6 @@
     - ✅ Server-side actions for edit moderation
 
 - [x] **Role-Based Access Control (RBAC)**: ✅
-
   - ✅ Implemented proper Supabase RBAC following official best practices
   - ✅ Created user_roles table with auth hook for JWT claims
   - ✅ Server-side role checking in admin routes using JWT decoding
@@ -112,7 +107,6 @@
   - ✅ Removed dependency on service role key for equipment submissions
 
 - [x] **Configurable Categories System**: ✅
-
   - ✅ Created comprehensive database schema with RLS policies for category management
   - ✅ Built CategoryService class for CRUD operations on categories
   - ✅ Added full admin interface for managing all category types
@@ -136,7 +130,6 @@
 ### Core Review System ✅
 
 - [x] **Review Submission Form**: Create comprehensive review form for equipment ✅
-
   - [x] Multi-section form with dynamic rating categories based on equipment type ✅
   - [x] Configurable rating system (Speed, Spin, Control for inverted; Disruption, Block Quality for anti-spin, etc.) ✅
   - [x] Text review with reviewer context (playing level, style, testing duration) ✅
@@ -297,14 +290,12 @@
 ### Submission System Improvements
 
 - [x] **User Submission Management**:
-
   - [x] Add submissions section to user profiles showing submission status
   - [x] Display rejection reasons and admin feedback in user profiles
   - [x] Add submission history with filtering (pending, approved, rejected)
   - [x] Show submission progress indicators and timestamps
 
 - [ ] **Enhanced Moderation Workflow**:
-
   - [x] Require two approvals for submissions (Discord + Admin UI, or two Discord)
   - [x] Allow admins to add detailed rejection justifications
   - [x] Implement submission status tracking (pending → under_review → approved/rejected)
@@ -363,7 +354,6 @@
 **🎯 SEO FOUNDATION COMPLETE**: All technical SEO infrastructure is now in place. The site is fully optimized for search engines with comprehensive meta tags, structured data, dynamic sitemaps, and comparison functionality. Focus can now shift to content creation and optimization.
 
 - [x] **Phase 1: Foundation (Weeks 1-4)** ✅ **COMPLETED**:
-
   - [x] Implement dynamic meta tags for all pages using React Router meta exports ✅
   - [x] Add structured data and schema markup (Organization, Person, Product, Review, BreadcrumbList) ✅
   - [x] Implement SEO title tag patterns for player, equipment, and category pages ✅
@@ -375,7 +365,6 @@
   - [x] **BONUS**: Popular comparison routes integrated into sitemap (50+ high-value URLs) ✅
 
 - [ ] **Phase 2: Content Expansion (Weeks 5-12)**:
-
   - [ ] Create top 20 equipment review priority list based on search volume data
   - [ ] Develop educational guide content calendar (beginner guides, equipment selection)
   - [ ] Implement internal linking automation between players and equipment
@@ -384,7 +373,6 @@
   - [x] Add "vs" comparison pages for popular equipment matchups ✅
 
 - [ ] **Phase 3: Advanced Features (Weeks 13-24)**:
-
   - [x] Build dynamic comparison tools for equipment selection ✅
   - [ ] Create equipment recommendation engine based on playing style
   - [ ] Implement user-generated content systems for community reviews
@@ -650,13 +638,11 @@
 ### Authentication Flow Improvements
 
 - [ ] **Fix Signup Modal Message**: Update signup success modal to mention email confirmation ✅
-
   - [ ] The signup modal still shows generic success message instead of "check your email"
   - [ ] Ensure modal message matches the updated text from login page
   - [ ] Verify modal displays: "Please check your email and click the confirmation link before signing in"
 
 - [ ] **Password Reset Landing Pages**: Create branded password reset confirmation pages ✅
-
   - [ ] Add `/auth/reset-password` route for password reset confirmation
   - [ ] Handle password reset tokens and provide user feedback
   - [ ] Match design patterns from email confirmation pages

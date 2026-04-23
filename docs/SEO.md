@@ -76,14 +76,12 @@ This document outlines the SEO strategy for driving organic traffic to our table
 ### Core Content Pillars
 
 1. **Equipment Reviews**
-
    - In-depth reviews with standardized rating criteria
    - Professional player usage examples
    - Comparison matrices between similar products
    - Historical price tracking and availability
 
 2. **Player Profiles**
-
    - Complete equipment evolution over career
    - Video footage and match analysis
    - Sponsorship history and equipment contracts
