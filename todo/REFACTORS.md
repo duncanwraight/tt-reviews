@@ -4,15 +4,11 @@ Code health work that isn't gated and isn't urgent. The general rule is "only sp
 
 ---
 
-# Database server split (pending detailed plan)
+# Database server split
 
-`app/lib/database.server.ts` (~1330 lines) mixes equipment, players, and reviews data access in a single module. Known split target:
+Promoted to a detailed plan: `todo/REFACTOR-DATABASE.md`.
 
-- `app/lib/database/equipment.ts`
-- `app/lib/database/players.ts`
-- `app/lib/database/reviews.ts`
-
-For now, apply the "only split the slice you're already editing" rule. Promote to a full plan when we tackle it properly — the Discord split archived at `docs/archive/REFACTOR-DISCORD.md` is the reference for what a detailed plan looks like.
+Splits `app/lib/database.server.ts` (~1360 lines) into nine submodules under `app/lib/database/` (types, client, logging, equipment, players, reviews, submissions, search, admin) plus a slim `DatabaseService` facade that preserves the public API for all 32 callers.
 
 ---
 
