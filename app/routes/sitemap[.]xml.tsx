@@ -1,12 +1,13 @@
 import type { Route } from "./+types/sitemap[.]xml";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
-import { sitemapService } from "~/lib/sitemap.server";
+import { getSitemapService } from "~/lib/sitemap.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const db = new DatabaseService(context);
+  const sitemapService = getSitemapService(context);
 
   // Get all content for sitemap
   const [allPlayers, allEquipment] = await Promise.all([

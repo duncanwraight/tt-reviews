@@ -1,7 +1,8 @@
 import type { Route } from "./+types/sitemap-index[.]xml";
-import { sitemapService } from "~/lib/sitemap.server";
+import { getSitemapService } from "~/lib/sitemap.server";
 
-export async function loader({ request, context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
+  const sitemapService = getSitemapService(context);
   const now = new Date().toISOString();
 
   // For now, we have a single sitemap, but this structure allows for multiple sitemaps

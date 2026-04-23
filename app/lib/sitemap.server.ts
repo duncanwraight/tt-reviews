@@ -1,6 +1,9 @@
 // Sitemap generation utility service
 // Handles dynamic sitemap creation for all content types
 
+import type { AppLoadContext } from "react-router";
+import { getEnvVar } from "./env.server";
+
 export interface SitemapUrl {
   url: string;
   lastmod: string;
@@ -23,9 +26,8 @@ export interface SitemapEntry {
 export class SitemapService {
   public readonly baseUrl: string;
 
-  constructor(baseUrl?: string) {
-    this.baseUrl =
-      baseUrl || process.env.SITE_URL || "https://tabletennis.reviews";
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl || "https://tabletennis.reviews";
   }
 
   // Generate static pages sitemap entries
@@ -298,5 +300,12 @@ ${xmlContent}
   }
 }
 
-// Export singleton instance
-export const sitemapService = new SitemapService();
+// Per-request factory. The baseUrl used to come from
+// `process.env.SITE_URL` on a module-level singleton — always undefined
+// on Cloudflare Workers, so prod/dev quietly fell through to the
+// production host. SECURITY.md Phase 10 grep now bans process.env on
+// servers; this factory threads the URL through AppLoadContext
+// instead, matching the Phase 5 (TT-14) pattern.
+export function getSitemapService(context: AppLoadContext): SitemapService {
+  return new SitemapService(getEnvVar(context, "SITE_URL"));
+}

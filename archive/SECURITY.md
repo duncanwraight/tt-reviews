@@ -270,25 +270,30 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 10 — Mechanical enforcement
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 (TT-19).
 
-**Goal:** Turn the classes of mistake in Phases 1–9 into checks that fail loudly when a future change re-introduces them. This is the "hook layer" equivalent from RELIABILITY.md Phase 2.
+**Resolution:**
 
-**Steps:**
+- `scripts/security-sweep.sh` packages the three grep checks in one runnable script, locally and from CI:
+  - **RLS self-approval** — flags `FOR UPDATE USING (auth.uid() IS NOT NULL)` in migrations dated 2026-04-23 onwards. Older migrations included the pattern and were later dropped by `20260423100000_lock_submission_self_approve.sql` / `20260423100100_lock_core_table_writes.sql`; excluding them by date avoids rewriting audit history.
+  - **Write-true policies** — flags `CREATE/ALTER POLICY ... FOR INSERT/UPDATE/DELETE ... WITH CHECK (true)` in the same date window. Public SELECT with `USING (true)` is legitimate (equipment/player browsing) so the grep is narrowed to write ops. A `-- security: reviewed` line sentinel admits the rare intentional open policy.
+  - **process.env on server** — flags `process.env.X` reads in any `*.server.ts` / `*.server.tsx` file except `app/lib/env.server.ts` (the vitest fallback). Comments are skipped so file-level docstrings describing the old pattern don't trip it.
+  - **Admin CSRF coverage** — every `app/routes/admin.*.tsx` with an exported action must reference `validateCSRF`. `admin.tsx` (layout) and `admin._index.tsx` (loader-only) are exempt.
+- `npm audit --audit-level=high` added as a separate CI step. Current state: 7 moderate findings, 0 high/critical; gate passes.
+- `SECURITY.md` at repo root points at `duncan@wraight-consulting.co.uk` for disclosure + links to `archive/SECURITY.md` for the internal plan.
 
-- CI grep (add to `checks` job): fail if a new migration contains `FOR UPDATE USING (auth.uid() IS NOT NULL)` or `WITH CHECK (true)` without an explicit `// security: reviewed` comment.
-- CI grep: fail if `app/` contains `process.env.` (hint: always broken on Workers).
-- CI grep: fail if a new route action under `app/routes/admin.*.tsx` doesn't reference `validateCSRF`.
-- Require a pgTAP test file per user-writable table; fail the build if a migration creates a new table without a matching test addition.
-- Add `npm audit --audit-level=high` to the `checks` job; block on high/critical.
-- Pin GitHub Actions to commit SHAs (current major-pin policy is fine for functional safety but not for supply-chain — revisit if/when audit frequency warrants).
-- Add a `SECURITY.md` stub at repo root pointing at the vulnerability-disclosure process (even if it's just "email me").
+**Collateral fix shipped in the same push:** `app/lib/sitemap.server.ts` previously fell through to `process.env.SITE_URL` in its module-level singleton — always undefined on Workers, so prod/dev quietly used the production host as a default. Refactored to a `getSitemapService(context)` factory that pulls `SITE_URL` via `getEnvVar(context, "SITE_URL")`, matching the Phase 5 (TT-14) env-access pattern. The new grep would have caught this if it had been running earlier.
+
+**Deferred / not implemented:**
+
+- **pgTAP per-table enforcement** — already covered structurally: all 7 user-writable tables have `rls_<table>.sql` files. A future CI grep could require that any new `CREATE TABLE ... ENABLE ROW LEVEL SECURITY` is accompanied by a new `rls_*.sql`, but that's a lower-priority follow-up.
+- **Pinning GitHub Actions to commit SHAs** — the current major-pin policy is fine for functional safety; SHA pinning is supply-chain hardening that's a separate workstream.
 
 **Acceptance:**
 
-- A PR that loosens RLS or adds a CSRF-free admin action fails CI.
-- A new submission table without its test is blocked.
-- Dependency audits run on every push.
+- A PR that loosens RLS or adds a CSRF-free admin action fails CI. ✅ (`security-sweep.sh` flags both classes).
+- Dependency audits run on every push. ✅ (`npm audit --audit-level=high` gate).
+- Root `SECURITY.md` exists with a disclosure process. ✅
 
 ---
 

@@ -65,6 +65,19 @@ jobs:
       - name: Prettier
         run: npx prettier --check .
 
+      - name: Security sweep
+        # SECURITY.md Phase 10 (TT-19). Mechanical checks for the classes
+        # of mistake fixed in Phases 1–9: RLS self-approval, process.env
+        # reads on server, admin actions missing validateCSRF.
+        run: bash scripts/security-sweep.sh
+
+      - name: npm audit
+        # Block on high / critical vulnerabilities. --omit not set so
+        # build-time deps are included too — prod and build supply chain
+        # are both relevant. `|| true` is intentionally absent; the
+        # check is meant to fail the job.
+        run: npm audit --audit-level=high
+
       - name: Prepare test-results dir
         run: mkdir -p /tmp/test-results
 
