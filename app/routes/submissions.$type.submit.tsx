@@ -328,20 +328,21 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       const { validateImageFile, generateImageKey, uploadImageToR2Native } =
         await import("~/lib/r2-native.server");
 
-      // Validate the image
-      const validation = validateImageFile(imageFile);
-      if (!validation.valid) {
+      const validation = await validateImageFile(imageFile);
+      if (
+        !validation.valid ||
+        !validation.detectedType ||
+        !validation.extension
+      ) {
         return data(
           { error: validation.error || "Invalid image file" },
           { status: 400, headers: sbServerClient.headers }
         );
       }
 
-      // Get the R2 bucket from context
       const env = context.cloudflare.env as Cloudflare.Env;
       if (env.IMAGE_BUCKET) {
         try {
-          // Generate a unique key for the submission image
           // Use a temporary UUID since we don't have the submission ID yet
           const tempId = crypto.randomUUID();
           const category =
@@ -351,14 +352,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           const key = generateImageKey(
             category,
             `submission-${tempId}`,
-            imageFile.name
+            validation.extension
           );
 
-          // Upload to R2
-          await uploadImageToR2Native(env.IMAGE_BUCKET, key, imageFile, {
-            submissionType,
-            uploadedBy: user.id,
-          });
+          await uploadImageToR2Native(
+            env.IMAGE_BUCKET,
+            key,
+            imageFile,
+            validation.detectedType,
+            {
+              submissionType,
+              uploadedBy: user.id,
+            }
+          );
 
           // Store the key in submission data
           submissionData.image_key = key;

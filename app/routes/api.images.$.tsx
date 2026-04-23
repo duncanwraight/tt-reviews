@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.images.$";
 import { isDevelopment } from "~/lib/env.server";
+import { isValidImageKey } from "~/lib/r2-native.server";
 
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { addApiSecurityHeaders, sanitizeError } =
@@ -13,6 +14,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     const headers = new Headers();
     addApiSecurityHeaders(headers, isDev);
     return new Response("Image not found", { status: 404, headers });
+  }
+
+  if (!isValidImageKey(splat)) {
+    const headers = new Headers();
+    addApiSecurityHeaders(headers, isDev);
+    return new Response("Bad request", { status: 400, headers });
   }
 
   try {
