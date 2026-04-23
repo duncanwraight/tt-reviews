@@ -1,3 +1,4 @@
+import { Logger } from "~/lib/logger.server";
 import type { DatabaseContext } from "./types";
 
 export interface AdminDashboardCounts {
@@ -90,7 +91,12 @@ export async function getAdminDashboardCounts(
       },
     };
   } catch (error) {
-    console.error("Error fetching admin dashboard counts:", error);
+    const logContext = ctx.context || { requestId: "unknown" };
+    Logger.error(
+      "Error fetching admin dashboard counts",
+      logContext,
+      error as Error
+    );
 
     return {
       totals: {

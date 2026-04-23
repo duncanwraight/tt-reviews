@@ -248,51 +248,6 @@ export class DatabaseService {
     return search.search(this.ctx, query);
   }
 
-  // Discord message tracking methods
-  async updateEquipmentSubmissionDiscordMessageId(
-    submissionId: string,
-    messageId: string
-  ): Promise<void> {
-    return submissions.updateEquipmentSubmissionDiscordMessageId(
-      this.ctx,
-      submissionId,
-      messageId
-    );
-  }
-
-  async updatePlayerSubmissionDiscordMessageId(
-    submissionId: string,
-    messageId: string
-  ): Promise<void> {
-    return submissions.updatePlayerSubmissionDiscordMessageId(
-      this.ctx,
-      submissionId,
-      messageId
-    );
-  }
-
-  async updateVideoSubmissionDiscordMessageId(
-    submissionId: string,
-    messageId: string
-  ): Promise<void> {
-    return submissions.updateVideoSubmissionDiscordMessageId(
-      this.ctx,
-      submissionId,
-      messageId
-    );
-  }
-
-  async updatePlayerEditDiscordMessageId(
-    editId: string,
-    messageId: string
-  ): Promise<void> {
-    return submissions.updatePlayerEditDiscordMessageId(
-      this.ctx,
-      editId,
-      messageId
-    );
-  }
-
   async getDiscordMessageId(
     submissionType: submissions.SubmissionType,
     submissionId: string

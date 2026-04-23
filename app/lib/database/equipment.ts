@@ -1,4 +1,5 @@
 import type { Equipment } from "~/lib/types";
+import { Logger } from "~/lib/logger.server";
 import type { DatabaseContext } from "./types";
 import { withLogging } from "./logging";
 
@@ -130,27 +131,31 @@ export async function getEquipmentByCategory(
 export async function getEquipmentCategories(
   ctx: DatabaseContext
 ): Promise<{ category: string; count: number }[]> {
-  // Try database aggregation function first, fallback silently if not available.
+  const logContext = ctx.context || { requestId: "unknown" };
+
+  // Try the database aggregation RPC first — silent fallback if absent.
   const { data: rpcData, error: rpcError } = await ctx.supabase.rpc(
     "get_equipment_category_counts"
   );
-
   if (!rpcError && rpcData) {
     return rpcData || [];
   }
 
-  const { data: fallbackData, error: fallbackError } = await ctx.supabase
-    .from("equipment")
-    .select("category");
-
-  if (fallbackError || !fallbackData) {
-    console.error("Error fetching equipment categories:", fallbackError);
-    return [];
-  }
+  const fallbackRows = await withLogging<Array<{ category: string }>>(
+    ctx,
+    "get_equipment_categories_fallback",
+    () => ctx.supabase.from("equipment").select("category")
+  ).catch((error: unknown) => {
+    Logger.error(
+      "Error fetching equipment categories (fallback)",
+      logContext,
+      error as Error
+    );
+    return [] as Array<{ category: string }>;
+  });
 
   const categoryCount: Record<string, number> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fallbackData.forEach((item: any) => {
+  fallbackRows.forEach(item => {
     categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
   });
 
@@ -164,29 +169,40 @@ export async function getEquipmentSubcategories(
   ctx: DatabaseContext,
   category: string
 ): Promise<{ subcategory: string; count: number }[]> {
+  const logContext = ctx.context || { requestId: "unknown" };
+
   const { data: rpcData, error: rpcError } = await ctx.supabase.rpc(
     "get_equipment_subcategory_counts",
     { category_filter: category }
   );
-
   if (!rpcError && rpcData) {
     return rpcData || [];
   }
 
-  const { data: fallbackData, error: fallbackError } = await ctx.supabase
-    .from("equipment")
-    .select("subcategory")
-    .eq("category", category)
-    .not("subcategory", "is", null);
-
-  if (fallbackError || !fallbackData) {
-    console.error("Error fetching equipment subcategories:", fallbackError);
-    return [];
-  }
+  const fallbackRows = await withLogging<
+    Array<{ subcategory: string | null }>
+  >(
+    ctx,
+    "get_equipment_subcategories_fallback",
+    () =>
+      ctx.supabase
+        .from("equipment")
+        .select("subcategory")
+        .eq("category", category)
+        .not("subcategory", "is", null),
+    { category }
+  ).catch((error: unknown) => {
+    Logger.error(
+      "Error fetching equipment subcategories (fallback)",
+      logContext,
+      error as Error,
+      { category }
+    );
+    return [] as Array<{ subcategory: string | null }>;
+  });
 
   const subcategoryCount: Record<string, number> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fallbackData.forEach((item: any) => {
+  fallbackRows.forEach(item => {
     if (item.subcategory) {
       subcategoryCount[item.subcategory] =
         (subcategoryCount[item.subcategory] || 0) + 1;
@@ -203,12 +219,18 @@ export async function getEquipmentWithStats(
   ctx: DatabaseContext,
   limit = 10
 ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
+  const logContext = ctx.context || { requestId: "unknown" };
   const { data, error } = await ctx.supabase.rpc("get_equipment_with_stats", {
     limit_count: limit,
   });
 
   if (error) {
-    console.error("Error fetching equipment with stats:", error);
+    Logger.error(
+      "Error fetching equipment with stats",
+      logContext,
+      new Error(error.message || "rpc error"),
+      { limit, error_details: error }
+    );
     return getRecentEquipment(ctx, limit);
   }
 
@@ -228,6 +250,8 @@ export async function getAllEquipmentWithStats(
   ctx: DatabaseContext,
   options?: GetAllEquipmentWithStatsOptions
 ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
+  const logContext = ctx.context || { requestId: "unknown" };
+
   let query = ctx.supabase.from("equipment").select(`
       *,
       equipment_reviews!inner(
@@ -249,7 +273,12 @@ export async function getAllEquipmentWithStats(
   const { data: equipmentWithReviews, error } = await query;
 
   if (error) {
-    console.error("Error fetching equipment with reviews:", error);
+    Logger.error(
+      "Error fetching equipment with reviews",
+      logContext,
+      new Error(error.message || "query error"),
+      { ...options, error_details: error }
+    );
     const fallbackOptions = options
       ? {
           ...options,
@@ -359,12 +388,18 @@ export async function getPopularEquipment(
   ctx: DatabaseContext,
   limit = 6
 ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
+  const logContext = ctx.context || { requestId: "unknown" };
   const { data, error } = await ctx.supabase.rpc("get_popular_equipment", {
     limit_count: limit,
   });
 
   if (error) {
-    console.error("Error fetching popular equipment:", error);
+    Logger.error(
+      "Error fetching popular equipment",
+      logContext,
+      new Error(error.message || "rpc error"),
+      { limit, error_details: error }
+    );
     return getRecentEquipment(ctx, limit);
   }
 

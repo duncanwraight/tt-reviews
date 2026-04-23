@@ -1,9 +1,10 @@
-import { withDatabaseCorrelation } from "~/lib/middleware/correlation.server";
+import { Logger } from "~/lib/logger.server";
 import type {
   DatabaseContext,
   EquipmentSubmission,
   PlayerSubmission,
 } from "./types";
+import { withLogging } from "./logging";
 
 export type SubmissionType =
   | "equipment"
@@ -38,39 +39,34 @@ export async function submitEquipment(
     | "moderator_notes"
   >
 ): Promise<EquipmentSubmission | null> {
-  const { data, error } = await ctx.supabase
-    .from("equipment_submissions")
-    .insert({
-      ...submission,
-      status: "pending",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error submitting equipment:", error);
-    return null;
-  }
-
-  return data as EquipmentSubmission;
+  return withLogging<EquipmentSubmission>(
+    ctx,
+    "submit_equipment",
+    () =>
+      ctx.supabase
+        .from("equipment_submissions")
+        .insert({ ...submission, status: "pending" })
+        .select()
+        .single(),
+    { user_id: submission.user_id }
+  ).catch(() => null);
 }
 
 export async function getUserEquipmentSubmissions(
   ctx: DatabaseContext,
   userId: string
 ): Promise<EquipmentSubmission[]> {
-  const { data, error } = await ctx.supabase
-    .from("equipment_submissions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching user equipment submissions:", error);
-    return [];
-  }
-
-  return (data as EquipmentSubmission[]) || [];
+  return withLogging<EquipmentSubmission[]>(
+    ctx,
+    "get_user_equipment_submissions",
+    () =>
+      ctx.supabase
+        .from("equipment_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+    { userId }
+  ).catch((): EquipmentSubmission[] => []);
 }
 
 export async function submitPlayer(
@@ -85,173 +81,92 @@ export async function submitPlayer(
     | "moderator_notes"
   >
 ): Promise<PlayerSubmission | null> {
-  const { data, error } = await ctx.supabase
-    .from("player_submissions")
-    .insert({
-      ...submission,
-      status: "pending",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error submitting player:", error);
-    return null;
-  }
-
-  return data as PlayerSubmission;
+  return withLogging<PlayerSubmission>(
+    ctx,
+    "submit_player",
+    () =>
+      ctx.supabase
+        .from("player_submissions")
+        .insert({ ...submission, status: "pending" })
+        .select()
+        .single(),
+    { user_id: submission.user_id }
+  ).catch(() => null);
 }
 
 export async function getUserPlayerSubmissions(
   ctx: DatabaseContext,
   userId: string
 ): Promise<PlayerSubmission[]> {
-  const { data, error } = await ctx.supabase
-    .from("player_submissions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching user player submissions:", error);
-    return [];
-  }
-
-  return (data as PlayerSubmission[]) || [];
+  return withLogging<PlayerSubmission[]>(
+    ctx,
+    "get_user_player_submissions",
+    () =>
+      ctx.supabase
+        .from("player_submissions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+    { userId }
+  ).catch((): PlayerSubmission[] => []);
 }
 
 /**
- * Discord message-ID tracking methods.
- *
- * Note: the four `update*DiscordMessageId` helpers below do not appear to have
- * any live callers in the codebase today. Extracted as-is during the database
- * split to keep the refactor mechanical — a separate follow-up should audit
- * whether to delete them or wire them up. Migration
- * `20250618141000_add_discord_message_tracking.sql` + the fact that
- * `getDiscordMessageId` is live (called from `app/lib/discord/messages.ts`)
- * suggests writes happen through some path not yet identified.
+ * Look up the Discord message ID previously stored for a submission.
+ * Returns null (never throws) so callers can treat "no message to update"
+ * and "lookup failed" uniformly — the Logger records the distinction.
  */
-
-export async function updateEquipmentSubmissionDiscordMessageId(
-  ctx: DatabaseContext,
-  submissionId: string,
-  messageId: string
-): Promise<void> {
-  const { error } = await ctx.supabase
-    .from("equipment_submissions")
-    .update({ discord_message_id: messageId })
-    .eq("id", submissionId);
-
-  if (error) {
-    throw new Error(`Failed to update Discord message ID: ${error.message}`);
-  }
-}
-
-export async function updatePlayerSubmissionDiscordMessageId(
-  ctx: DatabaseContext,
-  submissionId: string,
-  messageId: string
-): Promise<void> {
-  const { error } = await ctx.supabase
-    .from("player_submissions")
-    .update({ discord_message_id: messageId })
-    .eq("id", submissionId);
-
-  if (error) {
-    throw new Error(`Failed to update Discord message ID: ${error.message}`);
-  }
-}
-
-export async function updateVideoSubmissionDiscordMessageId(
-  ctx: DatabaseContext,
-  submissionId: string,
-  messageId: string
-): Promise<void> {
-  const { error } = await ctx.supabase
-    .from("video_submissions")
-    .update({ discord_message_id: messageId })
-    .eq("id", submissionId);
-
-  if (error) {
-    throw new Error(`Failed to update Discord message ID: ${error.message}`);
-  }
-}
-
-export async function updatePlayerEditDiscordMessageId(
-  ctx: DatabaseContext,
-  editId: string,
-  messageId: string
-): Promise<void> {
-  const context = ctx.context || { requestId: "unknown" };
-  return withDatabaseCorrelation(
-    "update_player_edit_discord_message_id",
-    async () => {
-      const { error } = await ctx.supabase
-        .from("player_edits")
-        .update({ discord_message_id: messageId })
-        .eq("id", editId);
-
-      if (error) {
-        throw new Error(
-          `Failed to update Discord message ID: ${error.message}`
-        );
-      }
-    },
-    context,
-    { editId, messageId }
-  );
-}
-
 export async function getDiscordMessageId(
   ctx: DatabaseContext,
   submissionType: SubmissionType,
   submissionId: string
 ): Promise<string | null> {
-  try {
-    const tableName = getSubmissionTableName(submissionType);
+  const logContext = ctx.context || { requestId: "unknown" };
+  const tableName = getSubmissionTableName(submissionType);
 
-    const { data: allRecords, error: countError } = await ctx.supabase
-      .from(tableName)
-      .select("id, discord_message_id")
-      .eq("id", submissionId);
+  const rows = await withLogging<
+    Array<{ id: string; discord_message_id: string | null }>
+  >(
+    ctx,
+    "get_discord_message_id",
+    () =>
+      ctx.supabase
+        .from(tableName)
+        .select("id, discord_message_id")
+        .eq("id", submissionId),
+    { submissionType, submissionId }
+  ).catch(
+    (): Array<{ id: string; discord_message_id: string | null }> => []
+  );
 
-    if (countError) {
-      console.error(
-        `Database error checking ${submissionType} ${submissionId}:`,
-        countError.message
-      );
-      return null;
-    }
-
-    if (!allRecords || allRecords.length === 0) {
-      // eslint-disable-next-line no-console
-      console.warn(`${submissionType} record ${submissionId} does not exist`);
-      return null;
-    }
-
-    if (allRecords.length > 1) {
-      console.error(
-        `Multiple ${submissionType} records found for ID ${submissionId}:`,
-        allRecords.length
-      );
-      return allRecords[0].discord_message_id;
-    }
-
-    const record = allRecords[0];
-    if (!record.discord_message_id) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `${submissionType} ${submissionId} has no Discord message ID stored`
-      );
-      return null;
-    }
-
-    return record.discord_message_id;
-  } catch (error) {
-    console.error(
-      `Error getting Discord message ID for ${submissionType} ${submissionId}:`,
-      error
+  if (!rows || rows.length === 0) {
+    Logger.warn(
+      `${submissionType} record ${submissionId} does not exist`,
+      logContext,
+      { submissionType, submissionId }
     );
     return null;
   }
+
+  if (rows.length > 1) {
+    Logger.error(
+      `Multiple ${submissionType} records found for ID ${submissionId}`,
+      logContext,
+      new Error("duplicate submission id"),
+      { submissionType, submissionId, count: rows.length }
+    );
+    return rows[0].discord_message_id;
+  }
+
+  const record = rows[0];
+  if (!record.discord_message_id) {
+    Logger.warn(
+      `${submissionType} ${submissionId} has no Discord message ID stored`,
+      logContext,
+      { submissionType, submissionId }
+    );
+    return null;
+  }
+
+  return record.discord_message_id;
 }
