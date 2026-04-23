@@ -17,7 +17,7 @@
 ## TODOs
 
 - Bugs → `todo/BUGS.md`, features → `todo/FEATURES.md`. Read both at the start of every conversation.
-- Archived plans: `docs/archive/`.
+- Archived plans: `archive/`.
 
 ## Interactions with my device
 
