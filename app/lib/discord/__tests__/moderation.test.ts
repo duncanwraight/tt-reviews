@@ -324,5 +324,56 @@ describe("moderation approve/reject smoke tests", () => {
         ).toHaveBeenCalledTimes(1);
       });
     }
+
+    it(`${tc.name}: returns env-mismatch ephemeral when submission not found`, async () => {
+      const notFoundResult = { success: false, notFound: true, error: "gone" };
+      const serviceKey = tc.isApproval ? "recordApproval" : "recordRejection";
+      const ctx = makeCtx({}, {
+        [serviceKey]: vi.fn().mockResolvedValue(notFoundResult),
+      } as any);
+      const response = await tc.fn(ctx, "missing-id", user);
+      const body = await asJson(response);
+      expect(body.data.flags).toBe(64); // ephemeral
+      expect(body.data.content).toContain("Submission not found");
+      expect(body.data.content).toContain("different environment");
+      // Handler must not refresh the Discord message when the submission
+      // does not exist — there is no message to refresh.
+      expect(
+        messages.updateDiscordMessageAfterModeration
+      ).not.toHaveBeenCalled();
+    });
   }
+});
+
+// ============================================================
+// Missing-submission path at the service boundary
+// ============================================================
+describe("moderation handlers — service returns notFound", () => {
+  it("approveReview: returns env-mismatch ephemeral, skips success path", async () => {
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: false, notFound: true }),
+    } as any);
+    const body = await asJson(
+      await moderation.approveReview(ctx, "nope", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("Submission not found");
+    expect(body.data.content).toContain("different environment");
+    expect(body.data.content).not.toContain("fully approved");
+    expect(body.data.content).not.toContain("received first approval");
+  });
+
+  it("rejectReview: returns env-mismatch ephemeral, skips success path", async () => {
+    const ctx = makeCtx({}, {
+      recordRejection: vi
+        .fn()
+        .mockResolvedValue({ success: false, notFound: true }),
+    } as any);
+    const body = await asJson(await moderation.rejectReview(ctx, "nope", user));
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("Submission not found");
+    expect(body.data.content).not.toContain("Review rejected");
+  });
 });

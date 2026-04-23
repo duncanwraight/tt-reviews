@@ -10,7 +10,16 @@ export interface ApprovalResult {
   success: boolean;
   newStatus?: string;
   error?: string;
+  notFound?: boolean;
 }
+
+type SubmissionType =
+  | "equipment"
+  | "player"
+  | "player_edit"
+  | "review"
+  | "video"
+  | "player_equipment_setup";
 
 export interface RejectionData {
   category: RejectionCategory;
@@ -21,13 +30,7 @@ export class ModerationService {
   constructor(private supabase: SupabaseClient) {}
 
   async recordApproval(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "review"
-      | "video"
-      | "player_equipment_setup",
+    submissionType: SubmissionType,
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -35,6 +38,19 @@ export class ModerationService {
     isDiscordModerator: boolean = false
   ): Promise<ApprovalResult> {
     try {
+      // Reject orphan approvals — the submission must exist in its typed
+      // table. The DB trigger on moderator_approvals is the backstop; this
+      // check runs first so we can surface a specific error to the caller
+      // (Discord handlers use notFound to hint at environment mismatch).
+      const exists = await this.submissionExists(submissionType, submissionId);
+      if (!exists) {
+        return {
+          success: false,
+          notFound: true,
+          error: "Submission not found",
+        };
+      }
+
       // Check if this moderator has already approved this submission
       const approvalQuery = this.supabase
         .from("moderator_approvals")
@@ -101,13 +117,7 @@ export class ModerationService {
   }
 
   async recordRejection(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "review"
-      | "video"
-      | "player_equipment_setup",
+    submissionType: SubmissionType,
     submissionId: string,
     moderatorId: string,
     source: ApprovalSource,
@@ -116,6 +126,16 @@ export class ModerationService {
     isDiscordModerator: boolean = false
   ): Promise<ApprovalResult> {
     try {
+      // Reject orphan rejections — see recordApproval for rationale.
+      const exists = await this.submissionExists(submissionType, submissionId);
+      if (!exists) {
+        return {
+          success: false,
+          notFound: true,
+          error: "Submission not found",
+        };
+      }
+
       // Record the rejection
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const insertData: any = {
@@ -163,12 +183,7 @@ export class ModerationService {
   }
 
   async getSubmissionApprovals(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "video"
-      | "player_equipment_setup",
+    submissionType: Exclude<SubmissionType, "review">,
     submissionId: string
   ): Promise<ModeratorApproval[]> {
     const { data, error } = await this.supabase
@@ -299,13 +314,7 @@ export class ModerationService {
   }
 
   private async getSubmissionStatus(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "review"
-      | "video"
-      | "player_equipment_setup",
+    submissionType: SubmissionType,
     submissionId: string
   ): Promise<string> {
     const tableName = this.getTableName(submissionType);
@@ -318,14 +327,23 @@ export class ModerationService {
     return data?.status || "pending";
   }
 
+  private async submissionExists(
+    submissionType: SubmissionType,
+    submissionId: string
+  ): Promise<boolean> {
+    const tableName = this.getTableName(submissionType);
+    const { data, error } = await this.supabase
+      .from(tableName)
+      .select("id")
+      .eq("id", submissionId)
+      .maybeSingle();
+
+    if (error) return false;
+    return data !== null;
+  }
+
   private async deleteSubmissionImage(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "review"
-      | "video"
-      | "player_equipment_setup",
+    submissionType: SubmissionType,
     submissionId: string,
     bucket: R2Bucket
   ): Promise<void> {
@@ -382,15 +400,7 @@ export class ModerationService {
     }
   }
 
-  private getTableName(
-    submissionType:
-      | "equipment"
-      | "player"
-      | "player_edit"
-      | "review"
-      | "video"
-      | "player_equipment_setup"
-  ): string {
+  private getTableName(submissionType: SubmissionType): string {
     switch (submissionType) {
       case "equipment":
         return "equipment_submissions";

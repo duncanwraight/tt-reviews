@@ -1,6 +1,14 @@
 import * as messages from "./messages";
 import type { DiscordContext, DiscordMember, DiscordUser } from "./types";
 
+// Ephemeral message shown when a Discord click references a submission
+// that does not exist in the target environment — typically a dev-app
+// click landing on prod because both share the prod Interactions
+// Endpoint URL. Without this, the insert would land as an orphan row in
+// moderator_approvals (historical bug, see archive/DISCORD-HARDENING.md).
+const MISSING_SUBMISSION_MESSAGE =
+  "❌ **Submission not found** — this click may have come from a different environment.";
+
 /**
  * Discord approve/reject handlers — one pair per moderated submission
  * type. Each handler:
@@ -49,6 +57,10 @@ export async function approveReview(
       `Approved by ${user.username} via Discord`,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       const statusText =
@@ -103,6 +115,10 @@ export async function rejectReview(
       true
     );
 
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
     if (result.success) {
       return ephemeralJson(
         `❌ **Review rejected**\nReview ${reviewId} rejected by ${user.username}`
@@ -150,6 +166,10 @@ export async function approvePlayerEdit(
       undefined,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
@@ -216,6 +236,10 @@ export async function rejectPlayerEdit(
       true
     );
 
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
         ctx,
@@ -271,6 +295,10 @@ export async function approveEquipmentSubmission(
       undefined,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
@@ -337,6 +365,10 @@ export async function rejectEquipmentSubmission(
       true
     );
 
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
         ctx,
@@ -392,6 +424,10 @@ export async function approvePlayerSubmission(
       undefined,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
@@ -458,6 +494,10 @@ export async function rejectPlayerSubmission(
       true
     );
 
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
     if (result.success) {
       await messages.updateDiscordMessageAfterModeration(
         ctx,
@@ -513,6 +553,10 @@ export async function approvePlayerEquipmentSetup(
       undefined,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       let message = "Your approval has been recorded.";
@@ -571,6 +615,10 @@ export async function rejectPlayerEquipmentSetup(
       true
     );
 
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
     if (result.success) {
       return visibleJson(
         `❌ **Player Equipment Setup Rejected by ${user.username}**\nSubmission ${submissionId} has been rejected and will not be published.`
@@ -618,6 +666,10 @@ export async function approveVideoSubmission(
       undefined,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       let message = "Your approval has been recorded.";
@@ -675,6 +727,10 @@ export async function rejectVideoSubmission(
       ctx.context.cloudflare?.env?.R2_BUCKET,
       true
     );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
 
     if (result.success) {
       return visibleJson(
