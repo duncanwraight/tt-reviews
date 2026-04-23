@@ -108,23 +108,35 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 4 — Stored XSS fixes
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 across commits `9c450b5` (main work), `98dcd5e` + `17da434` (CI fallout). CSP tightening deferred to Phase 5 as originally planned.
 
-**Goal:** Two independent stored-XSS paths from review content to DOM.
+**Resolution:** Both stored-XSS paths closed. `sanitize.tsx` now wraps `sanitize-html` (htmlparser2-backed) with a narrow allowlist per profile (`p`/`br`/`b`/`i`/`strong`/`em`[/`u`], zero attributes). JSON-LD serialisation in `schema.ts` and the inlined globalSchemas in `root.tsx` now escape every `<` to `<` so a review body containing `</script>…` cannot break out of the `<script type="application/ld+json">` block. Route-level `meta` JSON-LD moved to the `<StructuredData />` component on 4 routes because React Router's meta serializer still does not escape `<` in 7.14.2.
 
 **Steps:**
 
-- **JSON-LD escape.** `app/lib/schema.server.ts:226/288` serialises user content via `JSON.stringify` then dumps it into `<script type="application/ld+json">` in `app/components/seo/StructuredData.tsx:20` via `dangerouslySetInnerHTML`. `JSON.stringify` does not escape `</script>`. Replace with the standard pattern: `JSON.stringify(value).replace(/</g, "\\u003c")`. Add a unit test with a `</script>` payload.
-- **Sanitizer replacement.** `app/lib/sanitize.tsx:41-71` is a regex list that fails on nested tags, unclosed attributes, SVG animation, and HTML entities. Replace with a parser (e.g. `isomorphic-dompurify` or render to text and drop the `review` HTML profile entirely). Keep the `profile="plain"` path as-is — it's already safe.
-- Audit every `dangerouslySetInnerHTML` call site. Expected callers: `SafeHtml` (sanitized) and structured-data (now escaped). Anything else should be deleted or justified in a comment.
-- Tighten CSP — remove `'unsafe-inline'` and `'unsafe-eval'` from the script-src directive in `app/lib/security.server.ts:116`. Move inline event handlers to listeners, use nonces for legitimate inline scripts. This depends on Phase 5 so the CSP actually applies in prod.
-- E2E spec: submit a review with `</script><img src=x onerror>` content, assert no script executes and the escaped text renders.
+- ✅ **JSON-LD escape.** `schema.ts:288-291` (`toJsonLd`) and `schema.ts:386-389` (`generateMultipleSchemas`) both apply `.replace(/</g, "\\u003c")`. `root.tsx`'s inlined `globalSchemas` uses the same escape. Unit tests in `app/lib/__tests__/schema.test.ts` cover a `</script>` payload round-trip.
+- ✅ **Sanitizer replacement.** `sanitize.tsx` rewritten around `sanitize-html` 2.17.3 + `@types/sanitize-html` 2.16.1. Regex list gone. `sanitize.tsx` slimmed to `SafeHtml` + `sanitizeReviewText` + `sanitizeAdminContent`. `app/lib/__tests__/sanitize.test.tsx` adds 28 tests including a 14-payload mXSS corpus (OWASP / PortSwigger / Sonar): svg/style, math/mglyph, noscript, foreignObject/annotation-xml, iframe srcdoc, nonTextTags entity bypass, zero-padded char refs, etc. All neutralised by the narrow allowlist.
+- ✅ `dangerouslySetInnerHTML` audit complete. Three sanctioned call sites: `root.tsx:92` (escaped globalSchemas), `components/seo/StructuredData.tsx:20` (escaped jsonLd), `lib/sanitize.tsx:71` (sanitize-html output in `SafeHtml`). No others in the tree.
+- ❌ CSP tightening deferred. `security.server.ts:123` still emits `'unsafe-inline' 'unsafe-eval'` on script-src. Moved to Phase 5 per the original dep note — strict CSP can't apply in prod until the `process.env.NODE_ENV` / `ENVIRONMENT` detection is fixed, otherwise Workers always falls through to the dev branch.
+- ✅ E2E: `e2e/security-xss.spec.ts` submits a review body with a stored XSS payload, approves it, and asserts no dialog fires, no `window.__xss` gets set, the DOM contains no `img`/`svg`/`on*=`, and every JSON-LD block's textContent has no `</script`.
+
+**Collateral shipped in the same push (per user guidance "always make the correct code fix"):**
+
+- `react-router` 7.6.2 → 7.14.2 (+ matching `@react-router/dev/fs-routes/node`, `@testing-library/dom` added as an explicit peer). `future.unstable_viteEnvironmentApi` renamed to `v8_viteEnvironmentApi` per stabilisation.
+- `app/lib/date.ts` — new hydration-stable `formatDate` / `formatDateLong` helpers. 13 call sites (PlayerCard, 6 admin routes, ContentManager) previously called `toLocaleDateString()` with no locale, producing `01/01/2026` on Workers (en-GB default) vs `1/1/2026` in the browser — a hydration mismatch that was silently breaking homepage link handlers.
+
+**CI fallout (fixed in follow-up commits):**
+
+- `98dcd5e` — The Phase 4 change made `<StructuredData />` (a client-reachable component) import `~/lib/schema.server`. Under RR 7.14.2's tightened server-only module enforcement, the build fails with `commonjs--resolver: Server-only module referenced by client`. Nothing in the schema module was actually server-only, so renamed `schema.server.ts` → `schema.ts` and updated the 6 imports.
+- `17da434` — Once `schema.ts` started loading in the browser, `process.env.SITE_URL` in the constructor threw `ReferenceError: process is not defined` at module init. React Router's client-side route module fetch silently fell back to a full reload at `/`, breaking homepage → `/equipment` navigation (caught by `e2e/anon-browse.spec.ts`). Dropped the `process.env` read; the fallback URL is the production host anyway. Phase 5 will thread `context.cloudflare.env` through the rest of the `process.env` reads across the codebase.
 
 **Acceptance:**
 
-- Payloads from common XSS cheatsheets render as text on the equipment-review page.
-- Lighthouse / `csp-evaluator` report no `'unsafe-*'` on script-src.
-- E2E spec would fail if the sanitizer or escape were reverted.
+- Stored XSS payloads from common cheatsheets render as text on the equipment-review page. ✅ (`security-xss.spec.ts` + the mXSS corpus in `sanitize.test.tsx`.)
+- Lighthouse / `csp-evaluator` report no `'unsafe-*'` on script-src. ❌ Deferred to Phase 5 — `'unsafe-inline' 'unsafe-eval'` still live at `security.server.ts:123`.
+- E2E spec would fail if the sanitizer or escape were reverted. ✅ (`security-xss.spec.ts` asserts no dialog, no `window.__xss`, DOM-level absence of `img`/`svg`/`on*=`, and JSON-LD textContent-level absence of `</script`.)
+
+**Follow-up spotted (out of scope for Phase 4):** the `process.env` removal in `schema.ts` is a single point fix; `security.server.ts` and `env.server.ts` still read `process.env.NODE_ENV` / `ENVIRONMENT` and are the actual subject of Phase 5. Nothing else surfaced in this pass.
 
 ---
 
