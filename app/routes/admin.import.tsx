@@ -79,7 +79,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     await import("~/lib/security.server");
   const csrfValidation = await validateCSRF(request, context, user.id);
   if (!csrfValidation.valid) {
-    return createCSRFFailureResponse(csrfValidation.error);
+    return createCSRFFailureResponse(context, csrfValidation.error);
   }
 
   const formData = await request.formData();

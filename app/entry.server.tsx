@@ -3,13 +3,14 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 import { addSecurityHeaders } from "~/lib/security.server";
+import { isDevelopment } from "~/lib/env.server";
 
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext,
-  _loadContext: AppLoadContext
+  loadContext: AppLoadContext
 ) {
   let shellRendered = false;
   const userAgent = request.headers.get("user-agent");
@@ -39,7 +40,7 @@ export default async function handleRequest(
   responseHeaders.set("Content-Type", "text/html");
 
   // Add comprehensive security headers
-  addSecurityHeaders(responseHeaders);
+  addSecurityHeaders(responseHeaders, isDevelopment(loadContext));
 
   return new Response(body, {
     headers: responseHeaders,

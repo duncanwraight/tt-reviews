@@ -4,29 +4,33 @@
 
 import type { AppLoadContext } from "react-router";
 
-/**
- * Get environment variable from either Cloudflare Workers or standard Node.js environment
- */
 export function getEnvVar(context: AppLoadContext, key: string): string {
-  // Try Cloudflare env first (for production and npm run dev:wrangler)
   if (context.cloudflare?.env) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (context.cloudflare.env as any)[key] || "";
   }
 
-  // Fallback to process.env for standard React development (npm run dev)
+  // Fallback to process.env for vitest runs that build AppLoadContext manually.
+  // In Workers (prod + dev) cloudflare.env is always populated.
   return process.env[key] || "";
 }
 
 /**
- * Get Supabase configuration for the current environment
+ * Return the validated Supabase config. Throws if either var is missing — we
+ * used to bake in the demo anon key as a dev fallback, but that meant a
+ * misconfigured prod Worker would silently point at the local demo key.
+ * Fail-closed instead and surface the config gap early.
  */
 export function getSupabaseConfig(context: AppLoadContext) {
-  const supabaseUrl =
-    getEnvVar(context, "SUPABASE_URL") || "http://localhost:54321";
-  const supabaseAnonKey =
-    getEnvVar(context, "SUPABASE_ANON_KEY") ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+  const supabaseUrl = getEnvVar(context, "SUPABASE_URL");
+  const supabaseAnonKey = getEnvVar(context, "SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is not configured");
+  }
+  if (!supabaseAnonKey) {
+    throw new Error("SUPABASE_ANON_KEY is not configured");
+  }
 
   return {
     SUPABASE_URL: supabaseUrl,
@@ -35,16 +39,13 @@ export function getSupabaseConfig(context: AppLoadContext) {
 }
 
 /**
- * Check if we're in development mode
+ * Single source of truth for dev/prod detection. Reads ENVIRONMENT from the
+ * Worker context (wrangler.toml [vars] and [env.dev.vars] set it). Fails
+ * closed to prod (strict) when the var is missing — historically we
+ * inferred dev from `!process.env.NODE_ENV`, but NODE_ENV is always
+ * undefined on Workers, so prod was running with the dev-permissive CSP
+ * and no HSTS. Only `ENVIRONMENT === "development"` turns on dev-mode.
  */
 export function isDevelopment(context: AppLoadContext): boolean {
-  const environment = getEnvVar(context, "ENVIRONMENT");
-  const nodeEnv = getEnvVar(context, "NODE_ENV");
-
-  return (
-    environment === "development" ||
-    nodeEnv === "development" ||
-    !nodeEnv || // If NODE_ENV is not set, assume development
-    nodeEnv !== "production"
-  );
+  return getEnvVar(context, "ENVIRONMENT") === "development";
 }

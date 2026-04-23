@@ -147,7 +147,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     if (!rateLimitResult.success) {
       return createSecureResponse(
         JSON.stringify({ error: "Too many requests. Please try again later." }),
-        { status: 429, isApi: true }
+        { status: 429, isApi: true, context }
       );
     }
   }
@@ -155,7 +155,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // Validate CSRF
   const csrfValidation = await validateCSRF(request, context, user.id);
   if (!csrfValidation.valid) {
-    return createCSRFFailureResponse(csrfValidation.error);
+    return createCSRFFailureResponse(context, csrfValidation.error);
   }
 
   const formData = await request.formData();

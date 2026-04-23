@@ -10,6 +10,7 @@ import {
   requiresCSRFProtection,
   validateCSRFFromRequest,
 } from "./csrf.server";
+import { isDevelopment } from "./env.server";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -103,18 +104,8 @@ export const RATE_LIMITS = {
   DISCORD_WEBHOOK: { windowMs: 10 * 1000, maxRequests: 20 }, // 20 requests per 10 seconds
 } as const;
 
-export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
-  // Content Security Policy - Progressive enhancement approach
-  // Default to checking NODE_ENV, but allow override from context
-  // In standard React dev, NODE_ENV might not be set, so be more permissive
-  const isDevMode =
-    isDevelopment ??
-    (process.env.NODE_ENV === "development" ||
-      process.env.ENVIRONMENT === "development" ||
-      !process.env.NODE_ENV || // If NODE_ENV is not set, assume development
-      process.env.NODE_ENV !== "production");
-
-  const connectSrc = isDevMode
+export function addSecurityHeaders(headers: Headers, isDevelopment: boolean) {
+  const connectSrc = isDevelopment
     ? "'self' https://*.supabase.co wss://*.supabase.co http://localhost:54321 http://tt-reviews.local:5173 http://localhost:5173"
     : "'self' https://*.supabase.co wss://*.supabase.co";
 
@@ -146,7 +137,7 @@ export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
   );
 
   // HSTS - Only add in production with HTTPS
-  if (!isDevMode) {
+  if (!isDevelopment) {
     headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload"
@@ -156,22 +147,14 @@ export function addSecurityHeaders(headers: Headers, isDevelopment?: boolean) {
 
 export function addApiSecurityHeaders(
   headers: Headers,
-  isDevelopment?: boolean
+  isDevelopment: boolean
 ) {
-  // API-specific security headers (less restrictive CSP for JSON responses)
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-XSS-Protection", "1; mode=block");
 
-  // HSTS - Only add in production with HTTPS
-  const isDevMode =
-    isDevelopment ??
-    (process.env.NODE_ENV === "development" ||
-      process.env.ENVIRONMENT === "development" ||
-      !process.env.NODE_ENV ||
-      process.env.NODE_ENV !== "production");
-  if (!isDevMode) {
+  if (!isDevelopment) {
     headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload"
@@ -222,18 +205,19 @@ export function sanitizeError(
  */
 export function createSecureResponse(
   body: BodyInit | null,
-  init?: ResponseInit & {
+  init: ResponseInit & {
     isApi?: boolean;
     rateLimit?: { resetTime: number; remaining: number };
-    isDevelopment?: boolean;
+    context: AppLoadContext;
   }
 ): Response {
-  const headers = new Headers(init?.headers);
+  const headers = new Headers(init.headers);
+  const isDev = isDevelopment(init.context);
 
-  if (init?.isApi) {
-    addApiSecurityHeaders(headers, init.isDevelopment);
+  if (init.isApi) {
+    addApiSecurityHeaders(headers, isDev);
   } else {
-    addSecurityHeaders(headers, init?.isDevelopment);
+    addSecurityHeaders(headers, isDev);
   }
 
   // Add rate limiting headers if provided
@@ -255,9 +239,12 @@ export function createSecureResponse(
 /**
  * Create a rate limit exceeded response
  */
-export function createRateLimitResponse(resetTime: number): Response {
+export function createRateLimitResponse(
+  resetTime: number,
+  context: AppLoadContext
+): Response {
   const headers = new Headers();
-  addApiSecurityHeaders(headers);
+  addApiSecurityHeaders(headers, isDevelopment(context));
   headers.set("X-RateLimit-Limit", "0");
   headers.set("X-RateLimit-Remaining", "0");
   headers.set("X-RateLimit-Reset", String(Math.ceil(resetTime / 1000)));
@@ -326,10 +313,11 @@ export async function validateCSRF(
  * Create a CSRF validation failed response
  */
 export function createCSRFFailureResponse(
+  context: AppLoadContext,
   error: string = "Invalid CSRF token"
 ): Response {
   const headers = new Headers();
-  addSecurityHeaders(headers);
+  addSecurityHeaders(headers, isDevelopment(context));
 
   return new Response(JSON.stringify({ error }), {
     status: 403,

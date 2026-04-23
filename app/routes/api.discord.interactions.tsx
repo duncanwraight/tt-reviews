@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.discord.interactions";
 import { DiscordService } from "~/lib/discord.server";
+import { isDevelopment as isDevelopmentEnv } from "~/lib/env.server";
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions at top of action for use in catch block
@@ -11,15 +12,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     createRateLimitResponse,
   } = await import("~/lib/security.server");
 
+  const isDev = isDevelopmentEnv(context);
+
   try {
-    // Apply rate limiting
     const rateLimitResult = await rateLimit(
       request,
       RATE_LIMITS.DISCORD_WEBHOOK,
       context
     );
     if (!rateLimitResult.success) {
-      return createRateLimitResponse(rateLimitResult.resetTime!);
+      return createRateLimitResponse(rateLimitResult.resetTime!, context);
     }
 
     const discordService = new DiscordService(context);
@@ -28,7 +30,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     const timestamp = request.headers.get("x-signature-timestamp");
     const body = await request.text();
 
-    // Verify Discord signature
     if (!signature || !timestamp) {
       return createSecureResponse(
         JSON.stringify({ error: "Missing signature headers" }),
@@ -36,6 +37,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           status: 401,
           isApi: true,
           headers: { "Content-Type": "application/json" },
+          context,
         }
       );
     }
@@ -52,6 +54,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           status: 401,
           isApi: true,
           headers: { "Content-Type": "application/json" },
+          context,
         }
       );
     }
@@ -63,16 +66,15 @@ export async function action({ request, context }: Route.ActionArgs) {
       remaining: rateLimitResult.remaining!,
     };
 
-    // Handle ping challenge
     if (interaction.type === 1) {
       return createSecureResponse(JSON.stringify({ type: 1 }), {
         isApi: true,
         headers: { "Content-Type": "application/json" },
         rateLimit: rateLimitInfo,
+        context,
       });
     }
 
-    // Handle application commands (slash commands)
     if (interaction.type === 2) {
       const response = await discordService.handleSlashCommand(interaction);
       const responseData = await response.json();
@@ -80,10 +82,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         isApi: true,
         headers: { "Content-Type": "application/json" },
         rateLimit: rateLimitInfo,
+        context,
       });
     }
 
-    // Handle message components (buttons, select menus)
     if (interaction.type === 3) {
       const response = await discordService.handleMessageComponent(interaction);
       const responseData = await response.json();
@@ -91,6 +93,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         isApi: true,
         headers: { "Content-Type": "application/json" },
         rateLimit: rateLimitInfo,
+        context,
       });
     }
 
@@ -101,17 +104,16 @@ export async function action({ request, context }: Route.ActionArgs) {
         isApi: true,
         headers: { "Content-Type": "application/json" },
         rateLimit: rateLimitInfo,
+        context,
       }
     );
   } catch (error) {
-    const isDevelopment = process.env.NODE_ENV === "development";
-    const errorMessage = sanitizeError(error, isDevelopment);
+    const errorMessage = sanitizeError(error, isDev);
 
-    if (isDevelopment) {
+    if (isDev) {
       console.error("Discord interaction error:", error);
     }
 
-    // Return generic error for configuration issues
     if (
       error instanceof Error &&
       error.message.includes("Discord verification key")
@@ -122,6 +124,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           status: 500,
           isApi: true,
           headers: { "Content-Type": "application/json" },
+          context,
         }
       );
     }
@@ -130,16 +133,18 @@ export async function action({ request, context }: Route.ActionArgs) {
       status: 500,
       isApi: true,
       headers: { "Content-Type": "application/json" },
+      context,
     });
   }
 }
 
 // Only allow POST requests
-export async function loader() {
+export async function loader({ context }: Route.LoaderArgs) {
   const { createSecureResponse } = await import("~/lib/security.server");
   return createSecureResponse(JSON.stringify({ error: "Method not allowed" }), {
     status: 405,
     isApi: true,
     headers: { "Content-Type": "application/json" },
+    context,
   });
 }
