@@ -16,6 +16,13 @@ interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
   maxRequests: number; // Maximum requests per window
   keyGenerator?: (request: Request) => string; // Custom key generator
+  // Name of the Cloudflare rate-limit binding in wrangler.toml that
+  // backs this budget. When present and resolvable on context.env, the
+  // binding is authoritative and the in-memory Map is skipped entirely
+  // (SECURITY.md Phase 8 / TT-17). The binding's limit+period are
+  // configured in wrangler.toml and must match `maxRequests` / `windowMs`
+  // here for the headers and fallback to stay in sync.
+  binding?: "FORM_RATE_LIMITER" | "DISCORD_RATE_LIMITER";
 }
 
 interface RateLimitEntry {
@@ -23,13 +30,12 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
-// In-memory rate limiting store (for development)
-// In production, use Cloudflare KV or similar
+// In-memory rate limiting store. Only used as a fallback when the
+// Cloudflare binding is not available (tests, CI without wrangler).
+// Workers isolates don't share memory reliably across requests, so this
+// fallback is not a production safeguard — the bindings above are.
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-/**
- * Rate limiting implementation
- */
 export async function rateLimit(
   request: Request,
   config: RateLimitConfig,
@@ -40,9 +46,30 @@ export async function rateLimit(
     ? config.keyGenerator(request)
     : getClientIP(request);
   const now = Date.now();
-  const windowStart = now - config.windowMs;
 
-  // Clean up old entries
+  if (config.binding && context?.cloudflare?.env) {
+    const env = context.cloudflare.env as Record<string, unknown>;
+    const binding = env[config.binding] as
+      | { limit(opts: { key: string }): Promise<{ success: boolean }> }
+      | undefined;
+    if (binding && typeof binding.limit === "function") {
+      try {
+        const { success } = await binding.limit({ key });
+        return {
+          success,
+          resetTime: now + config.windowMs,
+          remaining: success ? config.maxRequests - 1 : 0,
+        };
+      } catch {
+        // Fall through to in-memory fallback if the binding call throws.
+        // In practice this only happens during a misconfiguration window
+        // — a thrown error here should not fail-open on request handling.
+      }
+    }
+  }
+
+  // In-memory fallback. Clean up old entries first so the Map doesn't
+  // grow unbounded over the life of the isolate.
   for (const [entryKey, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(entryKey);
@@ -52,18 +79,15 @@ export async function rateLimit(
   const entry = rateLimitStore.get(key);
 
   if (!entry || entry.resetTime < now) {
-    // First request in window or window expired
     const resetTime = now + config.windowMs;
     rateLimitStore.set(key, { count: 1, resetTime });
     return { success: true, resetTime, remaining: config.maxRequests - 1 };
   }
 
   if (entry.count >= config.maxRequests) {
-    // Rate limit exceeded
     return { success: false, resetTime: entry.resetTime, remaining: 0 };
   }
 
-  // Increment count
   entry.count++;
   rateLimitStore.set(key, entry);
 
@@ -93,16 +117,26 @@ function getClientIP(request: Request): string {
   return "unknown";
 }
 
-/**
- * Predefined rate limit configurations
- */
+// Predefined rate limit configurations. Values here must match the
+// wrangler.toml [[unsafe.bindings]] with `type = "ratelimit"` for the
+// budgets to stay in sync between the CF binding path and the in-memory
+// fallback. The `binding` field names the binding the runtime should
+// ask; callers pass the whole config to `rateLimit`.
 export const RATE_LIMITS = {
-  API_STRICT: { windowMs: 60 * 1000, maxRequests: 10 }, // 10 requests per minute
-  API_MODERATE: { windowMs: 60 * 1000, maxRequests: 30 }, // 30 requests per minute
-  LOGIN: { windowMs: 15 * 60 * 1000, maxRequests: 5 }, // 5 attempts per 15 minutes
-  FORM_SUBMISSION: { windowMs: 60 * 1000, maxRequests: 5 }, // 5 submissions per minute
-  DISCORD_WEBHOOK: { windowMs: 10 * 1000, maxRequests: 20 }, // 20 requests per 10 seconds
-} as const;
+  API_STRICT: { windowMs: 60 * 1000, maxRequests: 10 },
+  API_MODERATE: { windowMs: 60 * 1000, maxRequests: 30 },
+  LOGIN: { windowMs: 15 * 60 * 1000, maxRequests: 5 },
+  FORM_SUBMISSION: {
+    windowMs: 60 * 1000,
+    maxRequests: 5,
+    binding: "FORM_RATE_LIMITER",
+  },
+  DISCORD_WEBHOOK: {
+    windowMs: 10 * 1000,
+    maxRequests: 20,
+    binding: "DISCORD_RATE_LIMITER",
+  },
+} as const satisfies Record<string, RateLimitConfig>;
 
 export function addSecurityHeaders(headers: Headers, isDevelopment: boolean) {
   const connectSrc = isDevelopment

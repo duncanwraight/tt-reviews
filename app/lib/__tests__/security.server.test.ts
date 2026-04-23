@@ -1,9 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AppLoadContext } from "react-router";
 import {
   addSecurityHeaders,
   addApiSecurityHeaders,
   createSecureResponse,
+  rateLimit,
+  RATE_LIMITS,
 } from "../security.server";
 import { isDevelopment } from "../env.server";
 
@@ -134,5 +136,136 @@ describe("createSecureResponse", () => {
     expect(response.headers.get("Content-Security-Policy")).toContain(
       "http://localhost:54321"
     );
+  });
+});
+
+/**
+ * SECURITY.md Phase 8 (TT-17). `rateLimit` used to be backed exclusively
+ * by an in-memory Map, which doesn't share state across Worker isolates.
+ * It now delegates to a Cloudflare rate-limit binding when one is
+ * configured for the budget, and only falls back to the Map for test /
+ * dev paths. These tests pin both paths.
+ */
+describe("rateLimit — CF binding delegation", () => {
+  function makeRequest(ip = "10.0.0.1") {
+    return new Request("https://tt-reviews.local/submit", {
+      method: "POST",
+      headers: { "cf-connecting-ip": ip },
+    });
+  }
+
+  function contextWithBinding(
+    bindingName: string,
+    success: boolean,
+    throws = false
+  ): {
+    context: AppLoadContext;
+    limit: ReturnType<typeof vi.fn>;
+  } {
+    const limit = vi.fn(async () => {
+      if (throws) throw new Error("binding unavailable");
+      return { success };
+    });
+    const env: Record<string, unknown> = {
+      [bindingName]: { limit },
+    };
+    const context = {
+      cloudflare: { env },
+    } as unknown as AppLoadContext;
+    return { context, limit };
+  }
+
+  beforeEach(() => {
+    // In-memory store is module-level; reset by exhausting it for a
+    // fresh key per test via IP differentiation.
+  });
+
+  it("calls the CF binding when the config names one and returns success:true", async () => {
+    const { context, limit } = contextWithBinding("FORM_RATE_LIMITER", true);
+    const result = await rateLimit(
+      makeRequest("10.0.0.10"),
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
+    );
+    expect(limit).toHaveBeenCalledTimes(1);
+    expect(limit).toHaveBeenCalledWith({ key: "10.0.0.10" });
+    expect(result.success).toBe(true);
+  });
+
+  it("returns 429-equivalent (success:false) when the binding denies", async () => {
+    const { context, limit } = contextWithBinding("FORM_RATE_LIMITER", false);
+    const result = await rateLimit(
+      makeRequest("10.0.0.11"),
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
+    );
+    expect(limit).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    expect(result.remaining).toBe(0);
+  });
+
+  it("falls back to the in-memory Map when no binding is present", async () => {
+    const context = {
+      cloudflare: { env: {} },
+    } as unknown as AppLoadContext;
+
+    // FORM_SUBMISSION allows 5 / 60s; 6th should fail.
+    for (let i = 0; i < 5; i++) {
+      const res = await rateLimit(
+        makeRequest("10.0.0.20"),
+        RATE_LIMITS.FORM_SUBMISSION,
+        context
+      );
+      expect(res.success).toBe(true);
+    }
+    const blocked = await rateLimit(
+      makeRequest("10.0.0.20"),
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
+    );
+    expect(blocked.success).toBe(false);
+  });
+
+  it("falls back to in-memory if the binding throws", async () => {
+    const { context, limit } = contextWithBinding(
+      "FORM_RATE_LIMITER",
+      true,
+      true
+    );
+    // First call — binding throws, in-memory allows it.
+    const first = await rateLimit(
+      makeRequest("10.0.0.30"),
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
+    );
+    expect(limit).toHaveBeenCalledTimes(1);
+    expect(first.success).toBe(true);
+  });
+
+  it("uses the configured binding name per config (DISCORD vs FORM)", async () => {
+    const formMock = vi.fn(async () => ({ success: true }));
+    const discordMock = vi.fn(async () => ({ success: true }));
+    const context = {
+      cloudflare: {
+        env: {
+          FORM_RATE_LIMITER: { limit: formMock },
+          DISCORD_RATE_LIMITER: { limit: discordMock },
+        },
+      },
+    } as unknown as AppLoadContext;
+
+    await rateLimit(
+      makeRequest("10.0.0.40"),
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
+    );
+    await rateLimit(
+      makeRequest("10.0.0.40"),
+      RATE_LIMITS.DISCORD_WEBHOOK,
+      context
+    );
+
+    expect(formMock).toHaveBeenCalledTimes(1);
+    expect(discordMock).toHaveBeenCalledTimes(1);
   });
 });

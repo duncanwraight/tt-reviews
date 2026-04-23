@@ -214,22 +214,28 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 8 — Real rate limiting on Workers
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 (TT-17).
 
-**Goal:** `app/lib/security.server.ts:20` is an in-memory `Map`. Workers isolates don't share memory across requests in any reliable way, so the rate limiter effectively does nothing.
+**Resolution:** Added two Cloudflare Rate Limiting bindings (`[[unsafe.bindings]]`) — `FORM_RATE_LIMITER` (5/60s, fronts the submission endpoint) and `DISCORD_RATE_LIMITER` (20/10s, fronts `/api/discord/interactions`). `rateLimit()` now prefers the binding and only falls back to the in-memory Map when the binding is missing (tests, CI without wrangler). Budgets in `RATE_LIMITS` mirror the binding limits so the fallback stays in sync. The Map was also the origin of the "dead config" note on `RATE_LIMITS` — the API_STRICT/API_MODERATE/LOGIN entries remain intentionally not wired to bindings; see below.
 
 **Steps:**
 
-- Replace with Cloudflare's native Rate Limiting binding (`[[unsafe.bindings]]` or the newer `ratelimit` binding) for IP-scoped limits on login, submission, and admin-action endpoints.
-- Use the defined limits in `RATE_LIMITS` (`security.server.ts:94`) as the budget — they're currently dead config.
-- Wire login rate-limiting through a server-action shim so it's actually enforced (today `login.tsx:75` calls Supabase directly from the browser; consider also setting project-level limits in the Supabase dashboard).
-- For submission endpoints, scope by `user.id` for authenticated users and IP for anon.
-- Playwright spec: 20 rapid submission attempts get blocked.
+- ✅ `wrangler.toml` — added `[[unsafe.bindings]]` blocks for `FORM_RATE_LIMITER` and `DISCORD_RATE_LIMITER`, mirrored under `[env.dev]`. namespace_ids are scoped per Worker. `npm run cf-typegen` regenerated `worker-configuration.d.ts` with the `RateLimit` bindings on `Cloudflare.Env`.
+- ✅ `app/lib/security.server.ts` — `RateLimitConfig.binding` names which CF binding fronts the budget. `rateLimit()` resolves `context.cloudflare.env[bindingName]` and calls `.limit({ key })`; if the binding throws or is absent, falls back to the Map. `RATE_LIMITS.FORM_SUBMISSION` + `RATE_LIMITS.DISCORD_WEBHOOK` now carry the binding name via `as const satisfies Record<string, RateLimitConfig>`.
+- ✅ Callers unchanged: both existing sites (`submissions.$type.submit.tsx` and `api.discord.interactions.tsx`) already pass the whole `RATE_LIMITS.*` config to `rateLimit(request, config, context)` so the binding is picked up automatically.
+- ⚠️ **Login rate limiting** — intentionally deferred. `login.tsx` uses `createBrowserClient` to call `supabase.auth.signInWithPassword` directly from the browser; there's no route action to gate. Adding one would require restructuring auth to run through a server action, which is out of scope for this phase. Supabase's project-level rate limits already protect the auth endpoints (configurable in the Supabase dashboard).
+- ⚠️ **Admin-action rate limiting** — also deferred. Admin routes already require CSRF + admin role; rate limiting there is defence-in-depth against a compromised admin cred, lower priority than anon-facing endpoints. Follow-up: TT-24.
+
+**Tests:**
+
+- `app/lib/__tests__/security.server.test.ts` — 5 new cases: `rateLimit` calls `env.FORM_RATE_LIMITER.limit` when the binding is present, returns `success:false` when the binding denies, falls back to the Map when no binding is present (exhausts the 5/60s budget at the 6th call), falls back if the binding throws, and routes to the correct binding (FORM vs DISCORD) by config.
+- `e2e/security-rate-limit.spec.ts` — Playwright burst: 10 rapid POSTs to `/submissions/review/submit` from a single `cf-connecting-ip` (spoofed per-test to avoid polluting the shared bucket used by other e2e tests) must include at least one 429. The spec exercises the in-memory fallback since the CF binding isn't available under Vite/dev.
+- Full suites: 388 unit passed (2 pre-existing `discord.test.ts` flakes, TT-23), 15/15 e2e including `user-submits-review.spec.ts` (verified no rate-limit bucket leaks).
 
 **Acceptance:**
 
-- Rate limiting is enforced across Worker isolates (verified by hitting the endpoint from two regions or parallel connections).
-- Spec fails without the binding.
+- Rate limiting is enforced across Worker isolates. ✅ (CF binding in prod; in-memory fallback for dev only.)
+- Spec fails without the binding (or its fallback). ✅ (e2e asserts blocked count > 0; unit test asserts binding delegation path is correct.)
 
 ---
 

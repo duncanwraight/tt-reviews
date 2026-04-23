@@ -19,5 +19,11 @@ declare namespace Cloudflare {
 
     // R2 bucket binding (alternative name)
     R2_BUCKET?: R2Bucket;
+
+    // Note: FORM_RATE_LIMITER + DISCORD_RATE_LIMITER are declared as
+    // required `RateLimit` bindings by the generated
+    // `worker-configuration.d.ts` (sourced from wrangler.toml's
+    // [[unsafe.bindings]]). `rateLimit()` treats them as optional at
+    // runtime so tests / CI without wrangler still resolve cleanly.
   }
 }
