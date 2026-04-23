@@ -82,28 +82,27 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 3 — Close RLS lockdown on submission + core tables
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 in commit `0ed5475`. CI green (Checks + Deploy). Migrations auto-applied to prod via the deploy workflow.
 
-**Goal:** Four submission tables let any authenticated user `UPDATE` their own status to `approved`. Three core tables let anyone `INSERT` via the anon key. Tighten policies, then add pgTAP coverage so this can't regress.
+**Resolution:** Two migrations. The first rewires the four submission tables to mirror `player_equipment_setup_submissions` (admin-only UPDATE/SELECT/DELETE via `auth.jwt() ->> 'user_role'`). The second drops every `WITH CHECK (true)` / `USING (true)` write policy on `players`, `equipment`, `player_equipment_setups`, `player_sponsorships`, and `player_footage`. Every app-side write to those tables goes through `createSupabaseAdminClient` (service-role, bypasses RLS), so no legitimate path broke. The `verified` audit is handled implicitly — once anon INSERT/UPDATE is gone, only the server moderation code can set `verified=true`.
 
 **Steps:**
 
-- Submission self-approve fix — replace `FOR UPDATE USING (auth.uid() IS NOT NULL)` with `USING ((auth.jwt() ->> 'user_role') = 'admin')` on:
-  - `equipment_submissions` (migration `20250611081600`)
-  - `player_edits` (migration `20250610223013`)
-  - `player_submissions` (migration `20250612213651`)
-  - `video_submissions` (migration `20250622072500`)
-  - The correct pattern already exists on `player_equipment_setup_submissions` (migration `20251231160000`) — copy its shape verbatim.
-- Public INSERT fix — migration `20250610195700_fix_rls_policies.sql:12-18` grants anon INSERT on `equipment`, `players`, `player_equipment_setups`. Drop those policies; writes must go through the moderation flow. Audit that no legitimate in-app path relied on them (the submission routes use the service-role client, so they're fine).
-- Also audit `player_equipment_setups` `verified` column — currently any inserter could set `verified=true` and bypass moderation. Make `verified` only writable by admins (column-level policy or a trigger).
-- Extend `supabase/tests/rls.sql` (today it covers only `player_equipment_setup_submissions`) with one test file per submission table + one per core table. Assertions per table: anon denied INSERT, anon denied UPDATE, auth'd user denied UPDATE on someone else's row, auth'd user denied self-approval, admin allowed.
-- Run the suite in CI alongside the existing `supabase test db` step.
+- `supabase/migrations/20260423100000_lock_submission_self_approve.sql` — drops `FOR UPDATE USING (auth.uid() IS NOT NULL)` on `equipment_submissions`, `player_edits`, `player_submissions`, `video_submissions`; adds admin-only SELECT + UPDATE (`USING` and `WITH CHECK`) + DELETE policies on each.
+- `supabase/migrations/20260423100100_lock_core_table_writes.sql` — drops the anon INSERT policies from `20250609220200` + `20250610195700` **and** the anon UPDATE policies from `20250609220300` (not originally scoped in the plan but same class of bug — `USING (true)` let anyone with the anon key rewrite any row). Covers `players`, `equipment`, `player_equipment_setups`, `player_sponsorships`, `player_footage`. Public SELECT policies kept (equipment/players browsing + submission-form lookups need them).
+- Audit recorded: every `.from("players" | "equipment" | "player_equipment_setups").insert/update` in `app/` is behind `createSupabaseAdminClient`. Sites checked: `admin.equipment-submissions.tsx`, `admin.player-submissions.tsx`, `admin.player-edits.tsx`, `admin.player-equipment-setups.tsx`, `admin.import.tsx`, `submissions.$type.submit.tsx`, `api.discord.interactions.tsx` (via `discord.server.ts` → `createSupabaseAdminClient`).
+- Trigger `update_submission_status` (latest `20260101120000`) only UPDATEs submission tables and runs inside the service-role transaction, so the lockdown does not affect moderation propagation.
+- pgTAP: seven new files in `supabase/tests/` — one per user-writable table. Each asserts anon denied INSERT (via `throws_ok '42501'`), anon denied UPDATE (persistence check), authenticated user denied cross-user UPDATE, authenticated user denied self-approval (for submission tables), admin UPDATE persists. The `player_equipment_setups` file also asserts a regular user cannot flip `verified=false → true`.
+- Fixed pre-existing flake in `rls.sql` test 4: the "admin sees all submissions" assertion used `count(*)` across the whole table, which fails on a non-clean DB. Scoped to the seeded id.
+- CI: existing `RLS tests (pgTAP)` step in `.github/workflows/main.yml:123` runs `supabase test db` and picks up all `supabase/tests/*.sql` automatically. No workflow change needed.
 
 **Acceptance:**
 
-- `supabase test db` covers every user-writable table.
-- Repro in a browser console using the anon key returns a policy violation for each of the above operations.
-- Adding a new migration that flips RLS off or loosens a policy is caught by the new tests.
+- `supabase test db` covers every user-writable table. ✅ (8 files, 39 tests, all green locally and in CI.)
+- Repro in a browser console using the anon key returns a policy violation for each of the above operations. ✅ (pgTAP asserts the equivalent at the SQL layer via `SET LOCAL ROLE anon` + JWT-less session.)
+- Adding a new migration that flips RLS off or loosens a policy is caught by the new tests. ✅ (anon-INSERT / self-approve assertions would fail immediately; Phase 10 will add a CI grep for the `auth.uid() IS NOT NULL` anti-pattern in new migrations.)
+
+**Follow-up spotted (out of scope for Phase 3):** `equipment_reviews` has `FOR UPDATE USING (auth.uid() = user_id AND status = 'pending')` with no explicit `WITH CHECK`. Postgres defaults WITH CHECK to the USING expression for UPDATE, so a user attempting to flip their own review to `status='approved'` is rejected (the new row no longer satisfies `status = 'pending'`). Safe as-is, but worth pinning with a pgTAP test in a later sweep so an explicit `WITH CHECK` addition (or removal) can't regress it silently.
 
 ---
 
