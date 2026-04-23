@@ -127,8 +127,15 @@ jobs:
           supabase test db 2>&1 | tee /tmp/test-results/pgtap.txt
 
       - name: Write .dev.vars for e2e
+        # ENVIRONMENT=development is load-bearing since SECURITY.md Phase 5
+        # (TT-14) made isDevelopment() fail-closed to prod when unset. Without
+        # it, the dev server running under CI emits HSTS headers and forces
+        # `Secure` on auth cookies, which the headless browser refuses over
+        # plain http://localhost:5173 — login silently fails and every e2e
+        # spec that calls login() times out at page.waitForURL.
         run: |
           cat > .dev.vars <<'EOF'
+          ENVIRONMENT=development
           SUPABASE_URL=http://localhost:54321
           SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
           SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
