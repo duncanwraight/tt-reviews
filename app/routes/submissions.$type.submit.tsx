@@ -18,6 +18,7 @@ import {
   loadFieldOptions,
   handlePreSelections,
 } from "~/lib/submissions/field-loaders.server";
+import { validateSubmission } from "~/lib/submissions/validate.server";
 import type { SubmissionType } from "~/lib/types";
 import { PageLayout } from "~/components/layout/PageLayout";
 
@@ -161,7 +162,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   const formData = await request.formData();
   const config = getSubmissionConfig(submissionType);
 
-  // Get equipment_id from URL params for review submissions
+  // For review submissions the equipment_id comes from the URL, not the
+  // form — stitch it in before validation so the required-field check
+  // passes on a legitimate submission.
   const url = new URL(request.url);
   const initialPreSelections = await handlePreSelections(
     submissionType,
@@ -169,6 +172,24 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     {},
     sbServerClient.client
   );
+  if (
+    submissionType === "review" &&
+    initialPreSelections.equipment_id &&
+    !formData.has("equipment_id")
+  ) {
+    formData.set("equipment_id", initialPreSelections.equipment_id);
+  }
+
+  const fieldValidation = validateSubmission(submissionType, formData);
+  if (!fieldValidation.valid) {
+    return data(
+      {
+        error: "Submission is invalid. Please check the highlighted fields.",
+        fieldErrors: fieldValidation.errors,
+      },
+      { status: 400, headers: sbServerClient.headers }
+    );
+  }
 
   try {
     // Parse form data based on submission type

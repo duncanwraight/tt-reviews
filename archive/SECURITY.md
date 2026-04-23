@@ -188,23 +188,27 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 7 — Input validation at submission boundary
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 (TT-16).
 
-**Goal:** `app/routes/submissions.$type.submit.tsx:373-381` writes form fields via the service-role client (bypassing RLS) with no length, type, or URL validation. The sanitizer in Phase 4 handles rendering, but storage-layer limits are independent.
+**Resolution:** Added a dedicated validator in `app/lib/submissions/validate.server.ts`. It carries per-(type, field) constraints (length, UUID, enum, integer/decimal range, URL) and runs before the service-role insert in `submissions.$type.submit.tsx`. URL fields reject `javascript:`, `data:`, non-`https://`, and private/loopback/link-local addresses (SSRF guard). DB-side `CHECK (length(col) <= N)` constraints on the widest text/JSONB columns give belt-and-braces protection if a future code path ever writes to the submission tables without calling the validator.
 
 **Steps:**
 
-- Define per-field constraints in `app/lib/submissions/registry.ts` (it already carries the field registry): `maxLength`, `type: "url" | "year" | "text" | …`, `pattern`.
-- Add a server-side validator that runs before the insert in `submissions.$type.submit.tsx:188-218`. Reject oversized or malformed fields with a 400.
-- URL fields (`source_url`, etc.) — require `https://`, reject `javascript:`, `data:`, and local IPs (prevents SSRF from later enrichers).
-- Add a DB-side length cap via `CHECK (length(col) <= N)` on the largest text columns as belt-and-braces.
-- Unit tests in `app/lib/submissions/__tests__/` for each field type.
+- ✅ New module `app/lib/submissions/validate.server.ts`. Exports `validateSubmission(type, formData)` returning `{ valid, errors? }`. Constraint map keyed per submission type covers: text (maxLength), URL (with scheme + private-host rejection), UUID (regex), integer/decimal ranges, enum sets, and JSON payload length. `validateUrl` is exported as a reusable helper.
+- ✅ `submissions.$type.submit.tsx` calls the validator before the insert. Review submissions stitch `equipment_id` from the URL into the FormData first so the required-field check passes for legit requests. 400 response returns `fieldErrors: Record<field, message>` so the client can surface per-field issues.
+- ✅ Migration `20260423120000_submission_length_caps.sql` — `CHECK (length(col) <= N)` on `equipment_reviews.review_text` (5000), `equipment.specifications` + `equipment_submissions.specifications` (10000 of JSONB text), `player_edits.edit_data` (10000), `player_equipment_setups.source_url` + `player_equipment_setup_submissions.source_url` (2048), `player_footage.url` (2048), `video_submissions.videos` (30000 JSONB text), and `moderator_notes` (2000) across all submission tables.
+- ✅ pgTAP `supabase/tests/submission_length_caps.sql` — 6 assertions: oversize review_text / edit_data / source_url (two tables) / videos JSON all raise `23514` (check_violation); a within-limit review row still writes cleanly.
+
+**Tests:**
+
+- `app/lib/submissions/__tests__/validate.server.test.ts` — 24 cases: well-formed review accepted, oversize review_text rejected, non-UUID FK rejected, out-of-enum `playing_level` / `experience_duration` / `active` rejected, `overall_rating` out-of-range / non-numeric rejected, missing-required fields flagged. For `player_equipment_setup`: accepts https URL; rejects `javascript:` / `data:` / plain http / loopback / RFC1918 / link-local (169.254) / `.local` / IPv6 loopback. URL over 2048 chars rejected. Year outside 1900-2100 rejected, non-integer year rejected. `player_edit` and `equipment` length caps tested. `validateUrl` helper tested directly.
+- Full unit suite: 383 passed (2 pre-existing `discord.test.ts` flakes, tracked as TT-23). E2E: 14/14 — including `user-submits-review.spec.ts` which runs the whole submission pipeline through the new validator.
 
 **Acceptance:**
 
-- A submission with a 1 MB `review_text` is rejected at the action.
-- A submission with `source_url = "javascript:alert(1)"` is rejected.
-- Tests cover each field type's boundary.
+- A submission with a 1 MB `review_text` is rejected at the action. ✅ (unit + DB CHECK both enforce the 5000 cap.)
+- A submission with `source_url = "javascript:alert(1)"` is rejected. ✅ (unit test).
+- Tests cover each field type's boundary. ✅ (unit test per field kind + pgTAP for DB caps.)
 
 ---
 
