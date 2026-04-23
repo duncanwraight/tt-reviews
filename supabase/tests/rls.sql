@@ -96,10 +96,13 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims TO '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","user_role":"admin"}';
 
+-- Scope to the seeded id so pre-existing dev data (or other tests) does
+-- not perturb the count on a non-clean database.
 SELECT is(
-  (SELECT count(*)::int FROM player_equipment_setup_submissions),
+  (SELECT count(*)::int FROM player_equipment_setup_submissions
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   1,
-  'admin sees all submissions including ones they do not own'
+  'admin sees submissions including ones they do not own'
 );
 
 RESET ROLE;
