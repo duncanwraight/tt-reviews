@@ -8,6 +8,7 @@ import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
+import { formatDate } from "~/lib/date";
 import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
@@ -96,9 +97,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   try {
     // Import security functions inside server-only action
-    const { validateCSRF, createCSRFFailureResponse } = await import(
-      "~/lib/security.server"
-    );
+    const { validateCSRF, createCSRFFailureResponse } =
+      await import("~/lib/security.server");
 
     const sbServerClient = getServerClient(request, context);
     const user = await getUserWithRole(sbServerClient, context);
@@ -341,7 +341,7 @@ export default function AdminEquipmentSubmissions({
               return <span className={badge.classes}>{badge.text}</span>;
             })()}
             <div className="text-sm text-gray-500">
-              {new Date(submission.created_at).toLocaleDateString()}
+              {formatDate(submission.created_at)}
             </div>
           </div>
         </div>
@@ -428,7 +428,7 @@ export default function AdminEquipmentSubmissions({
                         {approval.action} by {approval.source}
                       </span>
                       <span className="text-gray-500">
-                        {new Date(approval.created_at).toLocaleDateString()}
+                        {formatDate(approval.created_at)}
                       </span>
                     </div>
                   )

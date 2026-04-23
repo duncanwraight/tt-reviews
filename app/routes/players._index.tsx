@@ -10,6 +10,7 @@ import { PlayersGrid } from "~/components/players/PlayersGrid";
 import { PlayersPagination } from "~/components/players/PlayersPagination";
 import { createCategoryService } from "~/lib/categories.server";
 import { useContent } from "~/hooks/useContent";
+import { StructuredData } from "~/components/seo/StructuredData";
 
 export function meta({ data }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
@@ -48,10 +49,7 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Players" },
     { property: "article:section", content: "Player Database" },
-    // Structured data from loader
-    ...(data?.breadcrumbSchema
-      ? [{ "script:ld+json": data.breadcrumbSchema }]
-      : []),
+    // JSON-LD via <StructuredData /> — see equipment.$slug.tsx.
   ];
 }
 
@@ -140,8 +138,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
-  const { players, user, countries, playingStyles, pagination, filters } =
-    loaderData;
+  const {
+    players,
+    user,
+    countries,
+    playingStyles,
+    pagination,
+    filters,
+    breadcrumbSchema,
+  } = loaderData;
 
   const { content } = useContent();
 
@@ -152,6 +157,7 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {breadcrumbSchema && <StructuredData schema={breadcrumbSchema} />}
       <Breadcrumb items={breadcrumbItems} />
 
       <PageSection>

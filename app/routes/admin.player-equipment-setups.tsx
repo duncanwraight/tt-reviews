@@ -7,6 +7,7 @@ import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
+import { formatDate } from "~/lib/date";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -80,9 +81,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions inside server-only action
-  const { validateCSRF, createCSRFFailureResponse } = await import(
-    "~/lib/security.server"
-  );
+  const { validateCSRF, createCSRFFailureResponse } =
+    await import("~/lib/security.server");
 
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
@@ -296,7 +296,7 @@ export default function AdminPlayerEquipmentSetups({
                   {playerName} - {setup.year}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Submitted on {new Date(setup.created_at).toLocaleDateString()}
+                  Submitted on {formatDate(setup.created_at)}
                 </p>
               </div>
             </div>

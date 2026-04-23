@@ -6,6 +6,7 @@ import { schemaService } from "~/lib/schema.server";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
+import { StructuredData } from "~/components/seo/StructuredData";
 
 export function meta({ params, data }: Route.MetaArgs) {
   const player = data?.player;
@@ -55,10 +56,7 @@ export function meta({ params, data }: Route.MetaArgs) {
     { name: "author", content: "TT Reviews" },
     { property: "article:author", content: "TT Reviews" },
     { property: "og:site_name", content: "TT Reviews" },
-    // Structured data from loader
-    ...(data?.multipleSchemas
-      ? [{ "script:ld+json": data.multipleSchemas }]
-      : []),
+    // JSON-LD via <StructuredData /> — see equipment.$slug.tsx.
   ];
 }
 
@@ -102,7 +100,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
-  const { user, player, equipmentSetups, footage } = loaderData;
+  const { user, player, equipmentSetups, footage, multipleSchemas } =
+    loaderData;
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -112,6 +111,7 @@ export default function PlayerDetail({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
+      {multipleSchemas && <StructuredData schema={multipleSchemas} />}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Breadcrumb items={breadcrumbItems} />
       </div>

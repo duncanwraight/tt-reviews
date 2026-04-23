@@ -4,6 +4,6 @@ export default {
   ssr: true,
   // Use file-based routing (default when no routes specified)
   future: {
-    unstable_viteEnvironmentApi: true,
+    v8_viteEnvironmentApi: true,
   },
 } satisfies Config;

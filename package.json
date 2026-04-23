@@ -26,19 +26,23 @@
     "*.{ts,tsx}": "eslint --fix"
   },
   "dependencies": {
-    "@react-router/fs-routes": "^7.6.2",
+    "@react-router/fs-routes": "^7.14.2",
+    "@react-router/node": "^7.14.2",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.48.1",
+    "@types/sanitize-html": "^2.16.1",
     "isbot": "^5.1.27",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "^7.5.3"
+    "react-router": "^7.14.2",
+    "sanitize-html": "^2.17.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.12",
     "@playwright/test": "^1.59.1",
-    "@react-router/dev": "^7.5.3",
+    "@react-router/dev": "^7.14.2",
     "@tailwindcss/vite": "^4.1.4",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

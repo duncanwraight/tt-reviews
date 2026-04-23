@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Form, useLoaderData, useSubmit } from "react-router";
 import type { SiteContent } from "~/lib/content.server";
+import { formatDate } from "~/lib/date";
 
 interface ContentManagerProps {
   content: SiteContent[];
@@ -303,7 +304,7 @@ function ContentItem({
           <p className="text-xs text-gray-500">{content.description}</p>
 
           <p className="text-xs text-gray-400 mt-2">
-            Last updated: {new Date(content.updated_at).toLocaleDateString()}
+            Last updated: {formatDate(content.updated_at)}
           </p>
         </div>
 

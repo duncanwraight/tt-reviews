@@ -282,10 +282,12 @@ export class SchemaService {
     };
   }
 
-  // Utility to convert schema object to JSON-LD script tag
+  // Utility to convert schema object to JSON-LD script tag.
+  // Escapes `<` to < so a review body containing "</script>..."
+  // cannot break out of the <script type="application/ld+json"> block.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toJsonLd(schema: any): string {
-    return JSON.stringify(schema, null, 2);
+    return JSON.stringify(schema, null, 2).replace(/</g, "\\u003c");
   }
 
   // Comparison schema for equipment comparison pages
@@ -379,10 +381,11 @@ export class SchemaService {
     };
   }
 
-  // Generate multiple schemas as array (for pages with multiple schema types)
+  // Generate multiple schemas as array (for pages with multiple schema types).
+  // Same `<` escape as toJsonLd.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateMultipleSchemas(schemas: any[]): string {
-    return JSON.stringify(schemas, null, 2);
+    return JSON.stringify(schemas, null, 2).replace(/</g, "\\u003c");
   }
 }
 

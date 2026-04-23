@@ -15,6 +15,7 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
+import { StructuredData } from "~/components/seo/StructuredData";
 // DISABLED: Comparison feature - see /todo/FEATURES.md
 // import { ComparisonSection } from "~/components/equipment/ComparisonSection";
 
@@ -94,10 +95,10 @@ export function meta({ data }: Route.MetaArgs) {
     ...(reviewCount
       ? [{ property: "product:rating:count", content: reviewCount.toString() }]
       : []),
-    // Structured data from loader
-    ...(data?.multipleSchemas
-      ? [{ "script:ld+json": data.multipleSchemas }]
-      : []),
+    // JSON-LD is rendered via <StructuredData /> in the component so
+    // user content (e.g. a review body containing "</script>") flows
+    // through toJsonLd's `<` escape. React Router's `script:ld+json`
+    // meta descriptor does not escape `<` in our version.
   ];
 }
 
@@ -207,6 +208,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     reviewCount,
     ratingCategories,
     similarEquipment,
+    multipleSchemas,
   } = loaderData;
 
   const breadcrumbItems = [
@@ -217,6 +219,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
+      {multipleSchemas && <StructuredData schema={multipleSchemas} />}
       <PageSection background="white" padding="small">
         <Breadcrumb items={breadcrumbItems} />
       </PageSection>

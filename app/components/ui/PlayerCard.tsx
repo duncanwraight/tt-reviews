@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { memo, useMemo, useCallback } from "react";
 import { LazyImage } from "./LazyImage";
+import { formatDate } from "~/lib/date";
 
 // Minimum fields required for PlayerCard display
 interface PlayerCardPlayer {
@@ -31,9 +32,7 @@ export const PlayerCard = memo(function PlayerCard({
 
   // Memoize formatted date to avoid recalculation
   const formattedDate = useMemo(() => {
-    return player.created_at
-      ? new Date(player.created_at).toLocaleDateString()
-      : null;
+    return player.created_at ? formatDate(player.created_at) : null;
   }, [player.created_at]);
 
   // Memoize playing style label for this specific player

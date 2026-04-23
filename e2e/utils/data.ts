@@ -6,20 +6,39 @@ export async function insertPendingEquipmentReview(params: {
   reviewText: string;
   overallRating: number;
 }): Promise<{ id: string }> {
+  return insertEquipmentReview({ ...params, status: "pending" });
+}
+
+export async function insertApprovedEquipmentReview(params: {
+  userId: string;
+  equipmentId: string;
+  reviewText: string;
+  overallRating: number;
+}): Promise<{ id: string }> {
+  return insertEquipmentReview({ ...params, status: "approved" });
+}
+
+async function insertEquipmentReview(params: {
+  userId: string;
+  equipmentId: string;
+  reviewText: string;
+  overallRating: number;
+  status: "pending" | "approved";
+}): Promise<{ id: string }> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/equipment_reviews`, {
     method: "POST",
     headers: { ...adminHeaders(), Prefer: "return=representation" },
     body: JSON.stringify({
       user_id: params.userId,
       equipment_id: params.equipmentId,
-      status: "pending",
+      status: params.status,
       overall_rating: params.overallRating,
       review_text: params.reviewText,
     }),
   });
   if (!res.ok) {
     throw new Error(
-      `insertPendingEquipmentReview failed (${res.status}): ${await res.text()}`
+      `insertEquipmentReview failed (${res.status}): ${await res.text()}`
     );
   }
   const rows = (await res.json()) as Array<{ id: string }>;

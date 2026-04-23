@@ -8,6 +8,7 @@ import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
+import { formatDate } from "~/lib/date";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -104,9 +105,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
-  const { validateCSRF, createCSRFFailureResponse } = await import(
-    "~/lib/security.server"
-  );
+  const { validateCSRF, createCSRFFailureResponse } =
+    await import("~/lib/security.server");
   const csrfValidation = await validateCSRF(request, context, user.id);
   if (!csrfValidation.valid) {
     return createCSRFFailureResponse(csrfValidation.error);
@@ -301,7 +301,7 @@ export default function AdminEquipmentReviews({
               return <span className={badge.classes}>{badge.text}</span>;
             })()}
             <div className="text-sm text-gray-500">
-              {new Date(review.created_at).toLocaleDateString()}
+              {formatDate(review.created_at)}
             </div>
           </div>
         </div>
@@ -396,7 +396,7 @@ export default function AdminEquipmentReviews({
                     {approval.action} by {approval.source}
                   </span>
                   <span className="text-gray-500">
-                    {new Date(approval.created_at).toLocaleDateString()}
+                    {formatDate(approval.created_at)}
                   </span>
                 </div>
               ))}

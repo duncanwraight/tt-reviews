@@ -1,92 +1,54 @@
 import { memo } from "react";
+import sanitizeHtml, { type IOptions } from "sanitize-html";
 
 /**
- * Configuration for different types of user content sanitization
+ * User-supplied HTML is parsed and filtered by `sanitize-html`
+ * (htmlparser2 under the hood). This replaced a hand-rolled regex
+ * allowlist that could be bypassed with nested tags, SVG animations,
+ * HTML entities, and unclosed attributes (SECURITY.md Phase 4).
+ *
+ * `nodejs_compat_v2` in wrangler.toml makes `process` available on the
+ * Worker so sanitize-html runs at the edge without polyfills.
+ *
+ * Allowlists are narrow and attribute-free, so there's no surface for
+ * `onerror`, `href="javascript:..."`, etc.
  */
-export const sanitizationProfiles = {
-  // For review text - allows basic formatting
-  review: ["p", "br", "b", "i", "strong", "em", "u"],
 
-  // For rejection reasons and admin feedback - more restrictive
-  admin: ["p", "br", "b", "i", "strong", "em"],
+type Profile = "review" | "admin" | "plain";
 
-  // For player descriptions and equipment specs - minimal formatting
-  description: ["p", "br", "b", "i", "strong", "em"],
+const PROFILES: Record<Profile, IOptions> = {
+  review: {
+    allowedTags: ["p", "br", "b", "i", "strong", "em", "u"],
+    allowedAttributes: {},
+    allowedSchemes: [],
+    disallowedTagsMode: "discard",
+  },
+  admin: {
+    allowedTags: ["p", "br", "b", "i", "strong", "em"],
+    allowedAttributes: {},
+    allowedSchemes: [],
+    disallowedTagsMode: "discard",
+  },
+  plain: {
+    allowedTags: [],
+    allowedAttributes: {},
+    disallowedTagsMode: "discard",
+  },
+};
 
-  // For plain text - strips all HTML
-  plain: [],
-} as const;
-
-/**
- * Lightweight HTML sanitizer for edge environments
- * Removes dangerous elements and attributes while preserving safe formatting
- */
-export function sanitizeHtml(
-  content: string,
-  profile: keyof typeof sanitizationProfiles = "plain"
-): string {
-  if (!content || typeof content !== "string") {
-    return "";
-  }
-
-  try {
-    // Strip all HTML for plain profile
-    if (profile === "plain") {
-      return content.replace(/<[^>]*>/g, "").trim();
-    }
-
-    const allowedTags = sanitizationProfiles[profile];
-
-    // Remove script, style, and other dangerous tags completely
-    let sanitized = content
-      .replace(/<script[^>]*>.*?<\/script>/gis, "")
-      .replace(/<style[^>]*>.*?<\/style>/gis, "")
-      .replace(/<iframe[^>]*>.*?<\/iframe>/gis, "")
-      .replace(/<object[^>]*>.*?<\/object>/gis, "")
-      .replace(/<embed[^>]*>.*?<\/embed>/gis, "")
-      .replace(/<form[^>]*>.*?<\/form>/gis, "")
-      .replace(/<input[^>]*>/gi, "")
-      .replace(/<textarea[^>]*>.*?<\/textarea>/gis, "")
-      .replace(/<select[^>]*>.*?<\/select>/gis, "");
-
-    // Remove all event handlers and javascript: links
-    sanitized = sanitized
-      .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, "")
-      .replace(/\s*javascript\s*:/gi, "")
-      .replace(/\s*data\s*:/gi, "")
-      .replace(/\s*vbscript\s*:/gi, "");
-
-    // Remove any tags not in the allowed list
-    const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
-    sanitized = sanitized.replace(tagRegex, (match, tagName) => {
-      const lowerTagName = tagName.toLowerCase();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (allowedTags.includes(lowerTagName as any)) {
-        // Keep only the tag name, strip all attributes for security
-        const isClosing = match.startsWith("</");
-        return isClosing ? `</${lowerTagName}>` : `<${lowerTagName}>`;
-      }
-      return ""; // Remove disallowed tags
-    });
-
-    return sanitized.trim();
-  } catch (error) {
-    console.error("Error sanitizing HTML:", error);
-    // Fallback to plain text if sanitization fails
-    return content.replace(/<[^>]*>/g, "").trim();
-  }
-}
-
-/**
- * React component for safely rendering user-generated HTML content
- */
 interface SafeHtmlProps {
   content: string;
-  profile?: keyof typeof sanitizationProfiles;
+  profile?: Profile;
   className?: string;
   fallback?: React.ReactNode;
 }
 
+/**
+ * Render user content with the given sanitization profile. `plain` strips
+ * every tag and renders as text; other profiles render sanitized HTML.
+ * This component is the only sanctioned path to `dangerouslySetInnerHTML`
+ * for user content.
+ */
 export const SafeHtml = memo(function SafeHtml({
   content,
   profile = "plain",
@@ -97,14 +59,12 @@ export const SafeHtml = memo(function SafeHtml({
     return <>{fallback}</>;
   }
 
-  const sanitized = sanitizeHtml(content, profile);
+  const sanitized = sanitizeHtml(content, PROFILES[profile]).trim();
 
-  // If the profile is 'plain', just render as text
   if (profile === "plain") {
     return <span className={className}>{sanitized}</span>;
   }
 
-  // For other profiles that allow HTML, use dangerouslySetInnerHTML
   return (
     <div
       className={className}
@@ -114,29 +74,15 @@ export const SafeHtml = memo(function SafeHtml({
 });
 
 /**
- * Sanitize text input on the client side (for forms)
- */
-export function sanitizeInput(value: string): string {
-  if (!value || typeof value !== "string") {
-    return "";
-  }
-
-  // Remove any HTML tags from user input
-  return sanitizeHtml(value, "plain");
-}
-
-/**
- * Validate and sanitize review text
+ * Sanitize + length-check a review body at the storage boundary.
  */
 export function sanitizeReviewText(text: string): string {
   if (!text || typeof text !== "string") {
     return "";
   }
 
-  // Allow basic formatting in reviews
-  const sanitized = sanitizeHtml(text, "review");
+  const sanitized = sanitizeHtml(text, PROFILES.review).trim();
 
-  // Additional validation: check length
   if (sanitized.length > 5000) {
     throw new Error("Review text too long (max 5000 characters)");
   }
@@ -145,12 +91,11 @@ export function sanitizeReviewText(text: string): string {
 }
 
 /**
- * Sanitize admin feedback and rejection reasons
+ * Sanitize admin-entered rejection reasons before storing.
  */
 export function sanitizeAdminContent(content: string): string {
   if (!content || typeof content !== "string") {
     return "";
   }
-
-  return sanitizeHtml(content, "admin");
+  return sanitizeHtml(content, PROFILES.admin).trim();
 }

@@ -10,6 +10,7 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { ComparisonCard } from "~/components/equipment/ComparisonCard";
 import { SafeHtml } from "~/lib/sanitize";
 import { PageSection } from "~/components/layout/PageSection";
+import { StructuredData } from "~/components/seo/StructuredData";
 
 interface EquipmentDisplay {
   id: string;
@@ -63,10 +64,7 @@ export function meta({ data }: Route.MetaArgs) {
     // Category page specific tags
     { name: "category", content: "Table Tennis Equipment" },
     { property: "article:section", content: "Equipment Reviews" },
-    // Structured data from loader
-    ...(data?.breadcrumbSchema
-      ? [{ "script:ld+json": data.breadcrumbSchema }]
-      : []),
+    // JSON-LD via <StructuredData /> — see equipment.$slug.tsx.
   ];
 }
 
@@ -145,6 +143,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
     currentSubcategory,
     currentSort,
     currentOrder,
+    breadcrumbSchema,
   } = loaderData;
 
   const { content } = useContent();
@@ -228,6 +227,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {breadcrumbSchema && <StructuredData schema={breadcrumbSchema} />}
       <Breadcrumb items={breadcrumbItems} />
 
       <PageSection>
