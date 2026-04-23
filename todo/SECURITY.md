@@ -25,7 +25,7 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 1 — Kill unauthenticated Discord endpoints
 
-**Status:** Done (pending manual verification).
+**Status:** ✅ Shipped 2026-04-23 in commit `04c6e4c`. Prod smoke tests green.
 
 **Resolution:** Both routes deleted outright. Nothing in-app called them via HTTP — submission routes use `DiscordService` directly, and the only authenticated Discord surface is `/api/discord/interactions` (Ed25519-signed). Confirmed with the user that no external bot forwards messages to this app, so `api.discord.messages` had no legitimate caller either.
 
@@ -47,7 +47,7 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 2 — CSRF actually works
 
-**Status:** Done (pending manual verification + prod secret rotation).
+**Status:** ✅ Shipped 2026-04-23 in commit `04c6e4c`. `SESSION_SECRET` rotated post-deploy via `wrangler secret put`. Prod smoke tests green.
 
 **Resolution:** Rewired the whole CSRF module around `context.cloudflare.env.SESSION_SECRET` and expanded coverage to every admin route with a state-changing action. Signing moved from naive `sha256(payload + key)` to HMAC-SHA256 with a constant-time (`timingSafeEqual`) signature compare.
 
@@ -71,13 +71,12 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 - Forgery spec fails without the fix applied (confirmed by mutating token → 403 returned by `createCSRFFailureResponse`). ✅
 - Unit + e2e all green; 286 unit / 10 e2e. ✅
 
-**Manual / operational checklist for the deploy:**
+**Manual / operational record (2026-04-23):**
 
-- [ ] Confirm `SESSION_SECRET` is already set as a Cloudflare secret in prod:
-      `wrangler secret list --name app` (or via dashboard).
-- [ ] Rotate it as part of the Phase 2 deploy: `openssl rand -hex 32 | wrangler secret put SESSION_SECRET`. Any pre-deploy tokens in the wild were signed with the public fallback string and are trivially forgeable — rotating guarantees they stop validating the moment new code ships.
-- [ ] Deploy — the boot-time check will fail loudly if the secret wasn't set.
-- [ ] After deploy: smoke-test a real admin approval + submission-form roundtrip. Admin sessions opened _before_ the rotation will see CSRF failures on their first form POST and need to reload the page (expected).
+- [x] Confirmed `SESSION_SECRET` was already a Cloudflare secret via `npx wrangler secret list` before the deploy.
+- [x] Rotated post-push with `openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET`. Pre-deploy tokens had been signed with the public fallback string and were trivially forgeable — rotation guaranteed they stopped validating on the first cold-start of the new Worker.
+- [x] Deploy succeeded (GHA run 24826415846). Boot-time `getSessionSecret` check did not trip, which is itself confirmation the secret resolved.
+- [x] Prod smoke tests (the CI-run Playwright suite against the prod URL post-promote) passed. Any admin sessions opened before the rotation would see CSRF failures on their first form POST and need to reload — but the user is the only admin, so no user-visible impact.
 
 ---
 

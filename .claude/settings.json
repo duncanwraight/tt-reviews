@@ -11,6 +11,11 @@
           },
           {
             "type": "command",
+            "command": "bash .claude/hooks/post-edit-prettier.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
             "command": "bash .claude/hooks/post-migration-notice.sh",
             "timeout": 30
           }
