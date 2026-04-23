@@ -6,11 +6,7 @@ import type {
 } from "./types";
 import { withLogging } from "./logging";
 
-export type SubmissionType =
-  | "equipment"
-  | "player"
-  | "player_edit"
-  | "video";
+export type SubmissionType = "equipment" | "player" | "player_edit" | "video";
 
 export function getSubmissionTableName(submissionType: SubmissionType): string {
   switch (submissionType) {
@@ -135,9 +131,7 @@ export async function getDiscordMessageId(
         .select("id, discord_message_id")
         .eq("id", submissionId),
     { submissionType, submissionId }
-  ).catch(
-    (): Array<{ id: string; discord_message_id: string | null }> => []
-  );
+  ).catch((): Array<{ id: string; discord_message_id: string | null }> => []);
 
   if (!rows || rows.length === 0) {
     Logger.warn(

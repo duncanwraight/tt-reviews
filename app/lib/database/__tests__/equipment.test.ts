@@ -32,9 +32,7 @@ describe("equipment.getEquipment", () => {
     const supabase = makeSupabase({
       tables: { equipment: { error: { message: "network" } } },
     });
-    expect(
-      await equipment.getEquipment(makeCtx(supabase), "any")
-    ).toBeNull();
+    expect(await equipment.getEquipment(makeCtx(supabase), "any")).toBeNull();
   });
 });
 
@@ -42,9 +40,9 @@ describe("equipment.getEquipmentById", () => {
   it("queries by id and returns the row", async () => {
     const row = { id: "eq1" };
     const supabase = makeSupabase({ tables: { equipment: { data: row } } });
-    expect(
-      await equipment.getEquipmentById(makeCtx(supabase), "eq1")
-    ).toEqual(row);
+    expect(await equipment.getEquipmentById(makeCtx(supabase), "eq1")).toEqual(
+      row
+    );
     const b = supabase._builders.get("equipment")!;
     expect(b.calls).toContainEqual({ method: "eq", args: ["id", "eq1"] });
   });
@@ -78,9 +76,7 @@ describe("equipment.searchEquipment", () => {
     const supabase = makeSupabase({
       tables: { equipment: { error: { message: "x" } } },
     });
-    expect(
-      await equipment.searchEquipment(makeCtx(supabase), "q")
-    ).toEqual([]);
+    expect(await equipment.searchEquipment(makeCtx(supabase), "q")).toEqual([]);
   });
 });
 
@@ -88,9 +84,9 @@ describe("equipment.getRecentEquipment", () => {
   it("orders by created_at desc with specified limit", async () => {
     const rows = [{ id: "a" }];
     const supabase = makeSupabase({ tables: { equipment: { data: rows } } });
-    expect(
-      await equipment.getRecentEquipment(makeCtx(supabase), 5)
-    ).toEqual(rows);
+    expect(await equipment.getRecentEquipment(makeCtx(supabase), 5)).toEqual(
+      rows
+    );
     const b = supabase._builders.get("equipment")!;
     expect(b.calls).toContainEqual({
       method: "order",
@@ -188,9 +184,7 @@ describe("equipment.getEquipmentCategories", () => {
     });
     const result = await equipment.getEquipmentCategories(makeCtx(supabase));
     expect(result).toEqual([{ category: "blade", count: 5 }]);
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      "get_equipment_category_counts"
-    );
+    expect(supabase.rpc).toHaveBeenCalledWith("get_equipment_category_counts");
   });
 
   it("falls back to manual aggregation on RPC error", async () => {
@@ -224,11 +218,11 @@ describe("equipment.getEquipmentCategories", () => {
       rpc: { get_equipment_category_counts: { error: { message: "x" } } },
       tables: { equipment: { error: { message: "y" } } },
     });
-     
+
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(
-      await equipment.getEquipmentCategories(makeCtx(supabase))
-    ).toEqual([]);
+    expect(await equipment.getEquipmentCategories(makeCtx(supabase))).toEqual(
+      []
+    );
     spy.mockRestore();
   });
 });
@@ -288,9 +282,9 @@ describe("equipment.getEquipmentWithStats", () => {
     const supabase = makeSupabase({
       rpc: { get_equipment_with_stats: { data: rows } },
     });
-    expect(
-      await equipment.getEquipmentWithStats(makeCtx(supabase), 7)
-    ).toEqual(rows);
+    expect(await equipment.getEquipmentWithStats(makeCtx(supabase), 7)).toEqual(
+      rows
+    );
     expect(supabase.rpc).toHaveBeenCalledWith("get_equipment_with_stats", {
       limit_count: 7,
     });
@@ -302,9 +296,9 @@ describe("equipment.getEquipmentWithStats", () => {
       tables: { equipment: { data: [{ id: "fallback" }] } },
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(
-      await equipment.getEquipmentWithStats(makeCtx(supabase), 3)
-    ).toEqual([{ id: "fallback" }]);
+    expect(await equipment.getEquipmentWithStats(makeCtx(supabase), 3)).toEqual(
+      [{ id: "fallback" }]
+    );
     spy.mockRestore();
   });
 });
@@ -315,9 +309,9 @@ describe("equipment.getPopularEquipment", () => {
     const supabase = makeSupabase({
       rpc: { get_popular_equipment: { data: rows } },
     });
-    expect(
-      await equipment.getPopularEquipment(makeCtx(supabase), 6)
-    ).toEqual(rows);
+    expect(await equipment.getPopularEquipment(makeCtx(supabase), 6)).toEqual(
+      rows
+    );
     expect(supabase.rpc).toHaveBeenCalledWith("get_popular_equipment", {
       limit_count: 6,
     });
@@ -329,9 +323,9 @@ describe("equipment.getPopularEquipment", () => {
       tables: { equipment: { data: [{ id: "fallback" }] } },
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(
-      await equipment.getPopularEquipment(makeCtx(supabase))
-    ).toEqual([{ id: "fallback" }]);
+    expect(await equipment.getPopularEquipment(makeCtx(supabase))).toEqual([
+      { id: "fallback" },
+    ]);
     spy.mockRestore();
   });
 });
@@ -368,10 +362,10 @@ describe("equipment.getAllEquipmentWithStats", () => {
     // getAllEquipment (second call for equipment-without-reviews) uses the
     // same shared builder — leave it returning an empty list so only
     // reviewed rows surface.
-    const result = await equipment.getAllEquipmentWithStats(
-      makeCtx(supabase),
-      { sortBy: "rating", sortOrder: "desc" }
-    );
+    const result = await equipment.getAllEquipmentWithStats(makeCtx(supabase), {
+      sortBy: "rating",
+      sortOrder: "desc",
+    });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: "a",
@@ -384,10 +378,9 @@ describe("equipment.getAllEquipmentWithStats", () => {
     const supabase = makeSupabase({
       tables: { equipment: { error: { message: "bad join" } } },
     });
-    const result = await equipment.getAllEquipmentWithStats(
-      makeCtx(supabase),
-      { sortBy: "rating" }
-    );
+    const result = await equipment.getAllEquipmentWithStats(makeCtx(supabase), {
+      sortBy: "rating",
+    });
     expect(result).toEqual([]);
   });
 
@@ -411,10 +404,10 @@ describe("equipment.getAllEquipmentWithStats", () => {
     const supabase = makeSupabase({
       tables: { equipment: { data: joined } },
     });
-    const result = await equipment.getAllEquipmentWithStats(
-      makeCtx(supabase),
-      { sortBy: "name", sortOrder: "asc" }
-    );
+    const result = await equipment.getAllEquipmentWithStats(makeCtx(supabase), {
+      sortBy: "name",
+      sortOrder: "asc",
+    });
     expect(result.map(r => r.id)).toEqual(["a", "b"]);
   });
 });

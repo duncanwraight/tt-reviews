@@ -76,7 +76,6 @@ export function makeBuilder(
   ] as const;
 
   for (const method of chainable) {
-     
     (builder as any)[method] = (...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -124,10 +123,7 @@ export interface MockSupabase {
 }
 
 export function makeSupabase(config?: {
-  tables?: Record<
-    string,
-    { data?: unknown; error?: unknown; count?: number }
-  >;
+  tables?: Record<string, { data?: unknown; error?: unknown; count?: number }>;
   rpc?: Record<string, { data?: unknown; error?: unknown }>;
 }): MockSupabase {
   const builders = new Map<string, MockBuilder>();
@@ -170,7 +166,6 @@ export function makeCtx(
   supabase: MockSupabase = makeSupabase()
 ): DatabaseContext {
   return {
-     
     supabase: supabase as unknown as any,
     context: { requestId: "test-request" },
   };

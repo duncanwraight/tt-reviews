@@ -32,7 +32,10 @@ function getStatusCounts(data: any[] | null): Record<string, number> {
   if (data) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data.forEach((item: any) => {
-      if (item.status && Object.prototype.hasOwnProperty.call(counts, item.status)) {
+      if (
+        item.status &&
+        Object.prototype.hasOwnProperty.call(counts, item.status)
+      ) {
         counts[item.status]++;
       }
     });
@@ -69,9 +72,7 @@ export async function getAdminDashboardCounts(
       ctx.supabase
         .from("equipment")
         .select("*", { count: "exact", head: true }),
-      ctx.supabase
-        .from("players")
-        .select("*", { count: "exact", head: true }),
+      ctx.supabase.from("players").select("*", { count: "exact", head: true }),
     ]);
 
     return {

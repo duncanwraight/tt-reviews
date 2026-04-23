@@ -28,10 +28,9 @@ describe("submissions.getSubmissionTableName", () => {
   });
 
   it("throws on unknown submission type", () => {
-    expect(() =>
-       
-      submissions.getSubmissionTableName("bogus" as any)
-    ).toThrow(/Unknown submission type/);
+    expect(() => submissions.getSubmissionTableName("bogus" as any)).toThrow(
+      /Unknown submission type/
+    );
   });
 });
 

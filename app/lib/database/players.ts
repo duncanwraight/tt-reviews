@@ -74,14 +74,11 @@ export async function getAllPlayers(
 export async function getPlayersWithoutFilters(
   ctx: DatabaseContext
 ): Promise<Player[]> {
-  return withLogging<Player[]>(
-    ctx,
-    "get_players_without_filters",
-    () =>
-      ctx.supabase
-        .from("players")
-        .select("*")
-        .order("created_at", { ascending: false })
+  return withLogging<Player[]>(ctx, "get_players_without_filters", () =>
+    ctx.supabase
+      .from("players")
+      .select("*")
+      .order("created_at", { ascending: false })
   ).catch((): Player[] => []);
 }
 
@@ -151,8 +148,10 @@ export async function getPlayerCountries(
   >(ctx, "get_player_countries", () =>
     ctx.supabase.from("players").select("represents, birth_country")
   ).catch(
-    (): Array<{ represents?: string | null; birth_country?: string | null }> =>
-      []
+    (): Array<{
+      represents?: string | null;
+      birth_country?: string | null;
+    }> => []
   );
 
   const countries = new Set<string>();

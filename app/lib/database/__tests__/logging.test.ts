@@ -12,7 +12,7 @@ import { Logger } from "~/lib/logger.server";
 const ctx: DatabaseContext = {
   // supabase client isn't used by withLogging itself — the helper only
   // invokes the passed fn and inspects its result envelope.
-   
+
   supabase: {} as any,
   context: { requestId: "test-req-1" },
 };
@@ -64,7 +64,10 @@ describe("withLogging", () => {
       expect.objectContaining({ result_count: 1 })
     );
 
-    await withLogging(ctx, "op_null", async () => ({ data: null, error: null }));
+    await withLogging(ctx, "op_null", async () => ({
+      data: null,
+      error: null,
+    }));
     expect(debugSpy).toHaveBeenLastCalledWith(
       "Database operation completed: op_null",
       expect.anything(),
@@ -107,7 +110,6 @@ describe("withLogging", () => {
 
   it("uses 'unknown' requestId when ctx.context is undefined", async () => {
     const noCtx: DatabaseContext = {
-       
       supabase: {} as any,
     };
     await withLogging(noCtx, "op", async () => ({ data: [], error: null }));

@@ -14,10 +14,7 @@ describe("admin.getAdminDashboardCounts", () => {
           ],
         },
         player_submissions: {
-          data: [
-            { status: "approved" },
-            { status: "rejected" },
-          ],
+          data: [{ status: "approved" }, { status: "rejected" }],
         },
         player_edits: {
           data: [{ status: "awaiting_second_approval" }],
@@ -87,7 +84,6 @@ describe("admin.getAdminDashboardCounts", () => {
       rpc: vi.fn(),
     };
     const result = await admin.getAdminDashboardCounts({
-       
       supabase: failingSupabase as unknown as any,
       context: { requestId: "t" },
     });

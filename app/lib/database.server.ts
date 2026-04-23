@@ -105,7 +105,9 @@ export class DatabaseService {
     return players.getPlayer(this.ctx, slug);
   }
 
-  async getAllPlayers(options?: players.GetAllPlayersOptions): Promise<Player[]> {
+  async getAllPlayers(
+    options?: players.GetAllPlayersOptions
+  ): Promise<Player[]> {
     return players.getAllPlayers(this.ctx, options);
   }
 
@@ -201,25 +203,19 @@ export class DatabaseService {
 
   async getEquipmentWithStats(
     limit = 10
-  ): Promise<
-    (Equipment & { averageRating?: number; reviewCount?: number })[]
-  > {
+  ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
     return equipment.getEquipmentWithStats(this.ctx, limit);
   }
 
   async getAllEquipmentWithStats(
     options?: equipment.GetAllEquipmentWithStatsOptions
-  ): Promise<
-    (Equipment & { averageRating?: number; reviewCount?: number })[]
-  > {
+  ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
     return equipment.getAllEquipmentWithStats(this.ctx, options);
   }
 
   async getPopularEquipment(
     limit = 6
-  ): Promise<
-    (Equipment & { averageRating?: number; reviewCount?: number })[]
-  > {
+  ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
     return equipment.getPopularEquipment(this.ctx, limit);
   }
 
@@ -252,6 +248,10 @@ export class DatabaseService {
     submissionType: submissions.SubmissionType,
     submissionId: string
   ): Promise<string | null> {
-    return submissions.getDiscordMessageId(this.ctx, submissionType, submissionId);
+    return submissions.getDiscordMessageId(
+      this.ctx,
+      submissionType,
+      submissionId
+    );
   }
 }

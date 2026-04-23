@@ -23,8 +23,7 @@ export async function getEquipmentById(
   return withLogging<Equipment | null>(
     ctx,
     "get_equipment_by_id",
-    () =>
-      ctx.supabase.from("equipment").select("*").eq("id", id).maybeSingle(),
+    () => ctx.supabase.from("equipment").select("*").eq("id", id).maybeSingle(),
     { id }
   ).catch(() => null);
 }
@@ -179,9 +178,7 @@ export async function getEquipmentSubcategories(
     return rpcData || [];
   }
 
-  const fallbackRows = await withLogging<
-    Array<{ subcategory: string | null }>
-  >(
+  const fallbackRows = await withLogging<Array<{ subcategory: string | null }>>(
     ctx,
     "get_equipment_subcategories_fallback",
     () =>

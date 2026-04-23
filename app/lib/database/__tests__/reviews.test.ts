@@ -37,9 +37,9 @@ describe("reviews.getEquipmentReviews", () => {
         equipment_reviews: { error: { message: "boom" } },
       },
     });
-    expect(
-      await reviews.getEquipmentReviews(makeCtx(supabase), "eq1")
-    ).toEqual([]);
+    expect(await reviews.getEquipmentReviews(makeCtx(supabase), "eq1")).toEqual(
+      []
+    );
   });
 });
 
