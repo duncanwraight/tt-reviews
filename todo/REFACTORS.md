@@ -1,14 +1,6 @@
 # Opportunistic refactors
 
-Code health work that isn't gated and isn't urgent. The general rule is "only split the slice you're already editing" — proactive splits risk merge conflicts against in-flight work. Promote an item from a one-paragraph note to a detailed plan (see `docs/archive/REFACTOR-DISCORD.md` for a shipped example) when you're actually going to do the work.
-
----
-
-# Database server split
-
-Promoted to a detailed plan: `todo/REFACTOR-DATABASE.md`.
-
-Splits `app/lib/database.server.ts` (~1360 lines) into nine submodules under `app/lib/database/` (types, client, logging, equipment, players, reviews, submissions, search, admin) plus a slim `DatabaseService` facade that preserves the public API for all 32 callers.
+Code health work that isn't gated and isn't urgent. The general rule is "only split the slice you're already editing" — proactive splits risk merge conflicts against in-flight work. Promote an item from a one-paragraph note to a detailed plan (see `docs/archive/REFACTOR-DISCORD.md` or `docs/archive/REFACTOR-DATABASE.md` for shipped examples) when you're actually going to do the work.
 
 ---
 

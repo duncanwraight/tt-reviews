@@ -1,6 +1,18 @@
-# Database server split — plan
+# Database server split — shipped 2026-04-23
 
-Promoted from `todo/REFACTORS.md`. Same shape as the shipped Discord split at `docs/archive/REFACTOR-DISCORD.md`.
+Archived from `todo/REFACTORS.md`. The plan below was executed across two commits (`fff34df`..`b4b4660`) and shipped to `main`. Outcome:
+
+- `app/lib/database.server.ts`: 1360 → 257 lines (-81%), now a thin facade over the submodules listed below.
+- Public API preserved — no caller changes across the 32 files importing `DatabaseService`, `createSupabaseClient`, `createSupabaseAdminClient`, or the re-exported entity/submission types.
+- Three-way constructor polymorphism preserved verbatim so `discord.server.ts` (the only three-arg caller) keeps working.
+- Unit tests: 179 → 259 (+80 database-focused tests under `app/lib/database/__tests__/`). A thenable mock Supabase builder (`helpers.ts`) records the chain so every test asserts the filters / orders / RPC fallbacks applied match the pre-split behaviour.
+- Dead code removed: the four `update*DiscordMessageId` methods (equipment/player/video/player_edit) had zero callers outside the facade — confirmed with a full-tree grep, then deleted. `getDiscordMessageId` kept; it's live from `app/lib/discord/messages.ts:233`.
+- Error handling standardized: every DB call now flows through `Logger` (structured JSON + correlation ID) instead of scattered `console.error`, matching the pattern the equipment reads already used. Return-default-on-error semantics preserved via `.catch()` wrappers.
+- Typecheck + lint green on the final commit. Unit suite green; e2e green except one failure (`admin-approves-review.spec.ts`) caused by a missing local migration (`approval_count` column on `equipment_reviews`) — unrelated to the refactor, schema-state-only.
+
+Keeping the full plan here so future refactors of similar shape have a concrete reference.
+
+---
 
 `app/lib/database.server.ts` is ~1360 lines. One `DatabaseService` class mixes equipment, players, reviews, submissions, Discord-message tracking, search, and admin-dashboard aggregation. At this size `grep` is the primary navigation tool, and every test has to construct the whole service even to assert on a single query.
 
