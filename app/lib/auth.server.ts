@@ -52,11 +52,22 @@ export async function getUserWithRole(
 
         if (adminEmails) {
           const adminClient = createSupabaseAdminClient(context);
+          // SECURITY.md Phase 9: only promote users who have verified
+          // their email. Supabase returns the user object via
+          // `auth.getUser()` even for unverified sign-ups, so without
+          // this guard an attacker could claim an admin email and be
+          // promoted on first authenticated request without ever
+          // reading the confirmation inbox.
+          const emailConfirmed = Boolean(
+            (userWithRole as { email_confirmed_at?: string | null })
+              .email_confirmed_at
+          );
           const wasPromoted = await checkAndPromoteAdmin(
             adminClient,
             userWithRole.email,
             userWithRole.id,
-            adminEmails
+            adminEmails,
+            emailConfirmed
           );
 
           // If user was just promoted, they need to re-login to get updated JWT

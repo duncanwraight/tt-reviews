@@ -1,16 +1,34 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Auto-promote specified email addresses to admin role
- * This runs when users sign up or sign in to ensure admin status is applied
+ * Auto-promote specified email addresses to admin role when the user
+ * signs in / refreshes session. SECURITY.md Phase 9 (TT-18) hardens
+ * this: without the `emailConfirmed` guard, anyone could sign up with
+ * a target address from `AUTO_ADMIN_EMAILS`, never click the confirm
+ * link, and still be promoted on their first authenticated request —
+ * Supabase's `auth.getUser()` returns the user row even when
+ * `email_confirmed_at` is null (the session cookie is enough).
+ *
+ * Callers must pass `emailConfirmed = !!user.email_confirmed_at`. When
+ * false, this function exits early. If Supabase's project is configured
+ * to require email confirmation, unverified users are blocked; if
+ * confirmation is disabled at the project level, every user is
+ * confirmed at creation and this guard is a no-op — that's a
+ * configuration problem outside this layer.
  */
 export async function checkAndPromoteAdmin(
   adminSupabase: SupabaseClient,
   userEmail: string,
   userId: string,
-  adminEmails: string
+  adminEmails: string,
+  emailConfirmed: boolean
 ): Promise<boolean> {
   if (!adminEmails || !userEmail || !userId) {
+    return false;
+  }
+
+  if (!emailConfirmed) {
+    // Fail-closed: unverified admin email cannot be auto-promoted.
     return false;
   }
 

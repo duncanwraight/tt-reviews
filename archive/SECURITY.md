@@ -241,21 +241,30 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 9 — Auth hardening (auto-promote, session flows)
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 (TT-18).
 
-**Goal:** A couple of smaller auth-layer issues worth closing.
+**Resolution:**
 
-**Steps:**
+- **Auto-promote guard.** `checkAndPromoteAdmin` now takes `emailConfirmed` and exits early when false. `getUserWithRole` derives the flag from `user.email_confirmed_at` via Supabase's `auth.getUser()` response and refuses to promote an unverified admin. Without this, an attacker could sign up with an email matching `AUTO_ADMIN_EMAILS`, never click the confirmation link, and be promoted on their first authenticated request (the session cookie is enough for `auth.getUser()` to return the user row).
+- **Redirect audit.** Swept every `redirect()` / `throw redirect()` call under `app/routes/` and `app/lib/`. Every target is a hardcoded literal path — no attacker-influenced URL is ever passed through. No open-redirect surface. The `handleForgotPassword` flow in `login.tsx` passes `${window.location.origin}/reset-password` to Supabase, which is browser-origin-derived and safe.
+- **Moderator audit-trail.** Every insert into `moderator_approvals` passes a `moderatorId` sourced either from `user.id` (server-decoded JWT in admin routes) or from the signature-verified Discord interaction payload (`discordModeratorId` in `app/lib/discord/moderation.ts`). No call site reads the field from a request body, form field, or URL parameter. `grep "formData.get.*moderator\|body.moderator\|params.moderator" app/` returns zero hits — pinned as a regression guard in the test suite.
+- **Cookie-flag hardening.** `getServerClient` now wraps Supabase's `setAll` through a `hardenCookieOptions` pass that fills in `httpOnly: true`, `sameSite: "lax"`, `secure: true` (off in dev so local HTTP cookies still set), and `path: "/"` whenever the SDK's options are missing them. Belt-and-braces against a future SDK regression or a different cookie source ever being threaded through this path.
 
-- `app/lib/auto-promote.server.ts` promotes any user whose email is in `ADMIN_EMAILS` at login time. Confirm Supabase email verification is required in the project config — otherwise sign-up with someone's email then clicking the unverified link grants admin. Add a boot-time check that verification is on, or skip auto-promote for unverified users.
-- Login redirect chain — audit `login.tsx`, `auth.callback.tsx`, `reset-password.tsx` for any `redirect(url)` where `url` is attacker-influenced. Restrict to a same-origin allowlist.
-- Ensure session cookies have `Secure`, `HttpOnly`, `SameSite=Lax` (or `Strict` for admin routes). Check `app/lib/auth.server.ts`.
-- Ensure `moderator_approvals.moderator_id` audit trail can't be forged — the column is written from the server-side user record, not the request body.
+**Tests:**
+
+- `app/lib/__tests__/auto-promote.server.test.ts` — 4 cases: refuses when `emailConfirmed: false`, refuses when email not in allowlist, refuses when allowlist is empty, happy-path matches case-insensitively.
+- `app/lib/__tests__/supabase.server.test.ts` — 6 cases: fills in all 4 safe flags on empty options, handles undefined, forces `secure: false` in development, preserves explicit stricter `sameSite`, preserves explicit non-root path, honours explicit `httpOnly: false` (so the fallback doesn't override caller intent).
+- Full suites: 398 unit passed (2 pre-existing `discord.test.ts` flakes, TT-23), 15/15 e2e including `user-submits-review.spec.ts` which exercises the full auth/cookie flow.
+
+**Deferred (not Phase 9 scope):**
+
+- Login rate-limiting — handled by Supabase's project-level rate limits; app-side login is client-side via `createBrowserClient` with no server action to gate. Noted in Phase 8 resolution.
+- A boot-time check that Supabase's email-confirmation setting is enabled — would require the Supabase Admin API and still wouldn't be meaningful if an operator changes the setting post-deploy. The `emailConfirmed` guard above is the primary defence; operators enabling confirmation-off in Supabase bypass it intentionally.
 
 **Acceptance:**
 
-- An unverified signup with `ADMIN_EMAILS`-matching email does not gain admin on first login.
-- Session cookies have the correct flags on production response headers.
+- An unverified signup with `AUTO_ADMIN_EMAILS`-matching email does not gain admin on first login. ✅ (unit test).
+- Session cookies have the correct flags on production response headers. ✅ (`hardenCookieOptions` tests — forces `HttpOnly; Secure; SameSite=Lax; Path=/` by default).
 
 ---
 
