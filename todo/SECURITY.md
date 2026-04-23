@@ -77,7 +77,7 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
       `wrangler secret list --name app` (or via dashboard).
 - [ ] Rotate it as part of the Phase 2 deploy: `openssl rand -hex 32 | wrangler secret put SESSION_SECRET`. Any pre-deploy tokens in the wild were signed with the public fallback string and are trivially forgeable — rotating guarantees they stop validating the moment new code ships.
 - [ ] Deploy — the boot-time check will fail loudly if the secret wasn't set.
-- [ ] After deploy: smoke-test a real admin approval + submission-form roundtrip. Admin sessions opened *before* the rotation will see CSRF failures on their first form POST and need to reload the page (expected).
+- [ ] After deploy: smoke-test a real admin approval + submission-form roundtrip. Admin sessions opened _before_ the rotation will see CSRF failures on their first form POST and need to reload the page (expected).
 
 ---
 

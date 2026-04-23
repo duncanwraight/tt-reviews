@@ -64,7 +64,7 @@ Impact ceiling is bounded — an attacker with Discord approver role still can't
 **Acceptance:**
 
 - Submitting a review in local dev posts to the dev Discord channel, not the prod one.
-- Clicking approve in the dev channel flips the *local* review status.
+- Clicking approve in the dev channel flips the _local_ review status.
 - Prod Discord + prod DB see no traffic from local development.
 
 ## Investigation queries

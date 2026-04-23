@@ -73,7 +73,12 @@ describe("generateCSRFToken + validateCSRFToken roundtrip", () => {
 
   it("rejects a token bound to a different session", () => {
     const token = generateCSRFToken(SESSION_ID, USER_ID, SECRET);
-    const result = validateCSRFToken(token, "different-session", SECRET, USER_ID);
+    const result = validateCSRFToken(
+      token,
+      "different-session",
+      SECRET,
+      USER_ID
+    );
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Session mismatch");
   });
@@ -95,8 +100,7 @@ describe("generateCSRFToken + validateCSRFToken roundtrip", () => {
     const decoded = JSON.parse(Buffer.from(token, "base64url").toString());
     const sig = decoded.signature as string;
     // Flip the last character of the signature.
-    decoded.signature =
-      sig.slice(0, -1) + (sig.slice(-1) === "0" ? "1" : "0");
+    decoded.signature = sig.slice(0, -1) + (sig.slice(-1) === "0" ? "1" : "0");
     const tampered = Buffer.from(JSON.stringify(decoded)).toString("base64url");
 
     const result = validateCSRFToken(tampered, SESSION_ID, SECRET, USER_ID);
@@ -138,7 +142,9 @@ describe("generateCSRFToken + validateCSRFToken roundtrip", () => {
       timestamp: oldTs,
     };
     const signature = createHmac("sha256", SECRET)
-      .update(`${payload.token}:${payload.sessionId}:${payload.userId}:${payload.timestamp}`)
+      .update(
+        `${payload.token}:${payload.sessionId}:${payload.userId}:${payload.timestamp}`
+      )
       .digest("hex");
     const envelope = Buffer.from(
       JSON.stringify({ ...payload, signature })
@@ -150,7 +156,9 @@ describe("generateCSRFToken + validateCSRFToken roundtrip", () => {
   });
 
   it("rejects an empty token", () => {
-    expect(validateCSRFToken("", SESSION_ID, SECRET, USER_ID).valid).toBe(false);
+    expect(validateCSRFToken("", SESSION_ID, SECRET, USER_ID).valid).toBe(
+      false
+    );
   });
 
   it("rejects garbled base64", () => {
@@ -301,10 +309,9 @@ describe("requiresCSRFProtection", () => {
   it("returns false for POST to /api/discord/ (Ed25519-signed)", () => {
     expect(
       requiresCSRFProtection(
-        new Request(
-          "https://tt-reviews.local/api/discord/interactions",
-          { method: "POST" }
-        )
+        new Request("https://tt-reviews.local/api/discord/interactions", {
+          method: "POST",
+        })
       )
     ).toBe(false);
   });

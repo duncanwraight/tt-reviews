@@ -6,10 +6,7 @@ import {
   login,
   setUserRole,
 } from "./utils/auth";
-import {
-  getFirstEquipment,
-  insertPendingEquipmentReview,
-} from "./utils/data";
+import { getFirstEquipment, insertPendingEquipmentReview } from "./utils/data";
 
 // Phase 2 of SECURITY.md: CSRF tokens used to be signed with a hardcoded
 // fallback because `process.env.SESSION_SECRET` is undefined on Workers.
@@ -43,9 +40,7 @@ test("admin action rejects POST with no CSRF token", async ({
     // POST. `request.storageState` is a no-arg getter here — we take it
     // from `page.context()` and pass it to `request.post` via extraHTTP.
     const cookies = await page.context().cookies();
-    const cookieHeader = cookies
-      .map(c => `${c.name}=${c.value}`)
-      .join("; ");
+    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
 
     const form = new URLSearchParams();
     form.set("intent", "approve");
@@ -101,16 +96,15 @@ test("admin action rejects POST with forged CSRF token", async ({
       .getAttribute("value");
     expect(validToken, "expected form to include a _csrf input").toBeTruthy();
 
-    const decoded = JSON.parse(Buffer.from(validToken!, "base64url").toString());
+    const decoded = JSON.parse(
+      Buffer.from(validToken!, "base64url").toString()
+    );
     const sig = decoded.signature as string;
-    decoded.signature =
-      sig.slice(0, -1) + (sig.slice(-1) === "0" ? "1" : "0");
+    decoded.signature = sig.slice(0, -1) + (sig.slice(-1) === "0" ? "1" : "0");
     const forged = Buffer.from(JSON.stringify(decoded)).toString("base64url");
 
     const cookies = await page.context().cookies();
-    const cookieHeader = cookies
-      .map(c => `${c.name}=${c.value}`)
-      .join("; ");
+    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
 
     const form = new URLSearchParams();
     form.set("_csrf", forged);
