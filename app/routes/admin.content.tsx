@@ -28,10 +28,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const db = new DatabaseService(context, logContext);
   const content = await db.content.getAllContentRecords();
 
+  const { issueCSRFToken } = await import("~/lib/security.server");
+  const csrfToken = await issueCSRFToken(request, context, user.id);
+
   return data(
     {
       user,
       content,
+      csrfToken,
       env: {
         SUPABASE_URL: (context.cloudflare.env as Cloudflare.Env).SUPABASE_URL!,
         SUPABASE_ANON_KEY: (context.cloudflare.env as Cloudflare.Env)
@@ -48,6 +52,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (!user || user.role !== "admin") {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  const { validateCSRF, createCSRFFailureResponse } = await import(
+    "~/lib/security.server"
+  );
+  const csrfValidation = await validateCSRF(request, context, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -143,7 +155,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function AdminContent({ loaderData }: Route.ComponentProps) {
-  const { content } = loaderData;
+  const { content, csrfToken } = loaderData;
 
-  return <ContentManager content={content} />;
+  return <ContentManager content={content} csrfToken={csrfToken} />;
 }

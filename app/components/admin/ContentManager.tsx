@@ -4,9 +4,10 @@ import type { SiteContent } from "~/lib/content.server";
 
 interface ContentManagerProps {
   content: SiteContent[];
+  csrfToken: string;
 }
 
-export function ContentManager({ content }: ContentManagerProps) {
+export function ContentManager({ content, csrfToken }: ContentManagerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [editingContent, setEditingContent] = useState<SiteContent | null>(
@@ -32,6 +33,7 @@ export function ContentManager({ content }: ContentManagerProps) {
 
   const handleSave = (updatedContent: SiteContent) => {
     const formData = new FormData();
+    formData.append("_csrf", csrfToken);
     formData.append("intent", "update");
     formData.append("key", updatedContent.key);
     formData.append("content", updatedContent.content);
@@ -46,6 +48,7 @@ export function ContentManager({ content }: ContentManagerProps) {
   const handleDelete = (key: string) => {
     if (confirm("Are you sure you want to delete this content item?")) {
       const formData = new FormData();
+      formData.append("_csrf", csrfToken);
       formData.append("intent", "delete");
       formData.append("key", key);
       // eslint-disable-next-line @typescript-eslint/no-floating-promises

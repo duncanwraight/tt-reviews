@@ -7,6 +7,7 @@ interface CategoryManagerProps {
   type: CategoryType;
   title: string;
   description: string;
+  csrfToken: string;
   showFlags?: boolean;
   allowSubcategories?: boolean;
   parentCategories?: Category[];
@@ -17,6 +18,7 @@ export function CategoryManager({
   type,
   title,
   description,
+  csrfToken,
   showFlags = false,
   allowSubcategories = false,
   parentCategories = [],
@@ -51,6 +53,7 @@ export function CategoryManager({
             Add New {title.slice(0, -1)}
           </h4>
           <Form method="post" className="space-y-4">
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="intent" value="create" />
             <input type="hidden" name="type" value={type} />
 
@@ -247,6 +250,7 @@ export function CategoryManager({
                 key={category.id}
                 category={category}
                 type={type}
+                csrfToken={csrfToken}
                 isEditing={editingId === category.id}
                 onEdit={() => setEditingId(category.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -288,6 +292,7 @@ export function CategoryManager({
 interface CategoryItemProps {
   category: Category;
   type: CategoryType;
+  csrfToken: string;
   isEditing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -302,6 +307,7 @@ interface CategoryItemProps {
 function CategoryItem({
   category,
   type,
+  csrfToken,
   isEditing,
   onEdit,
   onCancelEdit,
@@ -317,6 +323,7 @@ function CategoryItem({
       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
         <h4 className="font-medium text-gray-900 mb-3">Edit Category</h4>
         <Form method="post" className="space-y-4">
+          <input type="hidden" name="_csrf" value={csrfToken} />
           <input type="hidden" name="intent" value="update" />
           <input type="hidden" name="id" value={category.id} />
 
@@ -605,6 +612,7 @@ function CategoryItem({
           </button>
 
           <Form method="post" className="inline">
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="id" value={category.id} />
             <button

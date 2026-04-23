@@ -12,6 +12,11 @@ R2_BUCKET_NAME=your_bucket_name
 # Site Configuration
 SITE_URL=https://tt-reviews.local
 
+# CSRF signing secret. Must be at least 16 chars. Generate one with:
+#   openssl rand -hex 32
+# Prod must set this via `wrangler secret put SESSION_SECRET`.
+SESSION_SECRET=replace-with-a-long-random-value
+
 # Discord Configuration (optional for local dev, required for notifications)
 DISCORD_BOT_TOKEN=your_discord_bot_token
 DISCORD_CHANNEL_ID=your_discord_channel_id

@@ -52,12 +52,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     (e: { slug: string }) => e.slug
   );
 
+  const { issueCSRFToken } = await import("~/lib/security.server");
+  const csrfToken = await issueCSRFToken(request, context, user.id);
+
   return data(
     {
       user,
       category,
       existingSlugs,
       existingCount: existingSlugs.length,
+      csrfToken,
     },
     { headers: sbServerClient.headers }
   );
@@ -69,6 +73,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (!user || user.role !== "admin") {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  const { validateCSRF, createCSRFFailureResponse } = await import(
+    "~/lib/security.server"
+  );
+  const csrfValidation = await validateCSRF(request, context, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -161,7 +173,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 type ProductWithStatus = RevspinProductWithSlug & { alreadyImported: boolean };
 
 export default function AdminImport({ loaderData }: Route.ComponentProps) {
-  const { category, existingSlugs, existingCount } = loaderData;
+  const { category, existingSlugs, existingCount, csrfToken } = loaderData;
   const fetcher = useFetcher();
   const importFetcher = useFetcher();
 
@@ -291,6 +303,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
             </p>
           </div>
           <fetcher.Form method="post">
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="intent" value="fetch" />
             <input type="hidden" name="category" value={category} />
             <button
@@ -420,6 +433,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
                 )}
 
                 <importFetcher.Form method="post">
+                  <input type="hidden" name="_csrf" value={csrfToken} />
                   <input type="hidden" name="intent" value="import" />
                   <input
                     type="hidden"

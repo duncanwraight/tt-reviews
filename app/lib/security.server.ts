@@ -2,7 +2,14 @@
  * Security utilities for server-side operations
  */
 
-import { validateCSRFFromRequest, requiresCSRFProtection } from "./csrf.server";
+import type { AppLoadContext } from "react-router";
+import {
+  generateCSRFToken,
+  getSessionId,
+  getSessionSecret,
+  requiresCSRFProtection,
+  validateCSRFFromRequest,
+} from "./csrf.server";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -275,18 +282,44 @@ export function createRateLimitResponse(resetTime: number): Response {
 }
 
 /**
- * Validate CSRF token for requests that require protection
+ * Issue a CSRF token for the current authenticated session. Centralises
+ * the secret + sessionId resolution so routes don't each have to wire
+ * them up. Throws if SESSION_SECRET is missing, or if there's no usable
+ * session cookie to bind the token to — both cases indicate a real
+ * misconfiguration and should surface as a 500.
+ */
+export async function issueCSRFToken(
+  request: Request,
+  context: AppLoadContext,
+  userId: string
+): Promise<string> {
+  const env = context.cloudflare.env as unknown as { SESSION_SECRET?: string };
+  const secret = getSessionSecret(env);
+  const sessionId = getSessionId(request);
+  if (!sessionId) {
+    throw new Error(
+      "Cannot issue CSRF token — no authenticated session cookie found"
+    );
+  }
+  return generateCSRFToken(sessionId, userId, secret);
+}
+
+/**
+ * Validate CSRF token for requests that require protection. Resolves
+ * the signing secret from the Worker env; fails closed if missing.
  */
 export async function validateCSRF(
   request: Request,
+  context: AppLoadContext,
   userId?: string
 ): Promise<{ valid: boolean; error?: string }> {
-  // Check if request requires CSRF protection
   if (!requiresCSRFProtection(request)) {
     return { valid: true };
   }
 
-  return await validateCSRFFromRequest(request, userId);
+  const env = context.cloudflare.env as unknown as { SESSION_SECRET?: string };
+  const secret = getSessionSecret(env);
+  return validateCSRFFromRequest(request, secret, userId);
 }
 
 /**

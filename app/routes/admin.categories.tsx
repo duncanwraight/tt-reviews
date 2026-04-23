@@ -52,6 +52,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     categoryService.getAllCategoriesForAdmin(),
   ]);
 
+  const { issueCSRFToken } = await import("~/lib/security.server");
+  const csrfToken = await issueCSRFToken(request, context, user.id);
+
   return data(
     {
       user,
@@ -62,6 +65,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         rejectionCategories,
         all: allCategories,
       },
+      csrfToken,
       env: {
         SUPABASE_URL: (
           context.cloudflare.env as unknown as Record<string, string>
@@ -81,6 +85,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (!user || user.role !== "admin") {
     throw redirect("/login", { headers: sbServerClient.headers });
+  }
+
+  const { validateCSRF, createCSRFFailureResponse } = await import(
+    "~/lib/security.server"
+  );
+  const csrfValidation = await validateCSRF(request, context, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -260,7 +272,7 @@ export default function AdminCategories({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { categories, env } = loaderData;
+  const { categories, csrfToken, env } = loaderData;
 
   // Filter categories by type for the new manager components
   const equipmentCategories = categories.all.filter(
@@ -328,6 +340,7 @@ export default function AdminCategories({
           {/* Equipment Categories */}
           <CategoryManager
             categories={equipmentCategories}
+            csrfToken={csrfToken}
             type="equipment_category"
             title="Equipment Categories"
             description="Categories for equipment types (e.g., Blade, Rubber)"
@@ -338,6 +351,7 @@ export default function AdminCategories({
           {/* Playing Styles */}
           <CategoryManager
             categories={playingStyles}
+            csrfToken={csrfToken}
             type="playing_style"
             title="Playing Styles"
             description="Player playing style options"
@@ -348,6 +362,7 @@ export default function AdminCategories({
           {/* Countries */}
           <CategoryManager
             categories={countries}
+            csrfToken={csrfToken}
             type="country"
             title="Countries"
             description="Country options with flag emojis"
@@ -358,6 +373,7 @@ export default function AdminCategories({
           {/* Rejection Categories */}
           <CategoryManager
             categories={rejectionCategories}
+            csrfToken={csrfToken}
             type="rejection_category"
             title="Rejection Categories"
             description="Reasons for rejecting submissions"
@@ -369,6 +385,7 @@ export default function AdminCategories({
         {/* Equipment Subcategories Section */}
         <CategoryManager
           categories={equipmentSubcategories}
+          csrfToken={csrfToken}
           type="equipment_subcategory"
           title="Equipment Subcategories"
           description="Subcategories that appear when specific equipment categories are selected (e.g., Rubber types)"
@@ -380,6 +397,7 @@ export default function AdminCategories({
         {/* Review Rating Categories Section */}
         <CategoryManager
           categories={reviewRatingCategories}
+          csrfToken={csrfToken}
           type="review_rating_category"
           title="Review Rating Categories"
           description="Rating aspects for equipment reviews (e.g., Speed, Control, Feel). These are organized by equipment subcategory."

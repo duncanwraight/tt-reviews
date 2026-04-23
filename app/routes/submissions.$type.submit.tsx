@@ -100,9 +100,8 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
   );
 
   // Generate CSRF token
-  const { generateCSRFToken, getSessionId } = await import("~/lib/csrf.server");
-  const sessionId = getSessionId(request) || "anonymous";
-  const csrfToken = generateCSRFToken(sessionId, user.id);
+  const { issueCSRFToken } = await import("~/lib/security.server");
+  const csrfToken = await issueCSRFToken(request, context, user.id);
 
   return data(
     {
@@ -154,7 +153,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   }
 
   // Validate CSRF
-  const csrfValidation = await validateCSRF(request, user.id);
+  const csrfValidation = await validateCSRF(request, context, user.id);
   if (!csrfValidation.valid) {
     return createCSRFFailureResponse(csrfValidation.error);
   }

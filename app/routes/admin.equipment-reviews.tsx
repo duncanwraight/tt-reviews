@@ -83,10 +83,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw new Response("Failed to load reviews", { status: 500 });
   }
 
+  const { issueCSRFToken } = await import("~/lib/security.server");
+  const csrfToken = await issueCSRFToken(request, context, user.id);
+
   return data(
     {
       user,
       reviews: reviews || [],
+      csrfToken,
     },
     { headers: sbServerClient.headers }
   );
@@ -98,6 +102,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (!user || user.role !== "admin") {
     throw redirect("/", { headers: sbServerClient.headers });
+  }
+
+  const { validateCSRF, createCSRFFailureResponse } = await import(
+    "~/lib/security.server"
+  );
+  const csrfValidation = await validateCSRF(request, context, user.id);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(csrfValidation.error);
   }
 
   const formData = await request.formData();
@@ -162,7 +174,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function AdminEquipmentReviews({
   loaderData,
 }: Route.ComponentProps) {
-  const { reviews, user } = loaderData;
+  const { reviews, user, csrfToken } = loaderData;
   const [rejectionModal, setRejectionModal] = useState<{
     isOpen: boolean;
     submissionId: string;
@@ -398,6 +410,7 @@ export default function AdminEquipmentReviews({
           <div className="mt-3 flex items-center space-x-3">
             {canApprove(review) && (
               <Form method="post" className="inline">
+                <input type="hidden" name="_csrf" value={csrfToken} />
                 <input type="hidden" name="reviewId" value={review.id} />
                 <input type="hidden" name="intent" value="approve" />
                 <button
@@ -539,6 +552,7 @@ export default function AdminEquipmentReviews({
         submissionId={rejectionModal.submissionId}
         submissionType="equipment_review"
         submissionName={rejectionModal.submissionName}
+        csrfToken={csrfToken}
       />
     </div>
   );

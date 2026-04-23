@@ -1,52 +1,89 @@
 /**
  * CSRF (Cross-Site Request Forgery) Protection
  *
- * Generates and validates CSRF tokens to prevent malicious cross-site requests
- * that could trick users into performing unwanted actions.
+ * Generates and validates CSRF tokens to prevent malicious cross-site
+ * requests that could trick users into performing unwanted actions.
+ *
+ * The signing secret is sourced from `context.cloudflare.env.SESSION_SECRET`
+ * and must be passed explicitly. An earlier version read
+ * `process.env.SESSION_SECRET`, which is always undefined on Cloudflare
+ * Workers and silently fell back to the string "fallback-secret-key" —
+ * i.e. every CSRF token in production was forgeable. This module now
+ * fails closed: if SESSION_SECRET is missing, `getSessionSecret` throws
+ * and callers are expected to bubble that into a 500.
  */
 
-import { createHash, randomBytes } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 
-// CSRF token configuration
 const CSRF_TOKEN_LENGTH = 32;
-const CSRF_TOKEN_LIFETIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const CSRF_TOKEN_LIFETIME = 24 * 60 * 60 * 1000; // 24 hours in ms
+const MIN_SECRET_LENGTH = 16;
 
-interface CSRFTokenData {
+interface CSRFTokenPayload {
   token: string;
   sessionId: string;
   userId?: string;
   timestamp: number;
 }
 
-/**
- * Generate a cryptographically secure CSRF token
- */
-export function generateCSRFToken(sessionId: string, userId?: string): string {
-  const timestamp = Date.now();
-  const randomData = randomBytes(CSRF_TOKEN_LENGTH).toString("hex");
-
-  // Create token payload
-  const payload: CSRFTokenData = {
-    token: randomData,
-    sessionId,
-    userId,
-    timestamp,
-  };
-
-  // Create signature using HMAC
-  const signature = createTokenSignature(payload);
-
-  // Encode the complete token
-  const tokenData = JSON.stringify({ ...payload, signature });
-  return Buffer.from(tokenData).toString("base64url");
+interface EnvWithSessionSecret {
+  SESSION_SECRET?: string;
 }
 
 /**
- * Validate a CSRF token
+ * Resolve the CSRF signing secret from the Worker env. Throws if it's
+ * missing or obviously too short — better a loud 500 than silent
+ * forgeable tokens.
+ */
+export function getSessionSecret(env: EnvWithSessionSecret): string {
+  const secret = env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET is not configured — refusing to sign CSRF tokens"
+    );
+  }
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(
+      `SESSION_SECRET is too short (<${MIN_SECRET_LENGTH} chars) — refusing to sign CSRF tokens`
+    );
+  }
+  return secret;
+}
+
+function sign(payload: CSRFTokenPayload, secret: string): string {
+  const canonical = `${payload.token}:${payload.sessionId}:${payload.userId || ""}:${payload.timestamp}`;
+  return createHmac("sha256", secret).update(canonical).digest("hex");
+}
+
+/**
+ * Generate a signed CSRF token bound to the given session and user.
+ */
+export function generateCSRFToken(
+  sessionId: string,
+  userId: string | undefined,
+  secret: string
+): string {
+  const payload: CSRFTokenPayload = {
+    token: randomBytes(CSRF_TOKEN_LENGTH).toString("hex"),
+    sessionId,
+    userId,
+    timestamp: Date.now(),
+  };
+
+  const signature = sign(payload, secret);
+  const envelope = JSON.stringify({ ...payload, signature });
+  return Buffer.from(envelope).toString("base64url");
+}
+
+/**
+ * Validate a token against a session (and optionally a user id). Uses
+ * HMAC-SHA256 with a constant-time signature comparison to resist
+ * timing-oracle attacks.
  */
 export function validateCSRFToken(
   token: string,
   sessionId: string,
+  secret: string,
   userId?: string
 ): { valid: boolean; error?: string } {
   try {
@@ -54,45 +91,44 @@ export function validateCSRFToken(
       return { valid: false, error: "Missing token or session" };
     }
 
-    // Decode token
-    const tokenData = JSON.parse(Buffer.from(token, "base64url").toString());
+    const decoded = JSON.parse(Buffer.from(token, "base64url").toString());
     const {
       signature,
       timestamp,
       sessionId: tokenSessionId,
       userId: tokenUserId,
       token: tokenValue,
-    } = tokenData;
+    } = decoded;
 
-    // Check token structure
     if (!signature || !timestamp || !tokenSessionId || !tokenValue) {
       return { valid: false, error: "Invalid token structure" };
     }
 
-    // Check token age
     if (Date.now() - timestamp > CSRF_TOKEN_LIFETIME) {
       return { valid: false, error: "Token expired" };
     }
 
-    // Verify session matches
     if (tokenSessionId !== sessionId) {
       return { valid: false, error: "Session mismatch" };
     }
 
-    // Verify user matches (if provided)
     if (userId && tokenUserId !== userId) {
       return { valid: false, error: "User mismatch" };
     }
 
-    // Verify signature
-    const expectedSignature = createTokenSignature({
-      token: tokenValue,
-      sessionId: tokenSessionId,
-      userId: tokenUserId,
-      timestamp,
-    });
+    const expected = sign(
+      {
+        token: tokenValue,
+        sessionId: tokenSessionId,
+        userId: tokenUserId,
+        timestamp,
+      },
+      secret
+    );
 
-    if (signature !== expectedSignature) {
+    const a = Buffer.from(signature, "hex");
+    const b = Buffer.from(expected, "hex");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return { valid: false, error: "Invalid signature" };
     }
 
@@ -104,56 +140,39 @@ export function validateCSRFToken(
 }
 
 /**
- * Create HMAC signature for token data
- */
-function createTokenSignature(data: CSRFTokenData): string {
-  // Use a combination of session data and environment to create signature
-  const signingKey = process.env.SESSION_SECRET || "fallback-secret-key";
-  const payload = `${data.token}:${data.sessionId}:${data.userId || ""}:${data.timestamp}`;
-
-  return createHash("sha256")
-    .update(payload + signingKey)
-    .digest("hex");
-}
-
-/**
- * Extract session ID from request headers/cookies
+ * Derive a stable per-session identifier from the Supabase auth cookies.
+ * Returns null when no real session is present — callers fail closed
+ * rather than fall back to `sha256(IP + UA)`, which previously meant
+ * users behind the same NAT with the same UA shared interchangeable
+ * CSRF tokens.
  */
 export function getSessionId(request: Request): string | null {
-  // Try to get session from various sources
   const cookies = parseCookies(request.headers.get("Cookie") || "");
 
-  // Check for session cookie
-  if (cookies["session"]) {
-    return cookies["session"];
-  }
+  // Supabase SSR splits the auth token across cookies named
+  // sb-<project-ref>-auth-token, sb-<ref>-auth-token.0, .1, ...
+  // Hashing the concatenated values binds the CSRF token to this
+  // specific authenticated session and rotates when Supabase rotates.
+  const supabaseAuthValue = Object.entries(cookies)
+    .filter(([name]) => /^sb-.+-auth-token(\.\d+)?$/.test(name))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, value]) => value)
+    .join(":");
 
-  // Check for authorization header (if using JWT)
-  const authHeader = request.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    // Extract session from JWT or similar
+  if (supabaseAuthValue) {
     return createHash("sha256")
-      .update(authHeader)
+      .update(supabaseAuthValue)
       .digest("hex")
       .substring(0, 32);
   }
 
-  // Fallback: use IP + User-Agent as session identifier
-  const ip =
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For") ||
-    "unknown";
-  const userAgent = request.headers.get("User-Agent") || "unknown";
+  if (cookies["session"]) {
+    return cookies["session"];
+  }
 
-  return createHash("sha256")
-    .update(`${ip}:${userAgent}`)
-    .digest("hex")
-    .substring(0, 32);
+  return null;
 }
 
-/**
- * Simple cookie parser
- */
 function parseCookies(cookieHeader: string): Record<string, string> {
   const cookies: Record<string, string> = {};
 
@@ -168,10 +187,13 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 }
 
 /**
- * Middleware to validate CSRF token from form data
+ * Middleware to validate CSRF token from form data or X-CSRF-Token
+ * header. Called from the action path via `validateCSRF` in
+ * security.server.ts, which handles secret resolution.
  */
 export async function validateCSRFFromRequest(
   request: Request,
+  secret: string,
   userId?: string
 ): Promise<{ valid: boolean; error?: string }> {
   try {
@@ -180,22 +202,19 @@ export async function validateCSRFFromRequest(
       return { valid: false, error: "No session found" };
     }
 
-    // Get token from form data or headers
     let csrfToken: string | null = null;
 
     if (
       request.method === "POST" ||
       request.method === "PUT" ||
-      request.method === "DELETE"
+      request.method === "DELETE" ||
+      request.method === "PATCH"
     ) {
-      // Clone request to read form data without consuming original
       const clonedRequest = request.clone();
-
       try {
         const formData = await clonedRequest.formData();
         csrfToken = formData.get("_csrf") as string;
       } catch {
-        // If form data parsing fails, try headers
         csrfToken = request.headers.get("X-CSRF-Token");
       }
     }
@@ -204,7 +223,7 @@ export async function validateCSRFFromRequest(
       return { valid: false, error: "CSRF token missing" };
     }
 
-    return validateCSRFToken(csrfToken, sessionId, userId);
+    return validateCSRFToken(csrfToken, sessionId, secret, userId);
   } catch (error) {
     console.error("CSRF validation error:", error);
     return { valid: false, error: "CSRF validation failed" };
@@ -212,18 +231,19 @@ export async function validateCSRFFromRequest(
 }
 
 /**
- * Helper to check if request needs CSRF protection
+ * Helper to check if request needs CSRF protection.
  */
 export function requiresCSRFProtection(request: Request): boolean {
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
 
-  // Only protect state-changing operations
   if (!["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
     return false;
   }
 
-  // Skip CSRF for API endpoints that use other authentication
+  // Discord interactions are Ed25519-signed; webhooks have their own
+  // shared-secret path (not yet implemented — see SECURITY.md Phase 1
+  // follow-up for the deleted discord.notify route).
   if (
     url.pathname.startsWith("/api/discord/") ||
     url.pathname.startsWith("/api/webhooks/")

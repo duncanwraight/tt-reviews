@@ -7,6 +7,9 @@ declare namespace Cloudflare {
     SUPABASE_SERVICE_ROLE_KEY?: string;
     AUTO_ADMIN_EMAILS?: string;
 
+    // CSRF signing secret. Must be set in prod via wrangler secret put.
+    SESSION_SECRET?: string;
+
     // Discord integration
     DISCORD_PUBLIC_KEY?: string;
     DISCORD_BOT_TOKEN?: string;
