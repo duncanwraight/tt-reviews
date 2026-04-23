@@ -2,7 +2,7 @@ import type { Route } from "./+types/players.$slug";
 import { data, redirect } from "react-router";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
-import { schemaService } from "~/lib/schema.server";
+import { schemaService } from "~/lib/schema";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";

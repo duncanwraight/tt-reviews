@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SchemaService } from "../schema.server";
+import { SchemaService } from "../schema";
 
 describe("SchemaService.toJsonLd", () => {
   const svc = new SchemaService("https://example.test");

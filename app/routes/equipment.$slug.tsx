@@ -2,7 +2,7 @@ import type { Route } from "./+types/equipment.$slug";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
-import { schemaService } from "~/lib/schema.server";
+import { schemaService } from "~/lib/schema";
 import { data, redirect } from "react-router";
 import {
   withLoaderCorrelation,

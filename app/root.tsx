@@ -42,9 +42,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // TODO: Get siteUrl from context when available in Layout component
   const siteUrl = "https://tabletennis.reviews"; // Will be made dynamic via context
 
-  // Global schemas are generated inline to avoid server-only module
-  // imports here. The `<` → < escape matches the one in
-  // schema.server.ts toJsonLd so no JSON-LD path skips the defense.
+  // Global schemas are inlined here rather than going through schema.ts
+  // so the Layout component stays free of shared module state. The
+  // `<` → < escape matches toJsonLd's so no JSON-LD path skips the defense.
   const globalSchemas = JSON.stringify(
     [
       {

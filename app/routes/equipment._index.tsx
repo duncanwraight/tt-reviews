@@ -1,7 +1,7 @@
 import type { Route } from "./+types/equipment._index";
 import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
-import { schemaService } from "~/lib/schema.server";
+import { schemaService } from "~/lib/schema";
 import { data } from "react-router";
 import { Link } from "react-router";
 import { useContent } from "~/hooks/useContent";

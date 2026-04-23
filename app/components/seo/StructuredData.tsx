@@ -1,4 +1,4 @@
-import { schemaService } from "~/lib/schema.server";
+import { schemaService } from "~/lib/schema";
 
 interface StructuredDataProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
