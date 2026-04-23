@@ -162,25 +162,27 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 6 — Upload & storage hardening
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 in commit `4a95724` (TT-15).
 
-**Goal:** R2 reads and writes currently trust path and MIME from the client.
+**Resolution:** Upload validation rewritten around magic-byte detection of the first 12 bytes, matched against JPEG/PNG/WebP signatures. `file.type` (browser-supplied) is no longer trusted — the validated MIME is what ends up in `httpMetadata.contentType`, and the extension stored in the key comes from the detected type, not `file.name`. Reader now guards keys against non-allowlisted prefixes, `..`, null bytes, and absolute paths before touching R2.
 
 **Steps:**
 
-- `app/routes/api.images.$.tsx:19` — `env.IMAGE_BUCKET.get(splat)` has no prefix constraint. Restrict to `equipment/` and `player/` prefixes and reject `..`.
-- `app/lib/image-upload.server.ts` / `app/lib/r2-native.server.ts:39-47`:
-  - Validate by magic bytes (read the first 8–12 bytes) in addition to the MIME header, which is browser-supplied.
-  - Whitelist extensions (`jpg`, `jpeg`, `png`, `webp`); reject the rest.
-  - Enforce a max file size server-side (currently only client-side, if at all).
-  - Normalise filenames before appending to the key — strip path separators, null bytes, unicode control chars.
-- Ensure `httpMetadata.contentType` stored on upload comes from the validated type, not the client header.
+- ✅ `app/routes/api.images.$.tsx` — calls new `isValidImageKey(splat)` before `IMAGE_BUCKET.get`; bad keys return 400. `..` inside URL paths is collapsed client-side so the check is defense-in-depth; the reader also rejects URL-encoded `%2E%2E`, keys outside `equipment/` + `player/`, absolute paths, and null bytes.
+- ✅ `app/lib/r2-native.server.ts` — `validateImageFile` is now async and reads the first 12 bytes. Returns `{ valid, detectedType, extension, error? }`. `generateImageKey(category, id, extension)` takes the validated extension and sanitises the id segment. `uploadImageToR2Native(bucket, key, file, contentType, metadata)` takes an explicit validated `contentType` and writes that to `httpMetadata.contentType`. `customMetadata.originalName` is also sanitised.
+- ✅ 10MB size cap and empty-file reject enforced in `validateImageFile` — reached on both call sites (`handleImageUploadNative` and `submissions.$type.submit.tsx`) before any R2 put.
+- ✅ `app/routes/submissions.$type.submit.tsx` — migrated to the async signature + (extension, contentType) parameters.
+
+**Tests:**
+
+- `app/lib/__tests__/r2-native.server.test.ts` — 20 cases covering: JPEG/PNG/WebP magic-byte accept, SVG-disguised-as-JPEG rejected, oversize/empty/too-small rejected, content-type-mismatch accepted if magic matches (filename extension ignored), filename traversal stripped from key id, stored `httpMetadata.contentType` is the validated one, `customMetadata.originalName` sanitised. `isValidImageKey` tests: allowed prefixes, path traversal (`..`, `..\`), absolute paths, null bytes, empty string, unlisted prefixes.
+- `e2e/security-uploads.spec.ts` — 3 probes: bad prefix → 400, URL-encoded traversal inside a valid prefix → 400, well-formed absent key → 404.
 
 **Acceptance:**
 
-- Upload of a `.svg` renamed to `.jpg` with `Content-Type: image/jpeg` is rejected at the action.
-- GET to `/api/images/../../something` returns 400.
-- E2E spec covers the happy path and one malicious attempt.
+- Upload of a `.svg` renamed to `.jpg` with `Content-Type: image/jpeg` is rejected at the action. ✅ (`r2-native.server.test.ts` integration case; no object reaches R2.)
+- GET to `/api/images/<bad prefix>` returns 400. ✅ (e2e spec; `../` path is client-normalised so isn't reachable over HTTP — unit test covers the defense anyway.)
+- E2E spec covers happy path and a malicious attempt. ✅ (happy path is existing `user-submits-review.spec.ts` which uses the upload pipeline; malicious attempts pinned in `security-uploads.spec.ts`.)
 
 ---
 
