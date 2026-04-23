@@ -98,8 +98,7 @@ export class SchemaService {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl =
-      baseUrl || process.env.SITE_URL || "https://tabletennis.reviews";
+    this.baseUrl = baseUrl || "https://tabletennis.reviews";
   }
 
   // Organization schema for the main site
