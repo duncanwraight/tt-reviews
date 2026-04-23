@@ -12,12 +12,15 @@
 - **RLS policy patterns**: `docs/RLS.md`
 - **E2E test requirements**: `docs/E2E.md`
 - **Production observability**: `docs/OBSERVABILITY.md`
-- Reliability / CI plan: `todo/RELIABILITY.md`
+- **Plane API + wrapper**: `docs/PLANE.md`
 
-## TODOs
+## Work tracking — Plane
 
-- Bugs → `todo/BUGS.md`, features → `todo/FEATURES.md`. Read both at the start of every conversation.
-- Archived plans: `archive/`.
+All planned work lives in Plane (workspace `tt-reviews`, project `TT Reviews`). See `docs/PLANE.md` for the API and the `./scripts/plane.sh` wrapper.
+
+- **To check the board or pick up work**, invoke `/plane`. The skill at `.claude/skills/plane/SKILL.md` has the full workflow; the key rule is: move items to **In Progress** when you start, **Blocked** if you stall, **Completed** when the change is merged. Never leave finished work sitting in In Progress.
+- Detailed plans that feed Plane items live in `archive/` (`SECURITY.md`, `QUALITY.md`, `DISCORD-HARDENING.md`, `REFACTORS.md`). Each Plane card links back to its section — read the plan before starting.
+- New plans go in `archive/` as they're written (not `todo/` — that directory no longer exists).
 
 ## Interactions with my device
 

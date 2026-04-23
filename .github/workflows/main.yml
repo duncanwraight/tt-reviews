@@ -7,7 +7,7 @@ on:
       - "**.md"
       - "archive/**"
       - "docs/**"
-      - "todo/**"
+      - "scripts/**"
   pull_request:
 
 concurrency:
