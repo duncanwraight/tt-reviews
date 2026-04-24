@@ -15,7 +15,15 @@ export default defineConfig({
   ],
   server: {
     host: true,
-    allowedHosts: ["tt-reviews.local", "localhost", "127.0.0.1"],
+    allowedHosts: [
+      "tt-reviews.local",
+      "localhost",
+      "127.0.0.1",
+      ".trycloudflare.com",
+      ".lhr.life",
+      ".ngrok-free.app",
+      ".ngrok.io",
+    ],
   },
   build: {
     rollupOptions: {

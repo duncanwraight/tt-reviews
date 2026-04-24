@@ -32,7 +32,7 @@ Impact ceiling is bounded — an attacker with Discord approver role still can't
 
 ## Sub-problem B — Clean up existing orphans
 
-**Status:** Not Started.
+**Status:** Done (TT-5, 2026-04-23). Ran the NOT EXISTS sweep manually in the Supabase SQL editor against prod; 2 review-typed orphans deleted, audit re-query returned zero. No migration committed — one-shot data fix, not schema. The trigger from Sub-problem A (migration `20260423110000`) prevents recurrence.
 
 **Goal:** Remove orphan rows from prod's `moderator_approvals`. Use the audit queries in this doc's "Investigation queries" section to scope the blast radius first.
 

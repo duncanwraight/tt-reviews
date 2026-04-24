@@ -18,9 +18,18 @@ SITE_URL=https://tt-reviews.local
 SESSION_SECRET=replace-with-a-long-random-value
 
 # Discord Configuration (optional for local dev, required for notifications)
-DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_CHANNEL_ID=your_discord_channel_id
-DISCORD_PUBLIC_KEY=your_discord_public_key
+# IMPORTANT: use a *dev-only* Discord application, not the prod one. The
+# Interactions Endpoint URL is registered per-application, so reusing prod
+# credentials means dev button clicks land on prod. See docs/DISCORD.md.
+DISCORD_BOT_TOKEN=your_dev_discord_bot_token
+DISCORD_CHANNEL_ID=your_dev_discord_channel_id
+DISCORD_GUILD_ID=your_dev_discord_guild_id
+# DISCORD_PUBLIC_KEY accepts a CSV of Ed25519 public keys (Discord
+# verifies against any). Locally you'll typically list two: the dev
+# Discord app's real key (so real button clicks verify) AND the e2e
+# test public key from e2e/utils/discord.ts (so Playwright click
+# specs verify too). The test key MUST NOT appear in production.
+DISCORD_PUBLIC_KEY=your_dev_discord_public_key,bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480
 DISCORD_ALLOWED_ROLES=role_id_1,role_id_2
 
 # Auto Admin Promotion

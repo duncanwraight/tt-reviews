@@ -43,6 +43,36 @@ Only users with configured Discord roles can moderate:
 
 ## Environment Variables
 
-- `DISCORD_PUBLIC_KEY` - Discord application public key for signature verification
-- `DISCORD_WEBHOOK_URL` - Webhook URL for sending notifications
-- `DISCORD_ALLOWED_ROLES` - Comma-separated Discord role IDs that can moderate
+- `DISCORD_PUBLIC_KEY` — Ed25519 public key(s) for signature verification on `/api/discord/interactions`. Comma-separated; verifies against any. Prod has one entry (the prod Discord app's key). Local dev typically has two (real dev app key + the e2e test public key from `e2e/utils/discord.ts`) so real Discord clicks and Playwright click specs both verify against one running dev server. The test key is rejected at runtime if `ENVIRONMENT=production`.
+- `DISCORD_BOT_TOKEN` — bot token used for REST calls (posting embeds, editing messages)
+- `DISCORD_CHANNEL_ID` — channel where moderation embeds are posted
+- `DISCORD_GUILD_ID` — guild for slash-command registration and member-role lookups
+- `DISCORD_ALLOWED_ROLES` — comma-separated role IDs that can moderate
+
+## Local development — isolated dev application
+
+**Why this matters.** Discord allows exactly one Interactions Endpoint URL per application. If local dev uses the prod app's credentials, the dev bot posts into the prod channel, and clicking a button there routes the interaction to the prod URL — which then tries to act on a submission ID that only exists in local Supabase. This pollutes the prod audit log (the `moderator_approvals` trigger from migration `20260423110000` now blocks the insert, but the click still hits prod). Use a separate dev application.
+
+**One-time setup.**
+
+1. **Create a dev Discord application** at <https://discord.com/developers/applications>. Generate a bot, copy the bot token, and note the application's public key.
+2. **Create a dev guild + channel** for moderation testing — either a private channel in your existing test guild or a new invite-only server. Note the guild ID and channel ID (Discord settings → Advanced → Developer Mode → right-click → Copy ID).
+3. **Add the bot to the dev guild** via the OAuth2 URL generator: `bot` + `applications.commands` scopes; permissions: Send Messages, Embed Links, Use Application Commands.
+4. **Populate `.dev.vars`** with the dev-app values (see `.dev.vars.example`). Use the dev `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `DISCORD_GUILD_ID`, `DISCORD_PUBLIC_KEY`. Roles can stay as-is or use dev-guild role IDs.
+
+**Per-session tunnel.** Discord must reach `/api/discord/interactions` from the public internet, so the dev server needs a tunnel.
+
+```sh
+# Terminal 1 — dev server (binds tt-reviews.local:5173)
+npm run dev
+
+# Terminal 2 — quick tunnel (no Cloudflare account required)
+cloudflared tunnel --url http://tt-reviews.local:5173
+# → prints https://<random-subdomain>.trycloudflare.com
+```
+
+Take that hostname and set it as the dev application's **Interactions Endpoint URL** in the Discord Developer Portal: `https://<random-subdomain>.trycloudflare.com/api/discord/interactions`. Discord will hit it once with a PING; if signature verification passes, the URL saves.
+
+**When the tunnel hostname changes** (every cloudflared restart with `--url`, since quick tunnels are ephemeral), re-paste the new URL in the Discord Developer Portal. For a stable hostname, register a named tunnel under your Cloudflare account and route a subdomain to it — overkill for casual dev.
+
+**Verify isolation.** Submit a review in local dev → embed appears in the _dev_ channel only. Click Approve in the dev channel → the _local_ review's status flips. Prod Discord and prod DB see no traffic.
