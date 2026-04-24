@@ -143,7 +143,7 @@ export function addSecurityHeaders(headers: Headers, isDevelopment: boolean) {
     ? "'self' https://*.supabase.co wss://*.supabase.co http://localhost:54321 http://tt-reviews.local:5173 http://localhost:5173"
     : "'self' https://*.supabase.co wss://*.supabase.co";
 
-  const csp = [
+  const cspDirectives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Allow inline scripts for React hydration
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
@@ -155,8 +155,13 @@ export function addSecurityHeaders(headers: Headers, isDevelopment: boolean) {
     "frame-src 'self' https://www.youtube.com https://youtube.com",
     "base-uri 'self'",
     "form-action 'self'",
-    "upgrade-insecure-requests",
-  ].join("; ");
+  ];
+  // upgrade-insecure-requests breaks dev: it tells the browser to upgrade
+  // every subresource to HTTPS, but the dev server only speaks HTTP.
+  if (!isDevelopment) {
+    cspDirectives.push("upgrade-insecure-requests");
+  }
+  const csp = cspDirectives.join("; ");
 
   headers.set("Content-Security-Policy", csp);
 
