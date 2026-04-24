@@ -2,6 +2,19 @@
 
 Rules for all code under `app/` and `workers/`. CI + Husky hooks enforce the lintable subset (`no-explicit-any`, `no-console`, `no-floating-promises`, `react-hooks/*`); the rest is on you. For tech-stack rationale see `docs/DECISIONS.md`. For permission/interaction rules see `CLAUDE.md`.
 
+## Mechanical enforcement
+
+Each rule below has a matching enforcer that runs in `.github/workflows/main.yml`:
+
+| Rule                                                                             | Enforcer                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `no-explicit-any`, `no-console`, `no-floating-promises`, `react-hooks/*`         | ESLint (`npm run lint`) — error-level, lint-staged runs `--fix` on commit |
+| No RLS self-approval / `process.env` on server / admin action without CSRF gate  | `scripts/security-sweep.sh`                                               |
+| No raw `console.*` / `Record<string, any[]>` generic-any casts                   | `scripts/quality-sweep.sh`                                                |
+| Single source of truth for `SUBMISSION_TYPE_VALUES` (registry keys + DB `CHECK`) | `app/lib/submissions/__tests__/registry.test.ts`                          |
+| Dead exports / unused deps                                                       | `npm run deadcode` (knip) — non-blocking CI warning                       |
+| File length > 400 LOC under `app/lib/`, `app/routes/`                            | `scripts/quality-sweep.sh` — non-fatal report, prompt to split            |
+
 ## TypeScript
 
 - Prefer `unknown` over `any` and narrow. If `any` is genuinely unavoidable, an `eslint-disable-next-line @typescript-eslint/no-explicit-any` is required.

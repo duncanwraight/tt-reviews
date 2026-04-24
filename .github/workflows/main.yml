@@ -71,6 +71,22 @@ jobs:
         # reads on server, admin actions missing validateCSRF.
         run: bash scripts/security-sweep.sh
 
+      - name: Quality sweep
+        # QUALITY.md Phase 7 (TT-13). Mechanical checks for the classes
+        # of drift Phases 1–6 fixed: raw console.*, Record<string, any[]>
+        # casts. Plus a non-fatal file-length report.
+        run: bash scripts/quality-sweep.sh
+
+      - name: Dead code (knip)
+        # QUALITY.md Phase 7 (TT-13). Surfaces unused exports / deps.
+        # Non-blocking — false positives (transitive peer deps, CLI-only
+        # devDeps) are expected; the signal is real dead exports in
+        # app/ and workers/ code.
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_SMOKE_BASE_URL: https://dummy.example.com
+        run: npm run deadcode
+
       - name: npm audit
         # Block on high / critical vulnerabilities. --omit not set so
         # build-time deps are included too — prod and build supply chain

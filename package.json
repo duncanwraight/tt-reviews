@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "test:smoke": "playwright test --config=playwright.smoke.config.ts",
     "lint": "eslint .",
+    "deadcode": "knip --no-progress",
     "logs": "wrangler tail --format=pretty",
     "logs:errors": "wrangler tail --format=json --status error"
   },
@@ -54,6 +55,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
+    "knip": "^6.6.3",
     "lint-staged": "^16.4.0",
     "prettier": "^3.5.2",
     "tailwindcss": "^4.1.4",

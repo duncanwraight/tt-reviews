@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/**/*.{ts,tsx}",
+    "workers/**/*.{ts,tsx}",
+    "e2e/**/*.{ts,tsx}",
+    "e2e-smoke/**/*.{ts,tsx}"
+  ],
+  "project": ["app/**/*.{ts,tsx}", "workers/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["husky", "vite-plugin-devtools-json"]
+}
