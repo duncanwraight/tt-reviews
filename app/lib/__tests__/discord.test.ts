@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { DiscordService } from "../discord.server";
 import { DatabaseService } from "../database.server";
+import { ModerationService } from "../moderation.server";
+import { createSupabaseAdminClient } from "../database/client";
 
 // Type for Discord API response
 interface DiscordResponse {
@@ -16,7 +19,14 @@ const hasSupabaseEnv = () => {
   return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
 };
 
-// Mock AppLoadContext for testing
+// Mock AppLoadContext for testing.
+//
+// Only SUPABASE_* values read from process.env — we need real connection
+// info to hit local Supabase. Every other field is a fixed test fixture:
+// `.dev.vars` holds real Discord role/channel IDs, and if those leak in
+// here the integration tests fail permission checks before exercising
+// any real logic (role "role_id_1" won't match a prod role snowflake).
+// Overrides passed to this helper still win via the trailing spread.
 const createMockContext = (overrides: Record<string, string> = {}) =>
   ({
     cloudflare: {
@@ -24,16 +34,16 @@ const createMockContext = (overrides: Record<string, string> = {}) =>
         SUPABASE_URL: process.env.SUPABASE_URL || "http://localhost:54321",
         SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "test-anon-key",
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        DISCORD_PUBLIC_KEY:
-          process.env.DISCORD_PUBLIC_KEY || "test_key_placeholder",
+        DISCORD_PUBLIC_KEY: "test_key_placeholder",
+        // unified-notifier rejects tokens containing "placeholder" or
+        // shorter than 50 chars as unconfigured, so the fake token used
+        // here needs to clear both bars without being a real secret.
         DISCORD_BOT_TOKEN:
-          process.env.DISCORD_BOT_TOKEN || "test_bot_token_placeholder",
-        DISCORD_CHANNEL_ID:
-          process.env.DISCORD_CHANNEL_ID || "123456789012345678",
-        DISCORD_GUILD_ID: process.env.DISCORD_GUILD_ID || "987654321098765432",
-        DISCORD_ALLOWED_ROLES:
-          process.env.DISCORD_ALLOWED_ROLES || "role_id_1,role_id_2,role_id_3",
-        SITE_URL: process.env.SITE_URL || "https://tt-reviews.local",
+          "test-bot-token-for-vitest-0123456789abcdef0123456789abcdef",
+        DISCORD_CHANNEL_ID: "123456789012345678",
+        DISCORD_GUILD_ID: "987654321098765432",
+        DISCORD_ALLOWED_ROLES: "role_id_1,role_id_2,role_id_3",
+        SITE_URL: "https://tt-reviews.local",
         ...overrides,
       },
     },
@@ -451,6 +461,108 @@ describe("Discord Integration Tests", () => {
   });
 
   describe("Button Interactions - Moderation Actions", () => {
+    // Fixture UUIDs used by the duplicate-approval tests below. Seeded in
+    // beforeAll as (equipment_submission + player_edit + prior approval)
+    // rows so the handler hits ModerationService's "already approved"
+    // branch instead of "Submission not found".
+    const TEST_SUBMISSION_ID = "12345678-1234-1234-1234-123456789999";
+    const TEST_DISCORD_USER_ID = "12345678-1234-1234-1234-123456789012";
+    let adminSupabase: SupabaseClient | null = null;
+    let seededDiscordModeratorId: string | null = null;
+
+    beforeAll(async () => {
+      if (!hasSupabaseEnv() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+      adminSupabase = createSupabaseAdminClient(mockContext);
+
+      // Borrow FK targets from existing seed rows — user_id references
+      // auth.users and player_edits.player_id references players. Cheaper
+      // than creating throwaway users/players here.
+      const { data: anyEquip } = await adminSupabase
+        .from("equipment_submissions")
+        .select("user_id")
+        .limit(1)
+        .maybeSingle();
+      const { data: anyEdit } = await adminSupabase
+        .from("player_edits")
+        .select("user_id, player_id")
+        .limit(1)
+        .maybeSingle();
+
+      if (!anyEquip || !anyEdit) return;
+
+      const moderationService = new ModerationService(adminSupabase);
+      seededDiscordModeratorId =
+        await moderationService.getOrCreateDiscordModerator(
+          TEST_DISCORD_USER_ID,
+          "TestModerator"
+        );
+      if (!seededDiscordModeratorId) return;
+
+      // Idempotent wipe in case a prior run was interrupted before afterAll.
+      await adminSupabase
+        .from("moderator_approvals")
+        .delete()
+        .eq("submission_id", TEST_SUBMISSION_ID)
+        .eq("discord_moderator_id", seededDiscordModeratorId);
+      await adminSupabase
+        .from("equipment_submissions")
+        .delete()
+        .eq("id", TEST_SUBMISSION_ID);
+      await adminSupabase
+        .from("player_edits")
+        .delete()
+        .eq("id", TEST_SUBMISSION_ID);
+
+      await adminSupabase.from("equipment_submissions").insert({
+        id: TEST_SUBMISSION_ID,
+        user_id: anyEquip.user_id,
+        name: "TT-23 fixture blade",
+        manufacturer: "Fixture Co",
+        category: "blade",
+      });
+      await adminSupabase.from("player_edits").insert({
+        id: TEST_SUBMISSION_ID,
+        user_id: anyEdit.user_id,
+        player_id: anyEdit.player_id,
+        edit_data: { note: "TT-23 fixture" },
+      });
+
+      await adminSupabase.from("moderator_approvals").insert([
+        {
+          submission_type: "equipment",
+          submission_id: TEST_SUBMISSION_ID,
+          discord_moderator_id: seededDiscordModeratorId,
+          source: "discord",
+          action: "approved",
+        },
+        {
+          submission_type: "player_edit",
+          submission_id: TEST_SUBMISSION_ID,
+          discord_moderator_id: seededDiscordModeratorId,
+          source: "discord",
+          action: "approved",
+        },
+      ]);
+    });
+
+    afterAll(async () => {
+      if (!adminSupabase || !seededDiscordModeratorId) return;
+      await adminSupabase
+        .from("moderator_approvals")
+        .delete()
+        .eq("submission_id", TEST_SUBMISSION_ID)
+        .eq("discord_moderator_id", seededDiscordModeratorId);
+      await adminSupabase
+        .from("equipment_submissions")
+        .delete()
+        .eq("id", TEST_SUBMISSION_ID);
+      await adminSupabase
+        .from("player_edits")
+        .delete()
+        .eq("id", TEST_SUBMISSION_ID);
+    });
+
     it.skipIf(!hasSupabaseEnv())(
       "should handle equipment approval button interaction",
       async () => {
