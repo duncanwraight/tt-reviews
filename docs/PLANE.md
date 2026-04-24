@@ -50,6 +50,9 @@ Steps:
 ./scripts/plane.sh new "Rewrite upload pipeline" --priority medium --label feature \
   --description-file ./tmp/upload-plan.md
 
+# Parent an item to an existing one (epic / sub-issue relationship)
+./scripts/plane.sh new "Phase 1: schema" --parent TT-25 --priority high
+
 # Updating an existing item's description
 ./scripts/plane.sh describe TT-14 --description "..."
 ./scripts/plane.sh describe TT-14 --description-file ./notes.md

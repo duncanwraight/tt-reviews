@@ -8,6 +8,7 @@
 #   ./scripts/plane.sh show <seq|uuid>           # show one work item
 #   ./scripts/plane.sh new "Title" [--priority low|medium|high|urgent] [--label NAME ...]
 #                                  [--description TEXT | --description-file PATH]
+#                                  [--parent <seq|uuid>]
 #   ./scripts/plane.sh describe <seq|uuid> (--description TEXT | --description-file PATH)
 #   ./scripts/plane.sh done <seq|uuid>           # move to the "Done" state
 #   ./scripts/plane.sh state <seq|uuid> <NAME>   # move to any state by name (e.g. "In Progress")
@@ -134,10 +135,11 @@ read_description_file() {
 }
 
 cmd_new() {
-  need_project; [[ $# -ge 1 ]] || die "usage: plane.sh new \"Title\" [--priority P] [--label NAME ...] [--description TEXT | --description-file PATH]"
+  need_project; [[ $# -ge 1 ]] || die "usage: plane.sh new \"Title\" [--priority P] [--label NAME ...] [--description TEXT | --description-file PATH] [--parent <seq|uuid>]"
   local title="$1"; shift
   local priority="none"
   local description_html=""
+  local parent_id=""
   local label_ids=()
   while (($#)); do
     case "$1" in
@@ -148,6 +150,7 @@ cmd_new() {
         label_ids+=("$lid"); shift 2;;
       --description)      description_html=$(read_description_arg "$2"); shift 2;;
       --description-file) description_html=$(read_description_file "$2"); shift 2;;
+      --parent)           parent_id=$(resolve_work_item "$2"); shift 2;;
       *) die "unknown flag: $1";;
     esac
   done
@@ -155,12 +158,13 @@ cmd_new() {
   labels_json=$(printf '%s\n' "${label_ids[@]}" | jq -R . | jq -s .)
   [[ "${#label_ids[@]}" -eq 0 ]] && labels_json="[]"
   local payload
+  payload=$(jq -n --arg n "$title" --arg p "$priority" --argjson l "$labels_json" \
+    '{name:$n, priority:$p, labels:$l}')
   if [[ -n "$description_html" ]]; then
-    payload=$(jq -n --arg n "$title" --arg p "$priority" --argjson l "$labels_json" --argjson d "$description_html" \
-      '{name:$n, priority:$p, labels:$l, description_html:$d}')
-  else
-    payload=$(jq -n --arg n "$title" --arg p "$priority" --argjson l "$labels_json" \
-      '{name:$n, priority:$p, labels:$l}')
+    payload=$(jq --argjson d "$description_html" '. + {description_html:$d}' <<<"$payload")
+  fi
+  if [[ -n "$parent_id" ]]; then
+    payload=$(jq --arg pid "$parent_id" '. + {parent:$pid}' <<<"$payload")
   fi
   api POST "/projects/$PLANE_PROJECT_ID/work-items/" -d "$payload" \
     | jq -r '"created TT-\(.sequence_id)  \(.name)  (\(.id))"'
