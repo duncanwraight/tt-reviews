@@ -104,10 +104,13 @@ fi
 # ----------------------------------------------------------------------
 # 3. Admin route actions must gate CSRF + rate limit.
 #
-# Every admin.*.tsx route with an exported action must reference either
-# enforceAdminActionGate (the bundled CSRF + per-admin rate-limit helper
-# added in TT-24) or validateCSRF directly. Loader-only files
-# (admin._index.tsx) and the pass-through layout (admin.tsx) are exempt.
+# Every admin.*.tsx route with an exported action must reference one of
+# the canonical gates:
+#   - ensureAdminAction (admin + CSRF + rate-limit wrapper from TT-9)
+#   - enforceAdminActionGate (the underlying CSRF + rate-limit primitive)
+#   - validateCSRF (for callers that CSRF-check without rate-limiting)
+# Loader-only files (admin._index.tsx) and the pass-through layout
+# (admin.tsx) are exempt.
 # ----------------------------------------------------------------------
 echo "→ Checking admin route action gate coverage..."
 EXEMPT=(
@@ -123,14 +126,14 @@ for file in app/routes/admin.*.tsx; do
   [ $skip -eq 1 ] && continue
 
   if grep -qE '^export (async )?function action' "$file"; then
-    if ! grep -qE 'enforceAdminActionGate|validateCSRF' "$file"; then
+    if ! grep -qE 'ensureAdminAction|enforceAdminActionGate|validateCSRF' "$file"; then
       MISSING="${MISSING}${file}"$'\n'
     fi
   fi
 done
 if [ -n "$MISSING" ]; then
   report "Admin route action without CSRF + rate-limit gate" \
-    "Every admin.*.tsx action must call enforceAdminActionGate (or validateCSRF) before doing work.
+    "Every admin.*.tsx action must call ensureAdminAction (preferred) or enforceAdminActionGate / validateCSRF before doing work.
 $MISSING"
 fi
 
