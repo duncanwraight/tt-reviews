@@ -1,103 +1,28 @@
 import type { DiscordNotificationData } from "~/lib/types";
+import {
+  createAdminUrl,
+  createDiscordField,
+  createOptionalDiscordField,
+  createSubmitterField,
+  createTruncatedTextField,
+} from "./discord-format";
+import type {
+  FormConfig,
+  FormField,
+  SubmissionConfig,
+  SubmissionType,
+} from "./types";
 
-/**
- * The canonical set of submission types — single source of truth aligned
- * with the moderator_approvals.submission_type CHECK constraint
- * (supabase/migrations/20251231180000_add_player_equipment_setup_to_moderation.sql).
- *
- * Adding a value: extend this tuple, add a SUBMISSION_REGISTRY entry,
- * apply the matching DB migration, and update the constraint in lockstep.
- * The registry-vs-constraint test in __tests__/registry.test.ts catches
- * drift either way.
- */
-export const SUBMISSION_TYPE_VALUES = [
-  "equipment",
-  "player",
-  "player_edit",
-  "video",
-  "review",
-  "player_equipment_setup",
-] as const;
-
-export type SubmissionType = (typeof SUBMISSION_TYPE_VALUES)[number];
-
-// Field types for form generation
-export type FieldType =
-  | "text"
-  | "textarea"
-  | "select"
-  | "number"
-  | "email"
-  | "image"
-  | "dynamic_select"
-  | "video_list"
-  | "equipment_setup"
-  | "equipment_setup_standalone"
-  | "checkbox"
-  | "hidden"
-  | "rating_slider"
-  | "rating_categories";
-
-// Form field configuration
-export interface FormField {
-  name: string;
-  label: string;
-  type: FieldType;
-  required?: boolean;
-  placeholder?: string;
-  disabled?: boolean;
-  options?: Array<{ value: string; label: string }>;
-  validation?: {
-    min?: number;
-    max?: number;
-    pattern?: string;
-    message?: string;
-  };
-  dependencies?: {
-    field: string;
-    showWhen?: string | string[];
-    hideWhen?: string | string[];
-  };
-  // For dynamic selects like subcategories
-  dynamicOptions?: {
-    dependsOn: string;
-    rpcFunction: string;
-    paramName: string;
-  };
-  // Layout configuration
-  layout?: {
-    colSpan?: 1 | 2; // Grid column span
-    order?: number;
-  };
-}
-
-// Form configuration for each submission type
-export interface FormConfig {
-  title: string;
-  description: string;
-  submitButtonText: string;
-  successTitle: string;
-  successMessage: string;
-  redirectPath: string;
-  fields: FormField[];
-}
-
-// Configuration for each submission type
-export interface SubmissionConfig {
-  type: SubmissionType;
-  tableName: string;
-  displayName: string;
-  adminPath: string;
-  form: FormConfig;
-  discord: {
-    color: number;
-    emoji: string;
-    titlePrefix: string;
-  };
-  // Function to transform submission data into Discord notification format (optional)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  formatForDiscord?: (data: any) => DiscordNotificationData;
-}
+// Re-export so callers keep importing from ~/lib/submissions/registry
+export { SUBMISSION_TYPE_VALUES } from "./types";
+export type {
+  FieldType,
+  FormConfig,
+  FormField,
+  SubmissionConfig,
+  SubmissionType,
+} from "./types";
+export { formatSubmissionForDiscord } from "./discord-format";
 
 // Discord color constants
 const DISCORD_COLORS = {
@@ -108,15 +33,6 @@ const DISCORD_COLORS = {
   RED: 0xe74c3c,
   YELLOW: 0xf1c40f,
 } as const;
-
-// Helper function to create admin URL
-function createAdminUrl(type: SubmissionType, id: string): string {
-  const path =
-    type === "player_equipment_setup"
-      ? "player-equipment-setups"
-      : type.replace("_", "-") + "s";
-  return `/admin/${path}#${id}`;
-}
 
 // Field factory functions for DRY form definitions
 const createNameField = (
@@ -160,41 +76,6 @@ const createTextAreaField = (
   placeholder,
   layout: { colSpan: 2 },
 });
-
-// Discord field utilities for DRY notification formatting
-const createDiscordField = (
-  name: string,
-  value: string,
-  inline: boolean = true
-) => ({
-  name,
-  value,
-  inline,
-});
-
-const createOptionalDiscordField = (
-  name: string,
-  value: string | undefined,
-  inline: boolean = true
-) => (value ? [createDiscordField(name, value, inline)] : []);
-
-const createSubmitterField = (email: string | undefined) =>
-  createDiscordField("Submitted by", email || "Anonymous", false);
-
-const createTruncatedTextField = (
-  name: string,
-  text: string | undefined,
-  maxLength: number = 200
-) =>
-  text
-    ? [
-        createDiscordField(
-          name,
-          text.length > maxLength ? text.substring(0, maxLength) + "..." : text,
-          false
-        ),
-      ]
-    : [];
 
 // Registry of all submission types
 export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
@@ -780,27 +661,6 @@ export function getAllSubmissionTypes(): SubmissionType[] {
 
 export function getSubmissionTableName(type: SubmissionType): string {
   return getSubmissionConfig(type).tableName;
-}
-
-export function formatSubmissionForDiscord(
-  type: SubmissionType,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any
-): DiscordNotificationData {
-  const config = getSubmissionConfig(type);
-  if (!config.formatForDiscord) {
-    // Fallback for submission types without custom Discord formatting
-    return {
-      id: data.id || "unknown",
-      submissionType: type,
-      title: `New ${config.displayName} Submission`,
-      description: `A new ${config.displayName.toLowerCase()} has been submitted for review.`,
-      color: config.discord.color,
-      fields: [{ name: "Status", value: "Pending Review", inline: true }],
-      adminUrl: config.adminPath,
-    };
-  }
-  return config.formatForDiscord(data);
 }
 
 export function getFormConfig(type: SubmissionType): FormConfig {
