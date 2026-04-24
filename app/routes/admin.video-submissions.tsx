@@ -1,8 +1,5 @@
 import type { Route } from "./+types/admin.video-submissions";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseAdminClient } from "~/lib/database.server";
-import { getServerClient } from "~/lib/supabase.server";
-import { getUserWithRole } from "~/lib/auth.server";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -10,6 +7,14 @@ import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import {
+  ensureAdminAction,
+  ensureAdminLoader,
+} from "~/lib/admin/middleware.server";
+import {
+  loadApprovalsForSubmissions,
+  loadPendingQueue,
+} from "~/lib/admin/queue.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,57 +26,22 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface VideoSubmissionRow extends Record<string, any> {
+  id: string;
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
+  const gate = await ensureAdminLoader(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, user, supabaseAdmin, csrfToken } = gate;
 
-  // Check admin access
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  const supabase = createSupabaseAdminClient(context);
-
-  // Get all video submissions with player names
-  const { data: submissions, error } = await supabase
-    .from("video_submissions")
-    .select(
-      `
-      *,
-      players!inner(name, slug)
-    `
-    )
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  // Then get approvals for each submission manually
-  if (submissions && submissions.length > 0) {
-    const submissionIds = submissions.map(s => s.id);
-    const { data: approvals } = await supabase
-      .from("moderator_approvals")
-      .select("*")
-      .eq("submission_type", "video")
-      .in("submission_id", submissionIds);
-
-    // Group approvals by submission_id
-    const approvalsBySubmission = (approvals || []).reduce(
-      (acc, approval) => {
-        if (!acc[approval.submission_id]) {
-          acc[approval.submission_id] = [];
-        }
-        acc[approval.submission_id].push(approval);
-        return acc;
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {} as Record<string, any[]>
+  const { data: submissions, error } =
+    await loadPendingQueue<VideoSubmissionRow>(
+      supabaseAdmin,
+      "video_submissions",
+      { select: "*, players!inner(name, slug)" }
     );
-
-    // Add approvals to each submission
-    submissions.forEach(submission => {
-      submission.moderator_approvals =
-        approvalsBySubmission[submission.id] || [];
-    });
-  }
 
   if (error) {
     Logger.error(
@@ -79,19 +49,26 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       createLogContext("admin-video-submissions", {
         route: "/admin/video-submissions",
         method: "GET",
-        userId: user?.id,
+        userId: user.id,
       }),
       error instanceof Error ? error : undefined
     );
     return data(
-      { submissions: [], user, csrfToken: "" },
+      { submissions: [], user, csrfToken },
       { headers: sbServerClient.headers }
     );
   }
 
-  // Generate CSRF token for admin actions
-  const { issueCSRFToken } = await import("~/lib/security.server");
-  const csrfToken = await issueCSRFToken(request, context, user.id);
+  if (submissions && submissions.length > 0) {
+    const approvalsById = await loadApprovalsForSubmissions(
+      supabaseAdmin,
+      "video",
+      submissions.map(s => s.id)
+    );
+    submissions.forEach(submission => {
+      submission.moderator_approvals = approvalsById[submission.id] || [];
+    });
+  }
 
   return data(
     { submissions: submissions || [], user, csrfToken },
@@ -101,17 +78,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   try {
-    const sbServerClient = getServerClient(request, context);
-    const user = await getUserWithRole(sbServerClient, context);
-
-    // Check admin access
-    if (!user || user.role !== "admin") {
-      throw redirect("/", { headers: sbServerClient.headers });
-    }
-
-    const { enforceAdminActionGate } = await import("~/lib/security.server");
-    const gate = await enforceAdminActionGate(request, context, user.id);
-    if (gate) return gate;
+    const gate = await ensureAdminAction(request, context);
+    if (gate instanceof Response) return gate;
+    const { sbServerClient, user, supabaseAdmin: supabase } = gate;
 
     const formData = await request.formData();
     const submissionId = formData.get("submissionId") as string;
@@ -134,7 +103,6 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
     }
 
-    const supabase = createSupabaseAdminClient(context);
     const moderationService = createModerationService(supabase);
 
     let result;

@@ -1,8 +1,5 @@
 import type { Route } from "./+types/admin.player-edits";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseAdminClient } from "~/lib/database.server";
-import { getServerClient } from "~/lib/supabase.server";
-import { getUserWithRole } from "~/lib/auth.server";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -10,6 +7,14 @@ import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import {
+  ensureAdminAction,
+  ensureAdminLoader,
+} from "~/lib/admin/middleware.server";
+import {
+  loadApprovalsForSubmissions,
+  loadPendingQueue,
+} from "~/lib/admin/queue.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,60 +26,21 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface PlayerEditRow extends Record<string, any> {
+  id: string;
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
+  const gate = await ensureAdminLoader(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, user, supabaseAdmin, csrfToken } = gate;
 
-  // Check admin access
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  const supabase = createSupabaseAdminClient(context);
-
-  // Get all player edits with player info first
-  const { data: playerEdits, error } = await supabase
-    .from("player_edits")
-    .select(
-      `
-      *,
-      players (
-        id,
-        name,
-        slug
-      )
-    `
-    )
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  // Then get approvals for each edit manually
-  if (playerEdits && playerEdits.length > 0) {
-    const editIds = playerEdits.map(e => e.id);
-    const { data: approvals } = await supabase
-      .from("moderator_approvals")
-      .select("*")
-      .eq("submission_type", "player_edit")
-      .in("submission_id", editIds);
-
-    // Group approvals by submission_id
-    const approvalsByEdit = (approvals || []).reduce(
-      (acc, approval) => {
-        if (!acc[approval.submission_id]) {
-          acc[approval.submission_id] = [];
-        }
-        acc[approval.submission_id].push(approval);
-        return acc;
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {} as Record<string, any[]>
-    );
-
-    // Add approvals to each edit
-    playerEdits.forEach(edit => {
-      edit.moderator_approvals = approvalsByEdit[edit.id] || [];
-    });
-  }
+  const { data: playerEdits, error } = await loadPendingQueue<PlayerEditRow>(
+    supabaseAdmin,
+    "player_edits",
+    { select: "*, players ( id, name, slug )" }
+  );
 
   if (error) {
     Logger.error(
@@ -82,19 +48,26 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       createLogContext("admin-player-edits", {
         route: "/admin/player-edits",
         method: "GET",
-        userId: user?.id,
+        userId: user.id,
       }),
       error instanceof Error ? error : undefined
     );
     return data(
-      { playerEdits: [], user, csrfToken: "" },
+      { playerEdits: [], user, csrfToken },
       { headers: sbServerClient.headers }
     );
   }
 
-  // Generate CSRF token for admin actions
-  const { issueCSRFToken } = await import("~/lib/security.server");
-  const csrfToken = await issueCSRFToken(request, context, user.id);
+  if (playerEdits && playerEdits.length > 0) {
+    const approvalsById = await loadApprovalsForSubmissions(
+      supabaseAdmin,
+      "player_edit",
+      playerEdits.map(e => e.id)
+    );
+    playerEdits.forEach(edit => {
+      edit.moderator_approvals = approvalsById[edit.id] || [];
+    });
+  }
 
   return data(
     { playerEdits: playerEdits || [], user, csrfToken },
@@ -103,17 +76,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
-
-  // Check admin access
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  const { enforceAdminActionGate } = await import("~/lib/security.server");
-  const gate = await enforceAdminActionGate(request, context, user.id);
-  if (gate) return gate;
+  const gate = await ensureAdminAction(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, user, supabaseAdmin: supabase } = gate;
 
   const formData = await request.formData();
   const editId = formData.get("editId") as string;
@@ -136,7 +101,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  const supabase = createSupabaseAdminClient(context);
   const moderationService = createModerationService(supabase);
 
   let result;
@@ -183,7 +147,7 @@ export async function action({ request, context }: Route.ActionArgs) {
               createLogContext("admin-player-edits", {
                 route: "/admin/player-edits",
                 method: request.method,
-                userId: user?.id,
+                userId: user.id,
                 editId,
               }),
               updateError instanceof Error ? updateError : undefined

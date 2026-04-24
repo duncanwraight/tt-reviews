@@ -1,8 +1,5 @@
 import type { Route } from "./+types/admin.equipment-reviews";
 import { data, redirect, Form } from "react-router";
-import { createSupabaseAdminClient } from "~/lib/database.server";
-import { getServerClient } from "~/lib/supabase.server";
-import { getUserWithRole } from "~/lib/auth.server";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -10,6 +7,14 @@ import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import {
+  ensureAdminAction,
+  ensureAdminLoader,
+} from "~/lib/admin/middleware.server";
+import {
+  loadApprovalsForSubmissions,
+  loadPendingQueue,
+} from "~/lib/admin/queue.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,64 +26,24 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface EquipmentReviewRow extends Record<string, any> {
+  id: string;
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
+  const gate = await ensureAdminLoader(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, user, supabaseAdmin, csrfToken } = gate;
 
-  // Check admin access
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  const supabase = createSupabaseAdminClient(context);
-
-  // Get all reviews first
-  const { data: reviews, error } = await supabase
-    .from("equipment_reviews")
-    .select(
-      `
-      *,
-      equipment (
-        id,
-        name,
-        slug,
-        manufacturer,
-        category,
-        subcategory
-      )
-    `
-    )
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  // Then get approvals for each review manually
-  if (reviews && reviews.length > 0) {
-    const reviewIds = reviews.map(r => r.id);
-    const { data: approvals } = await supabase
-      .from("moderator_approvals")
-      .select("*")
-      .eq("submission_type", "equipment_review")
-      .in("submission_id", reviewIds);
-
-    // Group approvals by submission_id
-    const approvalsByReview = (approvals || []).reduce(
-      (acc, approval) => {
-        if (!acc[approval.submission_id]) {
-          acc[approval.submission_id] = [];
-        }
-        acc[approval.submission_id].push(approval);
-        return acc;
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {} as Record<string, any[]>
-    );
-
-    // Add approvals to each review
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reviews.forEach((review: any) => {
-      review.approvals = approvalsByReview[review.id] || [];
-    });
-  }
+  const { data: reviews, error } = await loadPendingQueue<EquipmentReviewRow>(
+    supabaseAdmin,
+    "equipment_reviews",
+    {
+      select:
+        "*, equipment ( id, name, slug, manufacturer, category, subcategory )",
+    }
+  );
 
   if (error) {
     Logger.error(
@@ -86,15 +51,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       createLogContext("admin-equipment-reviews", {
         route: "/admin/equipment-reviews",
         method: "GET",
-        userId: user?.id,
+        userId: user.id,
       }),
       error instanceof Error ? error : undefined
     );
     throw new Response("Failed to load reviews", { status: 500 });
   }
 
-  const { issueCSRFToken } = await import("~/lib/security.server");
-  const csrfToken = await issueCSRFToken(request, context, user.id);
+  if (reviews && reviews.length > 0) {
+    const approvalsById = await loadApprovalsForSubmissions(
+      supabaseAdmin,
+      "equipment_review",
+      reviews.map(r => r.id)
+    );
+    reviews.forEach(review => {
+      review.approvals = approvalsById[review.id] || [];
+    });
+  }
 
   return data(
     {
@@ -107,22 +80,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const sbServerClient = getServerClient(request, context);
-  const user = await getUserWithRole(sbServerClient, context);
-
-  if (!user || user.role !== "admin") {
-    throw redirect("/", { headers: sbServerClient.headers });
-  }
-
-  const { enforceAdminActionGate } = await import("~/lib/security.server");
-  const gate = await enforceAdminActionGate(request, context, user.id);
-  if (gate) return gate;
+  const gate = await ensureAdminAction(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, user, supabaseAdmin: supabase } = gate;
 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const reviewId = formData.get("reviewId") as string;
 
-  const supabase = createSupabaseAdminClient(context);
   const moderation = createModerationService(supabase);
 
   try {
@@ -161,7 +126,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         createLogContext("admin-equipment-reviews", {
           route: "/admin/equipment-reviews",
           method: request.method,
-          userId: user?.id,
+          userId: user.id,
           intent,
           reviewId,
         }),
@@ -183,7 +148,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       createLogContext("admin-equipment-reviews", {
         route: "/admin/equipment-reviews",
         method: request.method,
-        userId: user?.id,
+        userId: user.id,
       }),
       error instanceof Error ? error : undefined
     );

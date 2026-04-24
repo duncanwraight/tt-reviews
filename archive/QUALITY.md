@@ -75,7 +75,7 @@ Goal: fewer lines, fewer places to keep in sync, enforced by CI so drift doesn't
 
 ## Phase 3 — Admin route consolidation
 
-**Status:** Not Started.
+**Status:** Completed (TT-9, 2026-04-24). CSRF rollout was already in place via TT-24 before this phase landed, so the helpers only consolidate the existing gates. Plan named a single `ensureAdminWithCSRF`; shipped as a pair — `ensureAdminLoader` (admin check + issue CSRF token) and `ensureAdminAction` (admin check + CSRF validation + rate limit) — so both the loader and action prologues shrink. Each of the five routes dropped ~30 LOC and every `Record<string, any[]>` cast in the queue prologue is gone. Helpers live at `app/lib/admin/{queue,middleware}.server.ts` with unit tests alongside.
 
 **Goal:** Five admin queue routes (`admin.equipment-submissions.tsx`, `admin.player-submissions.tsx`, `admin.video-submissions.tsx`, `admin.player-edits.tsx`, `admin.equipment-reviews.tsx` — ~3.2 kLOC total) repeat the same loader and action shape. Extract helpers; this also becomes the vehicle for rolling `validateCSRF` onto the four admin routes that skip it today (tracked separately in SECURITY.md Phase 2).
 
