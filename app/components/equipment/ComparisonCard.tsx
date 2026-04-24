@@ -19,22 +19,33 @@ interface ComparisonCardProps {
 }
 
 export function ComparisonCard({ equipment }: ComparisonCardProps) {
-  const { isCompareMode, selectedEquipment, toggleEquipment } = useComparison();
+  const { selectedEquipment, toggleEquipment } = useComparison();
 
   const isSelected = selectedEquipment.find(item => item.id === equipment.id);
   const canSelect = selectedEquipment.length < 2 || isSelected;
 
-  // Check if we can select this equipment (same category as already selected)
-  const categoryMatch =
+  // Same subcategory required so ratings/spec tables share vocabulary.
+  // Falls back to category when either side has no subcategory (e.g. blade, ball).
+  const compatible =
     selectedEquipment.length === 0 ||
-    selectedEquipment.every(
-      selected => selected.category === equipment.category
+    selectedEquipment.every(selected =>
+      selected.subcategory || equipment.subcategory
+        ? selected.subcategory === equipment.subcategory
+        : selected.category === equipment.category
     );
+
+  const disabledReason = isSelected
+    ? null
+    : !canSelect
+      ? "Remove one to compare a different item"
+      : !compatible
+        ? "Only same-subcategory items can be compared"
+        : null;
 
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (canSelect && categoryMatch) {
+    if (canSelect && compatible) {
       toggleEquipment(equipment);
     }
   };
@@ -70,39 +81,49 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
 
   return (
     <div
+      data-testid="equipment-card"
+      data-slug={equipment.slug}
       className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
         isSelected
           ? "border-purple-500 bg-purple-50"
           : "border-gray-200 hover:border-gray-300"
       }`}
     >
-      {isCompareMode && (
-        <div className="absolute top-3 right-3 z-10">
-          <button
-            onClick={handleCompareClick}
-            disabled={!canSelect || !categoryMatch}
-            className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSelected
-                ? "border-purple-500 bg-purple-500 text-white"
-                : canSelect && categoryMatch
-                  ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
-                  : "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
-            }`}
-          >
-            {isSelected ? (
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <div className="w-3 h-3 rounded-full border border-current"></div>
-            )}
-          </button>
-        </div>
-      )}
+      <div className="absolute top-3 right-3 z-10">
+        <button
+          type="button"
+          onClick={handleCompareClick}
+          disabled={!canSelect || !compatible}
+          aria-pressed={Boolean(isSelected)}
+          aria-label={
+            isSelected
+              ? `Remove ${equipment.name} from comparison`
+              : (disabledReason ?? `Add ${equipment.name} to comparison`)
+          }
+          title={disabledReason ?? undefined}
+          data-testid="comparison-toggle"
+          data-selected={isSelected ? "true" : "false"}
+          className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+            isSelected
+              ? "border-purple-500 bg-purple-500 text-white"
+              : canSelect && compatible
+                ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
+                : "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+          }`}
+        >
+          {isSelected ? (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : (
+            <div className="w-3 h-3 rounded-full border border-current"></div>
+          )}
+        </button>
+      </div>
 
       <Link to={`/equipment/${equipment.slug}`} className="block p-6">
         <div className="flex items-start space-x-4">

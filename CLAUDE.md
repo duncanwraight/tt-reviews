@@ -31,11 +31,14 @@ All planned work lives in Plane (workspace `tt-reviews`, project `TT Reviews`). 
 
 ## Asking about tasks
 
+Default posture: do as much as you can autonomously. User intervention is only needed for things that are genuinely unsafe, or that are product/feature judgement calls that aren't yours to make.
+
 ### Non-destructive (no permission needed)
 
 - File operations: `ls`, `read`, `grep`, `find`, `cat`, `rg`.
 - Git: `add`, `push`, `status`, `diff`, `log`.
-- npm: `install`, `run build/test/lint/test:discord/test:e2e`.
+- npm: `install`, `run build/test/lint/test:discord/test:e2e/dev`.
+- Starting the dev server (`npm run dev`) — including letting Playwright's `webServer` config spawn it for e2e. Use `run_in_background` for long-running processes.
 - Database reads: `SELECT` queries (via `docker exec` on the Supabase container).
 - Updating markdown files (`*.md`) anywhere.
 - `wrangler tail` and friends (see `docs/OBSERVABILITY.md`).
@@ -49,9 +52,8 @@ All planned work lives in Plane (workspace `tt-reviews`, project `TT Reviews`). 
 
 ### User-only
 
-- Running the dev server (`npm run dev`) — ask me.
-- Any `supabase` CLI command — I'll run them locally.
-- `supabase db reset` — do NOT request unless the user types it in CAPITAL LETTERS.
+- `supabase db reset` — do NOT request unless the user types it in CAPITAL LETTERS (wipes local DB and re-runs seed).
+- Other `supabase` CLI commands: you can run non-destructive ones yourself. `supabase migrations up` (apply pending migrations to the local DB) is fine. Anything that modifies cloud resources or clears data — ask first.
 
 Production DB migrations auto-apply via the GitHub Actions deploy workflow on push to `main`.
 
