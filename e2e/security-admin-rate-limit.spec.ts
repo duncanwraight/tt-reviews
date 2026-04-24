@@ -6,6 +6,7 @@ import {
   login,
   setUserRole,
 } from "./utils/auth";
+import { getFirstEquipment, insertPendingEquipmentReview } from "./utils/data";
 
 // TT-24 / SECURITY.md Phase 8 follow-up. Admin routes already gate on
 // CSRF + admin role, but had no throughput cap — a compromised admin
@@ -22,9 +23,21 @@ test("burst of admin POSTs returns at least one 429", async ({
   page,
   request,
 }) => {
+  const reviewerEmail = generateTestEmail("rl-reviewer");
   const adminEmail = generateTestEmail("rl-admin");
+  const { userId: reviewerId } = await createUser(reviewerEmail);
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
+
+  // The admin moderation page only renders per-row forms, so we need at
+  // least one pending review for the CSRF input to exist on the page.
+  const equipment = await getFirstEquipment();
+  await insertPendingEquipmentReview({
+    userId: reviewerId,
+    equipmentId: equipment.id,
+    reviewText: `admin-rate-limit probe ${Date.now()}`,
+    overallRating: 5,
+  });
 
   try {
     await login(page, adminEmail);
@@ -73,6 +86,7 @@ test("burst of admin POSTs returns at least one 429", async ({
       `expected at least one 429; statuses were ${statuses.join(",")}`
     ).toBeGreaterThan(0);
   } finally {
+    await deleteUser(reviewerId);
     await deleteUser(adminId);
   }
 });
