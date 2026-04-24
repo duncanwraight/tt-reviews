@@ -107,12 +107,15 @@ export async function verifySignature(
     }
   }
 
+  // Fail closed: only ENVIRONMENT="development" allows the test key.
+  // Anything else (unset, "", "preview", "staging", typo) is treated as
+  // prod-safety, matching isDevelopment() in app/lib/env.server.ts.
   if (
-    ctx.env.ENVIRONMENT === "production" &&
+    ctx.env.ENVIRONMENT !== "development" &&
     keys.some(k => k.toLowerCase() === E2E_TEST_PUBLIC_KEY_HEX)
   ) {
     throw new Error(
-      "Refusing to verify: e2e test public key is set in DISCORD_PUBLIC_KEY in production"
+      "Refusing to verify: e2e test public key is set in DISCORD_PUBLIC_KEY outside development"
     );
   }
 

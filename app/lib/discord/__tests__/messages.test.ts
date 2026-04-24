@@ -239,27 +239,39 @@ describe("messages.verifySignature", () => {
     ).rejects.toThrow(/not properly configured/);
   });
 
-  it("throws in production when the e2e test public key is present", async () => {
+  describe("e2e test public key prod-safety guard", () => {
     const E2E_TEST_KEY =
       "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
-    const ctx = makeCtx({
-      ENVIRONMENT: "production",
-      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},${E2E_TEST_KEY}`,
-    });
-    await expect(
-      messages.verifySignature(ctx, "sig", "ts", "body")
-    ).rejects.toThrow(/e2e test public key/);
-  });
+    const KEYS = `${"0".repeat(64)},${E2E_TEST_KEY}`;
 
-  it("does not throw in development when the e2e test public key is present", async () => {
-    const E2E_TEST_KEY =
-      "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
-    const ctx = makeCtx({
-      ENVIRONMENT: "development",
-      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},${E2E_TEST_KEY}`,
+    // Fail-closed: anything that isn't literal "development" must throw.
+    // Mirrors the isDevelopment() invariant in app/lib/env.server.ts.
+    it.each([
+      ["production", "production"],
+      ["preview", "preview"],
+      ["staging", "staging"],
+      ["empty string", ""],
+      ["unset", undefined],
+      ["typo (prod)", "prod"],
+      ["typo (Development)", "Development"],
+    ])("throws when ENVIRONMENT is %s", async (_label, env) => {
+      const ctx = makeCtx({
+        ENVIRONMENT: env,
+        DISCORD_PUBLIC_KEY: KEYS,
+      });
+      await expect(
+        messages.verifySignature(ctx, "sig", "ts", "body")
+      ).rejects.toThrow(/e2e test public key/);
     });
-    const result = await messages.verifySignature(ctx, "zz", "ts", "body");
-    expect(result).toBe(false);
+
+    it("does not throw when ENVIRONMENT is development", async () => {
+      const ctx = makeCtx({
+        ENVIRONMENT: "development",
+        DISCORD_PUBLIC_KEY: KEYS,
+      });
+      const result = await messages.verifySignature(ctx, "zz", "ts", "body");
+      expect(result).toBe(false);
+    });
   });
 });
 
