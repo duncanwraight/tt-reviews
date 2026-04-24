@@ -210,6 +210,132 @@ INSERT INTO categories (type, name, value, description, display_order, parent_id
 SELECT 'review_rating_category', 'Durability', 'durability', 'How long pips maintain effectiveness', 5, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
+-- Equipment spec fields (TT-25: equipment comparison page)
+-- Drives the DB-driven spec table in the comparison UI. Each row = a key in the
+-- equipment.specifications JSONB blob; value MUST match the JSON key exactly
+-- (e.g. 'thickness' matches equipment.specifications->>'thickness'). Parented by
+-- equipment_category for blade/ball, equipment_subcategory for rubber types.
+
+-- Blade spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Thickness', 'thickness', 'Blade thickness', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Plies', 'plies', 'Number of wood/composite layers', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Weight', 'weight', 'Blade weight', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Material', 'material', 'Core material composition', 4, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 5, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 6, c.id, true
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+-- Inverted rubber spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Hardness', 'hardness', 'Sponge hardness', 6, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Year', 'year', 'Release year', 7, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
+
+-- Anti-spin rubber spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
+
+-- Long pips rubber spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
+
+-- Short pips rubber spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+-- Ball spec fields: intentionally none seeded. No ball specs exist in data yet;
+-- admin can add them later via the configurable categories UI.
+
 -- Insert equipment (popular blades from revspin.net)
 INSERT INTO equipment (name, slug, category, manufacturer, specifications) VALUES
 -- Top 20 most popular blades

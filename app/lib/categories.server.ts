@@ -7,7 +7,8 @@ export type CategoryType =
   | "playing_style"
   | "country"
   | "rejection_category"
-  | "review_rating_category";
+  | "review_rating_category"
+  | "equipment_spec_field";
 
 export interface Category {
   id: string;
@@ -385,6 +386,98 @@ export class CategoryService {
     } catch (error) {
       Logger.error(
         "Exception fetching review rating categories",
+        createLogContext("categories-server", {
+          equipmentCategoryValue,
+          equipmentSubcategoryValue,
+        }),
+        error instanceof Error ? error : undefined
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get equipment spec field definitions for a specific equipment category and subcategory.
+   * Powers the DB-driven specs table in the equipment comparison page (TT-25).
+   * Each returned row's `value` is a key in equipment.specifications JSONB.
+   */
+  async getEquipmentSpecFields(
+    equipmentCategoryValue?: string,
+    equipmentSubcategoryValue?: string
+  ): Promise<CategoryOption[]> {
+    try {
+      if (!equipmentCategoryValue) {
+        return this.getCategoriesByType("equipment_spec_field");
+      }
+
+      let parentId: string | null = null;
+
+      if (equipmentSubcategoryValue) {
+        const { data: equipmentSubcategory } = await this.supabase
+          .from("categories")
+          .select("id")
+          .eq("type", "equipment_subcategory")
+          .eq("value", equipmentSubcategoryValue)
+          .eq("is_active", true)
+          .single();
+
+        if (equipmentSubcategory) {
+          parentId = equipmentSubcategory.id;
+        }
+      }
+
+      if (!parentId) {
+        const { data: equipmentCategory } = await this.supabase
+          .from("categories")
+          .select("id")
+          .eq("type", "equipment_category")
+          .eq("value", equipmentCategoryValue)
+          .eq("is_active", true)
+          .single();
+
+        if (!equipmentCategory) {
+          Logger.error(
+            `Equipment category '${equipmentCategoryValue}' not found`,
+            createLogContext("categories-server", { equipmentCategoryValue })
+          );
+          return [];
+        }
+
+        parentId = equipmentCategory.id;
+      }
+
+      const { data, error } = await this.supabase
+        .from("categories")
+        .select(
+          `
+          id,
+          name,
+          value,
+          description,
+          display_order
+        `
+        )
+        .eq("type", "equipment_spec_field")
+        .eq("parent_id", parentId)
+        .eq("is_active", true)
+        .order("display_order");
+
+      if (error) {
+        Logger.error(
+          `Error fetching equipment spec fields for ${equipmentCategoryValue}/${equipmentSubcategoryValue}`,
+          createLogContext("categories-server", {
+            equipmentCategoryValue,
+            equipmentSubcategoryValue,
+          }),
+          error instanceof Error ? error : undefined
+        );
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      Logger.error(
+        "Exception fetching equipment spec fields",
         createLogContext("categories-server", {
           equipmentCategoryValue,
           equipmentSubcategoryValue,
