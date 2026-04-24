@@ -7,12 +7,12 @@
 ## Reference docs
 
 - Table-tennis terminology: `docs/GLOSSARY.md`
-- Application requirements: `docs/reqs/` (all `.md` files)
 - Tech-stack & architecture decisions: `docs/DECISIONS.md`
 - UI/UX design: `docs/STYLE-GUIDE.md` + `docs/LAYOUT.md`
 - SEO: `docs/SEO.md` — reference when designing any user-facing surface
 - **Auth & RBAC patterns**: `docs/AUTH.md`
 - **RLS policy patterns**: `docs/RLS.md`
+- **Discord moderation workflow**: `docs/DISCORD.md`
 - **E2E test requirements**: `docs/E2E.md`
 - **Production observability**: `docs/OBSERVABILITY.md`
 - **Plane API + wrapper**: `docs/PLANE.md`
