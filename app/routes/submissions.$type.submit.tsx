@@ -63,7 +63,8 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
   if (user.role !== "admin") {
     const rateLimitResult = await rateLimit(
       request,
-      RATE_LIMITS.FORM_SUBMISSION
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
     );
     if (!rateLimitResult.success) {
       throw new Response("Too many requests", { status: 429 });
@@ -143,7 +144,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   if (user.role !== "admin") {
     const rateLimitResult = await rateLimit(
       request,
-      RATE_LIMITS.FORM_SUBMISSION
+      RATE_LIMITS.FORM_SUBMISSION,
+      context
     );
     if (!rateLimitResult.success) {
       return createSecureResponse(

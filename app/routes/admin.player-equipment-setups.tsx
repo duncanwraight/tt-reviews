@@ -80,10 +80,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  // Import security functions inside server-only action
-  const { validateCSRF, createCSRFFailureResponse } =
-    await import("~/lib/security.server");
-
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);
 
@@ -92,11 +88,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     throw redirect("/", { headers: sbServerClient.headers });
   }
 
-  // Validate CSRF token
-  const csrfValidation = await validateCSRF(request, context, user.id);
-  if (!csrfValidation.valid) {
-    return createCSRFFailureResponse(context, csrfValidation.error);
-  }
+  const { enforceAdminActionGate } = await import("~/lib/security.server");
+  const gate = await enforceAdminActionGate(request, context, user.id);
+  if (gate) return gate;
 
   const formData = await request.formData();
   const actionType = formData.get("action") as string;

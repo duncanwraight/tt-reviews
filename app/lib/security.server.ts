@@ -22,7 +22,7 @@ interface RateLimitConfig {
   // (SECURITY.md Phase 8 / TT-17). The binding's limit+period are
   // configured in wrangler.toml and must match `maxRequests` / `windowMs`
   // here for the headers and fallback to stay in sync.
-  binding?: "FORM_RATE_LIMITER" | "DISCORD_RATE_LIMITER";
+  binding?: "FORM_RATE_LIMITER" | "DISCORD_RATE_LIMITER" | "ADMIN_RATE_LIMITER";
 }
 
 interface RateLimitEntry {
@@ -39,16 +39,15 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 export async function rateLimit(
   request: Request,
   config: RateLimitConfig,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context?: any
+  context: AppLoadContext
 ): Promise<{ success: boolean; resetTime?: number; remaining?: number }> {
   const key = config.keyGenerator
     ? config.keyGenerator(request)
     : getClientIP(request);
   const now = Date.now();
 
-  if (config.binding && context?.cloudflare?.env) {
-    const env = context.cloudflare.env as Record<string, unknown>;
+  if (config.binding) {
+    const env = context.cloudflare.env as unknown as Record<string, unknown>;
     const binding = env[config.binding] as
       | { limit(opts: { key: string }): Promise<{ success: boolean }> }
       | undefined;
@@ -135,6 +134,11 @@ export const RATE_LIMITS = {
     windowMs: 10 * 1000,
     maxRequests: 20,
     binding: "DISCORD_RATE_LIMITER",
+  },
+  ADMIN_ACTION: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    binding: "ADMIN_RATE_LIMITER",
   },
 } as const satisfies Record<string, RateLimitConfig>;
 
@@ -365,4 +369,31 @@ export function createCSRFFailureResponse(
       "Content-Type": "application/json",
     },
   });
+}
+
+/**
+ * Admin-route action gate: CSRF + per-admin rate limit in one call.
+ * Returns a 403/429 Response if either check fails, or null to proceed.
+ * Keyed on userId so a compromised admin cred can't rotate IPs to bypass.
+ */
+export async function enforceAdminActionGate(
+  request: Request,
+  context: AppLoadContext,
+  userId: string
+): Promise<Response | null> {
+  const csrfValidation = await validateCSRF(request, context, userId);
+  if (!csrfValidation.valid) {
+    return createCSRFFailureResponse(context, csrfValidation.error);
+  }
+
+  const rateLimitResult = await rateLimit(
+    request,
+    { ...RATE_LIMITS.ADMIN_ACTION, keyGenerator: () => `admin:${userId}` },
+    context
+  );
+  if (!rateLimitResult.success) {
+    return createRateLimitResponse(rateLimitResult.resetTime!, context);
+  }
+
+  return null;
 }

@@ -242,14 +242,16 @@ describe("rateLimit — CF binding delegation", () => {
     expect(first.success).toBe(true);
   });
 
-  it("uses the configured binding name per config (DISCORD vs FORM)", async () => {
+  it("uses the configured binding name per config (DISCORD vs FORM vs ADMIN)", async () => {
     const formMock = vi.fn(async () => ({ success: true }));
     const discordMock = vi.fn(async () => ({ success: true }));
+    const adminMock = vi.fn(async () => ({ success: true }));
     const context = {
       cloudflare: {
         env: {
           FORM_RATE_LIMITER: { limit: formMock },
           DISCORD_RATE_LIMITER: { limit: discordMock },
+          ADMIN_RATE_LIMITER: { limit: adminMock },
         },
       },
     } as unknown as AppLoadContext;
@@ -264,8 +266,71 @@ describe("rateLimit — CF binding delegation", () => {
       RATE_LIMITS.DISCORD_WEBHOOK,
       context
     );
+    await rateLimit(
+      makeRequest("10.0.0.40"),
+      RATE_LIMITS.ADMIN_ACTION,
+      context
+    );
 
     expect(formMock).toHaveBeenCalledTimes(1);
     expect(discordMock).toHaveBeenCalledTimes(1);
+    expect(adminMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * TT-24. enforceAdminActionGate bundles CSRF + per-admin rate limiting.
+ * Per-admin key means rotating IPs can't bypass the cap on a compromised
+ * admin cred. CSRF check short-circuits before the rate limit so a
+ * forged request never consumes an admin's budget.
+ */
+describe("enforceAdminActionGate", () => {
+  it("keys the rate limit on userId, not client IP", async () => {
+    const adminMock = vi.fn(async () => ({ success: true }));
+    const context = {
+      cloudflare: {
+        env: {
+          ADMIN_RATE_LIMITER: { limit: adminMock },
+          SESSION_SECRET: "x".repeat(32),
+        },
+      },
+    } as unknown as AppLoadContext;
+
+    // GET requests don't require CSRF, so the gate reaches the rate-limit path.
+    const request = new Request("https://tt-reviews.local/admin/x", {
+      method: "GET",
+      headers: { "cf-connecting-ip": "203.0.113.5" },
+    });
+    const { enforceAdminActionGate } = await import("../security.server");
+    const result = await enforceAdminActionGate(
+      request,
+      context,
+      "user-abc-123"
+    );
+
+    expect(result).toBeNull();
+    expect(adminMock).toHaveBeenCalledWith({ key: "admin:user-abc-123" });
+  });
+
+  it("returns 429 when the admin rate-limit binding denies", async () => {
+    const adminMock = vi.fn(async () => ({ success: false }));
+    const context = {
+      cloudflare: {
+        env: {
+          ADMIN_RATE_LIMITER: { limit: adminMock },
+          SESSION_SECRET: "x".repeat(32),
+        },
+      },
+    } as unknown as AppLoadContext;
+
+    const request = new Request("https://tt-reviews.local/admin/x", {
+      method: "GET",
+      headers: { "cf-connecting-ip": "203.0.113.6" },
+    });
+    const { enforceAdminActionGate } = await import("../security.server");
+    const result = await enforceAdminActionGate(request, context, "user-xyz");
+
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe(429);
   });
 });

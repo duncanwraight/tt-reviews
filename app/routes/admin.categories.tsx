@@ -87,12 +87,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     throw redirect("/login", { headers: sbServerClient.headers });
   }
 
-  const { validateCSRF, createCSRFFailureResponse } =
-    await import("~/lib/security.server");
-  const csrfValidation = await validateCSRF(request, context, user.id);
-  if (!csrfValidation.valid) {
-    return createCSRFFailureResponse(context, csrfValidation.error);
-  }
+  const { enforceAdminActionGate } = await import("~/lib/security.server");
+  const gate = await enforceAdminActionGate(request, context, user.id);
+  if (gate) return gate;
 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;

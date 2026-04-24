@@ -142,21 +142,14 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 ## Phase 5 — Fix environment detection
 
-**Status:** Not Started.
+**Status:** ✅ Shipped 2026-04-23 in commit `0650340` (TT-14).
 
-**Goal:** Two modules assume `process.env.NODE_ENV === "production"`. On Workers that's always `undefined`, so prod runs in dev mode — looser CSP, no HSTS, verbose errors.
-
-**Steps:**
-
-- `app/lib/security.server.ts:107` and `app/lib/env.server.ts:47` — stop reading `process.env`. Pass `context.cloudflare.env.ENVIRONMENT` (or `ENV`) through from the Worker entry. Default to the stricter branch when the var is missing.
-- Confirm `wrangler.toml` sets `ENVIRONMENT = "production"` for the prod deploy and `"development"` locally. Check preview deploys (from Phase 4 of RELIABILITY.md) — they should run in prod mode.
-- `app/lib/env.server.ts:29` — remove the baked-in fallback anon key. If `SUPABASE_ANON_KEY` is missing, fail closed.
-- Unit test: a request where `ENVIRONMENT` is unset gets the strict CSP and HSTS headers.
+**Resolution:** `process.env` reads eliminated from server-side code paths in favour of `context.cloudflare.env.ENVIRONMENT` threaded from the Worker entry. `isDevelopment(context)` now fails closed to the strict/prod branch when `ENVIRONMENT` is unset. Strict CSP + HSTS headers are emitted on prod responses; `createSecureResponse`, `addSecurityHeaders`, and `addApiSecurityHeaders` all take an explicit `isDevelopment` boolean. A CI grep (`scripts/security-sweep.sh`, Phase 10 / TT-19) now rejects any new `process.env.X` read in `*.server.ts` / `*.server.tsx` outside the vitest fallback in `env.server.ts`.
 
 **Acceptance:**
 
-- Prod response headers include `Strict-Transport-Security` and the tightened CSP.
-- No test in the suite relies on `process.env.NODE_ENV`.
+- Prod response headers include `Strict-Transport-Security` and the tightened CSP. ✅
+- No test in the suite relies on `process.env.NODE_ENV`. ✅
 
 ---
 
@@ -222,9 +215,10 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 
 - ✅ `wrangler.toml` — added `[[unsafe.bindings]]` blocks for `FORM_RATE_LIMITER` and `DISCORD_RATE_LIMITER`, mirrored under `[env.dev]`. namespace_ids are scoped per Worker. `npm run cf-typegen` regenerated `worker-configuration.d.ts` with the `RateLimit` bindings on `Cloudflare.Env`.
 - ✅ `app/lib/security.server.ts` — `RateLimitConfig.binding` names which CF binding fronts the budget. `rateLimit()` resolves `context.cloudflare.env[bindingName]` and calls `.limit({ key })`; if the binding throws or is absent, falls back to the Map. `RATE_LIMITS.FORM_SUBMISSION` + `RATE_LIMITS.DISCORD_WEBHOOK` now carry the binding name via `as const satisfies Record<string, RateLimitConfig>`.
-- ✅ Callers unchanged: both existing sites (`submissions.$type.submit.tsx` and `api.discord.interactions.tsx`) already pass the whole `RATE_LIMITS.*` config to `rateLimit(request, config, context)` so the binding is picked up automatically.
+- ✅ `api.discord.interactions.tsx` passed `context` to `rateLimit` correctly at the time of this phase.
+- 🐛 `submissions.$type.submit.tsx` did **not** pass `context` — both call sites silently fell through to the in-memory Map in prod, negating the binding. Caught and fixed in TT-24 (see §Phase 11); the `rateLimit` signature is now `(request, config, context)` with `context` non-optional so any new caller is a TS error until wired correctly.
 - ⚠️ **Login rate limiting** — intentionally deferred. `login.tsx` uses `createBrowserClient` to call `supabase.auth.signInWithPassword` directly from the browser; there's no route action to gate. Adding one would require restructuring auth to run through a server action, which is out of scope for this phase. Supabase's project-level rate limits already protect the auth endpoints (configurable in the Supabase dashboard).
-- ⚠️ **Admin-action rate limiting** — also deferred. Admin routes already require CSRF + admin role; rate limiting there is defence-in-depth against a compromised admin cred, lower priority than anon-facing endpoints. Follow-up: TT-24.
+- ✅ **Admin-action rate limiting** — shipped in TT-24 (see §Phase 11).
 
 **Tests:**
 
@@ -294,6 +288,34 @@ Goal: make each of these non-exploitable, and turn the classes of mistake that c
 - A PR that loosens RLS or adds a CSRF-free admin action fails CI. ✅ (`security-sweep.sh` flags both classes).
 - Dependency audits run on every push. ✅ (`npm audit --audit-level=high` gate).
 - Root `SECURITY.md` exists with a disclosure process. ✅
+
+---
+
+## Phase 11 — Admin rate limiting + FORM binding wiring
+
+**Status:** ✅ Shipped 2026-04-24 (TT-24).
+
+**Resolution:**
+
+- New CF rate-limit binding `ADMIN_RATE_LIMITER` (30/60s) declared in `wrangler.toml` for both the root env and `[env.dev]`. `RATE_LIMITS.ADMIN_ACTION` in `security.server.ts` mirrors the budget for the in-memory fallback.
+- New `enforceAdminActionGate(request, context, userId)` helper in `security.server.ts` bundles `validateCSRF` + per-admin `rateLimit`. The rate-limit key is `admin:${userId}`, not client IP — rotating IPs can't bypass the cap on a compromised admin cred. CSRF failure short-circuits before the rate-limit check so a forged request never consumes the admin's budget.
+- All 9 admin routes with a state-changing action (`admin.content`, `admin.categories`, `admin.equipment-reviews`, `admin.equipment-submissions`, `admin.import`, `admin.player-edits`, `admin.player-equipment-setups`, `admin.player-submissions`, `admin.video-submissions`) replaced their inline CSRF block with a single `enforceAdminActionGate` call.
+- The Phase 10 admin-gate CI grep (`scripts/security-sweep.sh` check 3) was widened from `validateCSRF` to `validateCSRF|enforceAdminActionGate`.
+
+**Collateral fix shipped in the same push (latent Phase 8 bug):**
+
+- `rateLimit`'s `context` parameter was previously typed `any` and optional. `submissions.$type.submit.tsx` omitted it at both call sites, so `FORM_RATE_LIMITER` was never consulted in prod and every submission fell through to the per-isolate in-memory Map — exactly the failure mode Phase 8 claimed was fixed. `rateLimit` is now typed `(request, config, context: AppLoadContext)` with `context` non-optional, and both call sites in the submission route now pass it. Any new caller that forgets `context` is a TS error before it ships.
+
+**Tests:**
+
+- `app/lib/__tests__/security.server.test.ts` — 3 new cases: binding routing expanded to include ADMIN vs FORM vs DISCORD; `enforceAdminActionGate` keys on `admin:${userId}`; returns 429 when the admin binding denies. 19 total.
+- `e2e/security-admin-rate-limit.spec.ts` — burst of 35 authed admin POSTs with a valid CSRF token to `/admin/equipment-reviews` must include at least one 429. Exercises the in-memory fallback since the CF binding is unavailable under Vite dev.
+
+**Acceptance:**
+
+- 31st admin action in a 60-second window returns 429. ✅
+- `rateLimit` cannot be called without `context` — catch at compile time. ✅
+- FORM_SUBMISSION POSTs now actually hit `FORM_RATE_LIMITER` in prod. ✅ (fix to `submissions.$type.submit.tsx` call sites).
 
 ---
 

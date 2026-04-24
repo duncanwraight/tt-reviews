@@ -29,6 +29,12 @@ type = "ratelimit"
 namespace_id = "2002"
 simple = { limit = 20, period = 10 }
 
+[[unsafe.bindings]]
+name = "ADMIN_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2003"
+simple = { limit = 30, period = 60 }
+
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -58,6 +64,12 @@ name = "DISCORD_RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "2002"
 simple = { limit = 20, period = 10 }
+
+[[env.dev.unsafe.bindings]]
+name = "ADMIN_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2003"
+simple = { limit = 30, period = 60 }
 
 [env.dev.vars]
 ENVIRONMENT = "development"
