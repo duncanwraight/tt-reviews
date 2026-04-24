@@ -55,6 +55,11 @@ export async function ensureAdminLoader(
  * form CSRF token, and enforces the per-admin rate limit (keyed on
  * `userId` so a compromised cred can't rotate IPs). Returns a `Response`
  * (302/403/429) when the caller must bail; otherwise the action context.
+ *
+ * The name `ensureAdminAction` is load-bearing: `scripts/security-sweep.sh`
+ * greps for it (alongside `enforceAdminActionGate` / `validateCSRF`) to
+ * prove every `admin.*.tsx` action gates CSRF + rate limit. Rename with
+ * the sweep in lockstep.
  */
 export async function ensureAdminAction(
   request: Request,
