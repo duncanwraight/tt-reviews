@@ -1,6 +1,13 @@
+import type { SubmissionType } from "../submissions/registry";
 import { Logger, createLogContext } from "../logger.server";
 import * as messages from "./messages";
-import type { DiscordContext, DiscordMember, DiscordUser } from "./types";
+import { MODERATION_HANDLERS, type ResponseKind } from "./moderation-handlers";
+import type {
+  DiscordContext,
+  DiscordMember,
+  DiscordUser,
+  ModeratableSubmissionType,
+} from "./types";
 
 // Ephemeral message shown when a Discord click references a submission
 // that does not exist in the target environment — typically a dev-app
@@ -10,799 +17,254 @@ import type { DiscordContext, DiscordMember, DiscordUser } from "./types";
 const MISSING_SUBMISSION_MESSAGE =
   "❌ **Submission not found** — this click may have come from a different environment.";
 
-/**
- * Discord approve/reject handlers — one pair per moderated submission
- * type. Each handler:
- *   1. Gets/creates the Discord moderator record from the user id
- *   2. Records the approval/rejection via moderationService
- *   3. Refreshes the source Discord message (for types that have a
- *      tracked message_id — reviews and player_equipment_setup don't)
- *   4. Returns a type-4 ephemeral interaction response
- *
- * Permission checks live in checkUserPermissions at the bottom.
- *
- * The approve/reject pairs are intentionally similar but kept as
- * separate functions for now — per-type handling (e.g. which category
- * codes are valid, which table the admin_ui flag affects) diverges in
- * subtle ways and collapsing them risks regressions. DRY-ing is a
- * future refactor.
- */
-
 // ============================================================
-// Review (equipment reviews)
+// Generic approve/reject engine — shared across all six submission
+// types. Per-type variation (strings, r2 source, response kind, tracked
+// message) lives in MODERATION_HANDLERS (moderation-handlers.ts).
 // ============================================================
 
-export async function approveReview(
+function logContextFor(
+  includeSubmissionId: boolean,
+  submissionId: string,
+  userId: string
+) {
+  return createLogContext(
+    "discord-moderation",
+    includeSubmissionId ? { submissionId, userId } : { userId }
+  );
+}
+
+function respond(content: string, kind: ResponseKind): Response {
+  return kind === "visible" ? visibleJson(content) : ephemeralJson(content);
+}
+
+async function applyApproval(
+  ctx: DiscordContext,
+  type: SubmissionType,
+  submissionId: string,
+  user: DiscordUser
+): Promise<Response> {
+  const cfg = MODERATION_HANDLERS[type];
+  try {
+    const discordModeratorId =
+      await ctx.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+    if (!discordModeratorId) {
+      return ephemeralJson(
+        `❌ **Error**: Failed to create Discord moderator record`
+      );
+    }
+
+    const result = await ctx.moderationService.recordApproval(
+      type,
+      submissionId,
+      discordModeratorId,
+      "discord",
+      cfg.approval.note?.(user.username),
+      true
+    );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
+    if (result.success) {
+      if (cfg.hasTrackedMessage) {
+        // ModeratableSubmissionType excludes "review" and
+        // "player_equipment_setup" — exactly the types whose handler
+        // sets hasTrackedMessage: false. The branch guard makes the
+        // narrowed type safe.
+        await messages.updateDiscordMessageAfterModeration(
+          ctx,
+          type as ModeratableSubmissionType,
+          submissionId,
+          result.newStatus || "pending",
+          user.username
+        );
+      }
+      return respond(
+        cfg.approval.buildSuccess({
+          id: submissionId,
+          username: user.username,
+          newStatus: result.newStatus || "",
+        }),
+        cfg.responseKind
+      );
+    }
+
+    return ephemeralJson(cfg.approval.buildFallback(result.error));
+  } catch (error) {
+    Logger.error(
+      cfg.approval.logMessage,
+      logContextFor(
+        cfg.approval.includeSubmissionIdInLog,
+        submissionId,
+        user.id
+      ),
+      error instanceof Error ? error : undefined
+    );
+    return ephemeralJson(cfg.approval.buildCatchMessage(error));
+  }
+}
+
+async function applyRejection(
+  ctx: DiscordContext,
+  type: SubmissionType,
+  submissionId: string,
+  user: DiscordUser
+): Promise<Response> {
+  const cfg = MODERATION_HANDLERS[type];
+  try {
+    const discordModeratorId =
+      await ctx.moderationService.getOrCreateDiscordModerator(
+        user.id,
+        user.username
+      );
+
+    if (!discordModeratorId) {
+      return ephemeralJson(
+        `❌ **Error**: Failed to create Discord moderator record`
+      );
+    }
+
+    const r2Bucket =
+      cfg.r2Source === "env"
+        ? ctx.env.R2_BUCKET
+        : ctx.context.cloudflare?.env?.R2_BUCKET;
+
+    const result = await ctx.moderationService.recordRejection(
+      type,
+      submissionId,
+      discordModeratorId,
+      "discord",
+      {
+        category: "other",
+        reason: cfg.rejection.reason(user.username),
+      },
+      r2Bucket,
+      true
+    );
+
+    if (result.notFound) {
+      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
+    }
+
+    if (result.success) {
+      if (cfg.hasTrackedMessage) {
+        // See approval-path comment: hasTrackedMessage is false for
+        // exactly the types Exclude<SubmissionType, ...> removes.
+        await messages.updateDiscordMessageAfterModeration(
+          ctx,
+          type as ModeratableSubmissionType,
+          submissionId,
+          "rejected",
+          user.username
+        );
+      }
+      return respond(
+        cfg.rejection.buildSuccess({
+          id: submissionId,
+          username: user.username,
+        }),
+        cfg.responseKind
+      );
+    }
+
+    return ephemeralJson(cfg.rejection.buildFallback(result.error));
+  } catch (error) {
+    Logger.error(
+      cfg.rejection.logMessage,
+      logContextFor(
+        cfg.rejection.includeSubmissionIdInLog,
+        submissionId,
+        user.id
+      ),
+      error instanceof Error ? error : undefined
+    );
+    return ephemeralJson(cfg.rejection.buildCatchMessage(error));
+  }
+}
+
+// ============================================================
+// Per-type wrappers — preserved so dispatch.ts and the test suite can
+// keep importing by name. Each is a one-line call through to the
+// generic engine with its submission type baked in.
+// ============================================================
+
+export const approveReview = (
   ctx: DiscordContext,
   reviewId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "review", reviewId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "review",
-      reviewId,
-      discordModeratorId,
-      "discord",
-      `Approved by ${user.username} via Discord`,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      const statusText =
-        result.newStatus === "approved"
-          ? "fully approved and published"
-          : "received first approval";
-
-      return ephemeralJson(
-        `✅ **Review ${statusText}**\nReview ${reviewId} approved by ${user.username}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Approval failed**: ${result.error || "Unknown error"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Review approval error",
-      createLogContext("discord-moderation", {
-        submissionId: reviewId,
-        userId: user.id,
-      }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to approve review - ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
-}
-
-export async function rejectReview(
+export const rejectReview = (
   ctx: DiscordContext,
   reviewId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyRejection(ctx, "review", reviewId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "review",
-      reviewId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected by ${user.username} via Discord`,
-      },
-      ctx.env.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      return ephemeralJson(
-        `❌ **Review rejected**\nReview ${reviewId} rejected by ${user.username}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Rejection failed**: ${result.error || "Unknown error"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Review rejection error",
-      createLogContext("discord-moderation", {
-        submissionId: reviewId,
-        userId: user.id,
-      }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to reject review - ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
-}
-
-// ============================================================
-// Player edit
-// ============================================================
-
-export async function approvePlayerEdit(
+export const approvePlayerEdit = (
   ctx: DiscordContext,
   editId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "player_edit", editId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "player_edit",
-      editId,
-      discordModeratorId,
-      "discord",
-      undefined,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "player_edit",
-        editId,
-        result.newStatus || "pending",
-        user.username
-      );
-
-      let message = "Your approval has been recorded.";
-      if (result.newStatus === "approved") {
-        message =
-          "Player edit has been fully approved and changes will be applied.";
-      } else if (result.newStatus === "awaiting_second_approval") {
-        message =
-          "Player edit needs one more approval before changes are applied.";
-      }
-
-      return visibleJson(
-        `✅ **Player Edit Approved by ${user.username}**\nPlayer edit ${editId}: ${message}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to process approval"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling approve player edit",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player edit approval`
-    );
-  }
-}
-
-export async function rejectPlayerEdit(
+export const rejectPlayerEdit = (
   ctx: DiscordContext,
   editId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyRejection(ctx, "player_edit", editId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "player_edit",
-      editId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected via Discord by ${user.username}`,
-      },
-      ctx.context.cloudflare?.env?.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "player_edit",
-        editId,
-        "rejected",
-        user.username
-      );
-
-      return visibleJson(
-        `❌ **Player Edit Rejected by ${user.username}**\nPlayer edit ${editId} has been rejected and changes will not be applied.`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to reject player edit"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling reject player edit",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player edit rejection`
-    );
-  }
-}
-
-// ============================================================
-// Equipment submission
-// ============================================================
-
-export async function approveEquipmentSubmission(
+export const approveEquipmentSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "equipment", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "equipment",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      undefined,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "equipment",
-        submissionId,
-        result.newStatus || "pending",
-        user.username
-      );
-
-      let message = "Your approval has been recorded.";
-      if (result.newStatus === "approved") {
-        message =
-          "Equipment submission has been fully approved and will be published.";
-      } else if (result.newStatus === "awaiting_second_approval") {
-        message =
-          "Equipment submission needs one more approval before being published.";
-      }
-
-      return visibleJson(
-        `✅ **Equipment Approved by ${user.username}**\nEquipment submission ${submissionId}: ${message}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to process approval"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling approve equipment submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process equipment submission approval`
-    );
-  }
-}
-
-export async function rejectEquipmentSubmission(
+export const rejectEquipmentSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyRejection(ctx, "equipment", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "equipment",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected via Discord by ${user.username}`,
-      },
-      ctx.context.cloudflare?.env?.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "equipment",
-        submissionId,
-        "rejected",
-        user.username
-      );
-
-      return visibleJson(
-        `❌ **Equipment Rejected by ${user.username}**\nEquipment submission ${submissionId} has been rejected and will not be published.`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to reject equipment submission"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling reject equipment submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process equipment submission rejection`
-    );
-  }
-}
-
-// ============================================================
-// Player submission
-// ============================================================
-
-export async function approvePlayerSubmission(
+export const approvePlayerSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "player", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "player",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      undefined,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "player",
-        submissionId,
-        result.newStatus || "pending",
-        user.username
-      );
-
-      let message = "Your approval has been recorded.";
-      if (result.newStatus === "approved") {
-        message =
-          "Player submission has been fully approved and will be published.";
-      } else if (result.newStatus === "awaiting_second_approval") {
-        message =
-          "Player submission needs one more approval before being published.";
-      }
-
-      return visibleJson(
-        `✅ **Player Approved by ${user.username}**\nPlayer submission ${submissionId}: ${message}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to process approval"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling approve player submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player submission approval`
-    );
-  }
-}
-
-export async function rejectPlayerSubmission(
+export const rejectPlayerSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyRejection(ctx, "player", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "player",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected via Discord by ${user.username}`,
-      },
-      ctx.context.cloudflare?.env?.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      await messages.updateDiscordMessageAfterModeration(
-        ctx,
-        "player",
-        submissionId,
-        "rejected",
-        user.username
-      );
-
-      return visibleJson(
-        `❌ **Player Rejected by ${user.username}**\nPlayer submission ${submissionId} has been rejected and will not be published.`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to reject player submission"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling reject player submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player submission rejection`
-    );
-  }
-}
-
-// ============================================================
-// Player equipment setup
-// ============================================================
-
-export async function approvePlayerEquipmentSetup(
+export const approvePlayerEquipmentSetup = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "player_equipment_setup", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "player_equipment_setup",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      undefined,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      let message = "Your approval has been recorded.";
-      if (result.newStatus === "approved") {
-        message =
-          "Player equipment setup has been fully approved and will be published.";
-      } else if (result.newStatus === "awaiting_second_approval") {
-        message =
-          "Player equipment setup needs one more approval before being published.";
-      }
-
-      return visibleJson(
-        `✅ **Player Equipment Setup Approved by ${user.username}**\nSubmission ${submissionId}: ${message}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to process approval"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling approve player equipment setup",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player equipment setup approval`
-    );
-  }
-}
-
-export async function rejectPlayerEquipmentSetup(
+export const rejectPlayerEquipmentSetup = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyRejection(ctx, "player_equipment_setup", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "player_equipment_setup",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected via Discord by ${user.username}`,
-      },
-      ctx.context.cloudflare?.env?.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      return visibleJson(
-        `❌ **Player Equipment Setup Rejected by ${user.username}**\nSubmission ${submissionId} has been rejected and will not be published.`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to reject player equipment setup"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling reject player equipment setup",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process player equipment setup rejection`
-    );
-  }
-}
-
-// ============================================================
-// Video submission
-// ============================================================
-
-export async function approveVideoSubmission(
+export const approveVideoSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
+) => applyApproval(ctx, "video", submissionId, user);
 
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordApproval(
-      "video",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      undefined,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      let message = "Your approval has been recorded.";
-      if (result.newStatus === "approved") {
-        message =
-          "Video submission has been fully approved and will be published.";
-      } else if (result.newStatus === "awaiting_second_approval") {
-        message =
-          "Video submission needs one more approval before being published.";
-      }
-
-      return visibleJson(
-        `✅ **Video Approved by ${user.username}**\nSubmission ${submissionId}: ${message}`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to process approval"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling approve video submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process video submission approval`
-    );
-  }
-}
-
-export async function rejectVideoSubmission(
+export const rejectVideoSubmission = (
   ctx: DiscordContext,
   submissionId: string,
   user: DiscordUser
-): Promise<Response> {
-  try {
-    const discordModeratorId =
-      await ctx.moderationService.getOrCreateDiscordModerator(
-        user.id,
-        user.username
-      );
-
-    if (!discordModeratorId) {
-      return ephemeralJson(
-        `❌ **Error**: Failed to create Discord moderator record`
-      );
-    }
-
-    const result = await ctx.moderationService.recordRejection(
-      "video",
-      submissionId,
-      discordModeratorId,
-      "discord",
-      {
-        category: "other",
-        reason: `Rejected via Discord by ${user.username}`,
-      },
-      ctx.context.cloudflare?.env?.R2_BUCKET,
-      true
-    );
-
-    if (result.notFound) {
-      return ephemeralJson(MISSING_SUBMISSION_MESSAGE);
-    }
-
-    if (result.success) {
-      return visibleJson(
-        `❌ **Video Rejected by ${user.username}**\nSubmission ${submissionId} has been rejected and will not be published.`
-      );
-    }
-
-    return ephemeralJson(
-      `❌ **Error**: ${result.error || "Failed to reject video submission"}`
-    );
-  } catch (error) {
-    Logger.error(
-      "Error handling reject video submission",
-      createLogContext("discord-moderation", { userId: user.id }),
-      error instanceof Error ? error : undefined
-    );
-    return ephemeralJson(
-      `❌ **Error**: Failed to process video submission rejection`
-    );
-  }
-}
+) => applyRejection(ctx, "video", submissionId, user);
 
 // ============================================================
 // Permissions
