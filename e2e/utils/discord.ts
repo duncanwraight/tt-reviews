@@ -1,14 +1,12 @@
 import * as crypto from "crypto";
 
 // Test-only Ed25519 keypair used to sign Discord-style interaction
-// requests in CI. The matching public key is written to .dev.vars by the
-// workflow (see "Write .dev.vars for e2e" step) so the dev server
-// verifySignature accepts these requests. Do NOT use in production.
+// requests. The matching public key is auto-accepted by the dev server
+// when ENVIRONMENT=development (see app/lib/discord/messages.ts —
+// E2E_TEST_PUBLIC_KEY_HEX) so the keypair "just works" both locally
+// and in CI. Do NOT use in production.
 const DISCORD_TEST_PRIVATE_KEY_HEX =
   "0e77e13801015d462958195e7ac96cad55b89b296444746eacf91d156470e5ac";
-
-export const DISCORD_TEST_PUBLIC_KEY_HEX =
-  "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
 
 /**
  * Build an Ed25519 PKCS8 DER from a raw 32-byte seed (the format Node

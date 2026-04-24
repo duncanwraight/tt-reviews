@@ -69,7 +69,7 @@ export function validateBotConfig(
 // e2e click-simulation specs verify against any local dev server without
 // each developer having to add it to DISCORD_PUBLIC_KEY by hand.
 // Must NEVER appear in production env — verifySignature throws if it does.
-export const E2E_TEST_PUBLIC_KEY_HEX =
+const E2E_TEST_PUBLIC_KEY_HEX =
   "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
 
 /**

@@ -16,8 +16,6 @@ import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
 import { StructuredData } from "~/components/seo/StructuredData";
-// DISABLED: Comparison feature - see /todo/FEATURES.md
-// import { ComparisonSection } from "~/components/equipment/ComparisonSection";
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.equipment) {
@@ -140,19 +138,13 @@ export const loader = withLoaderCorrelation(
 
     const categoryService = createCategoryService(sbServerClient.client);
 
-    const [
-      reviews,
-      usedByPlayers,
-      ratingCategories,
-      generalRatingCategories,
-      similarEquipment,
-    ] = await Promise.all([
-      db.getEquipmentReviews(equipment.id, "approved"),
-      db.getPlayersUsingEquipment(equipment.id),
-      categoryService.getReviewRatingCategories(equipment.subcategory),
-      categoryService.getReviewRatingCategories(), // General categories without parent
-      db.getSimilarEquipment(equipment.id),
-    ]);
+    const [reviews, usedByPlayers, ratingCategories, generalRatingCategories] =
+      await Promise.all([
+        db.getEquipmentReviews(equipment.id, "approved"),
+        db.getPlayersUsingEquipment(equipment.id),
+        categoryService.getReviewRatingCategories(equipment.subcategory),
+        categoryService.getReviewRatingCategories(), // General categories without parent
+      ]);
 
     // Combine all rating categories
     const allRatingCategories = [
@@ -190,7 +182,6 @@ export const loader = withLoaderCorrelation(
         averageRating,
         reviewCount: reviews.length,
         ratingCategories: allRatingCategories,
-        similarEquipment,
         multipleSchemas,
       },
       { headers: sbServerClient.headers }
@@ -207,7 +198,6 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     averageRating,
     reviewCount,
     ratingCategories,
-    similarEquipment,
     multipleSchemas,
   } = loaderData;
 
@@ -247,19 +237,6 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
           <div>
             <RelatedEquipmentSection category={equipment.category} />
           </div>
-          {/* DISABLED: Comparison feature - see /todo/FEATURES.md
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <RelatedEquipmentSection category={equipment.category} />
-            </div>
-            <div>
-              <ComparisonSection
-                currentEquipment={equipment}
-                similarEquipment={similarEquipment}
-              />
-            </div>
-          </div>
-          */}
         </div>
       </PageSection>
     </>

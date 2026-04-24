@@ -19,10 +19,12 @@ export interface CorrelatedRequest {
 }
 
 /**
- * Higher-order function that wraps route loaders with correlation and logging
+ * Higher-order function that wraps route loaders with correlation and logging.
+ * Internal helper for withLoaderCorrelation; if action wrapping is ever needed
+ * again, re-export and add a withActionCorrelation thin wrapper.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function withCorrelation<T extends (...args: any[]) => any>(
+function withCorrelation<T extends (...args: any[]) => any>(
   handler: T,
   operationType: "loader" | "action" = "loader"
 ): T {
@@ -97,16 +99,6 @@ export function withLoaderCorrelation<T extends (...args: any[]) => any>(
 }
 
 /**
- * Specific wrapper for route actions
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function withActionCorrelation<T extends (...args: any[]) => any>(
-  handler: T
-): T {
-  return withCorrelation(handler, "action");
-}
-
-/**
  * Extract user context from authenticated requests
  */
 export function enhanceContextWithUser(
@@ -142,40 +134,6 @@ export async function withDatabaseCorrelation<T>(
 }
 
 /**
- * Track external service calls with correlation
- */
-export async function withServiceCorrelation<T>(
-  service: string,
-  operation: string,
-  fn: () => Promise<T>,
-  context: LogContext,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any
-): Promise<T> {
-  return Logger.timeOperation(`${service}_${operation}`, fn, context, {
-    operation_type: "external_service",
-    service,
-    ...metadata,
-  });
-}
-
-/**
- * Utility to create enhanced context for specific operations
- */
-export function createOperationContext(
-  baseContext: LogContext,
-  operation: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any
-): LogContext {
-  return {
-    ...baseContext,
-    route: `${baseContext.route}#${operation}`,
-    // Add operation-specific metadata to context if needed
-  };
-}
-
-/**
  * Log user action for business metrics
  */
 export function logUserAction(
@@ -188,65 +146,4 @@ export function logUserAction(
     action,
     ...metadata,
   });
-}
-
-/**
- * Log business event for analytics
- */
-export function logBusinessEvent(
-  event: string,
-  value: number,
-  context: LogContext,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any
-): void {
-  Logger.metric(`business_event_${event}`, value, context, {
-    event,
-    ...metadata,
-  });
-}
-
-/**
- * Log security event for monitoring
- */
-export function logSecurityEvent(
-  event: string,
-  context: LogContext,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any
-): void {
-  Logger.warn(`Security event: ${event}`, context, {
-    security_event: event,
-    ...metadata,
-  });
-}
-
-/**
- * Create correlation-aware error for better tracking
- */
-export class CorrelatedError extends Error {
-  public readonly requestId: string;
-  public readonly context: LogContext;
-
-  constructor(message: string, context: LogContext, cause?: Error) {
-    super(message);
-    this.name = "CorrelatedError";
-    this.requestId = context.requestId ?? "unknown";
-    this.context = context;
-
-    if (cause) {
-      this.cause = cause;
-    }
-  }
-}
-
-/**
- * Helper to wrap errors with correlation context
- */
-export function wrapWithCorrelation(
-  error: Error,
-  context: LogContext,
-  message?: string
-): CorrelatedError {
-  return new CorrelatedError(message || error.message, context, error);
 }
