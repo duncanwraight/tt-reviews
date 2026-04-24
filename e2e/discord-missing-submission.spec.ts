@@ -5,11 +5,9 @@ import { buildButtonInteraction, signDiscordRequest } from "./utils/discord";
 // Guards the fix from archive/DISCORD-HARDENING.md Sub-problem A (TT-4):
 // a Discord button click whose submission_id does not exist in the target
 // environment must return an ephemeral "Submission not found" error and
-// must NOT insert an orphan row into moderator_approvals.
-test.skip(
-  !process.env.CI,
-  "Discord flow requires the CI-only test Ed25519 keypair in .dev.vars"
-);
+// must NOT insert an orphan row into moderator_approvals. The test-only
+// Ed25519 public key and e2e role are auto-accepted by the dev server
+// when ENVIRONMENT=development; no .dev.vars tweak required.
 
 test("Discord approve for missing review returns env-mismatch, writes no row", async ({
   request,

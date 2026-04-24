@@ -808,9 +808,16 @@ export async function rejectVideoSubmission(
 // Permissions
 // ============================================================
 
+// Well-known role string used by e2e Playwright specs (see
+// e2e/utils/discord.ts buildButtonInteraction). Auto-allowed when
+// ENVIRONMENT=development so Discord click specs run locally without
+// each developer having to add it to DISCORD_ALLOWED_ROLES by hand.
+export const E2E_TEST_ROLE_ID = "role_e2e_moderator";
+
 /**
  * Allow any user when no DISCORD_ALLOWED_ROLES is configured; otherwise
- * require the user to have at least one of the listed role IDs.
+ * require the user to have at least one of the listed role IDs. In dev,
+ * the well-known E2E_TEST_ROLE_ID is also accepted.
  */
 export async function checkUserPermissions(
   ctx: DiscordContext,
@@ -823,6 +830,13 @@ export async function checkUserPermissions(
   if (allowedRoles.length === 0) {
     // If no roles configured, allow all users
     return true;
+  }
+
+  if (
+    ctx.env.ENVIRONMENT === "development" &&
+    !allowedRoles.includes(E2E_TEST_ROLE_ID)
+  ) {
+    allowedRoles.push(E2E_TEST_ROLE_ID);
   }
 
   return member.roles.some((roleId: string) => allowedRoles.includes(roleId));

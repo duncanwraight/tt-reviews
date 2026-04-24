@@ -87,6 +87,42 @@ describe("moderation.checkUserPermissions", () => {
     );
     expect(result).toBe(false);
   });
+
+  describe("e2e test role auto-allow in development", () => {
+    // Mirrors the verifySignature dev auto-injection so Playwright
+    // Discord click specs pass checkUserPermissions locally without
+    // each dev appending role_e2e_moderator to DISCORD_ALLOWED_ROLES.
+    it("allows the e2e test role when ENVIRONMENT=development and role not listed", async () => {
+      const result = await moderation.checkUserPermissions(
+        makeCtx({
+          ENVIRONMENT: "development",
+          DISCORD_ALLOWED_ROLES: "real-role-only",
+        }),
+        { roles: [moderation.E2E_TEST_ROLE_ID] },
+        "g"
+      );
+      expect(result).toBe(true);
+    });
+
+    it.each([
+      ["production", "production"],
+      ["preview", "preview"],
+      ["unset", undefined],
+    ])(
+      "does NOT auto-allow the e2e test role when ENVIRONMENT is %s",
+      async (_label, env) => {
+        const result = await moderation.checkUserPermissions(
+          makeCtx({
+            ENVIRONMENT: env,
+            DISCORD_ALLOWED_ROLES: "real-role-only",
+          }),
+          { roles: [moderation.E2E_TEST_ROLE_ID] },
+          "g"
+        );
+        expect(result).toBe(false);
+      }
+    );
+  });
 });
 
 // ============================================================

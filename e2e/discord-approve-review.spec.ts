@@ -8,13 +8,10 @@ import {
 import { buildButtonInteraction, signDiscordRequest } from "./utils/discord";
 
 // This spec signs Discord-style interactions with a test-only Ed25519
-// keypair whose public half is provisioned into .dev.vars by the CI
-// workflow. Local dev servers use the real Discord public key, so the
-// signatures won't verify — skip locally.
-test.skip(
-  !process.env.CI,
-  "Discord flow requires the CI-only test Ed25519 keypair in .dev.vars"
-);
+// keypair (see e2e/utils/discord.ts). The matching public key and the
+// e2e-only role string are auto-accepted by the dev server when
+// ENVIRONMENT=development (see app/lib/discord/messages.ts and
+// app/lib/discord/moderation.ts) — no .dev.vars tweak required.
 
 test("Discord approval button POST flips review status", async ({
   request,

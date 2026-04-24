@@ -25,11 +25,17 @@ DISCORD_BOT_TOKEN=your_dev_discord_bot_token
 DISCORD_CHANNEL_ID=your_dev_discord_channel_id
 DISCORD_GUILD_ID=your_dev_discord_guild_id
 # DISCORD_PUBLIC_KEY accepts a CSV of Ed25519 public keys (Discord
-# verifies against any). Locally you'll typically list two: the dev
-# Discord app's real key (so real button clicks verify) AND the e2e
-# test public key from e2e/utils/discord.ts (so Playwright click
-# specs verify too). The test key MUST NOT appear in production.
-DISCORD_PUBLIC_KEY=your_dev_discord_public_key,bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480
+# verifies against any). Set this to the dev Discord app's real key
+# so real button clicks verify against the dev server. The well-known
+# e2e test public key (from e2e/utils/discord.ts) is auto-accepted
+# when ENVIRONMENT=development, so you do NOT need to list it here for
+# `npm run test:e2e` to pass — explicitly listing it still works.
+# The test key MUST NOT appear in production env.
+DISCORD_PUBLIC_KEY=your_dev_discord_public_key
+# DISCORD_ALLOWED_ROLES restricts who can click moderation buttons.
+# In dev, the e2e test role string is auto-allowed in addition to
+# whatever's listed here, so Playwright Discord specs pass without
+# appending it. In prod, only the listed role IDs apply.
 DISCORD_ALLOWED_ROLES=role_id_1,role_id_2
 
 # Auto Admin Promotion

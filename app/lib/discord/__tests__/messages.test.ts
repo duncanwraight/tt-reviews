@@ -1,6 +1,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as nodeCrypto from "node:crypto";
 import * as messages from "../messages";
 import type { DiscordContext } from "../types";
+
+// Sign a Discord-style payload with the test-only Ed25519 keypair (the
+// private half matching E2E_TEST_PUBLIC_KEY_HEX). Mirrors
+// e2e/utils/discord.ts so verifySignature's dev auto-inject branch can
+// be exercised end-to-end inside this unit test.
+const E2E_TEST_PRIVATE_KEY_HEX =
+  "0e77e13801015d462958195e7ac96cad55b89b296444746eacf91d156470e5ac";
+function signWithE2eTestKey(timestamp: string, body: string): string {
+  const prefix = Buffer.from("302e020100300506032b657004220420", "hex");
+  const pkcs8 = Buffer.concat([
+    prefix,
+    Buffer.from(E2E_TEST_PRIVATE_KEY_HEX, "hex"),
+  ]);
+  const privateKey = nodeCrypto.createPrivateKey({
+    key: pkcs8,
+    format: "der",
+    type: "pkcs8",
+  });
+  const message = Buffer.from(timestamp + body, "utf8");
+  return nodeCrypto.sign(null, message, privateKey).toString("hex");
+}
 
 /**
  * Unit tests for the messages toolbox — signature verification, bot
@@ -272,6 +294,41 @@ describe("messages.verifySignature", () => {
       const result = await messages.verifySignature(ctx, "zz", "ts", "body");
       expect(result).toBe(false);
     });
+  });
+
+  describe("e2e test public key auto-injection in development", () => {
+    // Lets local dev servers verify Playwright Discord click specs even
+    // when .dev.vars only contains the real Discord app key — no per-dev
+    // env tweak required.
+    const TS = "1700000000";
+    const BODY = '{"type":1}';
+
+    it("verifies a test-key-signed payload when ENVIRONMENT=development and only the real key is listed", async () => {
+      const sig = signWithE2eTestKey(TS, BODY);
+      const ctx = makeCtx({
+        ENVIRONMENT: "development",
+        DISCORD_PUBLIC_KEY: "0".repeat(64),
+      });
+      const result = await messages.verifySignature(ctx, sig, TS, BODY);
+      expect(result).toBe(true);
+    });
+
+    it.each([
+      ["production", "production"],
+      ["preview", "preview"],
+      ["unset", undefined],
+    ])(
+      "does NOT verify a test-key-signed payload when ENVIRONMENT is %s",
+      async (_label, env) => {
+        const sig = signWithE2eTestKey(TS, BODY);
+        const ctx = makeCtx({
+          ENVIRONMENT: env,
+          DISCORD_PUBLIC_KEY: "0".repeat(64),
+        });
+        const result = await messages.verifySignature(ctx, sig, TS, BODY);
+        expect(result).toBe(false);
+      }
+    );
   });
 });
 

@@ -65,19 +65,20 @@ export function validateBotConfig(
 }
 
 // Well-known public key matching the test private key checked into
-// e2e/utils/discord.ts. Listing it in DISCORD_PUBLIC_KEY locally lets
-// e2e click-simulation specs verify alongside the real dev app's key.
+// e2e/utils/discord.ts. Auto-accepted when ENVIRONMENT=development so
+// e2e click-simulation specs verify against any local dev server without
+// each developer having to add it to DISCORD_PUBLIC_KEY by hand.
 // Must NEVER appear in production env — verifySignature throws if it does.
-const E2E_TEST_PUBLIC_KEY_HEX =
+export const E2E_TEST_PUBLIC_KEY_HEX =
   "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
 
 /**
  * Verify a Discord interaction signature using Ed25519.
  *
- * DISCORD_PUBLIC_KEY accepts a comma-separated list. Prod has one key;
- * local dev typically has two (the real dev app key + the e2e test key)
- * so that real Discord clicks and Playwright simulations both verify
- * against the same dev server. Returns true if any listed key verifies.
+ * DISCORD_PUBLIC_KEY accepts a comma-separated list. Prod has one key
+ * (the real Discord app key). In dev, the well-known E2E test public
+ * key is auto-included so Playwright click specs verify against any
+ * local dev server. Returns true if any candidate key verifies.
  */
 export async function verifySignature(
   ctx: DiscordContext,
@@ -107,16 +108,22 @@ export async function verifySignature(
     }
   }
 
+  const isDev = ctx.env.ENVIRONMENT === "development";
+
   // Fail closed: only ENVIRONMENT="development" allows the test key.
   // Anything else (unset, "", "preview", "staging", typo) is treated as
   // prod-safety, matching isDevelopment() in app/lib/env.server.ts.
-  if (
-    ctx.env.ENVIRONMENT !== "development" &&
-    keys.some(k => k.toLowerCase() === E2E_TEST_PUBLIC_KEY_HEX)
-  ) {
+  if (!isDev && keys.some(k => k.toLowerCase() === E2E_TEST_PUBLIC_KEY_HEX)) {
     throw new Error(
       "Refusing to verify: e2e test public key is set in DISCORD_PUBLIC_KEY outside development"
     );
+  }
+
+  // In dev, auto-accept the well-known e2e test key even when the dev
+  // server's .dev.vars only contains the real Discord app key. Lets
+  // Playwright Discord specs run locally with no env tweak required.
+  if (isDev && !keys.some(k => k.toLowerCase() === E2E_TEST_PUBLIC_KEY_HEX)) {
+    keys.push(E2E_TEST_PUBLIC_KEY_HEX);
   }
 
   try {
