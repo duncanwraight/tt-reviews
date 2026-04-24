@@ -1,6 +1,6 @@
 -- Create player_edits table for moderated player information changes
 CREATE TABLE player_edits (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     edit_data JSONB NOT NULL,

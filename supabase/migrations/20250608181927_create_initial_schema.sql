@@ -6,12 +6,9 @@ CREATE TYPE rubber_color AS ENUM ('red', 'black');
 CREATE TYPE source_type AS ENUM ('interview', 'video', 'tournament_footage', 'official_website');
 CREATE TYPE video_platform AS ENUM ('youtube', 'other');
 
--- Enable necessary extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Create equipment table
 CREATE TABLE equipment (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     category equipment_category NOT NULL,
@@ -24,7 +21,7 @@ CREATE TABLE equipment (
 
 -- Create players table
 CREATE TABLE players (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     highest_rating VARCHAR(50),
@@ -36,7 +33,7 @@ CREATE TABLE players (
 
 -- Create equipment_reviews table
 CREATE TABLE equipment_reviews (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     equipment_id UUID NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     status review_status DEFAULT 'pending',
@@ -50,7 +47,7 @@ CREATE TABLE equipment_reviews (
 
 -- Create player_equipment_setups table
 CREATE TABLE player_equipment_setups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     year INTEGER NOT NULL,
     blade_id UUID REFERENCES equipment(id),
@@ -69,7 +66,7 @@ CREATE TABLE player_equipment_setups (
 
 -- Create player_sponsorships table
 CREATE TABLE player_sponsorships (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     sponsor_name VARCHAR(255) NOT NULL,
     start_year INTEGER NOT NULL,
@@ -80,7 +77,7 @@ CREATE TABLE player_sponsorships (
 
 -- Create player_footage table
 CREATE TABLE player_footage (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     title VARCHAR(255) NOT NULL,

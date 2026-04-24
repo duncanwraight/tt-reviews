@@ -1,6 +1,6 @@
 -- Create video submissions table for moderation workflow
 CREATE TABLE video_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     videos JSONB NOT NULL DEFAULT '[]'::jsonb,

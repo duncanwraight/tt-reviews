@@ -2,7 +2,7 @@
 -- Following the established pattern from equipment_submissions, player_submissions, video_submissions
 
 CREATE TABLE player_equipment_setup_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     year INTEGER NOT NULL,
