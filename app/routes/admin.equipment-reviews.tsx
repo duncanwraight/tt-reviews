@@ -59,9 +59,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (reviews && reviews.length > 0) {
+    // moderator_approvals.submission_type stores "review" for equipment
+    // reviews — see migration 20251231180000 which renamed the prior
+    // "equipment_review" value. Querying with the old string returns an
+    // empty result, so previous approvals never appeared on the queue.
     const approvalsById = await loadApprovalsForSubmissions(
       supabaseAdmin,
-      "equipment_review",
+      "review",
       reviews.map(r => r.id)
     );
     reviews.forEach(review => {
@@ -535,7 +539,7 @@ export default function AdminEquipmentReviews({
           })
         }
         submissionId={rejectionModal.submissionId}
-        submissionType="equipment_review"
+        submissionType="review"
         submissionName={rejectionModal.submissionName}
         csrfToken={csrfToken}
       />

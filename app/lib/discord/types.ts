@@ -1,6 +1,7 @@
 import type { AppLoadContext } from "react-router";
 import type { DatabaseService } from "../database.server";
 import type { ModerationService } from "../moderation.server";
+import type { SubmissionType } from "../submissions/registry";
 import type { UnifiedDiscordNotifier } from "./unified-notifier.server";
 
 /**
@@ -22,12 +23,15 @@ export interface DiscordContext {
  * lifecycle — i.e. the ones whose embed + buttons are patched after a
  * moderator action. Reviews and player_equipment_setup are moderated
  * elsewhere and don't participate in the post-moderation message edit.
+ *
+ * Derived from SubmissionType so adding a new submission type forces an
+ * explicit decision here (either include it implicitly, or add it to
+ * the Exclude list). Prevents the union from silently drifting.
  */
-export type ModeratableSubmissionType =
-  | "equipment"
-  | "player"
-  | "player_edit"
-  | "video";
+export type ModeratableSubmissionType = Exclude<
+  SubmissionType,
+  "review" | "player_equipment_setup"
+>;
 
 /**
  * Minimal shape of the Discord user passed into moderation handlers.

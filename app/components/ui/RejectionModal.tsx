@@ -1,18 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Form, useActionData, useNavigation } from "react-router";
-import type { RejectionCategory } from "~/lib/types";
+import type { RejectionCategory, SubmissionType } from "~/lib/types";
 
 interface RejectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   submissionId: string;
-  submissionType:
-    | "equipment"
-    | "player"
-    | "player_edit"
-    | "equipment_review"
-    | "video"
-    | "player_equipment_setup";
+  submissionType: SubmissionType;
   submissionName: string;
   csrfToken?: string;
   /** Override the field name for the submission ID (default: "submissionId") */

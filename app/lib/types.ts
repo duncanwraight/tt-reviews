@@ -1,5 +1,13 @@
 // Shared types that can be used by both client and server components
 
+import type { SubmissionType } from "./submissions/registry";
+
+// Unified submission types — defined alongside the registry so the union
+// can't drift from the entries. Re-exported here for back-compat with
+// existing `import { SubmissionType } from "~/lib/types"` callers.
+export type { SubmissionType } from "./submissions/registry";
+export { SUBMISSION_TYPE_VALUES } from "./submissions/registry";
+
 export type ReviewStatus =
   | "pending"
   | "under_review"
@@ -17,15 +25,6 @@ export type RejectionCategory =
   | "invalid_data"
   | "spam"
   | "other";
-
-// Unified submission types
-export type SubmissionType =
-  | "equipment"
-  | "player"
-  | "player_edit"
-  | "video"
-  | "review"
-  | "player_equipment_setup";
 
 // Base interface for all submissions
 export interface BaseSubmission {

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SubmissionType } from "../submissions/registry";
 
 /**
  * Narrow shape of a row in the `moderator_approvals` table. Covers every
@@ -8,7 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface ModeratorApproval {
   id: string;
   submission_id: string;
-  submission_type: string;
+  submission_type: SubmissionType;
   moderator_id: string;
   action: "approved" | "rejected";
   source: string;
@@ -50,7 +51,7 @@ export async function loadPendingQueue<Row extends { id: string }>(
  */
 export async function loadApprovalsForSubmissions(
   supabase: SupabaseClient,
-  submissionType: string,
+  submissionType: SubmissionType,
   submissionIds: string[]
 ): Promise<Record<string, ModeratorApproval[]>> {
   if (submissionIds.length === 0) {

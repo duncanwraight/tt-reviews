@@ -82,6 +82,38 @@ export async function getFirstEquipment(): Promise<{
   return rows[0];
 }
 
+/**
+ * Insert a row into moderator_approvals directly. Used by the admin
+ * equipment-reviews queue spec to plant a prior approval and verify the
+ * "Approval History" section renders — i.e. that the loader queries the
+ * right submission_type. The BEFORE-INSERT trigger enforces that the
+ * referenced submission exists in its typed table.
+ */
+export async function insertModeratorApproval(params: {
+  submissionType: string;
+  submissionId: string;
+  moderatorId: string;
+  action: "approved" | "rejected";
+  source: "admin_ui" | "discord";
+}): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/moderator_approvals`, {
+    method: "POST",
+    headers: { ...adminHeaders(), Prefer: "return=minimal" },
+    body: JSON.stringify({
+      submission_type: params.submissionType,
+      submission_id: params.submissionId,
+      moderator_id: params.moderatorId,
+      action: params.action,
+      source: params.source,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `insertModeratorApproval failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
 export async function getPendingEquipmentReviews(userId: string): Promise<
   Array<{
     id: string;

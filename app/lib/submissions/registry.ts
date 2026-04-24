@@ -1,4 +1,25 @@
-import type { SubmissionType, DiscordNotificationData } from "~/lib/types";
+import type { DiscordNotificationData } from "~/lib/types";
+
+/**
+ * The canonical set of submission types — single source of truth aligned
+ * with the moderator_approvals.submission_type CHECK constraint
+ * (supabase/migrations/20251231180000_add_player_equipment_setup_to_moderation.sql).
+ *
+ * Adding a value: extend this tuple, add a SUBMISSION_REGISTRY entry,
+ * apply the matching DB migration, and update the constraint in lockstep.
+ * The registry-vs-constraint test in __tests__/registry.test.ts catches
+ * drift either way.
+ */
+export const SUBMISSION_TYPE_VALUES = [
+  "equipment",
+  "player",
+  "player_edit",
+  "video",
+  "review",
+  "player_equipment_setup",
+] as const;
+
+export type SubmissionType = (typeof SUBMISSION_TYPE_VALUES)[number];
 
 // Field types for form generation
 export type FieldType =

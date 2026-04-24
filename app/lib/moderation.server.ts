@@ -3,6 +3,7 @@ import type {
   ApprovalSource,
   RejectionCategory,
   ModeratorApproval,
+  SubmissionType,
 } from "./types";
 import { deleteImageFromR2Native } from "./r2-native.server";
 
@@ -12,14 +13,6 @@ export interface ApprovalResult {
   error?: string;
   notFound?: boolean;
 }
-
-type SubmissionType =
-  | "equipment"
-  | "player"
-  | "player_edit"
-  | "review"
-  | "video"
-  | "player_equipment_setup";
 
 export interface RejectionData {
   category: RejectionCategory;
