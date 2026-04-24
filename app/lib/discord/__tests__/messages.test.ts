@@ -219,6 +219,48 @@ describe("messages.verifySignature", () => {
     const result = await messages.verifySignature(ctx, "zz", "ts", "body");
     expect(result).toBe(false);
   });
+
+  it("accepts CSV with multiple valid keys without throwing on validation", async () => {
+    // Two well-formed keys; neither will verify a malformed sig, but the
+    // multi-key parser must accept the shape without throwing.
+    const ctx = makeCtx({
+      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},${"1".repeat(64)}`,
+    });
+    const result = await messages.verifySignature(ctx, "zz", "ts", "body");
+    expect(result).toBe(false);
+  });
+
+  it("throws if any CSV entry is malformed", async () => {
+    const ctx = makeCtx({
+      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},not-hex`,
+    });
+    await expect(
+      messages.verifySignature(ctx, "sig", "ts", "body")
+    ).rejects.toThrow(/not properly configured/);
+  });
+
+  it("throws in production when the e2e test public key is present", async () => {
+    const E2E_TEST_KEY =
+      "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
+    const ctx = makeCtx({
+      ENVIRONMENT: "production",
+      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},${E2E_TEST_KEY}`,
+    });
+    await expect(
+      messages.verifySignature(ctx, "sig", "ts", "body")
+    ).rejects.toThrow(/e2e test public key/);
+  });
+
+  it("does not throw in development when the e2e test public key is present", async () => {
+    const E2E_TEST_KEY =
+      "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
+    const ctx = makeCtx({
+      ENVIRONMENT: "development",
+      DISCORD_PUBLIC_KEY: `${"0".repeat(64)},${E2E_TEST_KEY}`,
+    });
+    const result = await messages.verifySignature(ctx, "zz", "ts", "body");
+    expect(result).toBe(false);
+  });
 });
 
 describe("messages.updateDiscordMessage", () => {

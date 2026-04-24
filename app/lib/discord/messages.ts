@@ -64,8 +64,20 @@ export function validateBotConfig(
   return { isValid, botToken, channelId, issues };
 }
 
+// Well-known public key matching the test private key checked into
+// e2e/utils/discord.ts. Listing it in DISCORD_PUBLIC_KEY locally lets
+// e2e click-simulation specs verify alongside the real dev app's key.
+// Must NEVER appear in production env — verifySignature throws if it does.
+const E2E_TEST_PUBLIC_KEY_HEX =
+  "bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480";
+
 /**
- * Verify Discord webhook signature using Ed25519.
+ * Verify a Discord interaction signature using Ed25519.
+ *
+ * DISCORD_PUBLIC_KEY accepts a comma-separated list. Prod has one key;
+ * local dev typically has two (the real dev app key + the e2e test key)
+ * so that real Discord clicks and Playwright simulations both verify
+ * against the same dev server. Returns true if any listed key verifies.
  */
 export async function verifySignature(
   ctx: DiscordContext,
@@ -73,16 +85,35 @@ export async function verifySignature(
   timestamp: string,
   body: string
 ): Promise<boolean> {
-  const PUBLIC_KEY = ctx.env.DISCORD_PUBLIC_KEY;
-  if (!PUBLIC_KEY) {
+  const raw = ctx.env.DISCORD_PUBLIC_KEY;
+  if (!raw) {
     throw new Error("Discord verification key not configured");
   }
 
+  const keys = raw
+    .split(",")
+    .map(k => k.trim())
+    .filter(Boolean);
+  if (keys.length === 0) {
+    throw new Error("Discord verification key not configured");
+  }
+
+  for (const k of keys) {
+    if (
+      k === "your_discord_application_public_key_here" ||
+      !/^[0-9a-f]{64}$/i.test(k)
+    ) {
+      throw new Error("Discord verification key is not properly configured");
+    }
+  }
+
   if (
-    PUBLIC_KEY === "your_discord_application_public_key_here" ||
-    PUBLIC_KEY.length < 32
+    ctx.env.ENVIRONMENT === "production" &&
+    keys.some(k => k.toLowerCase() === E2E_TEST_PUBLIC_KEY_HEX)
   ) {
-    throw new Error("Discord verification key is not properly configured");
+    throw new Error(
+      "Refusing to verify: e2e test public key is set in DISCORD_PUBLIC_KEY in production"
+    );
   }
 
   try {
@@ -90,14 +121,20 @@ export async function verifySignature(
     const data = encoder.encode(timestamp + body);
     const sig = hexToUint8Array(signature);
     const crypto = globalThis.crypto;
-    const key = await crypto.subtle.importKey(
-      "raw",
-      hexToUint8Array(PUBLIC_KEY),
-      { name: "Ed25519", namedCurve: "Ed25519" },
-      false,
-      ["verify"]
-    );
-    return await crypto.subtle.verify("Ed25519", key, sig, data);
+
+    for (const k of keys) {
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        hexToUint8Array(k),
+        { name: "Ed25519", namedCurve: "Ed25519" },
+        false,
+        ["verify"]
+      );
+      if (await crypto.subtle.verify("Ed25519", cryptoKey, sig, data)) {
+        return true;
+      }
+    }
+    return false;
   } catch (error) {
     console.error("Signature verification error:", error);
     return false;
