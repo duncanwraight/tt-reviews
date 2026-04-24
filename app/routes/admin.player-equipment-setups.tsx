@@ -8,6 +8,7 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -62,7 +63,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     .limit(50);
 
   if (error) {
-    console.error("Error fetching player equipment setups:", error);
+    Logger.error(
+      "Error fetching player equipment setups",
+      createLogContext("admin-player-equipment-setups", {
+        route: "/admin/player-equipment-setups",
+        method: "GET",
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { equipmentSetups: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }
@@ -123,7 +132,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       .single();
 
     if (fetchError || !submission) {
-      console.error("Error fetching equipment setup:", fetchError);
+      Logger.error(
+        "Error fetching equipment setup",
+        createLogContext("admin-player-equipment-setups", {
+          route: "/admin/player-equipment-setups",
+          method: request.method,
+          userId: user?.id,
+          setupId,
+        }),
+        fetchError instanceof Error ? fetchError : undefined
+      );
       return data(
         { error: "Failed to fetch equipment setup" },
         { status: 500, headers: sbServerClient.headers }
@@ -157,7 +175,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
 
     if (insertError) {
-      console.error("Error creating equipment setup:", insertError);
+      Logger.error(
+        "Error creating equipment setup",
+        createLogContext("admin-player-equipment-setups", {
+          route: "/admin/player-equipment-setups",
+          method: request.method,
+          userId: user?.id,
+          setupId,
+        }),
+        insertError instanceof Error ? insertError : undefined
+      );
       return data(
         { error: "Failed to create equipment setup record" },
         { status: 500, headers: sbServerClient.headers }
@@ -171,7 +198,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       .eq("id", setupId);
 
     if (updateError) {
-      console.error("Error approving equipment setup:", updateError);
+      Logger.error(
+        "Error approving equipment setup",
+        createLogContext("admin-player-equipment-setups", {
+          route: "/admin/player-equipment-setups",
+          method: request.method,
+          userId: user?.id,
+          setupId,
+        }),
+        updateError instanceof Error ? updateError : undefined
+      );
       return data(
         { error: "Failed to approve equipment setup" },
         { status: 500, headers: sbServerClient.headers }
@@ -202,7 +238,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       .eq("id", setupId);
 
     if (error) {
-      console.error("Error rejecting equipment setup:", error);
+      Logger.error(
+        "Error rejecting equipment setup",
+        createLogContext("admin-player-equipment-setups", {
+          route: "/admin/player-equipment-setups",
+          method: request.method,
+          userId: user?.id,
+          setupId,
+        }),
+        error instanceof Error ? error : undefined
+      );
       return data(
         { error: "Failed to reject equipment setup" },
         { status: 500, headers: sbServerClient.headers }

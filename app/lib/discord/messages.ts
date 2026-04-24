@@ -139,7 +139,11 @@ export async function verifySignature(
     }
     return false;
   } catch (error) {
-    console.error("Signature verification error:", error);
+    Logger.error(
+      "Signature verification error",
+      createLogContext("discord-messages"),
+      error instanceof Error ? error : undefined
+    );
     return false;
   }
 }
@@ -320,10 +324,19 @@ export async function updateDiscordMessageAfterModeration(
       }
     );
     if (!updateResult.success) {
-      console.error("Failed to update Discord message:", updateResult.error);
+      Logger.error(
+        "Failed to update Discord message",
+        createLogContext("discord-messages", { submissionType, submissionId }),
+        undefined,
+        { error: updateResult.error }
+      );
     }
   } catch (error) {
-    console.error("Error updating Discord message after moderation:", error);
+    Logger.error(
+      "Error updating Discord message after moderation",
+      createLogContext("discord-messages", { submissionType, submissionId }),
+      error instanceof Error ? error : undefined
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Logger, createLogContext } from "./logger.server";
 
 /**
  * Auto-promote specified email addresses to admin role when the user
@@ -76,13 +77,21 @@ export async function checkAndPromoteAdmin(
     }
 
     if (error) {
-      console.error("Failed to promote user to admin:", error);
+      Logger.error(
+        "Failed to promote user to admin",
+        createLogContext("auto-promote", { userId }),
+        error instanceof Error ? error : undefined
+      );
       return false;
     } else {
       return true; // Signal that promotion occurred
     }
   } catch (error) {
-    console.error("Error in auto-promote admin:", error);
+    Logger.error(
+      "Error in auto-promote admin",
+      createLogContext("auto-promote", { userId }),
+      error instanceof Error ? error : undefined
+    );
     return false;
   }
 }
@@ -101,8 +110,11 @@ export function getAdminEmails(env: Record<string, string>): string {
     );
 
     if (invalidEmails.length > 0) {
-      // eslint-disable-next-line no-console
-      console.warn("Invalid admin emails detected:", invalidEmails);
+      Logger.warn(
+        "Invalid admin emails detected",
+        createLogContext("auto-promote"),
+        { invalidEmails }
+      );
     }
   }
 

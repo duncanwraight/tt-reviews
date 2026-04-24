@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Logger, createLogContext } from "./logger.server";
 
 export type CategoryType =
   | "equipment_category"
@@ -49,13 +50,21 @@ export class CategoryService {
       );
 
       if (error) {
-        console.error(`Error fetching ${type} categories:`, error);
+        Logger.error(
+          `Error fetching ${type} categories`,
+          createLogContext("categories-server", { categoryType: type }),
+          error instanceof Error ? error : undefined
+        );
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error(`Exception fetching ${type} categories:`, error);
+      Logger.error(
+        `Exception fetching ${type} categories`,
+        createLogContext("categories-server", { categoryType: type }),
+        error instanceof Error ? error : undefined
+      );
       return [];
     }
   }
@@ -73,18 +82,20 @@ export class CategoryService {
       );
 
       if (error) {
-        console.error(
-          `Error fetching subcategories for ${parentValue}:`,
-          error
+        Logger.error(
+          `Error fetching subcategories for ${parentValue}`,
+          createLogContext("categories-server", { parentValue }),
+          error instanceof Error ? error : undefined
         );
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error(
-        `Exception fetching subcategories for ${parentValue}:`,
-        error
+      Logger.error(
+        `Exception fetching subcategories for ${parentValue}`,
+        createLogContext("categories-server", { parentValue }),
+        error instanceof Error ? error : undefined
       );
       return [];
     }
@@ -141,13 +152,21 @@ export class CategoryService {
         .single();
 
       if (error) {
-        console.error("Error creating category:", error);
+        Logger.error(
+          "Error creating category",
+          createLogContext("categories-server"),
+          error instanceof Error ? error : undefined
+        );
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error("Exception creating category:", error);
+      Logger.error(
+        "Exception creating category",
+        createLogContext("categories-server"),
+        error instanceof Error ? error : undefined
+      );
       return null;
     }
   }
@@ -167,7 +186,11 @@ export class CategoryService {
       .single();
 
     if (error) {
-      console.error("Error updating category:", error);
+      Logger.error(
+        "Error updating category",
+        createLogContext("categories-server", { categoryId: id }),
+        error instanceof Error ? error : undefined
+      );
       throw new Error(
         `Failed to update category: ${error.message} (code: ${error.code})`
       );
@@ -187,13 +210,21 @@ export class CategoryService {
         .eq("id", id);
 
       if (error) {
-        console.error("Error deleting category:", error);
+        Logger.error(
+          "Error deleting category",
+          createLogContext("categories-server", { categoryId: id }),
+          error instanceof Error ? error : undefined
+        );
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error("Exception deleting category:", error);
+      Logger.error(
+        "Exception deleting category",
+        createLogContext("categories-server", { categoryId: id }),
+        error instanceof Error ? error : undefined
+      );
       return false;
     }
   }
@@ -217,13 +248,20 @@ export class CategoryService {
       // Check if any updates failed
       const hasErrors = results.some(result => result.error);
       if (hasErrors) {
-        console.error("Error reordering categories");
+        Logger.error(
+          "Error reordering categories",
+          createLogContext("categories-server")
+        );
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error("Exception reordering categories:", error);
+      Logger.error(
+        "Exception reordering categories",
+        createLogContext("categories-server"),
+        error instanceof Error ? error : undefined
+      );
       return false;
     }
   }
@@ -242,13 +280,21 @@ export class CategoryService {
       const { data, error } = await query.order("type").order("display_order");
 
       if (error) {
-        console.error("Error fetching categories for admin:", error);
+        Logger.error(
+          "Error fetching categories for admin",
+          createLogContext("categories-server", { categoryType: type }),
+          error instanceof Error ? error : undefined
+        );
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error("Exception fetching categories for admin:", error);
+      Logger.error(
+        "Exception fetching categories for admin",
+        createLogContext("categories-server", { categoryType: type }),
+        error instanceof Error ? error : undefined
+      );
       return [];
     }
   }
@@ -294,8 +340,9 @@ export class CategoryService {
           .single();
 
         if (!equipmentCategory) {
-          console.error(
-            `Equipment category '${equipmentCategoryValue}' not found`
+          Logger.error(
+            `Equipment category '${equipmentCategoryValue}' not found`,
+            createLogContext("categories-server", { equipmentCategoryValue })
           );
           return [];
         }
@@ -323,16 +370,27 @@ export class CategoryService {
         .order("display_order");
 
       if (error) {
-        console.error(
-          `Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}:`,
-          error
+        Logger.error(
+          `Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}`,
+          createLogContext("categories-server", {
+            equipmentCategoryValue,
+            equipmentSubcategoryValue,
+          }),
+          error instanceof Error ? error : undefined
         );
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error(`Exception fetching review rating categories:`, error);
+      Logger.error(
+        "Exception fetching review rating categories",
+        createLogContext("categories-server", {
+          equipmentCategoryValue,
+          equipmentSubcategoryValue,
+        }),
+        error instanceof Error ? error : undefined
+      );
       return [];
     }
   }

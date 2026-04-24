@@ -14,6 +14,7 @@
  */
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { Logger, createLogContext } from "./logger.server";
 
 const CSRF_TOKEN_LENGTH = 32;
 const CSRF_TOKEN_LIFETIME = 24 * 60 * 60 * 1000; // 24 hours in ms
@@ -134,7 +135,11 @@ export function validateCSRFToken(
 
     return { valid: true };
   } catch (error) {
-    console.error("CSRF token validation error:", error);
+    Logger.error(
+      "CSRF token validation error",
+      createLogContext("csrf-server"),
+      error instanceof Error ? error : undefined
+    );
     return { valid: false, error: "Token validation failed" };
   }
 }
@@ -225,7 +230,15 @@ export async function validateCSRFFromRequest(
 
     return validateCSRFToken(csrfToken, sessionId, secret, userId);
   } catch (error) {
-    console.error("CSRF validation error:", error);
+    Logger.error(
+      "CSRF validation error",
+      createLogContext("csrf-server", {
+        method: request.method,
+        route: new URL(request.url).pathname,
+        userId,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return { valid: false, error: "CSRF validation failed" };
   }
 }

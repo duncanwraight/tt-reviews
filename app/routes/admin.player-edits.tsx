@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -76,7 +77,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (error) {
-    console.error("Error fetching player edits:", error);
+    Logger.error(
+      "Error fetching player edits",
+      createLogContext("admin-player-edits", {
+        route: "/admin/player-edits",
+        method: "GET",
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { playerEdits: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }
@@ -169,7 +178,16 @@ export async function action({ request, context }: Route.ActionArgs) {
             .eq("id", edit.player_id);
 
           if (updateError) {
-            console.error("Failed to apply player edit:", updateError);
+            Logger.error(
+              "Failed to apply player edit",
+              createLogContext("admin-player-edits", {
+                route: "/admin/player-edits",
+                method: request.method,
+                userId: user?.id,
+                editId,
+              }),
+              updateError instanceof Error ? updateError : undefined
+            );
             return data(
               {
                 error: `Approved but failed to apply changes: ${updateError.message}`,

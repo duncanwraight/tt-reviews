@@ -93,12 +93,16 @@ export function FormField({
       );
 
       if (error) {
+        // Client-side component — no server Logger; console is the only
+        // log surface available in the browser.
+        // eslint-disable-next-line no-console
         console.error("Error loading dynamic options:", error);
         setDynamicOptions([]);
       } else {
         setDynamicOptions(data || []);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Exception loading dynamic options:", error);
       setDynamicOptions([]);
     } finally {

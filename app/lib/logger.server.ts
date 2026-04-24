@@ -147,6 +147,7 @@ class LoggerService {
 
     switch (logEntry.level) {
       case LogLevel.ERROR:
+        // eslint-disable-next-line no-console
         console.error(formattedLog);
         break;
       case LogLevel.WARN:

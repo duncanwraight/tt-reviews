@@ -3,6 +3,7 @@ import { data, redirect } from "react-router";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 // Helper function to get dashboard counts using admin client
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,7 +105,11 @@ async function getAdminDashboardCountsWithClient(supabase: any) {
 
     return result;
   } catch (error) {
-    console.error("Error fetching admin dashboard counts:", error);
+    Logger.error(
+      "Error fetching admin dashboard counts",
+      createLogContext("admin-index"),
+      error instanceof Error ? error : undefined
+    );
 
     // Return empty counts as fallback
     return {

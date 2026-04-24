@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -65,7 +66,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (error) {
-    console.error("Error fetching player submissions:", error);
+    Logger.error(
+      "Error fetching player submissions",
+      createLogContext("admin-player-submissions", {
+        route: "/admin/player-submissions",
+        method: "GET",
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { submissions: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }
@@ -157,7 +166,16 @@ export async function action({ request, context }: Route.ActionArgs) {
           });
 
           if (insertError) {
-            console.error("Failed to create player record:", insertError);
+            Logger.error(
+              "Failed to create player record",
+              createLogContext("admin-player-submissions", {
+                route: "/admin/player-submissions",
+                method: request.method,
+                userId: user?.id,
+                submissionId,
+              }),
+              insertError instanceof Error ? insertError : undefined
+            );
             return data(
               {
                 error: `Approved but failed to create player: ${insertError.message}`,
@@ -191,7 +209,17 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     if (!result.success) {
-      console.error("Moderation failed:", result.error);
+      Logger.error(
+        "Moderation failed",
+        createLogContext("admin-player-submissions", {
+          route: "/admin/player-submissions",
+          method: request.method,
+          userId: user?.id,
+          submissionId,
+        }),
+        undefined,
+        { error: result.error }
+      );
       return data(
         { error: result.error || "Operation failed" },
         { status: 500, headers: sbServerClient.headers }
@@ -202,7 +230,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       headers: sbServerClient.headers,
     });
   } catch (error) {
-    console.error("Admin player submissions action error:", error);
+    Logger.error(
+      "Admin player submissions action error",
+      createLogContext("admin-player-submissions", {
+        route: "/admin/player-submissions",
+        method: request.method,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data({ error: "Internal server error" }, { status: 500 });
   }
 }

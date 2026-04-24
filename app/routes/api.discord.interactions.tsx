@@ -1,6 +1,7 @@
 import type { Route } from "./+types/api.discord.interactions";
 import { DiscordService } from "~/lib/discord.server";
 import { isDevelopment as isDevelopmentEnv } from "~/lib/env.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export async function action({ request, context }: Route.ActionArgs) {
   // Import security functions at top of action for use in catch block
@@ -111,7 +112,14 @@ export async function action({ request, context }: Route.ActionArgs) {
     const errorMessage = sanitizeError(error, isDev);
 
     if (isDev) {
-      console.error("Discord interaction error:", error);
+      Logger.error(
+        "Discord interaction error",
+        createLogContext(
+          request.headers.get("X-Request-ID") || "discord-interaction",
+          { route: "/api/discord/interactions", method: request.method }
+        ),
+        error instanceof Error ? error : undefined
+      );
     }
 
     if (

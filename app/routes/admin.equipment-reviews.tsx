@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -80,7 +81,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (error) {
-    console.error("Error fetching reviews:", error);
+    Logger.error(
+      "Error fetching reviews",
+      createLogContext("admin-equipment-reviews", {
+        route: "/admin/equipment-reviews",
+        method: "GET",
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     throw new Response("Failed to load reviews", { status: 500 });
   }
 
@@ -147,11 +156,17 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     if (!result.success) {
-      console.error(
-        "Moderation action returned failure:",
-        intent,
-        reviewId,
-        result.error
+      Logger.error(
+        "Moderation action returned failure",
+        createLogContext("admin-equipment-reviews", {
+          route: "/admin/equipment-reviews",
+          method: request.method,
+          userId: user?.id,
+          intent,
+          reviewId,
+        }),
+        undefined,
+        { error: result.error }
       );
       throw new Response(result.error ?? "Moderation action failed", {
         status: 500,
@@ -163,7 +178,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     });
   } catch (error) {
     if (error instanceof Response) throw error;
-    console.error("Moderation action failed:", error);
+    Logger.error(
+      "Moderation action failed",
+      createLogContext("admin-equipment-reviews", {
+        route: "/admin/equipment-reviews",
+        method: request.method,
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     throw new Response("Action failed", { status: 500 });
   }
 }

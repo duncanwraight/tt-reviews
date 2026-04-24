@@ -1,5 +1,6 @@
 import type { Route } from "./+types/$";
 import { data } from "react-router";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -47,18 +48,20 @@ export async function loader({ request }: Route.LoaderArgs) {
   const isBotRequest = botPaths.some(path => url.pathname.startsWith(path));
   const isAppPath = appPaths.some(path => url.pathname.startsWith(path));
 
-  if (isBotRequest) {
-    // Silently handle bot requests
-  } else if (isAppPath) {
-    // Log app-related 404s as warnings - these might indicate broken links or missing content
-    // eslint-disable-next-line no-console
-    console.warn(
-      `404 - App content not found: ${url.pathname} (Referrer: ${request.headers.get("referer") || "none"})`
+  if (!isBotRequest) {
+    // App paths are logged as warnings (possible broken links); others info-level.
+    Logger.warn(
+      `404 - ${isAppPath ? "App content" : "Page"} not found`,
+      createLogContext("not-found-route", {
+        route: url.pathname,
+        method: request.method,
+      }),
+      {
+        pathname: url.pathname,
+        referrer: request.headers.get("referer") || "none",
+        isAppPath,
+      }
     );
-  } else {
-    // Log other 404s as info
-    // eslint-disable-next-line no-console
-    console.info(`404 - Page not found: ${url.pathname}`);
   }
 
   // Return 404 response

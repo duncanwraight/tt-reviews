@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -73,7 +74,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   if (error) {
-    console.error("Video submissions error:", error);
+    Logger.error(
+      "Video submissions error",
+      createLogContext("admin-video-submissions", {
+        route: "/admin/video-submissions",
+        method: "GET",
+        userId: user?.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { submissions: [], user, csrfToken: "" },
       { headers: sbServerClient.headers }
@@ -171,7 +180,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       headers: sbServerClient.headers,
     });
   } catch (error) {
-    console.error("Admin video action error:", error);
+    Logger.error(
+      "Admin video action error",
+      createLogContext("admin-video-submissions", {
+        route: "/admin/video-submissions",
+        method: request.method,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { Logger, createLogContext } from "../logger.server";
 import * as messages from "./messages";
 import type { DiscordContext, DiscordMember, DiscordUser } from "./types";
 
@@ -77,7 +78,14 @@ export async function approveReview(
       `❌ **Approval failed**: ${result.error || "Unknown error"}`
     );
   } catch (error) {
-    console.error("Review approval error:", error);
+    Logger.error(
+      "Review approval error",
+      createLogContext("discord-moderation", {
+        submissionId: reviewId,
+        userId: user.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to approve review - ${error instanceof Error ? error.message : "Unknown error"}`
     );
@@ -129,7 +137,14 @@ export async function rejectReview(
       `❌ **Rejection failed**: ${result.error || "Unknown error"}`
     );
   } catch (error) {
-    console.error("Review rejection error:", error);
+    Logger.error(
+      "Review rejection error",
+      createLogContext("discord-moderation", {
+        submissionId: reviewId,
+        userId: user.id,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to reject review - ${error instanceof Error ? error.message : "Unknown error"}`
     );
@@ -198,7 +213,11 @@ export async function approvePlayerEdit(
       `❌ **Error**: ${result.error || "Failed to process approval"}`
     );
   } catch (error) {
-    console.error("Error handling approve player edit:", error);
+    Logger.error(
+      "Error handling approve player edit",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player edit approval`
     );
@@ -258,7 +277,11 @@ export async function rejectPlayerEdit(
       `❌ **Error**: ${result.error || "Failed to reject player edit"}`
     );
   } catch (error) {
-    console.error("Error handling reject player edit:", error);
+    Logger.error(
+      "Error handling reject player edit",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player edit rejection`
     );
@@ -327,7 +350,11 @@ export async function approveEquipmentSubmission(
       `❌ **Error**: ${result.error || "Failed to process approval"}`
     );
   } catch (error) {
-    console.error("Error handling approve equipment submission:", error);
+    Logger.error(
+      "Error handling approve equipment submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process equipment submission approval`
     );
@@ -387,7 +414,11 @@ export async function rejectEquipmentSubmission(
       `❌ **Error**: ${result.error || "Failed to reject equipment submission"}`
     );
   } catch (error) {
-    console.error("Error handling reject equipment submission:", error);
+    Logger.error(
+      "Error handling reject equipment submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process equipment submission rejection`
     );
@@ -456,7 +487,11 @@ export async function approvePlayerSubmission(
       `❌ **Error**: ${result.error || "Failed to process approval"}`
     );
   } catch (error) {
-    console.error("Error handling approve player submission:", error);
+    Logger.error(
+      "Error handling approve player submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player submission approval`
     );
@@ -516,7 +551,11 @@ export async function rejectPlayerSubmission(
       `❌ **Error**: ${result.error || "Failed to reject player submission"}`
     );
   } catch (error) {
-    console.error("Error handling reject player submission:", error);
+    Logger.error(
+      "Error handling reject player submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player submission rejection`
     );
@@ -577,7 +616,11 @@ export async function approvePlayerEquipmentSetup(
       `❌ **Error**: ${result.error || "Failed to process approval"}`
     );
   } catch (error) {
-    console.error("Error handling approve player equipment setup:", error);
+    Logger.error(
+      "Error handling approve player equipment setup",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player equipment setup approval`
     );
@@ -629,7 +672,11 @@ export async function rejectPlayerEquipmentSetup(
       `❌ **Error**: ${result.error || "Failed to reject player equipment setup"}`
     );
   } catch (error) {
-    console.error("Error handling reject player equipment setup:", error);
+    Logger.error(
+      "Error handling reject player equipment setup",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process player equipment setup rejection`
     );
@@ -690,7 +737,11 @@ export async function approveVideoSubmission(
       `❌ **Error**: ${result.error || "Failed to process approval"}`
     );
   } catch (error) {
-    console.error("Error handling approve video submission:", error);
+    Logger.error(
+      "Error handling approve video submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process video submission approval`
     );
@@ -742,7 +793,11 @@ export async function rejectVideoSubmission(
       `❌ **Error**: ${result.error || "Failed to reject video submission"}`
     );
   } catch (error) {
-    console.error("Error handling reject video submission:", error);
+    Logger.error(
+      "Error handling reject video submission",
+      createLogContext("discord-moderation", { userId: user.id }),
+      error instanceof Error ? error : undefined
+    );
     return ephemeralJson(
       `❌ **Error**: Failed to process video submission rejection`
     );

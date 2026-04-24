@@ -4,6 +4,7 @@ import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 import { addSecurityHeaders } from "~/lib/security.server";
 import { isDevelopment } from "~/lib/env.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export default async function handleRequest(
   request: Request,
@@ -24,7 +25,14 @@ export default async function handleRequest(
         // errors encountered during initial shell rendering since they'll
         // reject and get logged in handleDocumentRequest.
         if (shellRendered) {
-          console.error(error);
+          Logger.error(
+            "Streaming render error",
+            createLogContext(
+              request.headers.get("X-Request-ID") || "entry-server",
+              { route: new URL(request.url).pathname, method: request.method }
+            ),
+            error instanceof Error ? error : new Error(String(error))
+          );
         }
       },
     }

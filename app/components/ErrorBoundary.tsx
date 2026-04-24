@@ -127,15 +127,19 @@ export class EnhancedErrorBoundary extends Component<
       },
     };
 
-    // Log to console for development
+    // ErrorBoundary runs in the browser; the server-side Logger isn't
+    // available here, so console.error is the structured-log fallback of
+    // last resort. Keep disables so ratcheted no-console still blocks new
+    // usage elsewhere.
     if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
       console.error("ErrorBoundary caught an error:", {
         error,
         errorInfo,
         logEntry,
       });
     } else {
-      // Structured logging for production
+      // eslint-disable-next-line no-console
       console.error(JSON.stringify(logEntry));
     }
   }

@@ -5,6 +5,8 @@
  * Uses server-side fetch (Cloudflare Workers compatible).
  */
 
+import { Logger, createLogContext } from "./logger.server";
+
 const REVSPIN_BASE_URL = "https://revspin.net";
 
 // Rate limiting: track last request time
@@ -126,11 +128,10 @@ function parseProductTable(
       ? "pips/"
       : `${category}/`;
 
-  // DEBUG: Log HTML length
-  // eslint-disable-next-line no-console
-  console.log(`[REVSPIN DEBUG] HTML length: ${html.length}`);
-  // eslint-disable-next-line no-console
-  console.log(`[REVSPIN DEBUG] Category prefix: ${categoryPrefix}`);
+  Logger.debug("revspin parseProductTable start", createLogContext("revspin"), {
+    htmlLength: html.length,
+    categoryPrefix,
+  });
 
   // First, let's find ALL links ending in .html to understand the patterns
   // Use a flexible regex: any anchor tag with href to .html, capture content up to </a>
@@ -150,10 +151,10 @@ function parseProductTable(
 
     // DEBUG: Log first 10 links to see patterns
     if (totalLinks <= 10) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[REVSPIN DEBUG] Link ${totalLinks}: href="${href.substring(0, 60)}", name="${name.substring(0, 30)}"`
-      );
+      Logger.debug(`revspin link ${totalLinks}`, createLogContext("revspin"), {
+        href: href.substring(0, 60),
+        name: name.substring(0, 30),
+      });
     }
 
     // Skip if not a product link for this category
@@ -200,9 +201,10 @@ function parseProductTable(
 
     // DEBUG: Log first few products' cells
     if (categoryLinks <= 5) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[REVSPIN DEBUG] Product "${name}" has ${cells.length} cells: ${JSON.stringify(cells.slice(0, 8))}`
+      Logger.debug(
+        `revspin product cells: ${name}`,
+        createLogContext("revspin"),
+        { cellCount: cells.length, cells: cells.slice(0, 8) }
       );
     }
 
@@ -235,10 +237,14 @@ function parseProductTable(
     products.push(item);
   }
 
-  // DEBUG: Summary
-  // eslint-disable-next-line no-console
-  console.log(
-    `[REVSPIN DEBUG] Summary: ${totalLinks} total links, ${categoryLinks} matching category, ${products.length} products parsed`
+  Logger.debug(
+    "revspin parseProductTable summary",
+    createLogContext("revspin"),
+    {
+      totalLinks,
+      categoryLinks,
+      parsed: products.length,
+    }
   );
 
   return products;
@@ -341,27 +347,38 @@ export async function fetchProductList(
   const path = getCategoryPath(category);
   const url = `${REVSPIN_BASE_URL}${path}`;
 
-  // eslint-disable-next-line no-console
-  console.log(`[REVSPIN DEBUG] Fetching URL: ${url}`);
+  Logger.debug("revspin fetchProductList", createLogContext("revspin"), {
+    url,
+    category,
+  });
 
   try {
     const response = await rateLimitedFetch(url);
-    // eslint-disable-next-line no-console
-    console.log(`[REVSPIN DEBUG] Response status: ${response.status}`);
-
     const html = await response.text();
-    // eslint-disable-next-line no-console
-    console.log(`[REVSPIN DEBUG] Response HTML length: ${html.length}`);
+
+    Logger.debug(
+      "revspin fetchProductList response",
+      createLogContext("revspin"),
+      {
+        status: response.status,
+        htmlLength: html.length,
+      }
+    );
 
     const products = parseProductTable(html, category);
-    // eslint-disable-next-line no-console
-    console.log(`[REVSPIN DEBUG] Parsed ${products.length} products`);
+
+    Logger.debug(
+      "revspin fetchProductList parsed",
+      createLogContext("revspin"),
+      { count: products.length, category }
+    );
 
     return products;
   } catch (error) {
-    console.error(
-      `[REVSPIN DEBUG] Error fetching product list for ${category}:`,
-      error
+    Logger.error(
+      `Error fetching product list for ${category}`,
+      createLogContext("revspin", { category }),
+      error instanceof Error ? error : undefined
     );
     return [];
   }
@@ -384,7 +401,10 @@ export async function fetchProductDetails(
     const name = (h1Match?.[1] || titleMatch?.[1] || "").trim();
 
     if (!name) {
-      console.error("Could not extract product name from", url);
+      Logger.error(
+        "Could not extract product name",
+        createLogContext("revspin", { url })
+      );
       return null;
     }
 
@@ -430,7 +450,11 @@ export async function fetchProductDetails(
       specifications,
     };
   } catch (error) {
-    console.error(`Error fetching product details from ${url}:`, error);
+    Logger.error(
+      `Error fetching product details from ${url}`,
+      createLogContext("revspin", { url }),
+      error instanceof Error ? error : undefined
+    );
     return null;
   }
 }

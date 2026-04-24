@@ -48,7 +48,7 @@ Goal: fewer lines, fewer places to keep in sync, enforced by CI so drift doesn't
 
 ## Phase 2 — Logger migration + ratchet ESLint `no-console`
 
-**Status:** Not Started.
+**Status:** Completed (TT-8, 2026-04-24).
 
 **Goal:** ~32 remaining `console.*` calls in `app/` that predate the ESLint snapshot. Migrate them, then ratchet the rule so this class can't regress.
 

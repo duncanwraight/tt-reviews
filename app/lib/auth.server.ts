@@ -1,6 +1,7 @@
 // Server-side auth utilities
 import { checkAndPromoteAdmin, getAdminEmails } from "./auto-promote.server";
 import { createSupabaseAdminClient } from "./database.server";
+import { Logger, createLogContext } from "./logger.server";
 import type { AppLoadContext } from "react-router";
 
 // Decode JWT payload on server-side
@@ -25,7 +26,11 @@ export async function getUserRoleFromSession(
       return payload?.user_role || "user";
     }
   } catch (error) {
-    console.error("Error getting user role:", error);
+    Logger.error(
+      "Error getting user role",
+      createLogContext("auth-server"),
+      error instanceof Error ? error : undefined
+    );
   }
   return null;
 }
@@ -84,7 +89,11 @@ export async function getUserWithRole(
       }
     } catch (error) {
       // If JWT decode fails, just use user without role
-      console.error("Error decoding JWT for role:", error);
+      Logger.error(
+        "Error decoding JWT for role",
+        createLogContext("auth-server", { userId: userWithRole?.id }),
+        error instanceof Error ? error : undefined
+      );
     }
   }
 

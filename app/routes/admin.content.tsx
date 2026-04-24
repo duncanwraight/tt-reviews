@@ -1,7 +1,7 @@
 import type { Route } from "./+types/admin.content";
 import { data, redirect } from "react-router";
 import { DatabaseService } from "~/lib/database.server";
-import { createLogContext } from "~/lib/logger.server";
+import { Logger, createLogContext } from "~/lib/logger.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { ContentManager } from "~/components/admin/ContentManager";
@@ -142,7 +142,14 @@ export async function action({ request, context }: Route.ActionArgs) {
         );
     }
   } catch (error) {
-    console.error("Content management error:", error);
+    Logger.error(
+      "Content management error",
+      createLogContext("admin_content_action", {
+        route: "/admin/content",
+        method: request.method,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { error: "Failed to process content action" },
       { status: 500, headers: sbServerClient.headers }

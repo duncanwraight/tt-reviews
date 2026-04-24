@@ -4,6 +4,7 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { LoadingState } from "~/components/ui/LoadingState";
+import { Logger, createLogContext } from "~/lib/logger.server";
 import { data, redirect } from "react-router";
 
 // Lazy load the category manager for better code splitting
@@ -252,7 +253,14 @@ export async function action({ request, context }: Route.ActionArgs) {
         );
     }
   } catch (error) {
-    console.error("Category management error:", error);
+    Logger.error(
+      "Category management error",
+      createLogContext("admin-categories", {
+        route: "/admin/categories",
+        method: request.method,
+      }),
+      error instanceof Error ? error : undefined
+    );
     const errorMessage =
       error instanceof Error
         ? error.message

@@ -21,6 +21,7 @@ import {
 import { validateSubmission } from "~/lib/submissions/validate.server";
 import type { SubmissionType } from "~/lib/types";
 import { PageLayout } from "~/components/layout/PageLayout";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({ params }: Route.MetaArgs) {
   const submissionType = params.type as SubmissionType;
@@ -278,7 +279,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
             ratingCategoriesRaw as string
           );
         } catch (error) {
-          console.error("Error parsing rating categories:", error);
+          Logger.error(
+            "Error parsing rating categories",
+            createLogContext(
+              request.headers.get("X-Request-ID") || "submission-submit",
+              {
+                route: "/submissions/:type/submit",
+                method: request.method,
+                userId: user?.id,
+                submissionType,
+              }
+            ),
+            error instanceof Error ? error : undefined
+          );
           submissionData.category_ratings = {};
         }
       }
@@ -392,7 +405,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           // Store the key in submission data
           submissionData.image_key = key;
         } catch (uploadError) {
-          console.error("Image upload error:", uploadError);
+          Logger.error(
+            "Image upload error",
+            createLogContext(
+              request.headers.get("X-Request-ID") || "submission-submit",
+              {
+                route: "/submissions/:type/submit",
+                method: request.method,
+                userId: user?.id,
+                submissionType,
+              }
+            ),
+            uploadError instanceof Error ? uploadError : undefined
+          );
           // Don't fail the submission if image upload fails, just log it
         }
       }
@@ -409,7 +434,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       .single();
 
     if (submitError) {
-      console.error("Database submission error:", submitError);
+      Logger.error(
+        "Database submission error",
+        createLogContext(
+          request.headers.get("X-Request-ID") || "submission-submit",
+          {
+            route: "/submissions/:type/submit",
+            method: request.method,
+            userId: user?.id,
+            submissionType,
+          }
+        ),
+        submitError instanceof Error ? submitError : undefined
+      );
       return data(
         { error: "Failed to submit. Please try again." },
         { status: 500, headers: sbServerClient.headers }
@@ -418,10 +455,14 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Send Discord notification using unified system
     const requestId = request.headers.get("X-Request-ID") || "unknown";
-    // eslint-disable-next-line no-console
-    console.log(
-      `[Discord] Starting notification for ${submissionType}, submission ID: ${submission?.id}`
-    );
+    const discordLogContext = createLogContext(requestId, {
+      route: "/submissions/:type/submit",
+      method: request.method,
+      userId: user?.id,
+      submissionType,
+      submissionId: submission?.id,
+    });
+    Logger.info("Discord notification starting", discordLogContext);
     try {
       const discordService = new DiscordService(context);
 
@@ -444,13 +485,13 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         notificationData,
         requestId
       );
-      // eslint-disable-next-line no-console
-      console.log(`[Discord] Notification result:`, JSON.stringify(result));
+      Logger.info("Discord notification result", discordLogContext, { result });
     } catch (error) {
       // Discord notification failure should not block the submission
-      console.error(
-        "[Discord] Notification error:",
-        error instanceof Error ? error.message : String(error)
+      Logger.error(
+        "Discord notification error",
+        discordLogContext,
+        error instanceof Error ? error : undefined
       );
     }
 
@@ -462,7 +503,17 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       { headers: sbServerClient.headers }
     );
   } catch (error) {
-    console.error("Submission processing error:", error);
+    Logger.error(
+      "Submission processing error",
+      createLogContext(
+        request.headers.get("X-Request-ID") || "submission-submit",
+        {
+          route: "/submissions/:type/submit",
+          method: request.method,
+        }
+      ),
+      error instanceof Error ? error : undefined
+    );
     return data(
       { error: "Failed to submit. Please try again." },
       { status: 500, headers: sbServerClient.headers }

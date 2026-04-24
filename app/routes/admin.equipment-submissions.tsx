@@ -191,7 +191,17 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     if (!result.success) {
-      console.error("Moderation failed:", result.error);
+      Logger.error(
+        "Moderation failed",
+        createLogContext("admin-equipment-submissions", {
+          route: "/admin/equipment-submissions",
+          method: request.method,
+          userId: user?.id,
+          submissionId,
+        }),
+        undefined,
+        { error: result.error }
+      );
       return data(
         { error: result.error || "Operation failed" },
         { status: 500, headers: sbServerClient.headers }
@@ -202,7 +212,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       headers: sbServerClient.headers,
     });
   } catch (error) {
-    console.error("Admin equipment action error:", error);
+    Logger.error(
+      "Admin equipment action error",
+      createLogContext("admin-equipment-submissions", {
+        route: "/admin/equipment-submissions",
+        method: request.method,
+      }),
+      error instanceof Error ? error : undefined
+    );
     return data({ error: "Internal server error" }, { status: 500 });
   }
 }

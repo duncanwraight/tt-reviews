@@ -1,3 +1,4 @@
+import { Logger, createLogContext } from "../logger.server";
 import type { DiscordContext } from "./types";
 
 /**
@@ -116,7 +117,11 @@ export async function searchEquipment(
           : ""),
     };
   } catch (error) {
-    console.error("Equipment search error:", error);
+    Logger.error(
+      "Equipment search error",
+      createLogContext("discord-search", { query }),
+      error instanceof Error ? error : undefined
+    );
     return {
       content: "❌ Error searching equipment. Please try again later.",
     };
@@ -159,7 +164,11 @@ export async function searchPlayer(
           : ""),
     };
   } catch (error) {
-    console.error("Player search error:", error);
+    Logger.error(
+      "Player search error",
+      createLogContext("discord-search", { query }),
+      error instanceof Error ? error : undefined
+    );
     return {
       content: "❌ Error searching players. Please try again later.",
     };

@@ -43,7 +43,7 @@ export default tseslint.config(
       // with eslint-disable-next-line so `error` here only catches
       // NEW instances.
       "@typescript-eslint/no-explicit-any": "error",
-      "no-console": ["error", { allow: ["error"] }],
+      "no-console": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
