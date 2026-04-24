@@ -245,7 +245,7 @@ export class DatabaseService {
   }
 
   async getDiscordMessageId(
-    submissionType: submissions.SubmissionType,
+    submissionType: submissions.CoreSubmissionType,
     submissionId: string
   ): Promise<string | null> {
     return submissions.getDiscordMessageId(

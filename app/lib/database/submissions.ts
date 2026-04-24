@@ -1,4 +1,5 @@
 import { Logger } from "~/lib/logger.server";
+import type { SubmissionType } from "~/lib/submissions/types";
 import type {
   DatabaseContext,
   EquipmentSubmission,
@@ -6,9 +7,18 @@ import type {
 } from "./types";
 import { withLogging } from "./logging";
 
-export type SubmissionType = "equipment" | "player" | "player_edit" | "video";
+// Narrow subset of the canonical SubmissionType covering the four legacy
+// tables this module routes to. Derived from the canonical tuple so adding
+// a value to SUBMISSION_TYPE_VALUES can't silently un-sync this list —
+// removing one of these four from the tuple surfaces as a compile error.
+export type CoreSubmissionType = Extract<
+  SubmissionType,
+  "equipment" | "player" | "player_edit" | "video"
+>;
 
-export function getSubmissionTableName(submissionType: SubmissionType): string {
+export function getSubmissionTableName(
+  submissionType: CoreSubmissionType
+): string {
   switch (submissionType) {
     case "equipment":
       return "equipment_submissions";
@@ -114,7 +124,7 @@ export async function getUserPlayerSubmissions(
  */
 export async function getDiscordMessageId(
   ctx: DatabaseContext,
-  submissionType: SubmissionType,
+  submissionType: CoreSubmissionType,
   submissionId: string
 ): Promise<string | null> {
   const logContext = ctx.context || { requestId: "unknown" };

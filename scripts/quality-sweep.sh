@@ -111,6 +111,50 @@ $RECORD_ANY_HITS"
 fi
 
 # ----------------------------------------------------------------------
+# 3. Hard-coded compound submission-type literals outside allow-listed files.
+#
+# QUALITY.md Phase 4 pinned submission types in SUBMISSION_TYPE_VALUES
+# (app/lib/submissions/types.ts). The compound values "player_edit" and
+# "player_equipment_setup" are unambiguous enough to grep for — their
+# single-word siblings ("equipment", "player", "video", "review") collide
+# with domain vocabulary, so they're locked via the type system instead
+# (database/submissions.ts's CoreSubmissionType uses Extract<SubmissionType,…>).
+#
+# Legitimate uses today (the allow-list below):
+#   - The tuple itself
+#   - SUBMISSION_REGISTRY entries (the type field *is* the literal)
+#   - switch/case and equality checks for control-flow narrowing
+#   - Admin routes specialised to one submission type
+#   - The profile component listing submissions by type
+# A new file gaining one of these literals usually means someone typed
+# a submission type instead of importing SUBMISSION_TYPE_VALUES.
+# ----------------------------------------------------------------------
+echo "→ Checking for hard-coded compound submission-type literals..."
+
+# File paths allowed to reference the compound literals directly.
+# Renames land as a phantom violation here + an allow-list diff; keep them
+# in lockstep.
+ALLOWED_SUBMISSION_LITERAL_FILES='^(app/components/profile/UserSubmissions\.tsx|app/lib/database/submissions\.ts|app/lib/discord/messages\.ts|app/lib/discord/moderation\.ts|app/lib/discord/notifications\.ts|app/lib/discord/types\.ts|app/lib/moderation\.server\.ts|app/lib/submissions/discord-format\.ts|app/lib/submissions/field-loaders\.server\.ts|app/lib/submissions/registry\.ts|app/lib/submissions/types\.ts|app/routes/admin\.player-edits\.tsx|app/routes/admin\.player-equipment-setups\.tsx|app/routes/submissions\.\$type\.submit\.tsx):'
+
+SUBMISSION_LITERAL_HITS=$(grep -rnE '"(player_edit|player_equipment_setup)"' \
+  app/ workers/ \
+  --include='*.ts' --include='*.tsx' 2>/dev/null \
+  | grep -v '__tests__/' \
+  | grep -vE '\.test\.tsx?:' \
+  | grep -vE "$ALLOWED_SUBMISSION_LITERAL_FILES" \
+  || true)
+
+if [ -n "$SUBMISSION_LITERAL_HITS" ]; then
+  report "Hard-coded submission-type literal" \
+    "Use SUBMISSION_TYPE_VALUES (app/lib/submissions/types.ts) or the canonical SubmissionType
+instead of a string literal. If this file legitimately needs the literal for control-flow
+narrowing or registry definition, add its path to ALLOWED_SUBMISSION_LITERAL_FILES in
+scripts/quality-sweep.sh with a one-line justification in the diff.
+
+$SUBMISSION_LITERAL_HITS"
+fi
+
+# ----------------------------------------------------------------------
 # File-length report (non-fatal).
 #
 # Files over 400 LOC under app/lib/ or app/routes/ are prompts to split —

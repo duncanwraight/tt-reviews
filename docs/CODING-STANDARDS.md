@@ -12,6 +12,7 @@ Each rule below has a matching enforcer that runs in `.github/workflows/main.yml
 | No RLS self-approval / `process.env` on server / admin action without CSRF gate  | `scripts/security-sweep.sh`                                               |
 | No raw `console.*` / `Record<string, any[]>` generic-any casts                   | `scripts/quality-sweep.sh`                                                |
 | Single source of truth for `SUBMISSION_TYPE_VALUES` (registry keys + DB `CHECK`) | `app/lib/submissions/__tests__/registry.test.ts`                          |
+| No hard-coded compound submission-type literals in new files                     | `scripts/quality-sweep.sh` (allow-listed files in the script)             |
 | Dead exports / unused deps                                                       | `npm run deadcode` (knip) — non-blocking CI warning                       |
 | File length > 400 LOC under `app/lib/`, `app/routes/`                            | `scripts/quality-sweep.sh` — non-fatal report, prompt to split            |
 

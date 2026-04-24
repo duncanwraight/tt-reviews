@@ -24,7 +24,7 @@ Goal: fewer lines, fewer places to keep in sync, enforced by CI so drift doesn't
 
 ## Phase 1 — Create CODING-STANDARDS.md
 
-**Status:** Not Started.
+**Status:** Completed. `docs/CODING-STANDARDS.md` exists and is referenced from `CLAUDE.md`.
 
 **Goal:** CLAUDE.md points at a file that doesn't exist. Either create it or remove the reference. Creating it is the right call — it's the single doc that will shape every future code change.
 
@@ -101,7 +101,7 @@ Goal: fewer lines, fewer places to keep in sync, enforced by CI so drift doesn't
 
 ## Phase 4 — Type union audit
 
-**Status:** Not Started.
+**Status:** Completed (TT-10 + TT-27, 2026-04-24). `SUBMISSION_TYPE_VALUES` in `app/lib/submissions/types.ts` is the single source of truth; the duplicate `SubmissionType` in `app/lib/database/submissions.ts` now derives from it via `Extract<...>` and is renamed `CoreSubmissionType` to avoid name collision. Phase 7's matching grep guard shipped alongside.
 
 **Goal:** `SubmissionType` in `app/lib/types.ts:L22-28` disagrees with the string literals used in admin queries (`admin.equipment-reviews.tsx:L58` uses `"equipment_review"`, not in the union). CLAUDE.md already flags this class of drift as a common failure mode. Pin submission types in one constant, then grep-lock them.
 
@@ -172,7 +172,7 @@ Goal: fewer lines, fewer places to keep in sync, enforced by CI so drift doesn't
 
 ## Phase 7 — Mechanical enforcement
 
-**Status:** Not Started.
+**Status:** Mostly completed across TT-8, TT-9, TT-13, TT-27. Console check and Record<string, any[]> check live in `scripts/quality-sweep.sh`; file-length warning runs as non-fatal report; submission-type literal guard added in TT-27 using an allow-list of files where the literals are legitimate. `npm run deadcode` (knip) runs non-blocking in CI. Not yet landed: a `docs/CODING-STANDARDS.md` back-pointer to each check — superseded by the table at the top of that doc, which already catalogues them.
 
 **Goal:** Turn the drift patterns from Phases 1-6 into CI checks, so quality doesn't rely on anyone remembering.
 
