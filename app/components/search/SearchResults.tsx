@@ -1,4 +1,5 @@
 import type { Equipment, Player } from "~/lib/database.server";
+import { Package, Users } from "lucide-react";
 import { SearchFilters } from "./SearchFilters";
 import { ResultsSection } from "./ResultsSection";
 
@@ -22,7 +23,7 @@ export function SearchResults({ results }: SearchResultsProps) {
                 title="Equipment"
                 items={results.equipment}
                 type="equipment"
-                icon="🏓"
+                icon={Package}
               />
             )}
 
@@ -31,7 +32,7 @@ export function SearchResults({ results }: SearchResultsProps) {
                 title="Players"
                 items={results.players}
                 type="players"
-                icon="👤"
+                icon={Users}
               />
             )}
           </div>

@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { SearchX } from "lucide-react";
 
 interface NoResultsProps {
   query: string;
@@ -15,7 +16,11 @@ export function NoResults({ query }: NoResultsProps) {
   return (
     <section className="no-results py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="text-6xl text-gray-300 mb-6">🔍</div>
+        <SearchX
+          className="size-16 text-gray-300 mx-auto mb-6"
+          aria-hidden
+          strokeWidth={1.5}
+        />
         <h2 className="text-2xl font-semibold text-gray-900 mb-4">
           No results found
         </h2>

@@ -33,6 +33,7 @@
     "@supabase/supabase-js": "^2.48.1",
     "@types/sanitize-html": "^2.16.1",
     "isbot": "^5.1.27",
+    "lucide-react": "^1.11.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^7.14.2",

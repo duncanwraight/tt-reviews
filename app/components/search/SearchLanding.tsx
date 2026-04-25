@@ -24,17 +24,16 @@ export function SearchLanding() {
 
         <div className="popular-categories grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {[
-            { name: "Blades", icon: "🏓", href: "/equipment?category=blade" },
-            { name: "Rubbers", icon: "🔴", href: "/equipment?category=rubber" },
-            { name: "Balls", icon: "🟠", href: "/equipment?category=ball" },
-            { name: "Players", icon: "👤", href: "/players" },
+            { name: "Blades", href: "/equipment?category=blade" },
+            { name: "Rubbers", href: "/equipment?category=rubber" },
+            { name: "Balls", href: "/equipment?category=ball" },
+            { name: "Players", href: "/players" },
           ].map(category => (
             <Link
               key={category.name}
               to={category.href}
               className="category-quick-link bg-white rounded-lg p-6 text-center border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all duration-200 block"
             >
-              <div className="text-3xl mb-2">{category.icon}</div>
               <h3 className="font-semibold text-gray-900">{category.name}</h3>
             </Link>
           ))}

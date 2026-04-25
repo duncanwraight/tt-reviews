@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import type { Equipment, Player } from "~/lib/database.server";
 import { LazyImage } from "~/components/ui/LazyImage";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 
 interface ResultCardProps {
   item: Equipment | Player;
@@ -11,26 +12,11 @@ function isPlayer(item: Equipment | Player): item is Player {
   return "highest_rating" in item || "playing_style" in item;
 }
 
-// Get category-specific icon for equipment
-function getEquipmentIcon(category: string): string {
-  switch (category) {
-    case "blade":
-      return "🏓";
-    case "rubber":
-      return "⚫";
-    case "ball":
-      return "🟠";
-    default:
-      return "📋";
-  }
-}
-
 export function ResultCard({ item, type }: ResultCardProps) {
   const href = `/${type}/${item.slug}`;
 
   if (type === "equipment" && !isPlayer(item)) {
     const equipment = item as Equipment;
-    const categoryIcon = getEquipmentIcon(equipment.category);
     const imageUrl = equipment.image_key
       ? `/api/images/${equipment.image_key}`
       : null;
@@ -42,7 +28,7 @@ export function ResultCard({ item, type }: ResultCardProps) {
       >
         <div className="flex items-center gap-4">
           {/* Equipment Image/Icon */}
-          <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+          <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
             {imageUrl ? (
               <LazyImage
                 src={imageUrl}
@@ -50,11 +36,14 @@ export function ResultCard({ item, type }: ResultCardProps) {
                 className="w-full h-full"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <span className="text-3xl text-gray-300">{categoryIcon}</span>
+                  <ImagePlaceholder
+                    kind="equipment"
+                    className="w-full h-full"
+                  />
                 }
               />
             ) : (
-              <span className="text-3xl text-gray-300">{categoryIcon}</span>
+              <ImagePlaceholder kind="equipment" className="w-full h-full" />
             )}
           </div>
 
@@ -84,7 +73,7 @@ export function ResultCard({ item, type }: ResultCardProps) {
       >
         <div className="flex items-center gap-4">
           {/* Player Image/Icon */}
-          <div className="flex-shrink-0 w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+          <div className="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden">
             {imageUrl ? (
               <LazyImage
                 src={imageUrl}
@@ -92,11 +81,17 @@ export function ResultCard({ item, type }: ResultCardProps) {
                 className="w-full h-full rounded-full"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <span className="text-3xl text-gray-300">👤</span>
+                  <ImagePlaceholder
+                    kind="player"
+                    className="w-full h-full rounded-full"
+                  />
                 }
               />
             ) : (
-              <span className="text-3xl text-gray-300">👤</span>
+              <ImagePlaceholder
+                kind="player"
+                className="w-full h-full rounded-full"
+              />
             )}
           </div>
 

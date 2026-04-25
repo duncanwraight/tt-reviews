@@ -11,6 +11,7 @@ import { ComparisonCard } from "~/components/equipment/ComparisonCard";
 import { SafeHtml } from "~/lib/sanitize";
 import { PageSection } from "~/components/layout/PageSection";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { SearchX } from "lucide-react";
 
 interface EquipmentDisplay {
   id: string;
@@ -148,19 +149,6 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
 
   const { content } = useContent();
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "blade":
-        return "🏓";
-      case "rubber":
-        return "⚫";
-      case "ball":
-        return "🟠";
-      default:
-        return "📋";
-    }
-  };
-
   const getCategoryName = (category: string) => {
     switch (category) {
       case "blade":
@@ -186,21 +174,6 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
         return "Short Pips";
       default:
         return subcategory.charAt(0).toUpperCase() + subcategory.slice(1);
-    }
-  };
-
-  const getSubcategoryIcon = (subcategory: string) => {
-    switch (subcategory) {
-      case "inverted":
-        return "🔴";
-      case "long_pips":
-        return "📍";
-      case "anti":
-        return "⚪";
-      case "short_pips":
-        return "🔵";
-      default:
-        return "⚫";
     }
   };
 
@@ -319,10 +292,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  <span className="flex items-center">
-                    <span className="mr-3">📋</span>
-                    All Equipment
-                  </span>
+                  <span>All Equipment</span>
                   <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
                     {categories.reduce((sum, cat) => sum + cat.count, 0)}
                   </span>
@@ -337,12 +307,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
-                    <span className="flex items-center">
-                      <span className="mr-3">
-                        {getCategoryIcon(cat.category)}
-                      </span>
-                      {getCategoryName(cat.category)}
-                    </span>
+                    <span>{getCategoryName(cat.category)}</span>
                     <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
                       {cat.count}
                     </span>
@@ -366,12 +331,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
-                    <span className="flex items-center">
-                      <span className="mr-3">
-                        {getCategoryIcon(currentCategory)}
-                      </span>
-                      All {getCategoryName(currentCategory)}
-                    </span>
+                    <span>All {getCategoryName(currentCategory)}</span>
                     <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
                       {categories.find(c => c.category === currentCategory)
                         ?.count || 0}
@@ -387,12 +347,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
-                      <span className="flex items-center">
-                        <span className="mr-3">
-                          {getSubcategoryIcon(subcat.subcategory)}
-                        </span>
-                        {getSubcategoryName(subcat.subcategory)}
-                      </span>
+                      <span>{getSubcategoryName(subcat.subcategory)}</span>
                       <span className="text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
                         {subcat.count}
                       </span>
@@ -484,7 +439,11 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
               </>
             ) : (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🔍</div>
+                <SearchX
+                  className="size-16 text-gray-300 mx-auto mb-4"
+                  aria-hidden
+                  strokeWidth={1.5}
+                />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
                   No equipment found
                 </h3>

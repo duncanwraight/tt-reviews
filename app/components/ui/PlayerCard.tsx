@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { memo, useMemo, useCallback } from "react";
 import { LazyImage } from "./LazyImage";
+import { ImagePlaceholder } from "./ImagePlaceholder";
 import { formatDate } from "~/lib/date";
 
 // Minimum fields required for PlayerCard display
@@ -69,15 +70,19 @@ export const PlayerCard = memo(function PlayerCard({
                 className="w-16 h-16 rounded-full"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl text-gray-400">
-                    👤
-                  </div>
+                  <ImagePlaceholder
+                    kind="player"
+                    className="w-16 h-16 rounded-full"
+                    iconClassName="size-7"
+                  />
                 }
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl text-gray-400">
-                👤
-              </div>
+              <ImagePlaceholder
+                kind="player"
+                className="w-16 h-16 rounded-full"
+                iconClassName="size-7"
+              />
             )}
           </div>
 

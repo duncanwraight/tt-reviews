@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface RatingCategory {
   name: string;
@@ -67,7 +68,7 @@ export function RatingCategories({
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex items-center space-x-2">
-          <span className="text-yellow-600">⚠️</span>
+          <AlertTriangle className="size-5 text-yellow-600" aria-hidden />
           <div>
             <p className="text-sm font-medium text-yellow-800">
               Rating categories not available

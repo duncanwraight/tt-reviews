@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { LazyImage } from "~/components/ui/LazyImage";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 import type { ComparisonItem } from "./comparison-types";
 
 interface ComparisonHeaderProps {
@@ -38,7 +39,7 @@ export function ComparisonHeader({ items }: ComparisonHeaderProps) {
           key={equipment.id}
           className="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-white p-5"
         >
-          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg">
             {equipment.image_key ? (
               <LazyImage
                 src={`/api/images/${equipment.image_key}`}
@@ -47,7 +48,11 @@ export function ComparisonHeader({ items }: ComparisonHeaderProps) {
                 placeholder="skeleton"
               />
             ) : (
-              <span className="text-4xl text-gray-300">🏓</span>
+              <ImagePlaceholder
+                kind="equipment"
+                className="h-full w-full"
+                iconClassName="size-10"
+              />
             )}
           </div>
           <div className="min-w-0">

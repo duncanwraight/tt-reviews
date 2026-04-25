@@ -6,6 +6,8 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import { CheckCircle2, XCircle, Clock, Inbox, ListChecks } from "lucide-react";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import {
   ensureAdminAction,
@@ -278,19 +280,6 @@ export default function AdminEquipmentSubmissions({
     return submission.status !== "approved" && submission.status !== "rejected";
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "blade":
-        return "🏓";
-      case "rubber":
-        return "⚫";
-      case "ball":
-        return "🟠";
-      default:
-        return "📋";
-    }
-  };
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderSubmissionItem = (submission: any) => (
     <li key={submission.id}>
@@ -304,9 +293,10 @@ export default function AdminEquipmentSubmissions({
                 className="w-16 h-16 object-cover rounded-md mr-3 border border-gray-200"
               />
             ) : (
-              <span className="text-2xl mr-3">
-                {getCategoryIcon(submission.category)}
-              </span>
+              <ImagePlaceholder
+                kind="equipment"
+                className="w-16 h-16 rounded-md mr-3 border border-gray-200"
+              />
             )}
             <div>
               <p className="text-sm font-medium text-gray-900">
@@ -471,7 +461,7 @@ export default function AdminEquipmentSubmissions({
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">⏳</span>
+              <Clock className="size-6 text-yellow-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-yellow-800">
@@ -486,7 +476,7 @@ export default function AdminEquipmentSubmissions({
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">✅</span>
+              <CheckCircle2 className="size-6 text-green-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">Approved</p>
@@ -502,7 +492,7 @@ export default function AdminEquipmentSubmissions({
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">❌</span>
+              <XCircle className="size-6 text-red-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">Rejected</p>
@@ -528,7 +518,11 @@ export default function AdminEquipmentSubmissions({
 
       {submissions.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📋</div>
+          <Inbox
+            className="size-16 text-gray-300 mx-auto mb-4"
+            aria-hidden
+            strokeWidth={1.5}
+          />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             No submissions found
           </h3>
@@ -542,8 +536,8 @@ export default function AdminEquipmentSubmissions({
           {pendingSubmissions.length > 0 && (
             <div>
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <span className="text-2xl mr-2">⏳</span>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Clock className="size-5 text-yellow-600" aria-hidden />
                   Pending Review ({pendingSubmissions.length})
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
@@ -562,8 +556,8 @@ export default function AdminEquipmentSubmissions({
           {processedSubmissions.length > 0 && (
             <div>
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <span className="text-2xl mr-2">📋</span>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <ListChecks className="size-5 text-gray-600" aria-hidden />
                   Recently Processed ({processedSubmissions.length})
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">

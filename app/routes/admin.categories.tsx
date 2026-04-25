@@ -6,6 +6,7 @@ import { createCategoryService } from "~/lib/categories.server";
 import { LoadingState } from "~/components/ui/LoadingState";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { data, redirect } from "react-router";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 // Lazy load the category manager for better code splitting
 const CategoryManager = lazy(() =>
@@ -314,7 +315,7 @@ export default function AdminCategories({
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex">
             <div className="flex-shrink-0">
-              <span className="text-green-600 text-xl">✅</span>
+              <CheckCircle2 className="size-5 text-green-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm text-green-800">{actionData.message}</p>
@@ -327,7 +328,7 @@ export default function AdminCategories({
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex">
             <div className="flex-shrink-0">
-              <span className="text-red-600 text-xl">❌</span>
+              <XCircle className="size-5 text-red-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-800">{actionData.error}</p>

@@ -5,6 +5,7 @@ import {
   useComparison,
 } from "~/contexts/ComparisonContext";
 import { LazyImage } from "~/components/ui/LazyImage";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 
 export function ComparisonTray() {
   const {
@@ -38,7 +39,7 @@ export function ComparisonTray() {
               key={item.id}
               className="flex min-w-0 items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-2 sm:pr-3"
             >
-              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
                 {item.image_key ? (
                   <LazyImage
                     src={`/api/images/${item.image_key}`}
@@ -47,7 +48,11 @@ export function ComparisonTray() {
                     placeholder="skeleton"
                   />
                 ) : (
-                  <span className="text-sm">🏓</span>
+                  <ImagePlaceholder
+                    kind="equipment"
+                    className="h-full w-full rounded-full"
+                    iconClassName="size-3.5"
+                  />
                 )}
               </span>
               <span className="max-w-[8rem] truncate text-xs text-gray-800 sm:max-w-[10rem] sm:text-sm">

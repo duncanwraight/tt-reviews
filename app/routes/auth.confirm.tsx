@@ -5,6 +5,7 @@ import type { Route } from "./+types/auth.confirm";
 import { Navigation } from "~/components/ui/Navigation";
 import { Footer } from "~/components/ui/Footer";
 import { data } from "react-router";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -139,7 +140,11 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
 
             {status === "success" && (
               <>
-                <span className="text-6xl mb-4 block">✅</span>
+                <CheckCircle2
+                  className="size-16 text-green-500 mx-auto mb-4"
+                  aria-hidden
+                  strokeWidth={1.5}
+                />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Email Confirmed!
                 </h1>
@@ -152,7 +157,11 @@ export default function AuthConfirm({ loaderData }: Route.ComponentProps) {
 
             {status === "error" && (
               <>
-                <span className="text-6xl mb-4 block">❌</span>
+                <XCircle
+                  className="size-16 text-red-500 mx-auto mb-4"
+                  aria-hidden
+                  strokeWidth={1.5}
+                />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Confirmation Failed
                 </h1>

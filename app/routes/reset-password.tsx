@@ -5,6 +5,7 @@ import type { Route } from "./+types/reset-password";
 import { Navigation } from "~/components/ui/Navigation";
 import { Footer } from "~/components/ui/Footer";
 import { data } from "react-router";
+import { CheckCircle2, XCircle, KeyRound } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -163,7 +164,11 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <span className="text-6xl mb-4 block">🔑</span>
+            <KeyRound
+              className="size-16 text-purple-600 mx-auto mb-4"
+              aria-hidden
+              strokeWidth={1.5}
+            />
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Reset Your Password
             </h1>
@@ -234,7 +239,11 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
 
             {status === "success" && (
               <div className="text-center">
-                <span className="text-6xl mb-4 block">✅</span>
+                <CheckCircle2
+                  className="size-16 text-green-500 mx-auto mb-4"
+                  aria-hidden
+                  strokeWidth={1.5}
+                />
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
                   Password Updated!
                 </h2>
@@ -247,7 +256,11 @@ export default function ResetPassword({ loaderData }: Route.ComponentProps) {
 
             {status === "error" && (
               <div className="text-center">
-                <span className="text-6xl mb-4 block">❌</span>
+                <XCircle
+                  className="size-16 text-red-500 mx-auto mb-4"
+                  aria-hidden
+                  strokeWidth={1.5}
+                />
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
                   Reset Failed
                 </h2>

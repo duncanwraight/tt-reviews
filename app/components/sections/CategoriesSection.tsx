@@ -18,7 +18,6 @@ export function CategoriesSection() {
             to="/equipment?category=blade"
             className="group bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-red-200"
           >
-            <div className="text-4xl mb-4">🏓</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition-colors">
               Blades
             </h3>
@@ -32,7 +31,6 @@ export function CategoriesSection() {
             to="/equipment?category=rubber&subcategory=inverted"
             className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-blue-200"
           >
-            <div className="text-4xl mb-4">⚫</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
               Inverted Rubber
             </h3>
@@ -46,7 +44,6 @@ export function CategoriesSection() {
             to="/equipment?category=rubber&subcategory=long_pips"
             className="group bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-green-200"
           >
-            <div className="text-4xl mb-4">🔴</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
               Long Pips
             </h3>
@@ -60,7 +57,6 @@ export function CategoriesSection() {
             to="/equipment?category=rubber&subcategory=short_pips"
             className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-purple-200"
           >
-            <div className="text-4xl mb-4">🟣</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
               Short Pips
             </h3>
@@ -74,7 +70,6 @@ export function CategoriesSection() {
             to="/equipment?category=rubber&subcategory=anti"
             className="group bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-orange-200"
           >
-            <div className="text-4xl mb-4">🟤</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
               Anti-Spin
             </h3>

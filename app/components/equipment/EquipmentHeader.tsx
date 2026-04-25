@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
 import { LazyImage } from "../ui/LazyImage";
+import { ImagePlaceholder } from "../ui/ImagePlaceholder";
 
 interface Equipment {
   id: string;
@@ -31,19 +32,6 @@ export function EquipmentHeader({
   reviewCount = 0,
   usedByPlayers = [],
 }: EquipmentHeaderProps) {
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "blade":
-        return "🏓";
-      case "rubber":
-        return "⚫";
-      case "ball":
-        return "🟠";
-      default:
-        return "📋";
-    }
-  };
-
   const getCategoryName = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1);
   };
@@ -71,16 +59,18 @@ export function EquipmentHeader({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="h-64 overflow-hidden">
+        <div className="h-64 overflow-hidden rounded-lg">
           <LazyImage
             src={imageUrl || ""}
             alt={`${equipment.name} by ${equipment.manufacturer}`}
             className="w-full h-full"
             placeholder="skeleton"
             fallbackIcon={
-              <span className="text-6xl">
-                {getCategoryIcon(equipment.category)}
-              </span>
+              <ImagePlaceholder
+                kind="equipment"
+                className="w-full h-full"
+                iconClassName="size-16"
+              />
             }
           />
         </div>

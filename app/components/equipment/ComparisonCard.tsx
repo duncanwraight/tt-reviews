@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { MAX_SELECTION, useComparison } from "~/contexts/ComparisonContext";
 import { LazyImage } from "~/components/ui/LazyImage";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 
 interface Equipment {
   id: string;
@@ -48,19 +49,6 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
     e.stopPropagation();
     if (compatible) {
       toggleEquipment(equipment);
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "blade":
-        return "🏓";
-      case "rubber":
-        return "⚫";
-      case "ball":
-        return "🟠";
-      default:
-        return "📋";
     }
   };
 
@@ -131,7 +119,7 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
       <Link to={`/equipment/${equipment.slug}`} className="block p-6">
         <div className="flex items-start space-x-4">
           {/* Equipment Image/Icon */}
-          <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+          <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
             {equipment.image_key ? (
               <LazyImage
                 src={`/api/images/${equipment.image_key}`}
@@ -139,15 +127,14 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
                 className="w-full h-full"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <span className="text-3xl text-gray-300">
-                    {getCategoryIcon(equipment.category)}
-                  </span>
+                  <ImagePlaceholder
+                    kind="equipment"
+                    className="w-full h-full"
+                  />
                 }
               />
             ) : (
-              <span className="text-3xl text-gray-300">
-                {getCategoryIcon(equipment.category)}
-              </span>
+              <ImagePlaceholder kind="equipment" className="w-full h-full" />
             )}
           </div>
 

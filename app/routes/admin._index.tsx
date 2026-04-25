@@ -4,6 +4,8 @@ import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import { AlertTriangle, Package, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 // Helper function to get dashboard counts using admin client
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,18 +355,23 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
     },
   ];
 
-  const contentStats = [
+  const contentStats: Array<{
+    title: string;
+    count: number;
+    icon: LucideIcon;
+    color: string;
+  }> = [
     {
       title: "Total Equipment",
       count: stats.equipment,
-      icon: "🏓",
-      color: "bg-orange-100 text-orange-800",
+      icon: Package,
+      color: "bg-orange-100 text-orange-700",
     },
     {
       title: "Total Players",
       count: stats.players,
-      icon: "👤",
-      color: "bg-indigo-100 text-indigo-800",
+      icon: Users,
+      color: "bg-indigo-100 text-indigo-700",
     },
   ];
 
@@ -385,7 +392,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
               <div className="flex-shrink-0">
-                <span className="text-yellow-600 text-xl">⚠️</span>
+                <AlertTriangle className="size-5 text-yellow-600" aria-hidden />
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">
@@ -470,7 +477,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
             {contentStats.map((stat, index) => (
               <div key={index} className="flex items-center">
                 <div className={`${stat.color} rounded-lg p-3 mr-4`}>
-                  <span className="text-2xl">{stat.icon}</span>
+                  <stat.icon className="size-6" aria-hidden />
                 </div>
                 <div>
                   <div className="text-2xl font-semibold text-gray-900">

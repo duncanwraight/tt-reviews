@@ -28,15 +28,16 @@ export function Navigation({ user }: NavigationProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Brand */}
-          <Link to="/" className="flex items-center space-x-2">
-            <span
-              className={`text-3xl font-extrabold tracking-tight ${
-                isHomepage ? "text-purple-600" : "text-white"
-              }`}
-            >
-              TT Reviews
-            </span>
-            <span className="text-xl">🏓</span>
+          <Link
+            to="/"
+            className="flex items-center"
+            aria-label="tabletennis.reviews home"
+          >
+            <img
+              src="/logo-banner.png"
+              alt="tabletennis.reviews"
+              className={`h-10 w-auto sm:h-12 ${isHomepage ? "invert" : ""}`}
+            />
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,5 +1,6 @@
 import type { Player } from "~/lib/types";
 import { LazyImage } from "../ui/LazyImage";
+import { ImagePlaceholder } from "../ui/ImagePlaceholder";
 
 interface PlayerHeaderProps {
   player: Player;
@@ -55,13 +56,19 @@ export function PlayerHeader({
                 className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
                 placeholder="skeleton"
                 fallbackIcon={
-                  <span className="text-6xl text-gray-400">📷</span>
+                  <ImagePlaceholder
+                    kind="player"
+                    className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
+                    iconClassName="size-14"
+                  />
                 }
               />
             ) : (
-              <div className="w-36 h-36 bg-gray-200 rounded-lg flex items-center justify-center text-6xl text-gray-400 mx-auto lg:mx-0">
-                📷
-              </div>
+              <ImagePlaceholder
+                kind="player"
+                className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
+                iconClassName="size-14"
+              />
             )}
           </div>
 

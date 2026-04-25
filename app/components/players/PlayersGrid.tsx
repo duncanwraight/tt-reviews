@@ -1,5 +1,6 @@
 import type { Player } from "~/lib/database.server";
 import { PlayerCard } from "~/components/ui/PlayerCard";
+import { Users } from "lucide-react";
 
 interface PlayersGridProps {
   players: Player[];
@@ -9,7 +10,11 @@ export function PlayersGrid({ players }: PlayersGridProps) {
   if (players.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 text-6xl mb-4">🏓</div>
+        <Users
+          className="size-16 text-gray-300 mx-auto mb-4"
+          aria-hidden
+          strokeWidth={1.5}
+        />
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
           No Players Yet
         </h3>

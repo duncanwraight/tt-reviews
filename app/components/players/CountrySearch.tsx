@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
+import { Search } from "lucide-react";
 
 interface CountrySearchProps {
   countries: string[];
@@ -123,7 +124,7 @@ export function CountrySearch({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-          🔍
+          <Search className="size-4" aria-hidden />
         </div>
 
         {isOpen && filteredCountries.length > 0 && (

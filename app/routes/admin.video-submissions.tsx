@@ -6,6 +6,16 @@ import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ListChecks,
+  Film,
+  CirclePlay,
+  Video,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import {
   ensureAdminAction,
@@ -239,14 +249,14 @@ export default function AdminVideoSubmissions({
     return submission.status !== "approved" && submission.status !== "rejected";
   };
 
-  const getPlatformIcon = (platform: string) => {
+  const getPlatformIcon = (platform: string): LucideIcon => {
     switch (platform) {
       case "youtube":
-        return "📺";
+        return CirclePlay;
       case "other":
-        return "🎥";
+        return Video;
       default:
-        return "📹";
+        return Film;
     }
   };
 
@@ -255,8 +265,8 @@ export default function AdminVideoSubmissions({
     <li key={submission.id}>
       <div className="px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">🎬</span>
+          <div className="flex items-center gap-3">
+            <Film className="size-6 text-gray-500" aria-hidden />
             <div>
               <p className="text-sm font-medium text-gray-900">
                 Videos for {submission.players.name}
@@ -292,32 +302,36 @@ export default function AdminVideoSubmissions({
               </h4>
               <div className="space-y-2">
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {submission.videos.map((video: any, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-start space-x-3 p-2 bg-white rounded border"
-                  >
-                    <span className="text-lg">
-                      {getPlatformIcon(video.platform)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {video.title}
-                      </p>
-                      <a
-                        href={video.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-800 truncate block"
-                      >
-                        {video.url}
-                      </a>
-                      <p className="text-xs text-gray-500 capitalize">
-                        Platform: {video.platform}
-                      </p>
+                {submission.videos.map((video: any, index: number) => {
+                  const PlatformIcon = getPlatformIcon(video.platform);
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-start space-x-3 p-2 bg-white rounded border"
+                    >
+                      <PlatformIcon
+                        className="size-5 text-gray-500 shrink-0 mt-0.5"
+                        aria-hidden
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {video.title}
+                        </p>
+                        <a
+                          href={video.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 truncate block"
+                        >
+                          {video.url}
+                        </a>
+                        <p className="text-xs text-gray-500 capitalize">
+                          Platform: {video.platform}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -445,7 +459,7 @@ export default function AdminVideoSubmissions({
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">⏳</span>
+              <Clock className="size-6 text-yellow-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-yellow-800">
@@ -460,7 +474,7 @@ export default function AdminVideoSubmissions({
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">✅</span>
+              <CheckCircle2 className="size-6 text-green-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">Approved</p>
@@ -476,7 +490,7 @@ export default function AdminVideoSubmissions({
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl">❌</span>
+              <XCircle className="size-6 text-red-600" aria-hidden />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">Rejected</p>
@@ -500,7 +514,11 @@ export default function AdminVideoSubmissions({
 
       {submissions.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">🎬</div>
+          <Film
+            className="size-16 text-gray-300 mx-auto mb-4"
+            aria-hidden
+            strokeWidth={1.5}
+          />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             No submissions found
           </h3>
@@ -514,8 +532,8 @@ export default function AdminVideoSubmissions({
           {pendingSubmissions.length > 0 && (
             <div>
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <span className="text-2xl mr-2">⏳</span>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Clock className="size-5 text-yellow-600" aria-hidden />
                   Pending Review ({pendingSubmissions.length})
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
@@ -534,8 +552,8 @@ export default function AdminVideoSubmissions({
           {processedSubmissions.length > 0 && (
             <div>
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <span className="text-2xl mr-2">📋</span>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <ListChecks className="size-5 text-gray-600" aria-hidden />
                   Recently Processed ({processedSubmissions.length})
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">

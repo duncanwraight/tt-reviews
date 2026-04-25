@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { FileText } from "lucide-react";
 import { ReviewCard } from "./ReviewCard";
 import { AverageRatings } from "./AverageRatings";
 
@@ -134,7 +135,11 @@ function NoReviewsState({
 }) {
   return (
     <div className="text-center py-12">
-      <div className="text-6xl mb-4">📝</div>
+      <FileText
+        className="size-12 text-gray-300 mx-auto mb-4"
+        aria-hidden
+        strokeWidth={1.5}
+      />
       <h3 className="text-xl font-semibold text-gray-900 mb-2">
         No Reviews Yet
       </h3>

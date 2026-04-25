@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { memo, useMemo } from "react";
 import { LazyImage } from "./LazyImage";
+import { ImagePlaceholder } from "./ImagePlaceholder";
 
 interface EquipmentCardProps {
   equipment: {
@@ -32,26 +33,10 @@ export const EquipmentCard = memo(function EquipmentCard({
     );
   }, [equipment.rating, equipment.reviewCount]);
 
-  // Get category-specific icon
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "blade":
-        return "🏓";
-      case "rubber":
-        return "⚫";
-      case "ball":
-        return "🟠";
-      default:
-        return "📋";
-    }
-  };
-
   // Memoize image URL
   const imageUrl = useMemo(() => {
     return equipment.image_key ? `/api/images/${equipment.image_key}` : null;
   }, [equipment.image_key]);
-
-  const categoryIcon = getCategoryIcon(equipment.category);
 
   return (
     <Link
@@ -59,7 +44,7 @@ export const EquipmentCard = memo(function EquipmentCard({
       className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
     >
       {/* Equipment Image */}
-      <div className="h-40 bg-gray-100 rounded-t-xl overflow-hidden flex items-center justify-center">
+      <div className="h-40 rounded-t-xl overflow-hidden">
         {imageUrl ? (
           <LazyImage
             src={imageUrl}
@@ -67,11 +52,19 @@ export const EquipmentCard = memo(function EquipmentCard({
             className="w-full h-full"
             placeholder="skeleton"
             fallbackIcon={
-              <span className="text-5xl text-gray-300">{categoryIcon}</span>
+              <ImagePlaceholder
+                kind="equipment"
+                className="w-full h-full"
+                iconClassName="size-12"
+              />
             }
           />
         ) : (
-          <span className="text-5xl text-gray-300">{categoryIcon}</span>
+          <ImagePlaceholder
+            kind="equipment"
+            className="w-full h-full"
+            iconClassName="size-12"
+          />
         )}
       </div>
 

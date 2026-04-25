@@ -4,6 +4,16 @@ import type {
   SubmissionType,
 } from "~/lib/types";
 import { SafeHtml } from "~/lib/sanitize";
+import {
+  Settings,
+  User,
+  Pencil,
+  Star,
+  Video,
+  Package,
+  FileText,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface Submission {
   id: string;
@@ -65,22 +75,22 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
     }
   };
 
-  const getTypeIcon = (type: SubmissionType) => {
+  const getTypeIcon = (type: SubmissionType): LucideIcon => {
     switch (type) {
       case "equipment":
-        return "⚙️";
+        return Settings;
       case "player":
-        return "👤";
+        return User;
       case "player_edit":
-        return "✏️";
+        return Pencil;
       case "review":
-        return "⭐";
+        return Star;
       case "video":
-        return "📹";
+        return Video;
       case "player_equipment_setup":
-        return "🏓";
+        return Package;
       default:
-        return "📄";
+        return FileText;
     }
   };
 
@@ -137,7 +147,11 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
   if (submissions.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-gray-400 text-4xl mb-4">📝</div>
+        <FileText
+          className="size-12 text-gray-300 mx-auto mb-4"
+          aria-hidden
+          strokeWidth={1.5}
+        />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           No submissions yet
         </h3>
@@ -190,9 +204,15 @@ export function UserSubmissions({ submissions }: UserSubmissionsProps) {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-lg">
-                      {getTypeIcon(submission.type)}
-                    </span>
+                    {(() => {
+                      const TypeIcon = getTypeIcon(submission.type);
+                      return (
+                        <TypeIcon
+                          className="size-5 text-gray-500"
+                          aria-hidden
+                        />
+                      );
+                    })()}
                     <span className="text-sm font-medium text-gray-500">
                       {getTypeName(submission.type)}
                     </span>
