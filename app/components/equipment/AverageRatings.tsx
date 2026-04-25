@@ -82,7 +82,7 @@ export const AverageRatings = memo(function AverageRatings({
   return (
     <div className="bg-gray-50 rounded-lg p-6 mb-8">
       <h3 className="text-lg font-semibold text-gray-900 mb-6">
-        Average Ratings ({reviews.length} review
+        Community ratings ({reviews.length} review
         {reviews.length !== 1 ? "s" : ""})
       </h3>
 

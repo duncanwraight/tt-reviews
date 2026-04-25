@@ -15,6 +15,7 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
+import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { StructuredData } from "~/components/seo/StructuredData";
 
 export function meta({ data }: Route.MetaArgs) {
@@ -138,19 +139,19 @@ export const loader = withLoaderCorrelation(
 
     const categoryService = createCategoryService(sbServerClient.client);
 
-    const [reviews, usedByPlayers, ratingCategories, generalRatingCategories] =
+    const [reviews, usedByPlayers, ratingCategories, specFields] =
       await Promise.all([
         db.getEquipmentReviews(equipment.id, "approved"),
         db.getPlayersUsingEquipment(equipment.id),
-        categoryService.getReviewRatingCategories(equipment.subcategory),
-        categoryService.getReviewRatingCategories(), // General categories without parent
+        categoryService.getReviewRatingCategories(
+          equipment.category,
+          equipment.subcategory
+        ),
+        categoryService.getEquipmentSpecFields(
+          equipment.category,
+          equipment.subcategory
+        ),
       ]);
-
-    // Combine all rating categories
-    const allRatingCategories = [
-      ...generalRatingCategories,
-      ...ratingCategories,
-    ].sort((a, b) => a.display_order - b.display_order);
 
     const averageRating =
       reviews.length > 0
@@ -181,7 +182,8 @@ export const loader = withLoaderCorrelation(
         usedByPlayers,
         averageRating,
         reviewCount: reviews.length,
-        ratingCategories: allRatingCategories,
+        ratingCategories,
+        specFields,
         multipleSchemas,
       },
       { headers: sbServerClient.headers }
@@ -198,8 +200,19 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     averageRating,
     reviewCount,
     ratingCategories,
+    specFields,
     multipleSchemas,
   } = loaderData;
+
+  const specsItems = [
+    {
+      equipment,
+      averageRating,
+      reviewCount,
+      reviews,
+      usedByPlayers,
+    },
+  ];
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
@@ -221,6 +234,18 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
           reviewCount={reviewCount}
           usedByPlayers={usedByPlayers}
         />
+      </PageSection>
+
+      <PageSection background="white" padding="medium">
+        <section aria-labelledby="specs-heading">
+          <h2
+            id="specs-heading"
+            className="mb-3 text-xl font-semibold text-gray-900"
+          >
+            Manufacturer specifications
+          </h2>
+          <SpecsTable items={specsItems} specFields={specFields} />
+        </section>
       </PageSection>
 
       <ReviewsSection
