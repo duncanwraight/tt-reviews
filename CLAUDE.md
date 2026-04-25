@@ -61,6 +61,10 @@ Production DB migrations auto-apply via the GitHub Actions deploy workflow on pu
 
 When editing `.github/workflows/`, use the latest major of any third-party action rather than whatever version is already pinned. Check with `gh api repos/<owner>/<action>/releases --jq '.[0].tag_name'` and read the release notes for breaking changes before bumping. Stale majors accumulate Node-runtime deprecation warnings and eventually break.
 
+### Checking CI status
+
+`gh run watch --exit-status <id>` is unreliable as a green/red signal — it propagates the latest non-zero step exit code, so a `continue-on-error: true` step that exited non-zero will make `watch` return 1 even when the run conclusion is `success`. Use `gh run view <id> --json status,conclusion` instead — `conclusion` is authoritative.
+
 ## `/ultrareview` — opt-in second opinion
 
 For changes to `app/lib/submissions/**`, `app/lib/moderation.server.ts`, auth, or RLS migrations, ask me to run `/ultrareview` before pushing. Cheap second opinion on the risky paths.

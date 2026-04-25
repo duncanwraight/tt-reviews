@@ -79,10 +79,9 @@ jobs:
 
       - name: Dead code (knip)
         # QUALITY.md Phase 7 (TT-13). Surfaces unused exports / deps.
-        # Non-blocking — false positives (transitive peer deps, CLI-only
-        # devDeps) are expected; the signal is real dead exports in
-        # app/ and workers/ code.
-        continue-on-error: true
+        # Blocking — known false positives (framework platform deps,
+        # CSS-only consumers, virtual ./+types/* imports) are silenced
+        # in knip.json so any new finding is real and worth investigating.
         env:
           PLAYWRIGHT_SMOKE_BASE_URL: https://dummy.example.com
         run: npm run deadcode

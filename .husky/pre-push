@@ -4,4 +4,7 @@
 # npm test is intentionally omitted — the discord integration tests
 # expect a running local Supabase. CI runs them with supabase start.
 # Keep pre-push fast and always-runnable.
-npm run typecheck && npm run lint
+#
+# PLAYWRIGHT_SMOKE_BASE_URL: knip evaluates playwright.smoke.config.ts
+# which throws at import time when this is unset. Dummy value mirrors CI.
+npm run typecheck && npm run lint && PLAYWRIGHT_SMOKE_BASE_URL=https://dummy.example.com npm run deadcode

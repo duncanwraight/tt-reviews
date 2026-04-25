@@ -7,5 +7,11 @@
     "e2e-smoke/**/*.{ts,tsx}"
   ],
   "project": ["app/**/*.{ts,tsx}", "workers/**/*.{ts,tsx}"],
-  "ignoreDependencies": ["husky", "vite-plugin-devtools-json"]
+  "ignoreDependencies": [
+    "husky",
+    "vite-plugin-devtools-json",
+    "@react-router/node",
+    "tailwindcss"
+  ],
+  "ignoreUnresolved": ["\\./\\+types/.*"]
 }
