@@ -13,5 +13,9 @@
     "@react-router/node",
     "tailwindcss"
   ],
+  "ignoreBinaries": [
+    "scripts/photo-sourcing/seed-local.sh",
+    "scripts/photo-sourcing/seed-prod.sh"
+  ],
   "ignoreUnresolved": ["\\./\\+types/.*"]
 }

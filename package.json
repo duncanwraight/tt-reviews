@@ -20,7 +20,11 @@
     "lint": "eslint .",
     "deadcode": "knip --no-progress",
     "logs": "wrangler tail --format=pretty",
-    "logs:errors": "wrangler tail --format=json --status error"
+    "logs:errors": "wrangler tail --format=json --status error",
+    "sourcing:scan": "node --experimental-strip-types scripts/photo-sourcing/scan.ts",
+    "sourcing:apply": "node --experimental-strip-types scripts/photo-sourcing/apply.ts",
+    "sourcing:seed-local": "scripts/photo-sourcing/seed-local.sh",
+    "sourcing:seed-prod": "scripts/photo-sourcing/seed-prod.sh"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml,css}": "prettier --write",
@@ -60,6 +64,7 @@
     "knip": "^6.6.3",
     "lint-staged": "^16.4.0",
     "prettier": "^3.5.2",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.59.0",

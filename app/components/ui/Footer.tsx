@@ -29,6 +29,12 @@ export function Footer() {
             >
               Search
             </Link>
+            <Link
+              to="/credits"
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              Credits
+            </Link>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { memo, useMemo, useCallback } from "react";
 import { LazyImage } from "./LazyImage";
 import { ImagePlaceholder } from "./ImagePlaceholder";
 import { formatDate } from "~/lib/date";
+import { buildImageUrl } from "~/lib/imageUrl";
 
 // Minimum fields required for PlayerCard display
 interface PlayerCardPlayer {
@@ -16,6 +17,7 @@ interface PlayerCardPlayer {
   currentSetup?: string;
   created_at?: string;
   image_key?: string;
+  image_etag?: string;
 }
 
 interface PlayerCardProps {
@@ -52,10 +54,12 @@ export const PlayerCard = memo(function PlayerCard({
     return { className, label: player.active ? "Active" : "Retired" };
   }, [player.active]);
 
-  // Memoize image URL
-  const imageUrl = useMemo(() => {
-    return player.image_key ? `/api/images/${player.image_key}` : null;
-  }, [player.image_key]);
+  // Memoize image URL — `?v=<etag>` busts browser cache when the
+  // photo-sourcing pipeline replaces the bytes at the same R2 key.
+  const imageUrl = useMemo(
+    () => buildImageUrl(player.image_key, player.image_etag),
+    [player.image_key, player.image_etag]
+  );
 
   return (
     <div className="player-card bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
@@ -68,6 +72,7 @@ export const PlayerCard = memo(function PlayerCard({
                 src={imageUrl}
                 alt={player.name}
                 className="w-16 h-16 rounded-full"
+                imgClassName="object-top"
                 placeholder="skeleton"
                 fallbackIcon={
                   <ImagePlaceholder

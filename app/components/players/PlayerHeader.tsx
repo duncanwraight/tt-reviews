@@ -1,6 +1,7 @@
 import type { Player } from "~/lib/types";
 import { LazyImage } from "../ui/LazyImage";
 import { ImagePlaceholder } from "../ui/ImagePlaceholder";
+import { buildImageUrl } from "~/lib/imageUrl";
 
 interface PlayerHeaderProps {
   player: Player;
@@ -40,6 +41,67 @@ function getPlayingStyleLabel(style: string | undefined): string {
   return style.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 }
 
+interface PhotoCreditProps {
+  creditText: string;
+  creditLink?: string;
+  licenseShort?: string;
+  licenseUrl?: string;
+  sourceUrl?: string;
+}
+
+function PhotoCredit({
+  creditText,
+  creditLink,
+  licenseShort,
+  licenseUrl,
+  sourceUrl,
+}: PhotoCreditProps) {
+  return (
+    <p className="text-xs text-gray-500 mt-2 max-w-36 mx-auto lg:mx-0 leading-snug">
+      Photo:{" "}
+      {creditLink ? (
+        <a
+          href={creditLink}
+          rel="nofollow noreferrer noopener"
+          className="underline hover:text-gray-700"
+        >
+          {creditText}
+        </a>
+      ) : (
+        creditText
+      )}
+      {licenseShort ? (
+        <>
+          {" · "}
+          {licenseUrl ? (
+            <a
+              href={licenseUrl}
+              rel="nofollow noreferrer noopener"
+              className="underline hover:text-gray-700"
+            >
+              {licenseShort}
+            </a>
+          ) : (
+            licenseShort
+          )}
+        </>
+      ) : null}
+      {sourceUrl ? (
+        <>
+          {" · "}
+          <a
+            href={sourceUrl}
+            rel="nofollow noreferrer noopener"
+            className="underline hover:text-gray-700"
+          >
+            source
+          </a>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
 export function PlayerHeader({
   player,
   showEditButton = false,
@@ -51,9 +113,10 @@ export function PlayerHeader({
           <div className="player-photo lg:col-span-1">
             {player.image_key ? (
               <LazyImage
-                src={`/api/images/${player.image_key}`}
+                src={buildImageUrl(player.image_key, player.image_etag) ?? ""}
                 alt={player.name}
                 className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
+                imgClassName="object-top"
                 placeholder="skeleton"
                 fallbackIcon={
                   <ImagePlaceholder
@@ -70,6 +133,15 @@ export function PlayerHeader({
                 iconClassName="size-14"
               />
             )}
+            {player.image_key && player.image_credit_text ? (
+              <PhotoCredit
+                creditText={player.image_credit_text}
+                creditLink={player.image_credit_link}
+                licenseShort={player.image_license_short}
+                licenseUrl={player.image_license_url}
+                sourceUrl={player.image_source_url}
+              />
+            ) : null}
           </div>
 
           <div className="player-details lg:col-span-4 text-center lg:text-left">

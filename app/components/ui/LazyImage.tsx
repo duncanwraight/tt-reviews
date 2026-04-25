@@ -4,6 +4,10 @@ interface LazyImageProps {
   src: string;
   alt: string;
   className?: string;
+  // Extra classes applied to the inner <img>. Use this for things like
+  // `object-top` that need to live on the image element itself rather
+  // than the wrapper div (which is what `className` decorates).
+  imgClassName?: string;
   fallbackIcon?: React.ReactNode;
   placeholder?: "blur" | "skeleton";
   onLoad?: () => void;
@@ -14,6 +18,7 @@ export const LazyImage = memo(function LazyImage({
   src,
   alt,
   className = "",
+  imgClassName = "",
   fallbackIcon,
   placeholder = "skeleton",
   onLoad,
@@ -83,6 +88,7 @@ export const LazyImage = memo(function LazyImage({
             transition-opacity duration-300 rounded-lg
             ${isLoaded ? "opacity-100" : "opacity-0"}
             ${hasError ? "hidden" : "w-full h-full object-cover"}
+            ${imgClassName}
           `}
           onLoad={handleLoad}
           onError={handleError}
