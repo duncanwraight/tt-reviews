@@ -467,29 +467,43 @@ describe("Discord Integration Tests", () => {
     // branch instead of "Submission not found".
     const TEST_SUBMISSION_ID = "12345678-1234-1234-1234-123456789999";
     const TEST_DISCORD_USER_ID = "12345678-1234-1234-1234-123456789012";
+    const TEST_USER_EMAIL = "discord-test-fixture@example.invalid";
     let adminSupabase: SupabaseClient | null = null;
     let seededDiscordModeratorId: string | null = null;
+    let seededAuthUserId: string | null = null;
 
     beforeAll(async () => {
       if (!hasSupabaseEnv() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
 
       adminSupabase = createSupabaseAdminClient(mockContext);
 
-      // Borrow FK targets from existing seed rows — user_id references
-      // auth.users and player_edits.player_id references players. Cheaper
-      // than creating throwaway users/players here.
-      const { data: anyEquip } = await adminSupabase
-        .from("equipment_submissions")
-        .select("user_id")
-        .limit(1)
-        .maybeSingle();
-      const { data: anyEdit } = await adminSupabase
-        .from("player_edits")
-        .select("user_id, player_id")
-        .limit(1)
-        .maybeSingle();
+      // seed.sql doesn't seed auth.users, so create a fixture user here
+      // rather than borrowing one. Idempotent: clean up any zombie from a
+      // prior aborted run by deterministic email before re-creating.
+      const { data: existingUsers } =
+        await adminSupabase.auth.admin.listUsers();
+      const zombie = existingUsers?.users.find(
+        u => u.email === TEST_USER_EMAIL
+      );
+      if (zombie) {
+        await adminSupabase.auth.admin.deleteUser(zombie.id);
+      }
+      const { data: createdUser } = await adminSupabase.auth.admin.createUser({
+        email: TEST_USER_EMAIL,
+        password: "discord-test-password-not-real",
+        email_confirm: true,
+      });
+      if (!createdUser?.user) return;
+      seededAuthUserId = createdUser.user.id;
 
-      if (!anyEquip || !anyEdit) return;
+      // players is seeded (50 rows) — safe to borrow a player_id for the
+      // player_edits FK without creating a throwaway player here.
+      const { data: anyPlayer } = await adminSupabase
+        .from("players")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+      if (!anyPlayer) return;
 
       const moderationService = new ModerationService(adminSupabase);
       seededDiscordModeratorId =
@@ -516,15 +530,15 @@ describe("Discord Integration Tests", () => {
 
       await adminSupabase.from("equipment_submissions").insert({
         id: TEST_SUBMISSION_ID,
-        user_id: anyEquip.user_id,
+        user_id: seededAuthUserId,
         name: "TT-23 fixture blade",
         manufacturer: "Fixture Co",
         category: "blade",
       });
       await adminSupabase.from("player_edits").insert({
         id: TEST_SUBMISSION_ID,
-        user_id: anyEdit.user_id,
-        player_id: anyEdit.player_id,
+        user_id: seededAuthUserId,
+        player_id: anyPlayer.id,
         edit_data: { note: "TT-23 fixture" },
       });
 
@@ -547,12 +561,14 @@ describe("Discord Integration Tests", () => {
     });
 
     afterAll(async () => {
-      if (!adminSupabase || !seededDiscordModeratorId) return;
-      await adminSupabase
-        .from("moderator_approvals")
-        .delete()
-        .eq("submission_id", TEST_SUBMISSION_ID)
-        .eq("discord_moderator_id", seededDiscordModeratorId);
+      if (!adminSupabase) return;
+      if (seededDiscordModeratorId) {
+        await adminSupabase
+          .from("moderator_approvals")
+          .delete()
+          .eq("submission_id", TEST_SUBMISSION_ID)
+          .eq("discord_moderator_id", seededDiscordModeratorId);
+      }
       await adminSupabase
         .from("equipment_submissions")
         .delete()
@@ -561,6 +577,9 @@ describe("Discord Integration Tests", () => {
         .from("player_edits")
         .delete()
         .eq("id", TEST_SUBMISSION_ID);
+      if (seededAuthUserId) {
+        await adminSupabase.auth.admin.deleteUser(seededAuthUserId);
+      }
     });
 
     it.skipIf(!hasSupabaseEnv())(
