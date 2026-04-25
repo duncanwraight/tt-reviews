@@ -19,8 +19,8 @@ All board operations go through `./scripts/plane.sh`. Wrapper docs: `docs/PLANE.
 1. Show what's in flight: `./scripts/plane.sh list --state "In Progress"`.
 2. Show what's blocked: `./scripts/plane.sh list --state Blocked`.
 3. Show the backlog, sorted the way the output already sorts (sequence): `./scripts/plane.sh list --state Backlog`.
-4. **Ask the user which item to work on.** Surface priority (`high` first), labels, and any dependency hints from descriptions so the user can choose, but don't silently pick — the user drives selection. If they ask for a recommendation, give one and wait for confirmation.
-5. Once the user confirms, move it to In Progress (`./scripts/plane.sh state TT-N "In Progress"`) and read the linked plan in `archive/<file>.md` before starting code changes.
+4. **Ask the user which item to work on.** Surface priority (`high` first), labels, parent/child markers (`[↳ TT-25]` means it's a sub-issue; `[parent: 2/3 done]` means it's a container), and any dependency hints from descriptions so the user can choose, but don't silently pick — the user drives selection. If they ask for a recommendation, give one and wait for confirmation. Don't propose a parent item itself as work — propose its open children.
+5. Once the user confirms, move it to In Progress (`./scripts/plane.sh state TT-N "In Progress"`) and read the linked plan in `archive/<file>.md` before starting code changes. If the chosen item is a child, also read the parent's description — locked-in scoping decisions often live there.
 
 ## Typical workflow for a work item
 
@@ -52,6 +52,21 @@ Follow this loop per item. Don't skip steps; don't start the next item until the
 - `./scripts/plane.sh done TT-N` only after the change is merged, CI is green, and (for code) the deploy workflow has applied. For non-code work, after it's actually delivered.
 - Don't batch-close — close each item as it ships so the board stays accurate mid-stream.
 - Don't start the next item until the current one is closed. One active item at a time keeps the board honest.
+- If `done` prints a `hint: parent TT-N now has all M children complete …` line, surface it to the user and offer to close the parent in the same turn. Parents are container-only on this project (see below), so once their children all ship there is no further work to verify — just close them.
+
+## Parent items and sub-issues
+
+On this project, parents are **container-only**. They exist to group a set of children that ship together; they don't carry their own implementation work, verification steps, or follow-ups. Anything that needs doing should live in a child item, not in the parent's body.
+
+What this means in practice:
+
+- **Don't pick up a parent directly.** A parent's `In Progress` state is meaningless because there's nothing to implement on it. Pick up an open child instead.
+- **Don't add residual work to a parent.** If you discover work the parent description implies but no child captures, file a new child (`./scripts/plane.sh new "..." --parent TT-N`) rather than expanding the parent's description into a to-do list.
+- **Read the parent before starting a child.** Parents typically hold the locked-in scope decisions (URL shape, data model, out-of-scope list). Use `./scripts/plane.sh show TT-N` on the parent UUID printed in the child's `[↳ TT-N]` marker.
+- **Close the parent the moment its last child is done.** `./scripts/plane.sh done TT-child` will print a hint when this happens; act on it the same turn — don't leave a 100%-complete parent open.
+- **Use `./scripts/plane.sh children TT-N`** to see a parent's full set of sub-issues with states. If all are done it also tells you the parent is ready to close.
+
+If you're tempted to write something on a parent that isn't "this is the umbrella for X, Y, Z" — stop and file a child instead.
 
 ## End-of-session audit
 

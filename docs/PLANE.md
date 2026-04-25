@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-- Wrapper script: `./scripts/plane.sh` — `projects`, `list`, `show`, `new`, `describe`, `state`, `done`, `labels`, `states`. Needs `jq`. Loads `.env` automatically.
+- Wrapper script: `./scripts/plane.sh` — `projects`, `list`, `show`, `children`, `new`, `describe`, `state`, `done`, `labels`, `states`. Needs `jq`. Loads `.env` automatically.
 - Workspace slug: `tt-reviews` (workspace UUID: `abbfec5b-9317-48d3-8dc6-db4c9be15da9`)
 - Project: **TT Reviews** — identifier `TT`, UUID `dbcecf38-c6fc-482e-bbc1-ebbff0cb2001`
 - Auth: personal access token in `X-API-Key` header. `.env` holds `PLANE_ACCESS_TOKEN`, `PLANE_WORKSPACE`, `PLANE_PROJECT_ID`.
@@ -35,6 +35,7 @@ Day-to-day, use `./scripts/plane.sh`. The REST reference further down is for whe
 ./scripts/plane.sh list                           # everything, sorted by TT-N
 ./scripts/plane.sh list --state Backlog           # one state
 ./scripts/plane.sh show TT-14                     # full JSON for one item
+./scripts/plane.sh children TT-25                 # sub-issues of a parent + completion summary
 
 # Creating
 ./scripts/plane.sh new "Short title"
@@ -64,6 +65,16 @@ Steps:
 ```
 
 Description input is plain text by default — blank lines become paragraph breaks, single newlines become `<br>`, and `<`/`>`/`&` are HTML-escaped. If the input already looks like HTML (contains `<p>` or `<h1>`..`<h6>`), it's passed through as-is so you can hand-author rich content.
+
+### Parent / sub-issue relationships
+
+Work items can have a parent (Plane's "sub-issue" feature). On this project, parents are **container-only** — they group a set of children that ship together and don't carry their own implementation work. The workflow guidance for that lives in `.claude/skills/plane/SKILL.md`; the wrapper surfaces the relationship in three places:
+
+- `list` annotates each row: parents get `[parent: 2/3 done]`, children get `[↳ TT-25]`.
+- `children TT-N` lists a parent's sub-issues with their states, prints `M/N complete`, and tells you when the parent is ready to close.
+- `done TT-N` on a child prints a `hint:` line to stderr when its closure makes the parent's children 100% complete and the parent isn't already closed.
+
+Create a child by passing `--parent` to `new` (already supported above).
 
 ## Authentication
 

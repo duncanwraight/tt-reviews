@@ -6,11 +6,12 @@
 #   ./scripts/plane.sh projects                  # list projects in the workspace
 #   ./scripts/plane.sh list [--state NAME]       # list work items in $PLANE_PROJECT_ID
 #   ./scripts/plane.sh show <seq|uuid>           # show one work item
+#   ./scripts/plane.sh children <seq|uuid>       # list sub-issues of a parent
 #   ./scripts/plane.sh new "Title" [--priority low|medium|high|urgent] [--label NAME ...]
 #                                  [--description TEXT | --description-file PATH]
 #                                  [--parent <seq|uuid>]
 #   ./scripts/plane.sh describe <seq|uuid> (--description TEXT | --description-file PATH)
-#   ./scripts/plane.sh done <seq|uuid>           # move to the "Done" state
+#   ./scripts/plane.sh done <seq|uuid>           # move to the "Done" state (hints if it closes out a parent)
 #   ./scripts/plane.sh state <seq|uuid> <NAME>   # move to any state by name (e.g. "In Progress")
 #   ./scripts/plane.sh labels                    # list labels
 #   ./scripts/plane.sh states                    # list states
@@ -86,17 +87,34 @@ cmd_list() {
     | jq -r --argjson s "$states" --argjson l "$labels" --arg sf "$state_filter" '
         ($s.results | map({key:.id, value:.name}) | from_entries) as $smap
         | ($l.results | map({key:.id, value:.name}) | from_entries) as $lmap
+        | (.results | map({key:.id, value:.sequence_id}) | from_entries) as $idToSeq
+        | (
+            .results
+            | map(select(.parent != null))
+            | group_by(.parent)
+            | map({
+                key: .[0].parent,
+                value: { total: length, done: ([.[] | select(.completed_at != null)] | length) }
+              })
+            | from_entries
+          ) as $childMap
         | .results
         | map({
             seq: .sequence_id,
             name: .name,
             priority: .priority,
             state: ($smap[.state] // "?"),
-            labels: [.labels[]? as $id | $lmap[$id]]
+            labels: [.labels[]? as $id | $lmap[$id]],
+            parent_seq: (if .parent then $idToSeq[.parent] else null end),
+            children: ($childMap[.id] // null)
           })
         | (if $sf == "" then . else map(select((.state | ascii_downcase) == ($sf | ascii_downcase))) end)
         | sort_by(.seq)
-        | .[] | "[\(.state | .[0:4])] TT-\(.seq)  (\(.priority))  \(.name)\(if (.labels|length)>0 then "  #" + (.labels | join(" #")) else "" end)"
+        | .[]
+        | "[\(.state | .[0:4])] TT-\(.seq)  (\(.priority))  \(.name)"
+          + (if (.labels|length)>0 then "  #" + (.labels | join(" #")) else "" end)
+          + (if .parent_seq then "  [↳ TT-\(.parent_seq)]" else "" end)
+          + (if .children then "  [parent: \(.children.done)/\(.children.total) done]" else "" end)
       '
 }
 
@@ -104,6 +122,37 @@ cmd_show() {
   need_project; [[ $# -ge 1 ]] || die "usage: plane.sh show <seq|uuid>"
   local id; id=$(resolve_work_item "$1")
   api GET "/projects/$PLANE_PROJECT_ID/work-items/$id/" | jq '.'
+}
+
+cmd_children() {
+  need_project; [[ $# -ge 1 ]] || die "usage: plane.sh children <seq|uuid>"
+  local parent_id; parent_id=$(resolve_work_item "$1")
+  local states all_items
+  states=$(api GET "/projects/$PLANE_PROJECT_ID/states/")
+  all_items=$(api GET "/projects/$PLANE_PROJECT_ID/work-items/?per_page=500")
+  local parent_seq
+  parent_seq=$(jq -r --arg p "$parent_id" '.results[] | select(.id == $p) | .sequence_id' <<<"$all_items")
+  [[ -n "$parent_seq" ]] || die "no work item with id $parent_id"
+  local rendered total done_count
+  rendered=$(jq -r --argjson s "$states" --arg p "$parent_id" '
+      ($s.results | map({key:.id, value:.name}) | from_entries) as $smap
+      | [.results[] | select(.parent == $p)]
+      | sort_by(.sequence_id)
+      | .[] | "[\($smap[.state] // "?" | .[0:4])] TT-\(.sequence_id)  (\(.priority))  \(.name)"
+    ' <<<"$all_items")
+  total=$(jq --arg p "$parent_id" '[.results[] | select(.parent == $p)] | length' <<<"$all_items")
+  done_count=$(jq --arg p "$parent_id" '[.results[] | select(.parent == $p) | select(.completed_at != null)] | length' <<<"$all_items")
+  if [[ "$total" -eq 0 ]]; then
+    echo "TT-$parent_seq has no children"
+    return
+  fi
+  echo "$rendered"
+  echo "$done_count/$total complete"
+  local parent_done
+  parent_done=$(jq -r --arg p "$parent_id" '.results[] | select(.id == $p) | .completed_at // ""' <<<"$all_items")
+  if [[ "$done_count" == "$total" && -z "$parent_done" ]]; then
+    echo "hint: parent TT-$parent_seq is ready to close — ./scripts/plane.sh done TT-$parent_seq"
+  fi
 }
 
 # Convert plain text (on stdin) to Plane-friendly HTML: escape &<>, split
@@ -202,11 +251,35 @@ cmd_done() {
   need_project; [[ $# -ge 1 ]] || die "usage: plane.sh done <seq|uuid>"
   # Resolve the first state in the `completed` group, so this works
   # regardless of whether the state is named "Done", "Completed", etc.
-  local done_state
-  done_state=$(api GET "/projects/$PLANE_PROJECT_ID/states/" \
-    | jq -r '[.results[] | select(.group=="completed")] | sort_by(.sequence) | .[0].name')
+  local id states done_state state_id
+  id=$(resolve_work_item "$1")
+  states=$(api GET "/projects/$PLANE_PROJECT_ID/states/")
+  done_state=$(jq -r '[.results[] | select(.group=="completed")] | sort_by(.sequence) | .[0].name' <<<"$states")
   [[ -n "$done_state" && "$done_state" != "null" ]] || die "no state in 'completed' group"
-  cmd_state "$1" "$done_state"
+  state_id=$(jq -r --arg n "$done_state" '.results[] | select((.name | ascii_downcase) == ($n | ascii_downcase)) | .id' <<<"$states")
+  [[ -n "$state_id" ]] || die "no state UUID for '$done_state'"
+
+  local result
+  result=$(api PATCH "/projects/$PLANE_PROJECT_ID/work-items/$id/" \
+    -d "$(jq -n --arg s "$state_id" '{state:$s}')")
+  jq -r --arg name "$done_state" '"TT-\(.sequence_id) → \($name)"' <<<"$result"
+
+  # Parent-complete hint: if the closed item has a parent, and all of that
+  # parent's children are now closed (and the parent itself isn't), suggest
+  # closing the parent. Parents are container-only on this project — see
+  # .claude/skills/plane/SKILL.md.
+  local parent_id
+  parent_id=$(jq -r '.parent // ""' <<<"$result")
+  [[ -z "$parent_id" ]] && return
+  local all_items total done_count parent_seq parent_done
+  all_items=$(api GET "/projects/$PLANE_PROJECT_ID/work-items/?per_page=500")
+  total=$(jq --arg p "$parent_id" '[.results[] | select(.parent == $p)] | length' <<<"$all_items")
+  done_count=$(jq --arg p "$parent_id" '[.results[] | select(.parent == $p) | select(.completed_at != null)] | length' <<<"$all_items")
+  parent_seq=$(jq -r --arg p "$parent_id" '.results[] | select(.id == $p) | .sequence_id' <<<"$all_items")
+  parent_done=$(jq -r --arg p "$parent_id" '.results[] | select(.id == $p) | .completed_at // ""' <<<"$all_items")
+  if [[ "$done_count" == "$total" && "$total" -gt 0 && -z "$parent_done" ]]; then
+    echo "hint: parent TT-$parent_seq now has all $total children complete — close with ./scripts/plane.sh done TT-$parent_seq" >&2
+  fi
 }
 
 cmd_labels() {
@@ -224,6 +297,7 @@ case "$sub" in
   projects) cmd_projects "$@";;
   list)     cmd_list "$@";;
   show)     cmd_show "$@";;
+  children) cmd_children "$@";;
   new)      cmd_new "$@";;
   describe) cmd_describe "$@";;
   state)    cmd_state "$@";;
@@ -231,7 +305,7 @@ case "$sub" in
   labels)   cmd_labels "$@";;
   states)   cmd_states "$@";;
   ""|-h|--help|help)
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
     ;;
   *) die "unknown command: $sub (try --help)";;
 esac
