@@ -13,6 +13,21 @@ const LONG_PIPS_SLUG = "tsp-curl-p1r";
 const CANONICAL = `/equipment/compare/${INVERTED_A}-vs-${INVERTED_B}`;
 const REVERSED = `/equipment/compare/${INVERTED_B}-vs-${INVERTED_A}`;
 
+// Each test must start with an empty selection. Playwright contexts are
+// per-test in theory, but under fully-parallel runs we've seen
+// localStorage state survive across tests for this key — clearing once
+// up-front guarantees the click counts and disabled states behave.
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem("tt-compare-selection");
+    } catch {
+      /* noop */
+    }
+  });
+});
+
 test.describe("Equipment comparison (TT-29)", () => {
   test("tick two same-subcategory items → tray → canonical compare URL", async ({
     page,

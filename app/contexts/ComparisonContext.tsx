@@ -31,7 +31,8 @@ const ComparisonContext = createContext<ComparisonContextType | undefined>(
 );
 
 const STORAGE_KEY = "tt-compare-selection";
-const MAX_SELECTION = 2;
+export const MIN_SELECTION = 2;
+export const MAX_SELECTION = 3;
 
 function readStoredSelection(): Equipment[] {
   if (typeof window === "undefined") return [];
@@ -56,15 +57,22 @@ function readStoredSelection(): Equipment[] {
 
 export function ComparisonProvider({ children }: { children: ReactNode }) {
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage after mount to avoid SSR/client mismatch.
+  // Only adopt the stored selection if the user hasn't already interacted —
+  // a click between first paint and this effect would otherwise be clobbered.
   useEffect(() => {
-    setSelectedEquipment(readStoredSelection());
+    setSelectedEquipment(prev =>
+      prev.length > 0 ? prev : readStoredSelection()
+    );
+    setHydrated(true);
   }, []);
 
-  // Persist selection on change.
+  // Persist selection on change. Skip until hydration completes so we don't
+  // wipe persisted state with the empty initial render.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!hydrated || typeof window === "undefined") return;
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
@@ -73,7 +81,7 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
     } catch {
       // Quota / private-mode failures are non-fatal.
     }
-  }, [selectedEquipment]);
+  }, [hydrated, selectedEquipment]);
 
   const toggleEquipment = useCallback((equipment: Equipment) => {
     setSelectedEquipment(prev => {
@@ -84,8 +92,8 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
       if (prev.length < MAX_SELECTION) {
         return [...prev, equipment];
       }
-      // At cap: drop the oldest, keep the most recent + new one.
-      return [prev[prev.length - 1], equipment];
+      // At cap: drop the oldest, keep the rest + new one.
+      return [...prev.slice(1), equipment];
     });
   }, []);
 
@@ -97,14 +105,19 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
     setSelectedEquipment([]);
   }, []);
 
-  const canCompare = selectedEquipment.length === MAX_SELECTION;
+  const canCompare = selectedEquipment.length >= MIN_SELECTION;
 
   const getCompareUrl = useCallback(() => {
-    if (selectedEquipment.length !== MAX_SELECTION) return null;
-    const [a, b] = [...selectedEquipment].sort((x, y) =>
+    const count = selectedEquipment.length;
+    if (count < MIN_SELECTION) return null;
+    const sorted = [...selectedEquipment].sort((x, y) =>
       x.slug.localeCompare(y.slug)
     );
-    return `/equipment/compare/${a.slug}-vs-${b.slug}`;
+    if (count === 2) {
+      return `/equipment/compare/${sorted[0].slug}-vs-${sorted[1].slug}`;
+    }
+    const ids = sorted.map(item => item.slug).join(",");
+    return `/equipment/compare?ids=${ids}`;
   }, [selectedEquipment]);
 
   return (

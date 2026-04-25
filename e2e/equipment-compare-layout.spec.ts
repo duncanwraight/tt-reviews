@@ -32,6 +32,19 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scrollWidth - clientWidth).toBeLessThanOrEqual(1);
 }
 
+// Tests in this spec exercise click flows that depend on a clean
+// localStorage selection — see equipment-compare.spec.ts for the same guard.
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem("tt-compare-selection");
+    } catch {
+      /* noop */
+    }
+  });
+});
+
 test.describe("Equipment comparison page — layout (TT-29)", () => {
   for (const viewport of VIEWPORTS) {
     test(`no horizontal overflow at ${viewport.label} (${viewport.width}px)`, async ({

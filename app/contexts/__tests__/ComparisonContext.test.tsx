@@ -72,18 +72,30 @@ describe("ComparisonContext", () => {
     expect(result.current.selectedEquipment).toEqual([]);
   });
 
-  it("caps at 2 and drops the oldest when a third item is added", () => {
+  it("caps at 3 and drops the oldest when a fourth item is added", () => {
     const { result } = renderHook(() => useComparison(), { wrapper });
     const a = makeEquipment({ id: "a", slug: "alpha" });
     const b = makeEquipment({ id: "b", slug: "beta" });
     const c = makeEquipment({ id: "c", slug: "charlie" });
+    const d = makeEquipment({ id: "d", slug: "delta" });
 
     act(() => result.current.toggleEquipment(a));
     act(() => result.current.toggleEquipment(b));
     act(() => result.current.toggleEquipment(c));
+    expect(result.current.selectedEquipment.map(e => e.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
 
-    // Oldest ('a') dropped, newest two remain.
-    expect(result.current.selectedEquipment.map(e => e.id)).toEqual(["b", "c"]);
+    act(() => result.current.toggleEquipment(d));
+
+    // Oldest ('a') dropped, newest three remain.
+    expect(result.current.selectedEquipment.map(e => e.id)).toEqual([
+      "b",
+      "c",
+      "d",
+    ]);
   });
 
   it("removeEquipment removes by id", () => {
@@ -128,6 +140,40 @@ describe("ComparisonContext", () => {
     expect(result.current.getCompareUrl()).toBe(
       "/equipment/compare/alpha-vs-beta"
     );
+  });
+
+  it("getCompareUrl returns the alphabetical query-param URL with 3 items", () => {
+    const { result } = renderHook(() => useComparison(), { wrapper });
+    const c = makeEquipment({ id: "c", slug: "charlie" });
+    const a = makeEquipment({ id: "a", slug: "alpha" });
+    const b = makeEquipment({ id: "b", slug: "beta" });
+
+    // Select out of order. URL should still be alphabetical.
+    act(() => result.current.toggleEquipment(c));
+    act(() => result.current.toggleEquipment(a));
+    act(() => result.current.toggleEquipment(b));
+
+    expect(result.current.getCompareUrl()).toBe(
+      "/equipment/compare?ids=alpha,beta,charlie"
+    );
+  });
+
+  it("canCompare is true with 2 OR 3 selected, false otherwise", () => {
+    const { result } = renderHook(() => useComparison(), { wrapper });
+    const a = makeEquipment({ id: "a", slug: "alpha" });
+    const b = makeEquipment({ id: "b", slug: "beta" });
+    const c = makeEquipment({ id: "c", slug: "charlie" });
+
+    expect(result.current.canCompare).toBe(false);
+
+    act(() => result.current.toggleEquipment(a));
+    expect(result.current.canCompare).toBe(false);
+
+    act(() => result.current.toggleEquipment(b));
+    expect(result.current.canCompare).toBe(true);
+
+    act(() => result.current.toggleEquipment(c));
+    expect(result.current.canCompare).toBe(true);
   });
 
   it("persists the selection to localStorage on change", () => {

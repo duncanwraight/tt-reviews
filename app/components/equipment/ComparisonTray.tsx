@@ -1,8 +1,10 @@
 import { Link } from "react-router";
-import { useComparison } from "~/contexts/ComparisonContext";
+import {
+  MAX_SELECTION,
+  MIN_SELECTION,
+  useComparison,
+} from "~/contexts/ComparisonContext";
 import { LazyImage } from "~/components/ui/LazyImage";
-
-const MAX_SELECTION = 2;
 
 export function ComparisonTray() {
   const {
@@ -99,7 +101,7 @@ export function ComparisonTray() {
               className="cursor-not-allowed rounded-md bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 sm:px-4 sm:text-sm"
               data-testid="comparison-tray-compare"
             >
-              Compare ({count}/{MAX_SELECTION})
+              Compare ({count}/{MIN_SELECTION})
             </button>
           )}
         </div>

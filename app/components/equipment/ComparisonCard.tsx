@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useComparison } from "~/contexts/ComparisonContext";
+import { MAX_SELECTION, useComparison } from "~/contexts/ComparisonContext";
 import { LazyImage } from "~/components/ui/LazyImage";
 
 interface Equipment {
@@ -22,7 +22,8 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
   const { selectedEquipment, toggleEquipment } = useComparison();
 
   const isSelected = selectedEquipment.find(item => item.id === equipment.id);
-  const canSelect = selectedEquipment.length < 2 || isSelected;
+  // At cap, the context evicts the oldest selection — keep the badge clickable.
+  const atCap = selectedEquipment.length >= MAX_SELECTION && !isSelected;
 
   // Same subcategory required so ratings/spec tables share vocabulary.
   // Falls back to category when either side has no subcategory (e.g. blade, ball).
@@ -36,16 +37,16 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
 
   const disabledReason = isSelected
     ? null
-    : !canSelect
-      ? "Remove one to compare a different item"
-      : !compatible
-        ? "Only same-subcategory items can be compared"
+    : !compatible
+      ? "Only same-subcategory items can be compared"
+      : atCap
+        ? `Replaces the oldest selection (max ${MAX_SELECTION})`
         : null;
 
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (canSelect && compatible) {
+    if (compatible) {
       toggleEquipment(equipment);
     }
   };
@@ -93,7 +94,7 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
         <button
           type="button"
           onClick={handleCompareClick}
-          disabled={!canSelect || !compatible}
+          disabled={!compatible}
           aria-pressed={Boolean(isSelected)}
           aria-label={
             isSelected
@@ -106,8 +107,10 @@ export function ComparisonCard({ equipment }: ComparisonCardProps) {
           className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
             isSelected
               ? "border-purple-500 bg-purple-500 text-white"
-              : canSelect && compatible
-                ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
+              : compatible
+                ? atCap
+                  ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50 ring-1 ring-purple-200"
+                  : "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
                 : "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
           }`}
         >
