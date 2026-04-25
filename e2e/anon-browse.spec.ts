@@ -11,9 +11,8 @@ test("anon browse: homepage → equipment list → equipment detail", async ({
     })
   ).toBeVisible();
 
-  // Use the global nav's Equipment link; the "View All Equipment" CTA on
-  // the homepage only renders once there are ≥6 featured items (i.e. when
-  // reviews exist), which isn't guaranteed for this anon flow.
+  // Use the global nav's Equipment link rather than the homepage CTA so the
+  // test stays decoupled from the Featured-Equipment section's visibility.
   await page
     .getByRole("link", { name: "Equipment", exact: true })
     .first()

@@ -304,16 +304,16 @@ describe("equipment.getEquipmentWithStats", () => {
 });
 
 describe("equipment.getPopularEquipment", () => {
-  it("returns RPC data when successful", async () => {
-    const rows = [{ id: "popular" }];
+  it("returns popular as-is when popular.length >= limit", async () => {
+    const rows = [{ id: "p1" }, { id: "p2" }];
     const supabase = makeSupabase({
       rpc: { get_popular_equipment: { data: rows } },
     });
-    expect(await equipment.getPopularEquipment(makeCtx(supabase), 6)).toEqual(
+    expect(await equipment.getPopularEquipment(makeCtx(supabase), 2)).toEqual(
       rows
     );
     expect(supabase.rpc).toHaveBeenCalledWith("get_popular_equipment", {
-      limit_count: 6,
+      limit_count: 2,
     });
   });
 
@@ -327,6 +327,51 @@ describe("equipment.getPopularEquipment", () => {
       { id: "fallback" },
     ]);
     spy.mockRestore();
+  });
+
+  it("tops up with random equipment when popular returns fewer than limit", async () => {
+    const popular = [
+      { id: "p1", averageRating: 8, reviewCount: 4 },
+      { id: "p2", averageRating: 7, reviewCount: 2 },
+      { id: "p3", averageRating: 9, reviewCount: 1 },
+    ];
+    const allEquipment = [
+      { id: "p1" }, // popular — must be excluded from top-up
+      { id: "e1" },
+      { id: "e2" },
+      { id: "e3" },
+      { id: "e4" },
+      { id: "e5" },
+    ];
+    const supabase = makeSupabase({
+      rpc: { get_popular_equipment: { data: popular } },
+      tables: { equipment: { data: allEquipment } },
+    });
+    const result = await equipment.getPopularEquipment(makeCtx(supabase), 6);
+    expect(result).toHaveLength(6);
+    // Popular comes first, in RPC order.
+    expect(result.slice(0, 3).map(r => r.id)).toEqual(["p1", "p2", "p3"]);
+    // No duplicates.
+    expect(new Set(result.map(r => r.id)).size).toBe(6);
+    // Top-up rows have reviewCount: 0 and no averageRating.
+    for (const r of result.slice(3)) {
+      expect(r.reviewCount).toBe(0);
+      expect(r.averageRating).toBeUndefined();
+      expect(["e1", "e2", "e3", "e4", "e5"]).toContain(r.id);
+    }
+  });
+
+  it("returns min(limit, N) when total equipment is less than limit", async () => {
+    const popular = [{ id: "p1" }];
+    const allEquipment = [{ id: "p1" }, { id: "e1" }, { id: "e2" }];
+    const supabase = makeSupabase({
+      rpc: { get_popular_equipment: { data: popular } },
+      tables: { equipment: { data: allEquipment } },
+    });
+    const result = await equipment.getPopularEquipment(makeCtx(supabase), 6);
+    expect(result).toHaveLength(3);
+    expect(result[0].id).toBe("p1");
+    expect(new Set(result.map(r => r.id)).size).toBe(3);
   });
 });
 

@@ -400,7 +400,29 @@ export async function getPopularEquipment(
     return getRecentEquipment(ctx, limit);
   }
 
-  return data || [];
+  const popular = (data || []) as (Equipment & {
+    averageRating?: number;
+    reviewCount?: number;
+  })[];
+  if (popular.length >= limit) return popular;
+
+  // Top up with a random sample so the homepage Featured section is never
+  // sparse when the popular-by-reviews query returns < limit rows. Random is
+  // per-request (Fisher–Yates on the fetched set) so refreshing varies the
+  // filler. Popular items always come first; top-up only fills the remainder.
+  const popularIds = new Set(popular.map(e => e.id));
+  const allEquipment = await getAllEquipment(ctx);
+  const candidates = allEquipment.filter(e => !popularIds.has(e.id));
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const topUp = candidates.slice(0, limit - popular.length).map(e => ({
+    ...e,
+    averageRating: undefined,
+    reviewCount: 0,
+  }));
+  return [...popular, ...topUp];
 }
 
 export async function getSimilarEquipment(
