@@ -4,7 +4,8 @@
 
 ## TL;DR
 
-- Wrapper script: `./scripts/plane.sh` — `projects`, `list`, `show`, `children`, `new`, `describe`, `state`, `done`, `labels`, `states`. Needs `jq`. Loads `.env` automatically.
+- Wrapper script: `./scripts/plane.sh` — `projects`, `list`, `show`, `children`, `new`, `describe`, `update`, `state`, `done`, `delete`, `labels`, `states`. Needs `jq`. Loads `.env` automatically.
+- Help: `./scripts/plane.sh --help` for the command list; append `--help` to any command (e.g. `./scripts/plane.sh new --help`) for command-specific flags.
 - Workspace slug: `tt-reviews` (workspace UUID: `abbfec5b-9317-48d3-8dc6-db4c9be15da9`)
 - Project: **TT Reviews** — identifier `TT`, UUID `dbcecf38-c6fc-482e-bbc1-ebbff0cb2001`
 - Auth: personal access token in `X-API-Key` header. `.env` holds `PLANE_ACCESS_TOKEN`, `PLANE_WORKSPACE`, `PLANE_PROJECT_ID`.
@@ -58,13 +59,29 @@ Steps:
 ./scripts/plane.sh describe TT-14 --description "..."
 ./scripts/plane.sh describe TT-14 --description-file ./notes.md
 
+# Updating other fields (PATCH — pass any combination of flags)
+./scripts/plane.sh update TT-14 --priority high --add-label bug
+./scripts/plane.sh update TT-14 --title "Fix CSRF on category rename"
+./scripts/plane.sh update TT-14 --remove-label polish --parent TT-25
+./scripts/plane.sh update TT-14 --no-parent          # detach from current parent
+
 # State transitions
 ./scripts/plane.sh state TT-14 "In Progress"
 ./scripts/plane.sh state TT-14 Blocked
 ./scripts/plane.sh done TT-14                     # resolves to the `completed`-group state
+
+# Deleting (prompts for confirmation; pass --yes to skip)
+./scripts/plane.sh delete TT-14
+./scripts/plane.sh delete TT-14 --yes
 ```
 
+`update` takes the same description flags as `describe` (and `new`), so it's a strict superset; `describe` is kept as a shortcut for the common "just rewrite the description" case. For state changes, use `state` / `done` rather than threading state UUIDs through `update`.
+
 Description input is plain text by default — blank lines become paragraph breaks, single newlines become `<br>`, and `<`/`>`/`&` are HTML-escaped. If the input already looks like HTML (contains `<p>` or `<h1>`..`<h6>`), it's passed through as-is so you can hand-author rich content.
+
+### `--help` anywhere works
+
+`--help` / `-h` is intercepted regardless of position. `./scripts/plane.sh new --help` prints flags for `new`, `./scripts/plane.sh update TT-5 --add-label bug --help` prints flags for `update`, and `./scripts/plane.sh help update` is the same thing. The one exception is when `--help` is the value of a flag that takes a value (e.g. `--description "--help"`, `--title "--help"`) — there it's preserved as content, so a literal `--help` can still be smuggled into a description or title if you really need it.
 
 ### Parent / sub-issue relationships
 

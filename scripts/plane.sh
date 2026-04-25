@@ -1,25 +1,8 @@
 #!/usr/bin/env bash
-# Thin wrapper around the Plane REST API.
-# See docs/PLANE.md for the underlying endpoints.
+# Thin wrapper around the Plane REST API. See docs/PLANE.md for endpoints.
 #
-# Usage:
-#   ./scripts/plane.sh projects                  # list projects in the workspace
-#   ./scripts/plane.sh list [--state NAME]       # list work items in $PLANE_PROJECT_ID
-#   ./scripts/plane.sh show <seq|uuid>           # show one work item
-#   ./scripts/plane.sh children <seq|uuid>       # list sub-issues of a parent
-#   ./scripts/plane.sh new "Title" [--priority low|medium|high|urgent] [--label NAME ...]
-#                                  [--description TEXT | --description-file PATH]
-#                                  [--parent <seq|uuid>]
-#   ./scripts/plane.sh describe <seq|uuid> (--description TEXT | --description-file PATH)
-#   ./scripts/plane.sh done <seq|uuid>           # move to the "Done" state (hints if it closes out a parent)
-#   ./scripts/plane.sh state <seq|uuid> <NAME>   # move to any state by name (e.g. "In Progress")
-#   ./scripts/plane.sh labels                    # list labels
-#   ./scripts/plane.sh states                    # list states
-#
-# Env (loaded from .env if present):
-#   PLANE_ACCESS_TOKEN   required
-#   PLANE_WORKSPACE      defaults to "tt-reviews"
-#   PLANE_PROJECT_ID     required for anything below the project level
+# Run `./scripts/plane.sh --help` for a command list. Append `--help` to any
+# subcommand (e.g. `./scripts/plane.sh new --help`) for command-specific help.
 
 set -euo pipefail
 
@@ -38,6 +21,159 @@ command -v jq >/dev/null 2>&1 || { echo "jq is required (brew/apt install jq)" >
 
 die() { echo "$*" >&2; exit 1; }
 need_project() { : "${PLANE_PROJECT_ID:?PLANE_PROJECT_ID not set — run 'projects' to find one, then export it or put it in .env}"; }
+
+# Per-command help. Pass the subcommand name; pass nothing (or an unknown
+# command) for the generic overview.
+show_help() {
+  case "${1:-}" in
+    projects)
+      cat <<'EOF'
+plane.sh projects
+  List projects in the workspace, with their UUIDs.
+EOF
+      ;;
+    list)
+      cat <<'EOF'
+plane.sh list [--state NAME]
+  List work items in $PLANE_PROJECT_ID, sorted by sequence id. Each line
+  is annotated with state, priority, labels, and parent/child markers
+  ([↳ TT-N] for children, [parent: M/N done] for parents).
+
+  Flags:
+    --state NAME    Only show items in the named state (case-insensitive),
+                    e.g. "Backlog", "In Progress", "Blocked", "Completed".
+EOF
+      ;;
+    show)
+      cat <<'EOF'
+plane.sh show <seq|uuid>
+  Print the full JSON for one work item. <seq> may be "42", "TT-42",
+  or a work-item UUID.
+EOF
+      ;;
+    children)
+      cat <<'EOF'
+plane.sh children <seq|uuid>
+  List sub-issues of the given parent, with their states and an "M/N
+  complete" summary. Prints a hint when the parent is ready to close.
+EOF
+      ;;
+    new)
+      cat <<'EOF'
+plane.sh new "Title" [flags]
+  Create a new work item. Defaults to the project's default state
+  (Backlog) and priority "none".
+
+  Flags:
+    --priority low|medium|high|urgent
+    --label NAME              May be repeated to add multiple labels.
+    --description TEXT        Plain text. Blank lines become paragraphs;
+                              single newlines become <br>; <, >, & are
+                              HTML-escaped. Pass-through if it already
+                              contains <p> or <h1>..<h6>.
+    --description-file PATH   Read description from a file.
+    --parent <seq|uuid>       Parent work item (creates a sub-issue).
+
+  Example:
+    plane.sh new "Fix CSRF on rename form" --priority high --label bug \
+      --description-file ./tmp/notes.md
+EOF
+      ;;
+    describe)
+      cat <<'EOF'
+plane.sh describe <seq|uuid> (--description TEXT | --description-file PATH)
+  Replace a work item's description. Use 'plane.sh update' for any
+  other field.
+EOF
+      ;;
+    update)
+      cat <<'EOF'
+plane.sh update <seq|uuid> [flags]
+  Patch one or more fields on a work item. At least one flag is
+  required. For state changes, use 'plane.sh state' or 'plane.sh done'.
+
+  Flags:
+    --title TEXT
+    --priority none|low|medium|high|urgent
+    --description TEXT
+    --description-file PATH
+    --add-label NAME          May be repeated.
+    --remove-label NAME       May be repeated.
+    --parent <seq|uuid>       Reparent the item.
+    --no-parent               Detach from current parent.
+
+  Examples:
+    plane.sh update TT-14 --priority high --add-label bug
+    plane.sh update TT-14 --title "Fix CSRF on category rename"
+    plane.sh update TT-14 --remove-label polish --parent TT-25
+EOF
+      ;;
+    state)
+      cat <<'EOF'
+plane.sh state <seq|uuid> <state-name>
+  Move a work item to the named state (case-insensitive). Examples:
+  "In Progress", "Blocked", "Backlog", "Completed".
+EOF
+      ;;
+    done)
+      cat <<'EOF'
+plane.sh done <seq|uuid>
+  Move a work item to the first state in the 'completed' group. If the
+  closed item's parent now has all children complete, prints a hint to
+  close the parent too.
+EOF
+      ;;
+    delete)
+      cat <<'EOF'
+plane.sh delete <seq|uuid> [--yes]
+  Delete a work item. Prompts for confirmation by default; pass --yes
+  (or -y) to skip the prompt. Sequence IDs do not reclaim — deleting
+  TT-5 does not free the number for the next item.
+EOF
+      ;;
+    labels)
+      cat <<'EOF'
+plane.sh labels
+  List all labels in the project, with colors and UUIDs.
+EOF
+      ;;
+    states)
+      cat <<'EOF'
+plane.sh states
+  List all states in the project, with their group
+  (backlog/started/completed/etc).
+EOF
+      ;;
+    *)
+      cat <<'EOF'
+plane.sh — wrapper around the Plane REST API. See docs/PLANE.md.
+
+Commands:
+  projects                              List projects in the workspace
+  list [--state NAME]                   List work items
+  show <seq|uuid>                       Show full JSON for one work item
+  children <seq|uuid>                   List sub-issues of a parent
+  new "Title" [flags]                   Create a work item
+  describe <seq|uuid> --description …   Replace description (shortcut)
+  update <seq|uuid> [flags]             Update title / priority / labels / parent
+  state <seq|uuid> <NAME>               Move to a named state
+  done <seq|uuid>                       Move to the 'completed' state
+  delete <seq|uuid> [--yes]             Delete a work item
+  labels                                List labels
+  states                                List states
+
+Append --help to any command for command-specific help, e.g.
+  ./scripts/plane.sh new --help
+  ./scripts/plane.sh help update          (equivalent)
+
+Env (loaded from .env):
+  PLANE_ACCESS_TOKEN   required
+  PLANE_WORKSPACE      defaults to "tt-reviews"
+  PLANE_PROJECT_ID     required for anything below the project level
+EOF
+      ;;
+  esac
+}
 
 api() {
   local method="$1" path="$2"; shift 2
@@ -236,6 +372,69 @@ cmd_describe() {
     | jq -r '"TT-\(.sequence_id) description updated"'
 }
 
+cmd_update() {
+  need_project; [[ $# -ge 1 ]] || die "usage: plane.sh update <seq|uuid> [flags] (run 'plane.sh update --help' for the full list)"
+  local id; id=$(resolve_work_item "$1"); shift
+  local title="" priority="" description_html="" parent_id="" clear_parent=""
+  local add_label_ids=() remove_label_ids=()
+  while (($#)); do
+    case "$1" in
+      --title)            title="$2"; shift 2;;
+      --priority)         priority="$2"; shift 2;;
+      --description)      description_html=$(read_description_arg "$2"); shift 2;;
+      --description-file) description_html=$(read_description_file "$2"); shift 2;;
+      --parent)           parent_id=$(resolve_work_item "$2"); shift 2;;
+      --no-parent)        clear_parent=1; shift;;
+      --add-label)
+        local lid; lid=$(resolve_named labels "$2")
+        [[ -n "$lid" ]] || die "no label called '$2' (use 'plane.sh labels')"
+        add_label_ids+=("$lid"); shift 2;;
+      --remove-label)
+        local lid; lid=$(resolve_named labels "$2")
+        [[ -n "$lid" ]] || die "no label called '$2' (use 'plane.sh labels')"
+        remove_label_ids+=("$lid"); shift 2;;
+      *) die "unknown flag: $1 (run 'plane.sh update --help')";;
+    esac
+  done
+
+  local payload="{}"
+  [[ -n "$title" ]]            && payload=$(jq --arg n "$title" '. + {name:$n}' <<<"$payload")
+  [[ -n "$priority" ]]         && payload=$(jq --arg p "$priority" '. + {priority:$p}' <<<"$payload")
+  [[ -n "$description_html" ]] && payload=$(jq --argjson d "$description_html" '. + {description_html:$d}' <<<"$payload")
+  if [[ -n "$clear_parent" ]]; then
+    payload=$(jq '. + {parent:null}' <<<"$payload")
+  elif [[ -n "$parent_id" ]]; then
+    payload=$(jq --arg p "$parent_id" '. + {parent:$p}' <<<"$payload")
+  fi
+
+  # Labels are an array — fetch the current set so add/remove operate on it
+  # rather than overwriting the whole list.
+  if [[ "${#add_label_ids[@]}" -gt 0 || "${#remove_label_ids[@]}" -gt 0 ]]; then
+    local current add_json remove_json merged
+    current=$(api GET "/projects/$PLANE_PROJECT_ID/work-items/$id/" | jq -c '.labels')
+    if [[ "${#add_label_ids[@]}" -gt 0 ]]; then
+      add_json=$(printf '%s\n' "${add_label_ids[@]}" | jq -R . | jq -s .)
+    else
+      add_json="[]"
+    fi
+    if [[ "${#remove_label_ids[@]}" -gt 0 ]]; then
+      remove_json=$(printf '%s\n' "${remove_label_ids[@]}" | jq -R . | jq -s .)
+    else
+      remove_json="[]"
+    fi
+    merged=$(jq -nc --argjson cur "$current" --argjson add "$add_json" --argjson rem "$remove_json" \
+      '($cur + $add) | unique | map(select(. as $x | $rem | index($x) | not))')
+    payload=$(jq --argjson l "$merged" '. + {labels:$l}' <<<"$payload")
+  fi
+
+  if [[ "$payload" == "{}" ]]; then
+    die "no fields to update — see 'plane.sh update --help' for the available flags"
+  fi
+
+  api PATCH "/projects/$PLANE_PROJECT_ID/work-items/$id/" -d "$payload" \
+    | jq -r '"TT-\(.sequence_id) updated"'
+}
+
 cmd_state() {
   need_project; [[ $# -ge 2 ]] || die "usage: plane.sh state <seq|uuid> <state-name>"
   local id state_id
@@ -292,7 +491,61 @@ cmd_states() {
   api GET "/projects/$PLANE_PROJECT_ID/states/" | jq -r '.results[] | "\(.group | .[0:4])  \(.name)  (\(.id))"'
 }
 
+cmd_delete() {
+  need_project; [[ $# -ge 1 ]] || die "usage: plane.sh delete <seq|uuid> [--yes]"
+  local ref="$1"; shift
+  local force=""
+  while (($#)); do
+    case "$1" in
+      --yes|-y) force=1; shift;;
+      *) die "unknown flag: $1 (run 'plane.sh delete --help')";;
+    esac
+  done
+  local id item seq name
+  id=$(resolve_work_item "$ref")
+  item=$(api GET "/projects/$PLANE_PROJECT_ID/work-items/$id/")
+  seq=$(jq -r '.sequence_id' <<<"$item")
+  name=$(jq -r '.name' <<<"$item")
+  if [[ -z "$force" ]]; then
+    if [[ -t 0 ]]; then
+      local ans
+      read -r -p "Really delete TT-$seq \"$name\"? [y/N] " ans
+      [[ "$ans" =~ ^[yY]$ ]] || die "aborted"
+    else
+      die "delete refused without --yes (no tty for interactive confirmation)"
+    fi
+  fi
+  if ! api DELETE "/projects/$PLANE_PROJECT_ID/work-items/$id/" -f >/dev/null; then
+    die "delete failed (Plane API returned an error)"
+  fi
+  echo "deleted TT-$seq  $name"
+}
+
 sub="${1:-}"; shift || true
+
+# Generic help when invoked with no command, or `--help` / `-h` / `help` in
+# the command slot. `plane.sh help <cmd>` shows command-specific help.
+if [[ -z "$sub" || "$sub" == "--help" || "$sub" == "-h" || "$sub" == "help" ]]; then
+  show_help "${1:-}"; exit 0
+fi
+
+# Per-command help: intercept `--help` / `-h` anywhere in the args, except
+# when it's the value of a flag that takes a value (so e.g.
+# `update TT-5 --description "--help"` keeps "--help" as content).
+prev=""
+for arg in "$@"; do
+  case "$prev" in
+    --priority|--label|--add-label|--remove-label|--description|--description-file|--parent|--state|--title)
+      ;;
+    *)
+      if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
+        show_help "$sub"; exit 0
+      fi
+      ;;
+  esac
+  prev="$arg"
+done
+
 case "$sub" in
   projects) cmd_projects "$@";;
   list)     cmd_list "$@";;
@@ -300,12 +553,11 @@ case "$sub" in
   children) cmd_children "$@";;
   new)      cmd_new "$@";;
   describe) cmd_describe "$@";;
+  update)   cmd_update "$@";;
   state)    cmd_state "$@";;
   done)     cmd_done "$@";;
+  delete)   cmd_delete "$@";;
   labels)   cmd_labels "$@";;
   states)   cmd_states "$@";;
-  ""|-h|--help|help)
-    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
-    ;;
-  *) die "unknown command: $sub (try --help)";;
+  *) die "unknown command: $sub (run 'plane.sh --help' for the command list)";;
 esac

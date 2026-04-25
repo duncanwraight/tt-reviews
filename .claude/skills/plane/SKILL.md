@@ -44,7 +44,7 @@ Follow this loop per item. Don't skip steps; don't start the next item until the
     --description "Context/repro/acceptance. Blank lines become paragraphs."
   ```
   For longer briefs, use `--description-file PATH`. Use a description whenever the title alone won't tell future-you what "done" looks like — acceptance criteria, repro steps, and links to the relevant code or archived plan section belong there.
-- To enrich an existing item's description: `./scripts/plane.sh describe TT-N --description "..."` (or `--description-file`).
+- To enrich an existing item's description: `./scripts/plane.sh describe TT-N --description "..."` (or `--description-file`). For other fields (priority, labels, title, parent), use `./scripts/plane.sh update TT-N --priority high --add-label bug` etc. — see `plane.sh update --help`.
 - Don't tack unrelated work onto an item. If you spot a second bug while fixing the first, file it as a new item. Same rule applies to failing tests that aren't caused by your change — new item, don't expand scope.
 
 ## Completing
