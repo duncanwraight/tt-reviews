@@ -7,6 +7,7 @@ interface EquipmentDisplay {
   name: string;
   slug: string;
   category: string;
+  subcategory?: string;
   manufacturer: string;
   rating?: number;
   reviewCount?: number;

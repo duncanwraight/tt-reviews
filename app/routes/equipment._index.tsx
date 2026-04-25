@@ -7,7 +7,7 @@ import { Link } from "react-router";
 import { useContent } from "~/hooks/useContent";
 
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
-import { ComparisonCard } from "~/components/equipment/ComparisonCard";
+import { EquipmentCard } from "~/components/ui/EquipmentCard";
 import { SafeHtml } from "~/lib/sanitize";
 import { PageSection } from "~/components/layout/PageSection";
 import { StructuredData } from "~/components/seo/StructuredData";
@@ -18,6 +18,7 @@ interface EquipmentDisplay {
   name: string;
   slug: string;
   category: string;
+  subcategory?: string;
   manufacturer: string;
   rating?: number;
   reviewCount?: number;
@@ -433,7 +434,11 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                   {equipment.map(item => (
-                    <ComparisonCard key={item.id} equipment={item} />
+                    <EquipmentCard
+                      key={item.id}
+                      equipment={item}
+                      showCompareToggle
+                    />
                   ))}
                 </div>
               </>
