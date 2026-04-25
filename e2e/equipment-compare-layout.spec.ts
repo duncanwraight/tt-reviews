@@ -13,13 +13,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 const INVERTED_PAIR = "/equipment/compare/dhs-neo-hurricane-3-vs-yasaka-mark-v";
 
-// Tablet width deliberately 900 (not 768 / 820) — the main nav has a
-// pre-existing fixed-width bug (~856px) that overflows all viewports below
-// that at the md: breakpoint; tracked as TT-32. 900 still exercises a tablet
-// layout for the comparison page without tripping that.
 const VIEWPORTS = [
   { label: "mobile", width: 375, height: 667 },
-  { label: "tablet", width: 900, height: 1180 },
+  { label: "tablet", width: 768, height: 1024 },
   { label: "desktop", width: 1440, height: 900 },
 ] as const;
 

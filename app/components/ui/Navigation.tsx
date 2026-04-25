@@ -40,7 +40,7 @@ export function Navigation({ user }: NavigationProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center space-x-8">
             <Link
               to="/equipment"
               className={`font-medium transition-all duration-200 hover:scale-105 ${
@@ -125,7 +125,7 @@ export function Navigation({ user }: NavigationProps) {
           </div>
 
           {/* Mobile menu button and login */}
-          <div className="md:hidden flex items-center space-x-4">
+          <div className="lg:hidden flex items-center space-x-4">
             {!user && (
               <Link
                 to="/login"
@@ -175,7 +175,7 @@ export function Navigation({ user }: NavigationProps) {
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <div
               className={`px-2 pt-2 pb-3 space-y-1 ${
                 isHomepage
