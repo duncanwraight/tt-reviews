@@ -1,11 +1,12 @@
 import type { Route } from "./+types/admin.equipment-photos";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useNavigation } from "react-router";
+import { useState } from "react";
 import {
   ensureAdminAction,
   ensureAdminLoader,
 } from "~/lib/admin/middleware.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
-import { Inbox } from "lucide-react";
+import { Inbox, Loader2 } from "lucide-react";
 import {
   pickCandidate,
   rejectCandidate,
@@ -260,6 +261,19 @@ export default function AdminEquipmentPhotos({
   loaderData,
 }: Route.ComponentProps) {
   const { items, csrfToken } = loaderData;
+  const navigation = useNavigation();
+
+  // Any in-flight POST to a route under /admin/equipment-photos —
+  // bulk source, pick, reject, skip, re-source — counts as "the
+  // queue is mutating". Disable the bulk button + show a global
+  // hint while that's happening so the user knows their click
+  // landed (each chunk takes ~6s for Brave throttling).
+  const isMutating =
+    navigation.state === "submitting" &&
+    (navigation.formAction?.startsWith("/admin/equipment-photos") ?? false);
+  const isBulkSourcing =
+    isMutating &&
+    navigation.formAction === "/admin/equipment-photos-bulk-source";
 
   return (
     <div className="space-y-6">
@@ -275,9 +289,17 @@ export default function AdminEquipmentPhotos({
             <input type="hidden" name="_csrf" value={csrfToken} />
             <button
               type="submit"
-              className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white font-medium hover:bg-purple-700"
+              disabled={isMutating}
+              className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
-              Source next chunk
+              {isBulkSourcing ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Sourcing…
+                </>
+              ) : (
+                "Source next chunk"
+              )}
             </button>
           </Form>
         </div>
@@ -378,8 +400,6 @@ function CandidateTile({
   candidate,
   csrfToken,
 }: CandidateTileProps) {
-  const thumbUrl = buildEquipmentImageUrl(candidate.r2_key, "thumbnail");
-
   return (
     <li
       className="border border-gray-200 rounded-lg overflow-hidden flex flex-col"
@@ -387,11 +407,9 @@ function CandidateTile({
       data-candidate-id={candidate.id}
     >
       <div className="aspect-square bg-gray-50 flex items-center justify-center">
-        <img
-          src={thumbUrl}
+        <CandidateImage
+          r2Key={candidate.r2_key}
           alt={`Candidate from ${candidate.image_source_host ?? "unknown source"}`}
-          className="w-full h-full object-contain"
-          loading="lazy"
         />
       </div>
       <div className="p-3 flex-1 flex flex-col gap-2 text-xs">
@@ -456,5 +474,45 @@ function CandidateTile({
         </div>
       </div>
     </li>
+  );
+}
+
+// Resilient image: tries the cdn-cgi/image transformation first, then
+// falls back to the raw R2 object on error. The fallback exists
+// because Cloudflare Image Transformations is a paid feature; if it's
+// not enabled on the zone, the cdn-cgi URL 404s and we need to render
+// the original bytes instead. The onError handler swaps src once and
+// then bails out so a missing R2 object doesn't loop.
+interface CandidateImageProps {
+  r2Key: string;
+  alt: string;
+}
+
+function CandidateImage({ r2Key, alt }: CandidateImageProps) {
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [hasFailed, setHasFailed] = useState(false);
+  const src = usingFallback
+    ? `/api/images/${r2Key}`
+    : buildEquipmentImageUrl(r2Key, "thumbnail");
+
+  if (hasFailed) {
+    return (
+      <span className="text-xs text-gray-400 px-2 text-center">
+        image unavailable
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-contain"
+      loading="lazy"
+      onError={() => {
+        if (usingFallback) setHasFailed(true);
+        else setUsingFallback(true);
+      }}
+    />
   );
 }
