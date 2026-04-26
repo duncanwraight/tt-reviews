@@ -1,84 +1,79 @@
 # Image storage
 
-Two distinct stores back the site's images. They behave differently because
-the source material does.
+All site images live in **Cloudflare R2** under the `IMAGE_BUCKET`
+binding. Two key shapes share the bucket:
 
-## R2 — player photos (TT-36)
+| Prefix          | Source                                          | Pipeline                                 |
+| --------------- | ----------------------------------------------- | ---------------------------------------- |
+| `player/...`    | Wikimedia Commons / World Table Tennis (TT-36)  | `scripts/photo-sourcing/{scan,apply}.ts` |
+| `equipment/...` | Manufacturer / retailer pages via Brave (TT-48) | `/admin/equipment-photos` queue          |
 
-Player headshots come from Wikimedia Commons or World Table Tennis at known
-high quality. The pipeline (scripts under `scripts/photo-sourcing/`) downloads
-the original byte-perfect file, attaches license metadata, and pushes to the
-`tt-reviews-prod` (prod) / `tt-reviews-dev` (local) R2 buckets via the
-`IMAGE_BUCKET` Worker binding. Re-encoding would degrade quality and lose
-EXIF/copyright metadata, so we don't.
+## Reads
 
-Reads go through `app/routes/api.images.$.tsx` → `R2Bucket.get`.
+`/api/images/<key>` proxies the R2 object verbatim. For variant
+rendering (resize + format conversion), point at
+`/cdn-cgi/image/<options>/api/images/<key>` instead — Cloudflare's
+edge intercepts the prefix, fetches the source through the same
+Worker route, and applies the transformation before caching the
+result. No origin code runs for the resize.
 
-Code: `app/lib/r2-native.server.ts`, `app/lib/imageUrl.ts`.
+Equipment components use `buildEquipmentImageUrl` from
+`app/lib/imageUrl.ts`, which expands to that pattern with one of
+three variant widths:
 
-## Cloudflare Images — equipment photos (TT-48)
+| Variant     | Width | Use                                          |
+| ----------- | ----- | -------------------------------------------- |
+| `thumbnail` | 256   | review queue grid + admin previews + credits |
+| `card`      | 512   | `EquipmentCard` listings                     |
+| `full`      | 1024  | `/equipment/:slug` detail page header        |
 
-Equipment photos come from manufacturer/retailer pages and arrive in
-arbitrary formats, sizes, and EXIF states. They need normalization (webp,
-strip EXIF, resize to a small set of variants) before they're served. The
-Workers runtime can't run sharp, so we hand the bytes to Cloudflare Images
-and let it produce the variants.
+Player components use `buildImageUrl` (no variant — player photos are
+already normalised to a single size by the TT-36 pipeline).
 
-Code: `app/lib/images/cloudflare.ts`.
+## Writes
 
-### Variants
+### Player photos (TT-36)
 
-The helpers expose three variant names that must exist in the CF Images
-dashboard:
+Driven by manifest review locally, then `npm run sourcing:apply`
+normalises with sharp on the developer's machine and writes the
+seed-images directory + a SQL-update block. See
+`scripts/photo-sourcing/README.md` for the full flow.
 
-| Name        | Use                                             |
-| ----------- | ----------------------------------------------- |
-| `thumbnail` | review queue grid + admin previews (~256px)     |
-| `card`      | `EquipmentCard` listings (~512px)               |
-| `full`      | `/equipment/:slug` detail page header (~1024px) |
+### Equipment photos (TT-48)
 
-If you change the variant set, update both the dashboard and
-`CLOUDFLARE_IMAGE_VARIANTS` in `cloudflare.ts`.
+Live admin flow only — no committed binaries.
 
-### Setup
+1. `POST /admin/equipment-photos/bulk-source` (or per-item
+   `POST /admin/equipment/:slug/source-photos`) calls Brave Image
+   Search via the resolver in `app/lib/photo-sourcing/brave.server.ts`.
+2. Each surviving candidate's bytes are downloaded and written to R2
+   under `equipment/<slug>/cand/<uuid>.<ext>` via the `IMAGE_BUCKET`
+   binding.
+3. Candidates show up in `/admin/equipment-photos` for human pick.
+4. On Pick: `equipment.image_key` is set to the chosen R2 key, the
+   losers are deleted from R2 + DB.
+5. `npm run images:export-seed` writes `equipment.image_*` columns
+   into `supabase/seed.sql`'s PHOTO-SOURCING-CREDITS block so a
+   `supabase db reset` survives the change.
 
-The fastest path is `npm run images:setup-cf`, which:
+## Pricing
 
-- probes `IMAGES_API_TOKEN` (or falls back to `CLOUDFLARE_API_TOKEN`)
-  for `Account.Cloudflare Images: Edit` permission;
-- creates the three variants in CF if they're missing;
-- discovers the account hash by reading an existing image's variant URL
-  (or uploading + deleting a 1×1 PNG probe if the library is empty);
-- writes `IMAGES_ACCOUNT_ID` / `IMAGES_ACCOUNT_HASH` / `IMAGES_API_TOKEN`
-  back into `.dev.vars`.
+R2 is essentially free at this scale: $0.015/GB-month storage, no
+egress charges. The full equipment set (~290 images at ~50 KB each)
+is ~15 MB → fractions of a cent.
 
-Idempotent — re-runs are no-ops once everything is configured.
+Cloudflare Image Resizing transformations: each unique resize is
+free under the platform's first-tier limit (5,000/month on Pro+
+plans) and $0.50 per 1,000 thereafter. For a one-time backfill of
+~290 equipment × 3 variants = 870 transforms — well within free
+tier on first run, and cached at the edge for 30 days after.
 
-Manual prerequisites (the script can't do these for you):
+## Setup
 
-- **Account ID** — the UUID at the top right of the Cloudflare dashboard.
-  The script falls back to `R2_ACCOUNT_ID` (same value).
-- **API token** — Profile → API Tokens → Create Token → use the
-  "Read and write to Cloudflare Stream and Images" template (or scope
-  manually to `Account.Cloudflare Images: Edit`). Add it as
-  `IMAGES_API_TOKEN` in `.dev.vars`. The R2-only `CLOUDFLARE_API_TOKEN`
-  won't work — Images is a separate scope.
+R2 + the Worker binding are already configured (TT-36). No extra
+account-level provisioning is required for equipment photos:
+`IMAGE_BUCKET` is the same binding the player-photo pipeline uses.
 
-Production:
-
-```sh
-wrangler secret put IMAGES_ACCOUNT_ID
-wrangler secret put IMAGES_ACCOUNT_HASH
-wrangler secret put IMAGES_API_TOKEN
-```
-
-### Rotating the token
-
-1. In the Cloudflare dashboard, create a new token with the same scope.
-2. `wrangler secret put IMAGES_API_TOKEN` and paste the new value.
-3. Trigger a deploy (any push to `main`) so workers pick up the new secret.
-4. Confirm a sourcing run still works (`/admin/equipment-photos` →
-   "Re-source" any item).
-5. Revoke the old token.
-
-The account ID and hash do not change unless the CF account itself changes.
+The only credential the equipment flow needs that the player flow
+doesn't is `BRAVE_SEARCH_API_KEY` (already in `.dev.vars`). Image
+Resizing is on by default for the zone.

@@ -9,15 +9,6 @@ R2_ACCESS_KEY_ID=your_r2_access_key
 R2_SECRET_ACCESS_KEY=your_r2_secret_key
 R2_BUCKET_NAME=your_bucket_name
 
-# Cloudflare Images (TT-48). Used by the equipment photo sourcing flow.
-# Account id is your CF account UUID; account hash is the per-account
-# delivery hash from the Images dashboard (the part after
-# `imagedelivery.net/`); API token needs Images:Edit scope.
-# See docs/IMAGES.md for setup + rotation.
-IMAGES_ACCOUNT_ID=your_cloudflare_account_id
-IMAGES_ACCOUNT_HASH=your_images_account_hash
-IMAGES_API_TOKEN=your_images_api_token
-
 # Site Configuration
 SITE_URL=https://tt-reviews.local
 
