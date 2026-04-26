@@ -43,6 +43,10 @@ head_sampling_rate = 1
 ENVIRONMENT = "production"
 SITE_URL = "https://tabletennis.reviews"
 R2_BUCKET_NAME = "tt-reviews-prod"
+# Cloudflare Images (TT-48). Uploads use the v4 REST API, not a binding.
+# IMAGES_ACCOUNT_ID, IMAGES_ACCOUNT_HASH, and IMAGES_API_TOKEN are set
+# via `wrangler secret put` in prod and via .dev.vars locally — see
+# docs/IMAGES.md for token scopes and rotation.
 
 # Local dev settings
 [env.dev]
@@ -78,3 +82,5 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 SESSION_SECRET = "dev-secret-change-in-production"
 ADMIN_EMAILS = "admin@tabletennis.reviews"
 SITE_URL = "http://tt-reviews.local:8787"
+# Cloudflare Images creds live in .dev.vars (each developer points at
+# their own CF account). See .dev.vars.example.
