@@ -263,9 +263,20 @@ export default function AdminEquipmentPhotos({
         <h2 className="text-2xl font-bold text-gray-900">
           Equipment Photo Review Queue
         </h2>
-        <span className="text-sm text-gray-600">
-          {items.length} item{items.length === 1 ? "" : "s"} pending
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600">
+            {items.length} item{items.length === 1 ? "" : "s"} pending
+          </span>
+          <Form method="post" action="/admin/equipment-photos/bulk-source">
+            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <button
+              type="submit"
+              className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white font-medium hover:bg-purple-700"
+            >
+              Source next chunk
+            </button>
+          </Form>
+        </div>
       </div>
 
       {items.length === 0 ? (
