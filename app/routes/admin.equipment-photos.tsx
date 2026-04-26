@@ -271,7 +271,7 @@ export default function AdminEquipmentPhotos({
           <span className="text-sm text-gray-600">
             {items.length} item{items.length === 1 ? "" : "s"} pending
           </span>
-          <Form method="post" action="/admin/equipment-photos/bulk-source">
+          <Form method="post" action="/admin/equipment-photos-bulk-source">
             <input type="hidden" name="_csrf" value={csrfToken} />
             <button
               type="submit"

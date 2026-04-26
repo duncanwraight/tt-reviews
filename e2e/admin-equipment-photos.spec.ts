@@ -160,6 +160,44 @@ test("admin clicks 'None of these' → image_skipped_at set, candidates cleared"
   }
 });
 
+// Regression guard for the route-collision class of bug: when admin
+// clicks "Source next chunk", the form must POST to a real route, not
+// a 404. We don't exercise the full Brave + R2 pipeline here (that's
+// covered by the bulk.server unit tests with mocks). All we want to
+// know is "does the URL exist and accept admin POSTs?". A 500 from a
+// missing BRAVE_SEARCH_API_KEY in test would be acceptable; a 404 is
+// the failure mode this test exists to prevent.
+test("'Source next chunk' button POSTs to a non-404 route", async ({
+  page,
+}) => {
+  const adminEmail = generateTestEmail("photoadm");
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+
+  try {
+    await login(page, adminEmail);
+    await page.goto("/admin/equipment-photos");
+
+    // Capture the response status of the POST initiated by the form
+    // submission. The button performs a `fetch`-like navigation (RR
+    // Form), so we listen on the network for the request URL.
+    const responsePromise = page.waitForResponse(resp =>
+      resp.url().includes("/admin/equipment-photos-bulk-source")
+    );
+    await page.getByRole("button", { name: /Source next chunk/i }).click();
+    const response = await responsePromise;
+
+    // The point of this test is to catch route-collision regressions
+    // where flatRoutes maps the URL to a non-existent or unrenderable
+    // route. Any meaningful response (auth gate, rate limit, success
+    // redirect, or even a 5xx from missing prod creds) proves the URL
+    // is wired up. A 404 or "Not Found" body is the failure mode.
+    expect(response.status()).not.toBe(404);
+  } finally {
+    await deleteUser(adminId);
+  }
+});
+
 test("admin rejects a single candidate → only that candidate disappears", async ({
   page,
 }) => {

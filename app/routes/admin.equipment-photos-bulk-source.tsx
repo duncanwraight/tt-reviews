@@ -1,4 +1,4 @@
-import type { Route } from "./+types/admin.equipment-photos.bulk-source";
+import type { Route } from "./+types/admin.equipment-photos-bulk-source";
 import { data, redirect } from "react-router";
 import { ensureAdminAction } from "~/lib/admin/middleware.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
