@@ -64,6 +64,7 @@ export function EquipmentHeader({
             src={imageUrl || ""}
             alt={`${equipment.name} by ${equipment.manufacturer}`}
             className="w-full h-full"
+            objectFit="contain"
             placeholder="skeleton"
             fallbackIcon={
               <ImagePlaceholder

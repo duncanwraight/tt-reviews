@@ -166,6 +166,7 @@ function CardBody({ equipment }: { equipment: Equipment }) {
             src={imageUrl}
             alt={equipment.name}
             className="w-full h-full"
+            objectFit="contain"
             placeholder="skeleton"
             fallbackIcon={
               <ImagePlaceholder kind="equipment" className="w-full h-full" />

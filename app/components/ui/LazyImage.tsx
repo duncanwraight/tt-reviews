@@ -8,6 +8,12 @@ interface LazyImageProps {
   // `object-top` that need to live on the image element itself rather
   // than the wrapper div (which is what `className` decorates).
   imgClassName?: string;
+  // Choose between cover (default — crop to fill, used for player
+  // headshots) and contain (no crop, used for product photos that
+  // shouldn't lose whitespace). Tailwind orders both `object-*`
+  // utilities equally so an imgClassName override is unreliable —
+  // hence the explicit prop.
+  objectFit?: "cover" | "contain";
   fallbackIcon?: React.ReactNode;
   placeholder?: "blur" | "skeleton";
   onLoad?: () => void;
@@ -19,6 +25,7 @@ export const LazyImage = memo(function LazyImage({
   alt,
   className = "",
   imgClassName = "",
+  objectFit = "cover",
   fallbackIcon,
   placeholder = "skeleton",
   onLoad,
@@ -87,7 +94,7 @@ export const LazyImage = memo(function LazyImage({
           className={`
             transition-opacity duration-300 rounded-lg
             ${isLoaded ? "opacity-100" : "opacity-0"}
-            ${hasError ? "hidden" : "w-full h-full object-cover"}
+            ${hasError ? "hidden" : objectFit === "contain" ? "w-full h-full object-contain" : "w-full h-full object-cover"}
             ${imgClassName}
           `}
           onLoad={handleLoad}

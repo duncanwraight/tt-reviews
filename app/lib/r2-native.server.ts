@@ -15,7 +15,10 @@ const EXTENSION_BY_TYPE: Record<AllowedImageType, string> = {
   "image/webp": "webp",
 };
 
-const ALLOWED_KEY_PREFIXES = ["equipment/", "player/"] as const;
+// `cf/` prefix is for Cloudflare Images IDs (TT-48). `api.images.$.tsx`
+// detects it and 302-redirects to the CF delivery URL — keeps every
+// caller's `<img src="/api/images/${image_key}">` working unchanged.
+const ALLOWED_KEY_PREFIXES = ["equipment/", "player/", "cf/"] as const;
 
 export interface ImageValidation {
   valid: boolean;
