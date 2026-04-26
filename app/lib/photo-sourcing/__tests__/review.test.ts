@@ -5,13 +5,11 @@ import {
   rejectCandidate,
   skipEquipment,
   resourceEquipment,
+  type R2BucketSurface,
 } from "../review.server";
 import type { SourcingResult } from "../source.server";
 
 const ENV = {
-  IMAGES_ACCOUNT_ID: "acct",
-  IMAGES_ACCOUNT_HASH: "hash",
-  IMAGES_API_TOKEN: "tok",
   BRAVE_SEARCH_API_KEY: "brave-key",
 };
 
@@ -30,7 +28,7 @@ interface FakeEquipment {
 interface FakeCandidate {
   id: string;
   equipment_id: string;
-  cf_image_id: string;
+  r2_key: string;
   source_url: string | null;
   image_source_host: string | null;
   source_label: string | null;
@@ -38,9 +36,6 @@ interface FakeCandidate {
   picked_by?: string | null;
 }
 
-// Tiny chained-builder mock that handles only the operations the
-// review.server module actually performs. Tries to fail loudly if any
-// untested call shape is used so silent miscoverage is hard.
 function makeSupabase(state: {
   equipment: FakeEquipment[];
   candidates: FakeCandidate[];
@@ -54,6 +49,26 @@ function makeSupabase(state: {
     },
   } as unknown as SupabaseClient;
   return { supabase, state };
+}
+
+function makeBucket(): {
+  bucket: R2BucketSurface;
+  deletes: string[];
+  puts: string[];
+} {
+  const deletes: string[] = [];
+  const puts: string[] = [];
+  const bucket: R2BucketSurface = {
+    put: async key => {
+      puts.push(key);
+      return undefined;
+    },
+    delete: async key => {
+      deletes.push(key);
+      return undefined;
+    },
+  };
+  return { bucket, deletes, puts };
 }
 
 class EqBuilder {
@@ -117,12 +132,7 @@ class CandBuilder {
       }
       return Promise.resolve({ error: null });
     }
-    if (this.mode === "select") {
-      // Terminal eq() on select returns directly when used without
-      // .maybeSingle() in the source code? — review code always uses
-      // .maybeSingle() so this path stays as a chainable.
-      return this;
-    }
+    if (this.mode === "select") return this;
     if (this.mode === "delete") {
       const remaining = this.rows.filter(r => {
         return !this.filters.every(
@@ -157,7 +167,6 @@ class CandBuilder {
     return Promise.resolve({ data: row ?? null, error: null });
   }
   then<T>(resolve: (v: { data: FakeCandidate[]; error: null }) => T) {
-    // Used by `await supabase.from(...).select(...).eq(...)` pattern.
     const out = this.rows.filter(r =>
       this.filters.every(
         f => (r as unknown as Record<string, unknown>)[f.col] === f.val
@@ -182,7 +191,7 @@ const EQ: FakeEquipment = {
 const C1: FakeCandidate = {
   id: "c1",
   equipment_id: "eq-1",
-  cf_image_id: "cf-uuid-1",
+  r2_key: "equipment/stiga-airoc-m/cand/uuid-1.png",
   source_url: "https://www.revspin.net/x",
   image_source_host: "www.revspin.net",
   source_label: "revspin",
@@ -191,7 +200,7 @@ const C1: FakeCandidate = {
 const C2: FakeCandidate = {
   id: "c2",
   equipment_id: "eq-1",
-  cf_image_id: "cf-uuid-2",
+  r2_key: "equipment/stiga-airoc-m/cand/uuid-2.png",
   source_url: "https://contra.de/x",
   image_source_host: "contra.de",
   source_label: "contra",
@@ -204,32 +213,29 @@ describe("pickCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
-    const deleteCfImage = vi.fn().mockResolvedValue(undefined);
+    const { bucket, deletes } = makeBucket();
 
-    const result = await pickCandidate(
-      supabase,
-      ENV,
-      { equipmentId: "eq-1", candidateId: "c1", pickedBy: "user-1" },
-      { deleteCfImage }
-    );
+    const result = await pickCandidate(supabase, bucket, {
+      equipmentId: "eq-1",
+      candidateId: "c1",
+      pickedBy: "user-1",
+    });
 
-    expect(result.pickedCfImageId).toBe("cf-uuid-1");
-    expect(state.equipment[0].image_key).toBe("cf/cf-uuid-1");
-    expect(state.equipment[0].image_etag).toBe("cf-uuid-1".slice(0, 8));
+    expect(result.pickedR2Key).toBe(C1.r2_key);
+    expect(state.equipment[0].image_key).toBe(C1.r2_key);
+    expect(state.equipment[0].image_etag).toBe(C1.r2_key.slice(-12));
     expect(state.equipment[0].image_source_url).toBe(
       "https://www.revspin.net/x"
     );
     expect(state.equipment[0].image_credit_text).toBe("www.revspin.net");
 
-    // C1 was marked picked + retained; C2 was deleted.
     expect(state.candidates).toHaveLength(1);
     expect(state.candidates[0].id).toBe("c1");
     expect(state.candidates[0].picked_at).toBeTruthy();
     expect(state.candidates[0].picked_by).toBe("user-1");
 
-    // CF Images delete was called once with the loser's ID.
-    expect(deleteCfImage).toHaveBeenCalledTimes(1);
-    expect(deleteCfImage).toHaveBeenCalledWith(ENV, "cf-uuid-2");
+    // R2 delete called once with the loser's key.
+    expect(deletes).toEqual([C2.r2_key]);
   });
 
   it("throws when the candidate doesn't belong to the given equipment", async () => {
@@ -237,13 +243,13 @@ describe("pickCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }],
     });
+    const { bucket } = makeBucket();
     await expect(
-      pickCandidate(
-        supabase,
-        ENV,
-        { equipmentId: "eq-1", candidateId: "ghost", pickedBy: "u" },
-        { deleteCfImage: vi.fn() }
-      )
+      pickCandidate(supabase, bucket, {
+        equipmentId: "eq-1",
+        candidateId: "ghost",
+        pickedBy: "u",
+      })
     ).rejects.toThrow(/candidate not found/);
   });
 
@@ -252,13 +258,13 @@ describe("pickCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1, picked_at: "2026-04-26T00:00:00Z" }],
     });
+    const { bucket } = makeBucket();
     await expect(
-      pickCandidate(
-        supabase,
-        ENV,
-        { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
-        { deleteCfImage: vi.fn() }
-      )
+      pickCandidate(supabase, bucket, {
+        equipmentId: "eq-1",
+        candidateId: "c1",
+        pickedBy: "u",
+      })
     ).rejects.toThrow(/already picked/);
   });
 });
@@ -269,10 +275,10 @@ describe("rejectCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
-    const deleteCfImage = vi.fn().mockResolvedValue(undefined);
-    await rejectCandidate(supabase, ENV, "c1", { deleteCfImage });
+    const { bucket, deletes } = makeBucket();
+    await rejectCandidate(supabase, bucket, "c1");
     expect(state.candidates.map(c => c.id)).toEqual(["c2"]);
-    expect(deleteCfImage).toHaveBeenCalledWith(ENV, "cf-uuid-1");
+    expect(deletes).toEqual([C1.r2_key]);
   });
 
   it("refuses to reject a picked candidate", async () => {
@@ -280,9 +286,10 @@ describe("rejectCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1, picked_at: "2026-04-26T00:00:00Z" }],
     });
-    await expect(
-      rejectCandidate(supabase, ENV, "c1", { deleteCfImage: vi.fn() })
-    ).rejects.toThrow(/cannot reject a picked candidate/);
+    const { bucket } = makeBucket();
+    await expect(rejectCandidate(supabase, bucket, "c1")).rejects.toThrow(
+      /cannot reject a picked candidate/
+    );
   });
 
   it("throws when the candidate doesn't exist", async () => {
@@ -290,9 +297,10 @@ describe("rejectCandidate", () => {
       equipment: [{ ...EQ }],
       candidates: [],
     });
-    await expect(
-      rejectCandidate(supabase, ENV, "ghost", { deleteCfImage: vi.fn() })
-    ).rejects.toThrow(/candidate not found/);
+    const { bucket } = makeBucket();
+    await expect(rejectCandidate(supabase, bucket, "ghost")).rejects.toThrow(
+      /candidate not found/
+    );
   });
 });
 
@@ -302,11 +310,11 @@ describe("skipEquipment", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
-    const deleteCfImage = vi.fn().mockResolvedValue(undefined);
-    await skipEquipment(supabase, ENV, "eq-1", { deleteCfImage });
+    const { bucket, deletes } = makeBucket();
+    await skipEquipment(supabase, bucket, "eq-1");
     expect(state.candidates).toHaveLength(0);
     expect(state.equipment[0].image_skipped_at).toBeTruthy();
-    expect(deleteCfImage).toHaveBeenCalledTimes(2);
+    expect(deletes).toHaveLength(2);
   });
 
   it("keeps already-picked candidates intact", async () => {
@@ -314,9 +322,8 @@ describe("skipEquipment", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1, picked_at: "2026-04-26T00:00:00Z" }, { ...C2 }],
     });
-    await skipEquipment(supabase, ENV, "eq-1", {
-      deleteCfImage: vi.fn().mockResolvedValue(undefined),
-    });
+    const { bucket } = makeBucket();
+    await skipEquipment(supabase, bucket, "eq-1");
     expect(state.candidates.map(c => c.id)).toEqual(["c1"]);
     expect(state.equipment[0].image_skipped_at).toBeTruthy();
   });
@@ -328,7 +335,7 @@ describe("resourceEquipment", () => {
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
-    const deleteCfImage = vi.fn().mockResolvedValue(undefined);
+    const { bucket, deletes } = makeBucket();
     const resource = vi.fn<() => Promise<SourcingResult>>().mockResolvedValue({
       status: "sourced",
       equipment: { id: "eq-1", slug: "stiga-airoc-m", name: "Stiga Airoc M" },
@@ -338,14 +345,15 @@ describe("resourceEquipment", () => {
 
     const result = await resourceEquipment(
       supabase,
+      bucket,
       ENV,
       "eq-1",
       "stiga-airoc-m",
-      { deleteCfImage, resource }
+      { resource }
     );
 
     expect(state.candidates).toHaveLength(0);
-    expect(deleteCfImage).toHaveBeenCalledTimes(2);
+    expect(deletes).toHaveLength(2);
     expect(resource).toHaveBeenCalledTimes(1);
     expect(result.status).toBe("sourced");
   });

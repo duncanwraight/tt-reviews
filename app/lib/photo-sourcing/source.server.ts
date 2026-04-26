@@ -1,7 +1,12 @@
 // Sourcing pipeline: Brave resolver → fetch image bytes → upload to
-// Cloudflare Images → insert candidate rows. Pure orchestration; the
-// resolver, CF Images helpers, and Supabase client are all injected so
-// the route action stays thin and the service is unit-testable.
+// R2 → insert candidate rows. Pure orchestration; the resolver, R2
+// bucket, and Supabase client are all injected so the route action
+// stays thin and the service is unit-testable.
+//
+// Why R2 (not Cloudflare Images storage): we already pay for R2 for
+// player photos, and Cloudflare Image Resizing applies the variant
+// transformations on read from any source — no need for a separate
+// image store. See docs/IMAGES.md for the render path.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -9,11 +14,6 @@ import {
   type EquipmentSeed,
   type ResolvedCandidate,
 } from "./brave.server";
-import {
-  uploadImageToCloudflare,
-  type CloudflareImagesEnv,
-  type CloudflareImageUploadResult,
-} from "../images/cloudflare";
 
 const DEFAULT_LIMIT = 6;
 const DOWNLOAD_TIMEOUT_MS = 8000;
@@ -21,13 +21,13 @@ const DOWNLOAD_TIMEOUT_MS = 8000;
 const DOWNLOAD_USER_AGENT =
   "tt-reviews-photo-sourcer/0.1 (+https://tabletennis.reviews; duncan@wraight-consulting.co.uk)";
 
-export interface SourcingEnv extends CloudflareImagesEnv {
+export interface SourcingEnv {
   BRAVE_SEARCH_API_KEY: string;
 }
 
 export interface SourcedCandidate {
   id: string;
-  cf_image_id: string;
+  r2_key: string;
   source_url: string | null;
   image_source_host: string | null;
   source_label: string | null;
@@ -46,6 +46,20 @@ export interface SourcingResult {
   insertedCount: number;
 }
 
+// Minimal R2 surface so the lib doesn't depend on the cloudflare-
+// workers types in test contexts. The real R2Bucket binding satisfies
+// this shape.
+export interface R2PutBucket {
+  put(
+    key: string,
+    body: ArrayBuffer | Uint8Array,
+    options?: {
+      httpMetadata?: { contentType?: string };
+      customMetadata?: Record<string, string>;
+    }
+  ): Promise<unknown>;
+}
+
 export interface SourcingDeps {
   // Default `fetch` works in Workers + node; injected so tests can stub.
   fetchImpl?: typeof fetch;
@@ -55,16 +69,9 @@ export interface SourcingDeps {
     apiKey: string,
     options: { limit?: number; fetchImpl?: typeof fetch }
   ) => Promise<ResolvedCandidate[]>;
-  // Defaults to the lib's CF Images upload; overridable for tests.
-  upload?: (
-    env: CloudflareImagesEnv,
-    bytes: ArrayBuffer | Uint8Array | Blob,
-    options?: {
-      filename?: string;
-      contentType?: string;
-      metadata?: Record<string, string>;
-    }
-  ) => Promise<CloudflareImageUploadResult>;
+  // Defaults to a UUID; overridable for tests so candidate keys are
+  // deterministic.
+  randomId?: () => string;
 }
 
 interface EquipmentRow {
@@ -98,25 +105,40 @@ async function fetchImageBytes(
   }
 }
 
-function filenameFromUrl(url: string, fallback: string): string {
+function extensionFromContentType(
+  ct: string | null,
+  fallbackUrl: string
+): string {
+  const fromCt = (ct ?? "").split(";")[0].trim().toLowerCase();
+  if (fromCt === "image/jpeg" || fromCt === "image/jpg") return "jpg";
+  if (fromCt === "image/png") return "png";
+  if (fromCt === "image/webp") return "webp";
+  if (fromCt === "image/gif") return "gif";
+  // Fall back to URL extension.
   try {
-    const u = new URL(url);
-    const last = u.pathname.split("/").filter(Boolean).pop();
-    if (last && /\.[a-z0-9]+$/i.test(last)) return last;
-    return fallback;
+    const u = new URL(fallbackUrl);
+    const m = u.pathname.toLowerCase().match(/\.(jpe?g|png|webp|gif)$/);
+    if (m) return m[1] === "jpeg" ? "jpg" : m[1];
   } catch {
-    return fallback;
+    // ignore
   }
+  return "bin";
+}
+
+function defaultRandomId(): string {
+  // crypto.randomUUID() is available in both Workers and modern node.
+  return crypto.randomUUID();
 }
 
 // Source candidates for one equipment row. Orchestrates: short-circuit
 // when image already chosen → resolve via Brave → for each candidate
-// download bytes (skip on failure), upload to CF Images, dedupe against
-// existing pending rows by source_url, insert. Updates
-// equipment.image_sourcing_attempted_at on completion so bulk-source
-// (TT-53) doesn't pick the row up again.
+// download bytes (skip on failure), upload to R2 under
+// equipment/<slug>/cand/<uuid>.<ext>, dedupe against existing pending
+// rows by source_url, insert. Updates equipment.image_sourcing_attempted_at
+// on completion so bulk-source (TT-53) doesn't pick the row up again.
 export async function sourcePhotosForEquipment(
   supabase: SupabaseClient,
+  bucket: R2PutBucket,
   env: SourcingEnv,
   slug: string,
   options: { limit?: number; deps?: SourcingDeps } = {}
@@ -124,7 +146,7 @@ export async function sourcePhotosForEquipment(
   const deps = options.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
   const resolve = deps.resolve ?? resolveBraveCandidates;
-  const upload = deps.upload ?? uploadImageToCloudflare;
+  const randomId = deps.randomId ?? defaultRandomId;
 
   const { data: equipment, error: equipmentError } = await supabase
     .from("equipment")
@@ -201,16 +223,23 @@ export async function sourcePhotosForEquipment(
     const downloaded = await fetchImageBytes(candidate.imageUrl, fetchImpl);
     if (!downloaded) continue;
 
-    let uploaded;
+    const ext = extensionFromContentType(
+      downloaded.contentType,
+      candidate.imageUrl
+    );
+    const r2Key = `equipment/${row.slug}/cand/${randomId()}.${ext}`;
+
     try {
-      uploaded = await upload(env, downloaded.bytes, {
-        filename: filenameFromUrl(candidate.imageUrl, "image"),
-        contentType: downloaded.contentType ?? undefined,
-        metadata: {
+      await bucket.put(r2Key, downloaded.bytes, {
+        httpMetadata: {
+          contentType: downloaded.contentType ?? "application/octet-stream",
+        },
+        customMetadata: {
           equipment_id: row.id,
           equipment_slug: row.slug,
           source_label: candidate.tierLabel,
           source_host: candidate.host,
+          uploadedAt: new Date().toISOString(),
         },
       });
     } catch {
@@ -219,7 +248,7 @@ export async function sourcePhotosForEquipment(
 
     inserts.push({
       equipment_id: row.id,
-      cf_image_id: uploaded.id,
+      r2_key: r2Key,
       source_url: candidate.pageUrl,
       image_source_host: candidate.host || null,
       source_label: candidate.tierLabel,

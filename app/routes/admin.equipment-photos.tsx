@@ -13,6 +13,7 @@ import {
   skipEquipment,
 } from "~/lib/photo-sourcing/review.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
+import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -26,7 +27,7 @@ export function meta({}: Route.MetaArgs) {
 
 interface CandidateView {
   id: string;
-  cf_image_id: string;
+  r2_key: string;
   source_url: string | null;
   image_source_host: string | null;
   source_label: string | null;
@@ -51,9 +52,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, user, supabaseAdmin, csrfToken } = gate;
 
-  const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
-  const imagesHash = env.IMAGES_ACCOUNT_HASH ?? "";
-
   // Query candidates first, then look up the (much smaller) set of
   // equipment rows that have any. The opposite order would push a
   // 290-element IN list onto the candidates URL — over PostgREST's
@@ -61,7 +59,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { data: candidateRows, error: candidateError } = await supabaseAdmin
     .from("equipment_photo_candidates")
     .select(
-      "id, equipment_id, cf_image_id, source_url, image_source_host, source_label, match_kind, tier"
+      "id, equipment_id, r2_key, source_url, image_source_host, source_label, match_kind, tier"
     )
     .is("picked_at", null)
     .order("tier", { ascending: true });
@@ -73,7 +71,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       candidateError instanceof Error ? candidateError : undefined
     );
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
+      { items: [] as EquipmentReviewRow[], user, csrfToken },
       { headers: sbServerClient.headers }
     );
   }
@@ -85,7 +83,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const list = candidatesByEquipment.get(row.equipment_id) ?? [];
     list.push({
       id: row.id,
-      cf_image_id: row.cf_image_id,
+      r2_key: row.r2_key,
       source_url: row.source_url,
       image_source_host: row.image_source_host,
       source_label: row.source_label,
@@ -98,7 +96,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const candidateEquipmentIds = [...candidatesByEquipment.keys()];
   if (candidateEquipmentIds.length === 0) {
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
+      { items: [] as EquipmentReviewRow[], user, csrfToken },
       { headers: sbServerClient.headers }
     );
   }
@@ -117,7 +115,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipmentError instanceof Error ? equipmentError : undefined
     );
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
+      { items: [] as EquipmentReviewRow[], user, csrfToken },
       { headers: sbServerClient.headers }
     );
   }
@@ -142,10 +140,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       return a.name.localeCompare(b.name);
     });
 
-  return data(
-    { items, user, csrfToken, imagesHash },
-    { headers: sbServerClient.headers }
-  );
+  return data({ items, user, csrfToken }, { headers: sbServerClient.headers });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -153,7 +148,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, user, supabaseAdmin } = gate;
 
-  const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
+  const env = context.cloudflare.env as unknown as Partial<SourcingEnv> & {
+    IMAGE_BUCKET?: R2Bucket;
+  };
+  if (!env.IMAGE_BUCKET) {
+    return data(
+      { error: "R2 bucket not bound" },
+      { status: 500, headers: sbServerClient.headers }
+    );
+  }
+  const bucket = env.IMAGE_BUCKET;
 
   const formData = await request.formData();
   const op = formData.get("op");
@@ -161,17 +165,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const candidateId = (formData.get("candidateId") as string) ?? "";
   const slug = (formData.get("slug") as string) ?? "";
 
-  // Only the resource op strictly needs creds (it calls Brave + CF
-  // upload). pick/reject/skip do best-effort CF deletes that are
-  // wrapped in .catch in deleteCandidates, so missing creds just
-  // means orphaned blobs in CF — the DB side stays consistent.
-  if (
-    op === "resource" &&
-    (!env.IMAGES_ACCOUNT_ID ||
-      !env.IMAGES_ACCOUNT_HASH ||
-      !env.IMAGES_API_TOKEN ||
-      !env.BRAVE_SEARCH_API_KEY)
-  ) {
+  // Only `resource` strictly needs the Brave key. pick/reject/skip do
+  // best-effort R2 deletes that are wrapped in .catch in
+  // deleteCandidates, so missing creds just means orphaned bytes in
+  // R2 — the DB side stays consistent.
+  if (op === "resource" && !env.BRAVE_SEARCH_API_KEY) {
     return data(
       { error: "photo sourcing not configured" },
       { status: 500, headers: sbServerClient.headers }
@@ -186,7 +184,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400, headers: sbServerClient.headers }
         );
       }
-      await pickCandidate(supabaseAdmin, env as SourcingEnv, {
+      await pickCandidate(supabaseAdmin, bucket, {
         equipmentId,
         candidateId,
         pickedBy: user.id,
@@ -198,7 +196,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400, headers: sbServerClient.headers }
         );
       }
-      await rejectCandidate(supabaseAdmin, env as SourcingEnv, candidateId);
+      await rejectCandidate(supabaseAdmin, bucket, candidateId);
     } else if (op === "skip") {
       if (!equipmentId) {
         return data(
@@ -206,7 +204,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400, headers: sbServerClient.headers }
         );
       }
-      await skipEquipment(supabaseAdmin, env as SourcingEnv, equipmentId);
+      await skipEquipment(supabaseAdmin, bucket, equipmentId);
     } else if (op === "resource") {
       if (!equipmentId || !slug) {
         return data(
@@ -216,6 +214,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       }
       await resourceEquipment(
         supabaseAdmin,
+        bucket,
         env as SourcingEnv,
         equipmentId,
         slug
@@ -260,7 +259,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function AdminEquipmentPhotos({
   loaderData,
 }: Route.ComponentProps) {
-  const { items, csrfToken, imagesHash } = loaderData;
+  const { items, csrfToken } = loaderData;
 
   return (
     <div className="space-y-6">
@@ -299,7 +298,6 @@ export default function AdminEquipmentPhotos({
               key={item.id}
               item={item}
               csrfToken={csrfToken}
-              imagesHash={imagesHash}
             />
           ))}
         </ul>
@@ -311,14 +309,9 @@ export default function AdminEquipmentPhotos({
 interface EquipmentReviewCardProps {
   item: EquipmentReviewRow;
   csrfToken: string;
-  imagesHash: string;
 }
 
-function EquipmentReviewCard({
-  item,
-  csrfToken,
-  imagesHash,
-}: EquipmentReviewCardProps) {
+function EquipmentReviewCard({ item, csrfToken }: EquipmentReviewCardProps) {
   return (
     <li
       className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
@@ -367,7 +360,6 @@ function EquipmentReviewCard({
             equipmentId={item.id}
             candidate={candidate}
             csrfToken={csrfToken}
-            imagesHash={imagesHash}
           />
         ))}
       </ul>
@@ -379,18 +371,14 @@ interface CandidateTileProps {
   equipmentId: string;
   candidate: CandidateView;
   csrfToken: string;
-  imagesHash: string;
 }
 
 function CandidateTile({
   equipmentId,
   candidate,
   csrfToken,
-  imagesHash,
 }: CandidateTileProps) {
-  const thumbUrl = imagesHash
-    ? `https://imagedelivery.net/${imagesHash}/${candidate.cf_image_id}/thumbnail`
-    : "";
+  const thumbUrl = buildEquipmentImageUrl(candidate.r2_key, "thumbnail");
 
   return (
     <li
@@ -399,16 +387,12 @@ function CandidateTile({
       data-candidate-id={candidate.id}
     >
       <div className="aspect-square bg-gray-50 flex items-center justify-center">
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt={`Candidate from ${candidate.image_source_host ?? "unknown source"}`}
-            className="w-full h-full object-contain"
-            loading="lazy"
-          />
-        ) : (
-          <span className="text-xs text-gray-400">no preview</span>
-        )}
+        <img
+          src={thumbUrl}
+          alt={`Candidate from ${candidate.image_source_host ?? "unknown source"}`}
+          className="w-full h-full object-contain"
+          loading="lazy"
+        />
       </div>
       <div className="p-3 flex-1 flex flex-col gap-2 text-xs">
         <div className="flex items-center gap-2">

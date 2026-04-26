@@ -2,12 +2,15 @@ import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { bulkSourcePhotos } from "../bulk.server";
 import type { SourcingResult, SourcedCandidate } from "../source.server";
+import type { R2BucketSurface } from "../review.server";
 
 const ENV = {
-  IMAGES_ACCOUNT_ID: "acct",
-  IMAGES_ACCOUNT_HASH: "hash",
-  IMAGES_API_TOKEN: "tok",
   BRAVE_SEARCH_API_KEY: "brave-key",
+};
+
+const BUCKET: R2BucketSurface = {
+  put: async () => undefined,
+  delete: async () => undefined,
 };
 
 interface FakeRow {
@@ -19,8 +22,6 @@ interface FakeRow {
 }
 
 function makeSupabase(unimaged: FakeRow[]) {
-  // Tracks invocation parity so the chunk select returns the rows
-  // and the count head:true query returns the total.
   const supabase = {
     from() {
       return new Builder(unimaged);
@@ -47,15 +48,12 @@ class Builder {
   }
   limit(n: number) {
     this.limitN = n;
-    // Promise resolves with rows + count semantics depending on mode.
     return Promise.resolve({
       data: this.applyLimit(),
       error: null,
       count: this.rows.length,
     });
   }
-  // count head queries don't call .limit()/.order() — they end at .is().
-  // Make the chain awaitable by exposing a then.
   then<T>(
     resolve: (v: {
       data: FakeRow[] | null;
@@ -90,7 +88,7 @@ function fakeSourcing(over: Partial<SourcingResult>): SourcingResult {
 function fakeCandidate(over: Partial<SourcedCandidate> = {}): SourcedCandidate {
   return {
     id: "cand",
-    cf_image_id: "cf-uuid",
+    r2_key: "equipment/x/cand/uuid.png",
     source_url: null,
     image_source_host: null,
     source_label: null,
@@ -117,19 +115,17 @@ describe("bulkSourcePhotos", () => {
       .mockResolvedValue(fakeSourcing({ status: "no-candidates" }));
     const sleep = vi.fn().mockResolvedValue(undefined);
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 3,
       sourceFn,
       sleep,
       pickFn: vi.fn(),
-      deleteCfImage: vi.fn(),
     });
 
     expect(result.scanned).toBe(3);
     expect(result.unresolved).toBe(3);
     expect(result.remaining).toBe(7);
     expect(sourceFn).toHaveBeenCalledTimes(3);
-    // 3 rows → 2 inter-row sleeps.
     expect(sleep).toHaveBeenCalledTimes(2);
   });
 
@@ -155,25 +151,23 @@ describe("bulkSourcePhotos", () => {
     );
     const pickFn = vi.fn().mockResolvedValue({
       equipmentId: "eq-1",
-      pickedCfImageId: "cf-uuid",
+      pickedR2Key: "equipment/s1/cand/uuid.png",
     });
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 1,
       sourceFn,
       pickFn,
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
 
     expect(result.autoPicked).toBe(1);
     expect(result.candidatesCreated).toBe(0);
-    expect(pickFn).toHaveBeenCalledWith(
-      supabase,
-      ENV,
-      { equipmentId: "eq-1", candidateId: "winner", pickedBy: "admin-1" },
-      expect.any(Object)
-    );
+    expect(pickFn).toHaveBeenCalledWith(supabase, BUCKET, {
+      equipmentId: "eq-1",
+      candidateId: "winner",
+      pickedBy: "admin-1",
+    });
   });
 
   it("does not auto-pick when there are 2+ trailing top-tier candidates", async () => {
@@ -199,11 +193,10 @@ describe("bulkSourcePhotos", () => {
     );
     const pickFn = vi.fn();
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 1,
       sourceFn,
       pickFn,
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
 
@@ -232,11 +225,10 @@ describe("bulkSourcePhotos", () => {
     );
     const pickFn = vi.fn();
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 1,
       sourceFn,
       pickFn,
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
 
@@ -267,11 +259,10 @@ describe("bulkSourcePhotos", () => {
     );
     const pickFn = vi.fn();
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 1,
       sourceFn,
       pickFn,
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
 
@@ -303,11 +294,10 @@ describe("bulkSourcePhotos", () => {
       .mockRejectedValueOnce(new Error("brave 429"))
       .mockResolvedValueOnce(fakeSourcing({ status: "no-candidates" }));
 
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       chunkSize: 2,
       sourceFn,
       pickFn: vi.fn(),
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
 
@@ -318,10 +308,9 @@ describe("bulkSourcePhotos", () => {
 
   it("returns zero counts when nothing is left", async () => {
     const supabase = makeSupabase([]);
-    const result = await bulkSourcePhotos(supabase, ENV, "admin-1", {
+    const result = await bulkSourcePhotos(supabase, BUCKET, ENV, "admin-1", {
       sourceFn: vi.fn(),
       pickFn: vi.fn(),
-      deleteCfImage: vi.fn(),
       sleep: vi.fn(),
     });
     expect(result).toEqual({

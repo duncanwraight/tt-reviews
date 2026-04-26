@@ -5,9 +5,9 @@ import { sourcePhotosForEquipment } from "~/lib/photo-sourcing/source.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 
-// POST /admin/equipment/:slug/source-photos — kicks the Brave +
-// Cloudflare Images pipeline for one equipment row. The admin queue
-// (TT-52) and the bulk-source endpoint (TT-53) both call this.
+// POST /admin/equipment/:slug/source-photos — kicks the Brave + R2
+// pipeline for one equipment row. The admin queue (TT-52) and the
+// bulk-source endpoint (TT-53) both call this.
 
 export function loader() {
   throw new Response("not found", { status: 404 });
@@ -23,15 +23,12 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, user, supabaseAdmin } = gate;
 
-  const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
-  if (
-    !env.IMAGES_ACCOUNT_ID ||
-    !env.IMAGES_ACCOUNT_HASH ||
-    !env.IMAGES_API_TOKEN ||
-    !env.BRAVE_SEARCH_API_KEY
-  ) {
+  const env = context.cloudflare.env as unknown as Partial<SourcingEnv> & {
+    IMAGE_BUCKET?: R2Bucket;
+  };
+  if (!env.BRAVE_SEARCH_API_KEY) {
     Logger.error(
-      "source-photos: missing env",
+      "source-photos: missing BRAVE_SEARCH_API_KEY",
       createLogContext("admin-equipment-source-photos", {
         slug,
         userId: user.id,
@@ -42,10 +39,17 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       { status: 500, headers: sbServerClient.headers }
     );
   }
+  if (!env.IMAGE_BUCKET) {
+    return data(
+      { error: "R2 bucket not bound" },
+      { status: 500, headers: sbServerClient.headers }
+    );
+  }
 
   try {
     const result = await sourcePhotosForEquipment(
       supabaseAdmin,
+      env.IMAGE_BUCKET,
       env as SourcingEnv,
       slug
     );

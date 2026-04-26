@@ -18,13 +18,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, user, supabaseAdmin } = gate;
 
-  const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
-  if (
-    !env.IMAGES_ACCOUNT_ID ||
-    !env.IMAGES_ACCOUNT_HASH ||
-    !env.IMAGES_API_TOKEN ||
-    !env.BRAVE_SEARCH_API_KEY
-  ) {
+  const env = context.cloudflare.env as unknown as Partial<SourcingEnv> & {
+    IMAGE_BUCKET?: R2Bucket;
+  };
+  if (!env.BRAVE_SEARCH_API_KEY || !env.IMAGE_BUCKET) {
     return data(
       { error: "photo sourcing not configured" },
       { status: 500, headers: sbServerClient.headers }
@@ -34,6 +31,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   try {
     const result = await bulkSourcePhotos(
       supabaseAdmin,
+      env.IMAGE_BUCKET,
       env as SourcingEnv,
       user.id
     );

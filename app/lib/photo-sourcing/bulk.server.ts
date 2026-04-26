@@ -19,11 +19,7 @@ import {
   type SourcingEnv,
   type SourcingResult,
 } from "./source.server";
-import { pickCandidate } from "./review.server";
-import {
-  deleteImageFromCloudflare,
-  type CloudflareImagesEnv,
-} from "../images/cloudflare";
+import { pickCandidate, type R2BucketSurface } from "./review.server";
 
 export const DEFAULT_CHUNK_SIZE = 5;
 export const DEFAULT_BRAVE_GAP_MS = 1100;
@@ -38,8 +34,6 @@ export interface BulkSourceOptions {
   sourceFn?: typeof sourcePhotosForEquipment;
   // Defaults to the lib's pick helper; overridable for tests.
   pickFn?: typeof pickCandidate;
-  // Defaults to the lib's CF Images delete; overridable for tests.
-  deleteCfImage?: (env: CloudflareImagesEnv, id: string) => Promise<void>;
 }
 
 export interface BulkSourceResult {
@@ -63,6 +57,7 @@ const defaultSleep = (ms: number) =>
 // `remaining === 0` to drain the queue completely.
 export async function bulkSourcePhotos(
   supabase: SupabaseClient,
+  bucket: R2BucketSurface,
   env: SourcingEnv,
   triggeredBy: string,
   options: BulkSourceOptions = {}
@@ -72,7 +67,6 @@ export async function bulkSourcePhotos(
   const sleep = options.sleep ?? defaultSleep;
   const sourceFn = options.sourceFn ?? sourcePhotosForEquipment;
   const pickFn = options.pickFn ?? pickCandidate;
-  const deleteCfImage = options.deleteCfImage ?? deleteImageFromCloudflare;
 
   const { count, error: countError } = await supabase
     .from("equipment")
@@ -124,7 +118,7 @@ export async function bulkSourcePhotos(
 
     let result: SourcingResult;
     try {
-      result = await sourceFn(supabase, env, row.slug);
+      result = await sourceFn(supabase, bucket, env, row.slug);
     } catch (err) {
       errors.push({
         slug: row.slug,
@@ -147,16 +141,11 @@ export async function bulkSourcePhotos(
     );
     if (trailingTopTier.length === 1) {
       try {
-        await pickFn(
-          supabase,
-          env,
-          {
-            equipmentId: result.equipment.id,
-            candidateId: trailingTopTier[0].id,
-            pickedBy: triggeredBy,
-          },
-          { deleteCfImage }
-        );
+        await pickFn(supabase, bucket, {
+          equipmentId: result.equipment.id,
+          candidateId: trailingTopTier[0].id,
+          pickedBy: triggeredBy,
+        });
         autoPicked += 1;
         continue;
       } catch (err) {

@@ -1,16 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sourcePhotosForEquipment } from "../source.server";
+import { sourcePhotosForEquipment, type R2PutBucket } from "../source.server";
 import type { ResolvedCandidate } from "../brave.server";
-import type {
-  CloudflareImageUploadResult,
-  CloudflareImagesEnv,
-} from "../../images/cloudflare";
 
 const ENV = {
-  IMAGES_ACCOUNT_ID: "acct",
-  IMAGES_ACCOUNT_HASH: "hash",
-  IMAGES_API_TOKEN: "tok",
   BRAVE_SEARCH_API_KEY: "brave-key",
 };
 
@@ -27,7 +20,7 @@ interface FakeRow {
 interface FakeCandidateRow {
   id: string;
   equipment_id: string;
-  cf_image_id: string;
+  r2_key: string;
   source_url: string | null;
   image_source_host: string | null;
   source_label: string | null;
@@ -47,7 +40,6 @@ function makeSupabase(
   const candidates = [...(initial.candidates ?? [])];
   const equipmentUpdates: Array<Record<string, unknown>> = [];
 
-  // Tracks chained .eq() calls so .maybeSingle() / .insert() know which row.
   const supabase = {
     from(table: string) {
       if (table === "equipment") {
@@ -125,7 +117,7 @@ class EquipmentBuilder {
 class CandidatesBuilder {
   private filters: Array<{ kind: "eq" | "is"; col: string; val: unknown }> = [];
   private mode: "select" | "insert" = "select";
-  private insertRows: Array<Omit<FakeCandidateRow, "id">> = [];
+  private insertRows: Array<Omit<FakeCandidateRow, "id" | "picked_at">> = [];
   private selectAfterInsert = false;
   constructor(private candidates: FakeCandidateRow[]) {}
   select(_cols: string) {
@@ -136,7 +128,7 @@ class CandidatesBuilder {
     this.mode = "select";
     return this;
   }
-  insert(rows: Array<Omit<FakeCandidateRow, "id">>) {
+  insert(rows: Array<Omit<FakeCandidateRow, "id" | "picked_at">>) {
     this.mode = "insert";
     this.insertRows = rows;
     return this;
@@ -168,6 +160,20 @@ class CandidatesBuilder {
     this.candidates.push(...inserted);
     return Promise.resolve({ data: inserted, error: null });
   }
+}
+
+function makeBucket(): {
+  bucket: R2PutBucket;
+  puts: Array<{ key: string; bytes: ArrayBuffer | Uint8Array }>;
+} {
+  const puts: Array<{ key: string; bytes: ArrayBuffer | Uint8Array }> = [];
+  const bucket: R2PutBucket = {
+    put: async (key, bytes) => {
+      puts.push({ key, bytes });
+      return undefined;
+    },
+  };
+  return { bucket, puts };
 }
 
 const STIGA_ROW: FakeRow = {
@@ -205,52 +211,36 @@ function fakeFetch(): typeof fetch {
     })) as unknown as typeof fetch;
 }
 
-function fakeUpload(ids: string[]): (
-  env: CloudflareImagesEnv,
-  bytes: ArrayBuffer | Uint8Array | Blob,
-  options?: {
-    filename?: string;
-    contentType?: string;
-    metadata?: Record<string, string>;
-  }
-) => Promise<CloudflareImageUploadResult> {
+function deterministicIds(prefix: string): () => string {
   let i = 0;
-  return async () => {
-    const id = ids[i++] ?? `img-${i}`;
-    return {
-      id,
-      filename: null,
-      uploaded: "2026-04-26T00:00:00Z",
-      variants: [],
-      meta: {},
-    };
-  };
+  return () => `${prefix}-${++i}`;
 }
 
 describe("sourcePhotosForEquipment", () => {
   it("short-circuits when equipment.image_key is already set", async () => {
     const { supabase } = makeSupabase({
-      equipment: [{ ...STIGA_ROW, image_key: "img-existing" }],
+      equipment: [{ ...STIGA_ROW, image_key: "equipment/x/y.webp" }],
     });
+    const { bucket, puts } = makeBucket();
     const resolve = vi.fn();
-    const upload = vi.fn();
     const result = await sourcePhotosForEquipment(
       supabase,
+      bucket,
       ENV,
       "stiga-airoc-m",
-      {
-        deps: { resolve, upload, fetchImpl: fakeFetch() },
-      }
+      { deps: { resolve, fetchImpl: fakeFetch() } }
     );
     expect(result.status).toBe("already-imaged");
     expect(resolve).not.toHaveBeenCalled();
-    expect(upload).not.toHaveBeenCalled();
+    expect(puts).toHaveLength(0);
   });
 
   it("inserts candidate rows for each resolver hit and stamps attempted_at", async () => {
     const { supabase, candidates, equipment } = makeSupabase({
       equipment: [STIGA_ROW],
     });
+    const { bucket, puts } = makeBucket();
+    const randomId = deterministicIds("uuid");
 
     const resolve = vi.fn().mockResolvedValue([
       fakeResolved({
@@ -266,25 +256,25 @@ describe("sourcePhotosForEquipment", () => {
         pageUrl: "https://contra.de/airoc-m-plus",
       }),
     ]);
-    const upload = vi.fn(fakeUpload(["img-1", "img-2"]));
 
     const result = await sourcePhotosForEquipment(
       supabase,
+      bucket,
       ENV,
       "stiga-airoc-m",
-      {
-        deps: { resolve, upload, fetchImpl: fakeFetch() },
-      }
+      { deps: { resolve, fetchImpl: fakeFetch(), randomId } }
     );
 
     expect(result.status).toBe("sourced");
     expect(result.insertedCount).toBe(2);
-    expect(result.candidates.map(c => c.cf_image_id)).toEqual([
-      "img-1",
-      "img-2",
+    expect(puts.map(p => p.key)).toEqual([
+      "equipment/stiga-airoc-m/cand/uuid-1.png",
+      "equipment/stiga-airoc-m/cand/uuid-2.png",
     ]);
     expect(candidates).toHaveLength(2);
-    expect(candidates[0].source_label).toBe("revspin");
+    expect(candidates[0].r2_key).toBe(
+      "equipment/stiga-airoc-m/cand/uuid-1.png"
+    );
     expect(candidates[0].match_kind).toBe("trailing");
     expect(candidates[1].match_kind).toBe("loose");
     expect(equipment[0].image_sourcing_attempted_at).toBeTruthy();
@@ -294,7 +284,7 @@ describe("sourcePhotosForEquipment", () => {
     const existing: FakeCandidateRow = {
       id: "cand-existing",
       equipment_id: "eq-1",
-      cf_image_id: "img-existing",
+      r2_key: "equipment/stiga-airoc-m/cand/old.png",
       source_url: "https://www.revspin.net/stiga-airoc-m",
       image_source_host: "www.revspin.net",
       source_label: "revspin",
@@ -308,6 +298,8 @@ describe("sourcePhotosForEquipment", () => {
       equipment: [STIGA_ROW],
       candidates: [existing],
     });
+    const { bucket, puts } = makeBucket();
+    const randomId = deterministicIds("uuid");
 
     const resolve = vi.fn().mockResolvedValue([
       // Should be skipped — same pageUrl as existing.
@@ -323,42 +315,47 @@ describe("sourcePhotosForEquipment", () => {
         tierLabel: "megaspin",
       }),
     ]);
-    const upload = vi.fn(fakeUpload(["img-new"]));
 
     const result = await sourcePhotosForEquipment(
       supabase,
+      bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, upload, fetchImpl: fakeFetch() } }
+      { deps: { resolve, fetchImpl: fakeFetch(), randomId } }
     );
 
     expect(result.insertedCount).toBe(1);
-    // Only one upload happened because the dedup bailed out before download.
-    expect(upload).toHaveBeenCalledTimes(1);
+    // Only one R2 put because the dedup bailed out before download.
+    expect(puts).toHaveLength(1);
     expect(candidates).toHaveLength(2);
-    expect(candidates[1].cf_image_id).toBe("img-new");
+    expect(candidates[1].r2_key).toBe(
+      "equipment/stiga-airoc-m/cand/uuid-1.png"
+    );
   });
 
   it("returns no-candidates and stamps attempted_at when resolver finds nothing", async () => {
     const { supabase, equipment } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket, puts } = makeBucket();
     const resolve = vi.fn().mockResolvedValue([]);
-    const upload = vi.fn();
 
     const result = await sourcePhotosForEquipment(
       supabase,
+      bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, upload, fetchImpl: fakeFetch() } }
+      { deps: { resolve, fetchImpl: fakeFetch() } }
     );
 
     expect(result.status).toBe("no-candidates");
     expect(result.insertedCount).toBe(0);
-    expect(upload).not.toHaveBeenCalled();
+    expect(puts).toHaveLength(0);
     expect(equipment[0].image_sourcing_attempted_at).toBeTruthy();
   });
 
   it("skips a candidate whose image download fails (and continues with the next)", async () => {
     const { supabase, candidates } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket, puts } = makeBucket();
+    const randomId = deterministicIds("uuid");
 
     const resolve = vi.fn().mockResolvedValue([
       fakeResolved({
@@ -370,7 +367,6 @@ describe("sourcePhotosForEquipment", () => {
         pageUrl: "https://www.revspin.net/x",
       }),
     ]);
-    const upload = vi.fn(fakeUpload(["img-2"]));
 
     let call = 0;
     const fetchImpl = (async () => {
@@ -384,20 +380,25 @@ describe("sourcePhotosForEquipment", () => {
 
     const result = await sourcePhotosForEquipment(
       supabase,
+      bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, upload, fetchImpl } }
+      { deps: { resolve, fetchImpl, randomId } }
     );
 
     expect(result.insertedCount).toBe(1);
-    expect(candidates[0].cf_image_id).toBe("img-2");
+    expect(puts).toHaveLength(1);
+    expect(candidates[0].r2_key).toBe(
+      "equipment/stiga-airoc-m/cand/uuid-1.png"
+    );
   });
 
   it("throws when the equipment slug doesn't exist", async () => {
     const { supabase } = makeSupabase({ equipment: [] });
+    const { bucket } = makeBucket();
     await expect(
-      sourcePhotosForEquipment(supabase, ENV, "nope", {
-        deps: { resolve: vi.fn(), upload: vi.fn(), fetchImpl: fakeFetch() },
+      sourcePhotosForEquipment(supabase, bucket, ENV, "nope", {
+        deps: { resolve: vi.fn(), fetchImpl: fakeFetch() },
       })
     ).rejects.toThrow(/equipment not found: nope/);
   });
