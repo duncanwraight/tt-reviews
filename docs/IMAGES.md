@@ -42,22 +42,27 @@ If you change the variant set, update both the dashboard and
 
 ### Setup
 
-You need three values:
+The fastest path is `npm run images:setup-cf`, which:
+
+- probes `IMAGES_API_TOKEN` (or falls back to `CLOUDFLARE_API_TOKEN`)
+  for `Account.Cloudflare Images: Edit` permission;
+- creates the three variants in CF if they're missing;
+- discovers the account hash by reading an existing image's variant URL
+  (or uploading + deleting a 1×1 PNG probe if the library is empty);
+- writes `IMAGES_ACCOUNT_ID` / `IMAGES_ACCOUNT_HASH` / `IMAGES_API_TOKEN`
+  back into `.dev.vars`.
+
+Idempotent — re-runs are no-ops once everything is configured.
+
+Manual prerequisites (the script can't do these for you):
 
 - **Account ID** — the UUID at the top right of the Cloudflare dashboard.
-- **Account hash** — Images → Variants → "Delivery URL" path segment after
-  `imagedelivery.net/`.
+  The script falls back to `R2_ACCOUNT_ID` (same value).
 - **API token** — Profile → API Tokens → Create Token → use the
-  "Cloudflare Images: Edit" template (or scope manually to
-  `Account.Cloudflare Images: Edit`). Restrict to your account; do not
-  add other scopes.
-
-Local dev:
-
-```sh
-cp .dev.vars.example .dev.vars
-# edit IMAGES_ACCOUNT_ID, IMAGES_ACCOUNT_HASH, IMAGES_API_TOKEN
-```
+  "Read and write to Cloudflare Stream and Images" template (or scope
+  manually to `Account.Cloudflare Images: Edit`). Add it as
+  `IMAGES_API_TOKEN` in `.dev.vars`. The R2-only `CLOUDFLARE_API_TOKEN`
+  won't work — Images is a separate scope.
 
 Production:
 

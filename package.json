@@ -25,7 +25,8 @@
     "sourcing:apply": "node --experimental-strip-types scripts/photo-sourcing/apply.ts",
     "sourcing:seed-local": "scripts/photo-sourcing/seed-local.sh",
     "sourcing:seed-prod": "scripts/photo-sourcing/seed-prod.sh",
-    "images:export-seed": "node --experimental-strip-types scripts/photo-sourcing/export-seed.ts"
+    "images:export-seed": "node --experimental-strip-types scripts/photo-sourcing/export-seed.ts",
+    "images:setup-cf": "node --experimental-strip-types scripts/photo-sourcing/setup-cf-images.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml,css}": "prettier --write",
