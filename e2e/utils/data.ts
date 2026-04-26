@@ -114,6 +114,144 @@ export async function insertModeratorApproval(params: {
   }
 }
 
+// Equipment-photo helpers (TT-48 / TT-56). The fixture pattern: pick an
+// existing seeded equipment row, stash its current image_* state, blank
+// it, plant N candidate rows, run the assertion, restore.
+
+export interface EquipmentImageSnapshot {
+  image_key: string | null;
+  image_etag: string | null;
+  image_credit_text: string | null;
+  image_credit_link: string | null;
+  image_license_short: string | null;
+  image_license_url: string | null;
+  image_source_url: string | null;
+  image_skipped_at: string | null;
+  image_sourcing_attempted_at: string | null;
+}
+
+const EQUIPMENT_IMAGE_COLUMNS =
+  "image_key,image_etag,image_credit_text,image_credit_link,image_license_short,image_license_url,image_source_url,image_skipped_at,image_sourcing_attempted_at";
+
+export async function snapshotEquipmentImage(
+  equipmentId: string
+): Promise<EquipmentImageSnapshot> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}&select=${EQUIPMENT_IMAGE_COLUMNS}`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(`snapshotEquipmentImage failed (${res.status})`);
+  }
+  const rows = (await res.json()) as EquipmentImageSnapshot[];
+  if (!rows[0]) throw new Error(`equipment ${equipmentId} not found`);
+  return rows[0];
+}
+
+export async function setEquipmentImage(
+  equipmentId: string,
+  patch: Partial<EquipmentImageSnapshot>
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}`,
+    {
+      method: "PATCH",
+      headers: { ...adminHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `setEquipmentImage failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
+export async function clearEquipmentImage(equipmentId: string): Promise<void> {
+  await setEquipmentImage(equipmentId, {
+    image_key: null,
+    image_etag: null,
+    image_credit_text: null,
+    image_credit_link: null,
+    image_license_short: null,
+    image_license_url: null,
+    image_source_url: null,
+    image_skipped_at: null,
+    image_sourcing_attempted_at: null,
+  });
+}
+
+export async function deleteCandidatesForEquipment(
+  equipmentId: string
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates?equipment_id=eq.${equipmentId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deleteCandidatesForEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
+export interface CandidateInput {
+  cf_image_id: string;
+  source_url?: string | null;
+  image_source_host?: string | null;
+  source_label?: string | null;
+  match_kind?: "trailing" | "loose";
+  tier?: number;
+}
+
+export async function insertEquipmentPhotoCandidates(
+  equipmentId: string,
+  candidates: CandidateInput[]
+): Promise<Array<{ id: string; cf_image_id: string }>> {
+  const rows = candidates.map(c => ({
+    equipment_id: equipmentId,
+    cf_image_id: c.cf_image_id,
+    source_url: c.source_url ?? null,
+    image_source_host: c.image_source_host ?? null,
+    source_label: c.source_label ?? "revspin",
+    match_kind: c.match_kind ?? "trailing",
+    tier: c.tier ?? 1,
+  }));
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates`,
+    {
+      method: "POST",
+      headers: { ...adminHeaders(), Prefer: "return=representation" },
+      body: JSON.stringify(rows),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `insertEquipmentPhotoCandidates failed (${res.status}): ${await res.text()}`
+    );
+  }
+  return (await res.json()) as Array<{ id: string; cf_image_id: string }>;
+}
+
+export async function getCandidatesForEquipment(
+  equipmentId: string
+): Promise<
+  Array<{ id: string; cf_image_id: string; picked_at: string | null }>
+> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates?equipment_id=eq.${equipmentId}&select=id,cf_image_id,picked_at`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `getCandidatesForEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+  return res.json() as Promise<
+    Array<{ id: string; cf_image_id: string; picked_at: string | null }>
+  >;
+}
+
 export async function getPendingEquipmentReviews(userId: string): Promise<
   Array<{
     id: string;

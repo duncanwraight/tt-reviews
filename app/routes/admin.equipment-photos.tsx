@@ -54,38 +54,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
   const imagesHash = env.IMAGES_ACCOUNT_HASH ?? "";
 
-  const { data: equipmentRows, error: equipmentError } = await supabaseAdmin
-    .from("equipment")
-    .select("id, slug, name, manufacturer, category, subcategory")
-    .is("image_key", null)
-    .is("image_skipped_at", null);
-
-  if (equipmentError) {
-    Logger.error(
-      "equipment-photos: equipment load failed",
-      createLogContext("admin-equipment-photos", { userId: user.id }),
-      equipmentError instanceof Error ? equipmentError : undefined
-    );
-    return data(
-      { items: [], user, csrfToken, imagesHash },
-      { headers: sbServerClient.headers }
-    );
-  }
-
-  const ids = (equipmentRows ?? []).map(r => r.id as string);
-  if (ids.length === 0) {
-    return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
-      { headers: sbServerClient.headers }
-    );
-  }
-
+  // Query candidates first, then look up the (much smaller) set of
+  // equipment rows that have any. The opposite order would push a
+  // 290-element IN list onto the candidates URL — over PostgREST's
+  // ~8000-char URL ceiling once equipment grew past a few dozen.
   const { data: candidateRows, error: candidateError } = await supabaseAdmin
     .from("equipment_photo_candidates")
     .select(
       "id, equipment_id, cf_image_id, source_url, image_source_host, source_label, match_kind, tier"
     )
-    .in("equipment_id", ids)
     .is("picked_at", null)
     .order("tier", { ascending: true });
 
@@ -116,6 +93,33 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       tier: row.tier,
     });
     candidatesByEquipment.set(row.equipment_id, list);
+  }
+
+  const candidateEquipmentIds = [...candidatesByEquipment.keys()];
+  if (candidateEquipmentIds.length === 0) {
+    return data(
+      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
+      { headers: sbServerClient.headers }
+    );
+  }
+
+  const { data: equipmentRows, error: equipmentError } = await supabaseAdmin
+    .from("equipment")
+    .select("id, slug, name, manufacturer, category, subcategory")
+    .in("id", candidateEquipmentIds)
+    .is("image_key", null)
+    .is("image_skipped_at", null);
+
+  if (equipmentError) {
+    Logger.error(
+      "equipment-photos: equipment load failed",
+      createLogContext("admin-equipment-photos", { userId: user.id }),
+      equipmentError instanceof Error ? equipmentError : undefined
+    );
+    return data(
+      { items: [] as EquipmentReviewRow[], user, csrfToken, imagesHash },
+      { headers: sbServerClient.headers }
+    );
   }
 
   const items: EquipmentReviewRow[] = (equipmentRows ?? [])
@@ -150,22 +154,29 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { sbServerClient, user, supabaseAdmin } = gate;
 
   const env = context.cloudflare.env as unknown as Partial<SourcingEnv>;
-  if (
-    !env.IMAGES_ACCOUNT_ID ||
-    !env.IMAGES_ACCOUNT_HASH ||
-    !env.IMAGES_API_TOKEN
-  ) {
-    return data(
-      { error: "Cloudflare Images not configured" },
-      { status: 500, headers: sbServerClient.headers }
-    );
-  }
 
   const formData = await request.formData();
   const op = formData.get("op");
   const equipmentId = (formData.get("equipmentId") as string) ?? "";
   const candidateId = (formData.get("candidateId") as string) ?? "";
   const slug = (formData.get("slug") as string) ?? "";
+
+  // Only the resource op strictly needs creds (it calls Brave + CF
+  // upload). pick/reject/skip do best-effort CF deletes that are
+  // wrapped in .catch in deleteCandidates, so missing creds just
+  // means orphaned blobs in CF — the DB side stays consistent.
+  if (
+    op === "resource" &&
+    (!env.IMAGES_ACCOUNT_ID ||
+      !env.IMAGES_ACCOUNT_HASH ||
+      !env.IMAGES_API_TOKEN ||
+      !env.BRAVE_SEARCH_API_KEY)
+  ) {
+    return data(
+      { error: "photo sourcing not configured" },
+      { status: 500, headers: sbServerClient.headers }
+    );
+  }
 
   try {
     if (op === "pick") {
@@ -201,12 +212,6 @@ export async function action({ request, context }: Route.ActionArgs) {
         return data(
           { error: "Missing equipmentId or slug" },
           { status: 400, headers: sbServerClient.headers }
-        );
-      }
-      if (!env.BRAVE_SEARCH_API_KEY) {
-        return data(
-          { error: "Brave search not configured" },
-          { status: 500, headers: sbServerClient.headers }
         );
       }
       await resourceEquipment(
@@ -268,7 +273,7 @@ export default function AdminEquipmentPhotos({
             {items.length} item{items.length === 1 ? "" : "s"} pending
           </span>
           <Form method="post" action="/admin/equipment-photos/bulk-source">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <button
               type="submit"
               className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white font-medium hover:bg-purple-700"
@@ -330,7 +335,7 @@ function EquipmentReviewCard({
         </div>
         <div className="flex items-center gap-2">
           <Form method="post">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="op" value="resource" />
             <input type="hidden" name="equipmentId" value={item.id} />
             <input type="hidden" name="slug" value={item.slug} />
@@ -342,7 +347,7 @@ function EquipmentReviewCard({
             </button>
           </Form>
           <Form method="post">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="op" value="skip" />
             <input type="hidden" name="equipmentId" value={item.id} />
             <button
@@ -440,7 +445,7 @@ function CandidateTile({
         ) : null}
         <div className="flex items-center gap-2 mt-auto">
           <Form method="post" className="flex-1">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="op" value="pick" />
             <input type="hidden" name="equipmentId" value={equipmentId} />
             <input type="hidden" name="candidateId" value={candidate.id} />
@@ -453,7 +458,7 @@ function CandidateTile({
             </button>
           </Form>
           <Form method="post">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
+            <input type="hidden" name="_csrf" value={csrfToken} />
             <input type="hidden" name="op" value="reject" />
             <input type="hidden" name="candidateId" value={candidate.id} />
             <button
