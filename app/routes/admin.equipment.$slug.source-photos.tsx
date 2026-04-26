@@ -1,5 +1,5 @@
 import type { Route } from "./+types/admin.equipment.$slug.source-photos";
-import { data } from "react-router";
+import { data, redirect } from "react-router";
 import { ensureAdminAction } from "~/lib/admin/middleware.server";
 import { sourcePhotosForEquipment } from "~/lib/photo-sourcing/source.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
@@ -9,8 +9,11 @@ import { Logger, createLogContext } from "~/lib/logger.server";
 // pipeline for one equipment row. The admin queue (TT-52) and the
 // bulk-source endpoint (TT-53) both call this.
 
+// Action-only route: GET sends users back to the queue rather than
+// rendering a 404 (which is what they'd see after a failed POST that
+// didn't redirect).
 export function loader() {
-  throw new Response("not found", { status: 404 });
+  return redirect("/admin/equipment-photos");
 }
 
 export async function action({ request, context, params }: Route.ActionArgs) {

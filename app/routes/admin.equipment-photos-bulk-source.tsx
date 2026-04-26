@@ -5,12 +5,16 @@ import { Logger, createLogContext } from "~/lib/logger.server";
 import { bulkSourcePhotos } from "~/lib/photo-sourcing/bulk.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
 
-// POST /admin/equipment-photos/bulk-source — drains one chunk of
+// POST /admin/equipment-photos-bulk-source — drains one chunk of
 // unimaged equipment through the per-item pipeline. The admin UI
 // re-submits until the response says `remaining === 0`.
+//
+// Action-only route: if a user (or the browser after a failed POST
+// that didn't redirect) GETs this URL, send them back to the queue
+// instead of rendering a confusing 404.
 
 export function loader() {
-  throw new Response("not found", { status: 404 });
+  return redirect("/admin/equipment-photos");
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
