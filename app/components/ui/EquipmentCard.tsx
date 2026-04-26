@@ -8,6 +8,7 @@ import {
   getCategoryPillClasses,
   getSubcategoryPillClasses,
 } from "~/lib/equipment";
+import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 interface Equipment {
   id: string;
@@ -148,7 +149,10 @@ function CompareCard({ equipment }: { equipment: Equipment }) {
 
 function CardBody({ equipment }: { equipment: Equipment }) {
   const imageUrl = useMemo(
-    () => (equipment.image_key ? `/api/images/${equipment.image_key}` : null),
+    () =>
+      equipment.image_key
+        ? buildEquipmentImageUrl(equipment.image_key, "card")
+        : null,
     [equipment.image_key]
   );
 

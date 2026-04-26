@@ -196,7 +196,7 @@ export async function deleteCandidatesForEquipment(
 }
 
 export interface CandidateInput {
-  cf_image_id: string;
+  r2_key: string;
   source_url?: string | null;
   image_source_host?: string | null;
   source_label?: string | null;
@@ -207,10 +207,10 @@ export interface CandidateInput {
 export async function insertEquipmentPhotoCandidates(
   equipmentId: string,
   candidates: CandidateInput[]
-): Promise<Array<{ id: string; cf_image_id: string }>> {
+): Promise<Array<{ id: string; r2_key: string }>> {
   const rows = candidates.map(c => ({
     equipment_id: equipmentId,
-    cf_image_id: c.cf_image_id,
+    r2_key: c.r2_key,
     source_url: c.source_url ?? null,
     image_source_host: c.image_source_host ?? null,
     source_label: c.source_label ?? "revspin",
@@ -230,16 +230,14 @@ export async function insertEquipmentPhotoCandidates(
       `insertEquipmentPhotoCandidates failed (${res.status}): ${await res.text()}`
     );
   }
-  return (await res.json()) as Array<{ id: string; cf_image_id: string }>;
+  return (await res.json()) as Array<{ id: string; r2_key: string }>;
 }
 
 export async function getCandidatesForEquipment(
   equipmentId: string
-): Promise<
-  Array<{ id: string; cf_image_id: string; picked_at: string | null }>
-> {
+): Promise<Array<{ id: string; r2_key: string; picked_at: string | null }>> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates?equipment_id=eq.${equipmentId}&select=id,cf_image_id,picked_at`,
+    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates?equipment_id=eq.${equipmentId}&select=id,r2_key,picked_at`,
     { headers: adminHeaders() }
   );
   if (!res.ok) {
@@ -248,7 +246,7 @@ export async function getCandidatesForEquipment(
     );
   }
   return res.json() as Promise<
-    Array<{ id: string; cf_image_id: string; picked_at: string | null }>
+    Array<{ id: string; r2_key: string; picked_at: string | null }>
   >;
 }
 

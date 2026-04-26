@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
 import { LazyImage } from "../ui/LazyImage";
 import { ImagePlaceholder } from "../ui/ImagePlaceholder";
+import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 interface Equipment {
   id: string;
@@ -51,9 +52,11 @@ export function EquipmentHeader({
     }
   };
 
-  // Prefer image_key (R2 storage) over specifications.image_url
+  // Equipment R2 images go through Cloudflare Image Resizing for the
+  // header variant (1024px). Legacy specifications.image_url is an
+  // external URL — render directly.
   const imageUrl = equipment.image_key
-    ? `/api/images/${equipment.image_key}`
+    ? buildEquipmentImageUrl(equipment.image_key, "full")
     : (equipment.specifications?.image_url as string);
 
   return (

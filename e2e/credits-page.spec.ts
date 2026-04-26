@@ -53,10 +53,10 @@ test("/credits surfaces equipment attribution when seeded (TT-55)", async ({
   const equipment = await getFirstEquipment();
   const snapshot = await snapshotEquipmentImage(equipment.id);
 
-  const FAKE_CF_ID = "33333333-3333-3333-3333-333333333333";
+  const FAKE_KEY = "equipment/test/cand/33333333.png";
   await setEquipmentImage(equipment.id, {
-    image_key: `cf/${FAKE_CF_ID}`,
-    image_etag: FAKE_CF_ID.slice(0, 8),
+    image_key: FAKE_KEY,
+    image_etag: FAKE_KEY.slice(-12),
     image_credit_text: "www.revspin.net",
     image_credit_link: "https://www.revspin.net/test",
     image_license_short: null,

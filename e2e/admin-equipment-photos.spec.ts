@@ -31,8 +31,12 @@ import {
 // .catch, so the DB side stays consistent. That's exactly the
 // behaviour we want production-side too if CF ever 5xx's.
 
-const FAKE_CF_ID_A = "11111111-1111-1111-1111-111111111111";
-const FAKE_CF_ID_B = "22222222-2222-2222-2222-222222222222";
+// Real R2 keys would be `equipment/<slug>/cand/<uuid>.<ext>` — these
+// fixtures don't have to point at actual R2 objects since the admin
+// queue UI just renders the URL and the action operations are
+// best-effort R2 deletes (wrapped in .catch in deleteCandidates).
+const FAKE_KEY_A = "equipment/test/cand/11111111.png";
+const FAKE_KEY_B = "equipment/test/cand/22222222.png";
 
 async function withFixture(
   fn: (args: {
@@ -51,7 +55,7 @@ async function withFixture(
 
   const inserted = await insertEquipmentPhotoCandidates(equipment.id, [
     {
-      cf_image_id: FAKE_CF_ID_A,
+      r2_key: FAKE_KEY_A,
       source_url: "https://www.revspin.net/test-a",
       image_source_host: "www.revspin.net",
       source_label: "revspin",
@@ -59,7 +63,7 @@ async function withFixture(
       tier: 1,
     },
     {
-      cf_image_id: FAKE_CF_ID_B,
+      r2_key: FAKE_KEY_B,
       source_url: "https://contra.de/test-b",
       image_source_host: "contra.de",
       source_label: "contra",
@@ -111,13 +115,13 @@ test("admin picks a candidate → equipment.image_key is set, runners-up are rem
       await expect(card).toHaveCount(0, { timeout: 10000 });
 
       const snapshot = await snapshotEquipmentImage(equipmentId);
-      expect(snapshot.image_key).toBe(`cf/${FAKE_CF_ID_A}`);
-      expect(snapshot.image_etag).toBe(FAKE_CF_ID_A.slice(0, 8));
+      expect(snapshot.image_key).toBe(FAKE_KEY_A);
+      expect(snapshot.image_etag).toBe(FAKE_KEY_A.slice(-12));
 
       const remaining = await getCandidatesForEquipment(equipmentId);
       expect(remaining).toHaveLength(1);
       expect(remaining[0].picked_at).not.toBeNull();
-      expect(remaining[0].cf_image_id).toBe(FAKE_CF_ID_A);
+      expect(remaining[0].r2_key).toBe(FAKE_KEY_A);
     });
   } finally {
     await deleteUser(adminId);
@@ -189,7 +193,7 @@ test("admin rejects a single candidate → only that candidate disappears", asyn
         await expect(tileB).toBeVisible();
 
         const remaining = await getCandidatesForEquipment(equipmentId);
-        expect(remaining.map(r => r.cf_image_id)).toEqual([FAKE_CF_ID_B]);
+        expect(remaining.map(r => r.r2_key)).toEqual([FAKE_KEY_B]);
       }
     );
   } finally {

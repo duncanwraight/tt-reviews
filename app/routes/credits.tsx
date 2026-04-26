@@ -5,7 +5,7 @@ import { getServerClient } from "~/lib/supabase.server";
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { Logger, createLogContext } from "~/lib/logger.server";
-import { buildImageUrl } from "~/lib/imageUrl";
+import { buildImageUrl, buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 interface CreditRow {
   slug: string;
@@ -231,7 +231,7 @@ function EquipmentCreditItem({ row }: { row: EquipmentCreditRow }) {
   return (
     <li className="flex items-start gap-4 p-4" data-testid="equipment-credit">
       <img
-        src={buildImageUrl(row.imageKey, row.imageEtag) ?? ""}
+        src={buildEquipmentImageUrl(row.imageKey, "thumbnail")}
         alt={row.name}
         className="w-16 h-16 object-contain bg-white rounded flex-shrink-0 border border-gray-100"
         loading="lazy"
