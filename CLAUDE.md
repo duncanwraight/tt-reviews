@@ -4,6 +4,24 @@
 
 **Before any change to `app/` or `workers/`, read `docs/CODING-STANDARDS.md`.** It is the single source of truth for TypeScript, components, routes, loader/action shape, logging, env access, tests, imports, and comments. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
 
+## Environment variables — two-layer gate
+
+Any new env var **must** be added to the appropriate layer; both must agree, or CI will block the deploy or the Worker will 503 on first request.
+
+- **Layer 1 — `[secrets].required` in `wrangler.toml`** (deploy-time gate). Native Cloudflare feature: `wrangler versions upload` fails if any listed secret isn't configured on the prod Worker, so a missing secret keeps prod on the previous version instead of going live broken.
+- **Layer 2 — `validateEnv()` in `app/lib/env.server.ts`** (runtime gate at fetch entry). Memoized per isolate. Catches what Cloudflare can't: missing non-secret `[vars]`, format/length checks, placeholder strings.
+
+Where to add a new var:
+
+| Kind                                                       | Action                                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Secret (set via `wrangler secret put` / dashboard)         | Append to `[secrets].required` in `wrangler.toml` **and** to `.dev.vars.example`.                                 |
+| Non-secret, prod-required (e.g. a public URL)              | Add to `wrangler.toml` `[vars]` for prod **and** to `REQUIRED_ALWAYS` (or `REQUIRED_PROD_ONLY`) in `validateEnv`. |
+| Has format constraint (length, no placeholders, URL shape) | Add the check inside `validateEnv` alongside the existing ones.                                                   |
+| Optional / has fallback path in code                       | Don't add to either layer — document the fallback at the call site.                                               |
+
+Always run `npm run cf-typegen` after editing `wrangler.toml` so `worker-configuration.d.ts` stays in sync.
+
 ## Reference docs
 
 - Table-tennis terminology: `docs/GLOSSARY.md`

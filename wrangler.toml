@@ -35,6 +35,27 @@ type = "ratelimit"
 namespace_id = "2003"
 simple = { limit = 30, period = 60 }
 
+# Deploy-time gate: `wrangler versions upload` and `wrangler deploy` fail if
+# any of these secrets aren't configured on the Worker. CI promotes a new
+# version only after upload succeeds, so a missing secret keeps prod on the
+# previous version instead of going live in a broken state. Format-level
+# checks (e.g. SESSION_SECRET >= 16 chars, no Discord placeholders) live in
+# validateEnv() at the fetch entry — see app/lib/env.server.ts. Adding a new
+# secret? Append it here and to .dev.vars.example, and decide whether it
+# also needs a format check in validateEnv.
+[secrets]
+required = [
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SESSION_SECRET",
+  "DISCORD_PUBLIC_KEY",
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_CHANNEL_ID",
+  "DISCORD_ALLOWED_ROLES",
+  "AUTO_ADMIN_EMAILS",
+]
+
 [observability]
 enabled = true
 head_sampling_rate = 1

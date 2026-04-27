@@ -49,3 +49,119 @@ export function getSupabaseConfig(context: AppLoadContext) {
 export function isDevelopment(context: AppLoadContext): boolean {
   return getEnvVar(context, "ENVIRONMENT") === "development";
 }
+
+// Required everywhere — both dev and prod must populate these or the
+// Worker can't function (auth, CSRF, base URLs).
+const REQUIRED_ALWAYS = [
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "SESSION_SECRET",
+  "SITE_URL",
+  "ENVIRONMENT",
+] as const;
+
+// Required in prod only. In dev, e2e/local can stub these as needed —
+// .dev.vars.example documents which features they unlock.
+const REQUIRED_PROD_ONLY = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "DISCORD_PUBLIC_KEY",
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_CHANNEL_ID",
+  "DISCORD_ALLOWED_ROLES",
+  "AUTO_ADMIN_EMAILS",
+] as const;
+
+// Discord secrets that get accidentally left as the placeholder strings
+// from `.dev.vars.example` would otherwise pass a presence check. Layer 1
+// (`[secrets].required` in wrangler.toml) only verifies a value was set,
+// not what it is — so we screen these in prod.
+const DISCORD_PLACEHOLDER_VARS = [
+  "DISCORD_PUBLIC_KEY",
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_CHANNEL_ID",
+] as const;
+const PLACEHOLDER_NEEDLES = ["your_", "placeholder", "stub"];
+const MIN_SESSION_SECRET_LENGTH = 16;
+
+export type EnvValidationResult =
+  | { ok: true }
+  | { ok: false; problems: string[] };
+
+/**
+ * Pure validation: takes the Worker env, returns the list of misconfigurations.
+ * Used by the memoized fetch-entry guard; also unit-tested directly so each
+ * rule has explicit coverage.
+ */
+export function validateEnv(env: Record<string, unknown>): EnvValidationResult {
+  const problems: string[] = [];
+  const environment = env.ENVIRONMENT;
+  const isProd = environment === "production";
+
+  if (environment !== "development" && environment !== "production") {
+    problems.push("ENVIRONMENT: must be 'development' or 'production'");
+  }
+
+  for (const name of REQUIRED_ALWAYS) {
+    if (typeof env[name] !== "string" || (env[name] as string).length === 0) {
+      problems.push(`${name}: missing`);
+    }
+  }
+
+  if (isProd) {
+    for (const name of REQUIRED_PROD_ONLY) {
+      if (typeof env[name] !== "string" || (env[name] as string).length === 0) {
+        problems.push(`${name}: missing`);
+      }
+    }
+  }
+
+  const sessionSecret = env.SESSION_SECRET;
+  if (
+    typeof sessionSecret === "string" &&
+    sessionSecret.length > 0 &&
+    sessionSecret.length < MIN_SESSION_SECRET_LENGTH
+  ) {
+    problems.push(
+      `SESSION_SECRET: too short (<${MIN_SESSION_SECRET_LENGTH} chars)`
+    );
+  }
+
+  if (isProd) {
+    for (const name of DISCORD_PLACEHOLDER_VARS) {
+      const value = env[name];
+      if (typeof value === "string" && value.length > 0) {
+        const lower = value.toLowerCase();
+        if (PLACEHOLDER_NEEDLES.some(needle => lower.includes(needle))) {
+          problems.push(`${name}: placeholder value`);
+        }
+      }
+    }
+  }
+
+  return problems.length === 0 ? { ok: true } : { ok: false, problems };
+}
+
+let memoEnv: Record<string, unknown> | null = null;
+let memoResult: EnvValidationResult | null = null;
+
+/**
+ * Memoized validation, keyed by env-object identity. Workers reuse one env
+ * per isolate, so this runs once on cold start; tests pass distinct refs to
+ * exercise the validator directly.
+ */
+export function getValidatedEnv(
+  env: Record<string, unknown>
+): EnvValidationResult {
+  if (memoEnv === env && memoResult) {
+    return memoResult;
+  }
+  memoEnv = env;
+  memoResult = validateEnv(env);
+  return memoResult;
+}
+
+/** Test-only: clear the validation memo between cases. */
+export function _resetEnvMemo(): void {
+  memoEnv = null;
+  memoResult = null;
+}

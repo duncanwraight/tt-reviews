@@ -1,4 +1,5 @@
 import { createRequestHandler } from "react-router";
+import { getValidatedEnv } from "../app/lib/env.server";
 import { Logger, createLogContext } from "../app/lib/logger.server";
 
 declare module "react-router" {
@@ -17,6 +18,32 @@ const requestHandler = createRequestHandler(
 
 export default {
   async fetch(request, env, ctx) {
+    // Layer 2 of the env-config gate (Layer 1 is `[secrets].required` in
+    // wrangler.toml, which blocks deploy when a secret is missing). This
+    // catches what Cloudflare can't: missing [vars], short SESSION_SECRET,
+    // Discord placeholders left in prod. Memoized per isolate so the cost
+    // is one walk on cold start. See app/lib/env.server.ts for the rules.
+    const envCheck = getValidatedEnv(env as unknown as Record<string, unknown>);
+    if (!envCheck.ok) {
+      Logger.error(
+        "env validation failed",
+        createLogContext(
+          request.headers.get("X-Request-ID") || "validate-env",
+          {
+            source: "validate-env",
+            problems: envCheck.problems.join("; "),
+          }
+        )
+      );
+      return new Response("Service Unavailable: misconfiguration", {
+        status: 503,
+        headers: {
+          "Retry-After": "60",
+          "Content-Type": "text/plain",
+        },
+      });
+    }
+
     try {
       return await requestHandler(request, {
         cloudflare: { env, ctx },
