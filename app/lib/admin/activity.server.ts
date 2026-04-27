@@ -1,14 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  SUBMISSION_TYPE_VALUES,
+  type SubmissionType,
+} from "~/lib/submissions/types";
 
 export type ActivityAction = "approved" | "rejected";
 
-export type ActivitySubmissionType =
-  | "equipment"
-  | "player"
-  | "player_edit"
-  | "review"
-  | "video"
-  | "player_equipment_setup";
+export type ActivitySubmissionType = SubmissionType;
 
 export interface AdminActivityEntry {
   id: string;
@@ -122,17 +120,9 @@ function normaliseAction(action: string): ActivityAction {
 }
 
 function normaliseSubmissionType(type: string): ActivitySubmissionType {
-  if (
-    type === "equipment" ||
-    type === "player" ||
-    type === "player_edit" ||
-    type === "review" ||
-    type === "video" ||
-    type === "player_equipment_setup"
-  ) {
-    return type;
-  }
-  return "equipment";
+  return (SUBMISSION_TYPE_VALUES as readonly string[]).includes(type)
+    ? (type as ActivitySubmissionType)
+    : "equipment";
 }
 
 function pickActor(
