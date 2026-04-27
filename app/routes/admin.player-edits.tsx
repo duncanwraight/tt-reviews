@@ -1,5 +1,6 @@
 import type { Route } from "./+types/admin.player-edits";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useSearchParams } from "react-router";
+import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -205,9 +206,14 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
-  // Group edits by status
-  const pendingEdits = playerEdits.filter(
-    e => e.status === "pending" || e.status === "awaiting_second_approval"
+  const [searchParams] = useSearchParams();
+  // Group edits by status; pending list re-sorts oldest-first when the
+  // dashboard's "Open next pending" quick-action set focus=oldest.
+  const pendingEdits = sortPendingByFocus(
+    playerEdits.filter(
+      e => e.status === "pending" || e.status === "awaiting_second_approval"
+    ),
+    searchParams
   );
   const processedEdits = playerEdits.filter(
     e => e.status === "approved" || e.status === "rejected"

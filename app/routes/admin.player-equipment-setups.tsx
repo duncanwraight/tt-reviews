@@ -1,5 +1,6 @@
 import type { Route } from "./+types/admin.player-equipment-setups";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useSearchParams } from "react-router";
+import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
@@ -284,11 +285,16 @@ export default function AdminPlayerEquipmentSetups({
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
-  // Group submissions by status
-  const pendingSubmissions = equipmentSetups.filter(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (s: any) =>
-      s.status === "pending" || s.status === "awaiting_second_approval"
+  const [searchParams] = useSearchParams();
+  // Group submissions by status; pending list re-sorts oldest-first when the
+  // dashboard's "Open next pending" quick-action set focus=oldest.
+  const pendingSubmissions = sortPendingByFocus(
+    equipmentSetups.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (s: any) =>
+        s.status === "pending" || s.status === "awaiting_second_approval"
+    ),
+    searchParams
   );
   const processedSubmissions = equipmentSetups.filter(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,5 +1,6 @@
 import type { Route } from "./+types/admin.equipment-reviews";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useSearchParams } from "react-router";
+import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -177,11 +178,16 @@ export default function AdminEquipmentReviews({
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
-  // Group reviews by status
-  const pendingReviews = reviews.filter(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (r: any) =>
-      r.status === "pending" || r.status === "awaiting_second_approval"
+  const [searchParams] = useSearchParams();
+  // Group reviews by status; pending list re-sorts oldest-first when the
+  // dashboard's "Open next pending" quick-action set focus=oldest.
+  const pendingReviews = sortPendingByFocus(
+    reviews.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) =>
+        r.status === "pending" || r.status === "awaiting_second_approval"
+    ),
+    searchParams
   );
   const processedReviews = reviews.filter(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

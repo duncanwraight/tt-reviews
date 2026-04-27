@@ -1,5 +1,6 @@
 import type { Route } from "./+types/admin.video-submissions";
-import { data, redirect, Form } from "react-router";
+import { data, redirect, Form, useSearchParams } from "react-router";
+import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
@@ -180,9 +181,14 @@ export default function AdminVideoSubmissions({
     submissionName: string;
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
-  // Group submissions by status
-  const pendingSubmissions = submissions.filter(
-    s => s.status === "pending" || s.status === "awaiting_second_approval"
+  const [searchParams] = useSearchParams();
+  // Group submissions by status; pending list re-sorts oldest-first when the
+  // dashboard's "Open next pending" quick-action set focus=oldest.
+  const pendingSubmissions = sortPendingByFocus(
+    submissions.filter(
+      s => s.status === "pending" || s.status === "awaiting_second_approval"
+    ),
+    searchParams
   );
   const processedSubmissions = submissions.filter(
     s => s.status === "approved" || s.status === "rejected"

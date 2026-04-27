@@ -4,14 +4,19 @@ import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
-import { AlertTriangle, Package, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, Package, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Link } from "react-router";
 import {
   emptyDashboardCounts,
   getAdminDashboardCounts,
   type AdminDashboardCounts,
   type StatusCounts,
 } from "~/lib/admin/dashboard.server";
+import {
+  findOldestPendingTarget,
+  type OldestPendingTarget,
+} from "~/lib/admin/oldest-pending.server";
 
 const pendingTotal = (s: StatusCounts) =>
   s.pending + s.awaiting_second_approval;
@@ -53,10 +58,21 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const supabase = createSupabaseAdminClient(context);
 
   // Safe to use admin client (bypasses RLS) — user is verified admin above.
-  const counts = await loadDashboardCountsSafe(supabase);
+  const [counts, nextPending] = await Promise.all([
+    loadDashboardCountsSafe(supabase),
+    findOldestPendingTarget(supabase).catch(error => {
+      Logger.error(
+        "Error finding oldest pending submission",
+        createLogContext("admin-index"),
+        error instanceof Error ? error : undefined
+      );
+      return null as OldestPendingTarget | null;
+    }),
+  ]);
   const { totals, byStatus } = counts;
 
   return data({
+    nextPending,
     stats: {
       equipmentSubmissions: totals.equipmentSubmissions,
       playerSubmissions: totals.playerSubmissions,
@@ -92,7 +108,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
-  const { stats } = loaderData;
+  const { stats, nextPending } = loaderData;
 
   const statCards = [
     {
@@ -203,6 +219,17 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                     stats.videoSubmissionsPending}{" "}
                   items waiting for review.
                 </div>
+                {nextPending && (
+                  <div className="mt-3">
+                    <Link
+                      to={nextPending.route}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700"
+                    >
+                      Open next pending
+                      <ArrowRight className="size-4" aria-hidden />
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
