@@ -124,7 +124,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
   const { stats, nextPending, recentActivity } = loaderData;
 
-  const statCards = [
+  const queueRows = [
     {
       title: "Equipment Submissions",
       total: stats.equipmentSubmissions,
@@ -132,7 +132,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.equipmentApproved,
       rejected: stats.equipmentRejected,
       link: "/admin/equipment-submissions",
-      color: "bg-blue-500",
     },
     {
       title: "Player Submissions",
@@ -141,7 +140,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.playerSubmissionsApproved,
       rejected: stats.playerSubmissionsRejected,
       link: "/admin/player-submissions",
-      color: "bg-green-500",
     },
     {
       title: "Player Edits",
@@ -150,7 +148,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.playerEditsApproved,
       rejected: stats.playerEditsRejected,
       link: "/admin/player-edits",
-      color: "bg-purple-500",
     },
     {
       title: "Equipment Setups",
@@ -159,7 +156,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.playerEquipmentSetupsApproved,
       rejected: stats.playerEquipmentSetupsRejected,
       link: "/admin/player-equipment-setups",
-      color: "bg-teal-500",
     },
     {
       title: "Equipment Reviews",
@@ -168,7 +164,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.equipmentReviewsApproved,
       rejected: stats.equipmentReviewsRejected,
       link: "/admin/equipment-reviews",
-      color: "bg-yellow-500",
     },
     {
       title: "Video Submissions",
@@ -177,7 +172,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.videoSubmissionsApproved,
       rejected: stats.videoSubmissionsRejected,
       link: "/admin/video-submissions",
-      color: "bg-pink-500",
     },
   ];
 
@@ -250,59 +244,75 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Moderation Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-          {statCards.map((card, index) => (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-600">
-                  {card.title}
-                </h3>
-                <span className="text-2xl font-semibold text-gray-900">
-                  {card.total}
-                </span>
-              </div>
-
-              {/* Status breakdown with color coding */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                    <span className="text-gray-600">Pending</span>
-                  </div>
-                  <span className="font-medium text-yellow-700">
-                    {card.pending}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-gray-600">Approved</span>
-                  </div>
-                  <span className="font-medium text-green-700">
-                    {card.approved}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                    <span className="text-gray-600">Rejected</span>
-                  </div>
-                  <span className="font-medium text-red-700">
-                    {card.rejected}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <a
-                  href={card.link}
-                  className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow mb-8">
+          <table
+            className="min-w-full divide-y divide-gray-200 text-sm"
+            data-testid="admin-stats-table"
+          >
+            <thead className="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left font-medium text-gray-700"
                 >
-                  View all →
-                </a>
-              </div>
-            </div>
-          ))}
+                  Queue
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-right font-medium text-gray-700"
+                >
+                  Pending
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-right font-medium text-gray-700"
+                >
+                  Approved
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-right font-medium text-gray-700"
+                >
+                  Rejected
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-right font-medium text-gray-700"
+                >
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {queueRows.map(row => (
+                <tr key={row.link}>
+                  <th
+                    scope="row"
+                    className="whitespace-nowrap px-4 py-3 text-left font-medium"
+                  >
+                    <Link
+                      to={row.link}
+                      className="text-purple-700 hover:text-purple-900"
+                    >
+                      {row.title}
+                    </Link>
+                  </th>
+                  <td className="px-4 py-3 text-right font-medium text-yellow-700 tabular-nums">
+                    {row.pending}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-green-700 tabular-nums">
+                    {row.approved}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-red-700 tabular-nums">
+                    {row.rejected}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900 tabular-nums">
+                    {row.total}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Content Stats + Recent Activity */}
