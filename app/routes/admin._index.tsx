@@ -6,164 +6,28 @@ import { getUserWithRole } from "~/lib/auth.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { AlertTriangle, Package, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  emptyDashboardCounts,
+  getAdminDashboardCounts,
+  type AdminDashboardCounts,
+  type StatusCounts,
+} from "~/lib/admin/dashboard.server";
 
-// Helper function to get dashboard counts using admin client
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getAdminDashboardCountsWithClient(supabase: any) {
+const pendingTotal = (s: StatusCounts) =>
+  s.pending + s.awaiting_second_approval;
+
+async function loadDashboardCountsSafe(
+  supabase: ReturnType<typeof createSupabaseAdminClient>
+): Promise<AdminDashboardCounts> {
   try {
-    // Use admin client to bypass RLS policies - same logic as DatabaseService but with admin access
-    const [
-      equipmentSubmissionsQuery,
-      playerSubmissionsQuery,
-      playerEditsQuery,
-      equipmentReviewsQuery,
-      videoSubmissionsQuery,
-      playerEquipmentSetupsQuery,
-      equipmentCountQuery,
-      playersCountQuery,
-    ] = await Promise.all([
-      // Get equipment submissions grouped by status
-      supabase
-        .from("equipment_submissions")
-        .select("status")
-        .not("status", "is", null),
-
-      // Get player submissions grouped by status
-      supabase
-        .from("player_submissions")
-        .select("status")
-        .not("status", "is", null),
-
-      // Get player edits grouped by status
-      supabase.from("player_edits").select("status").not("status", "is", null),
-
-      // Get equipment reviews grouped by status
-      supabase
-        .from("equipment_reviews")
-        .select("status")
-        .not("status", "is", null),
-
-      // Get video submissions grouped by status
-      supabase
-        .from("video_submissions")
-        .select("status")
-        .not("status", "is", null),
-
-      // Get player equipment setup submissions grouped by status
-      supabase
-        .from("player_equipment_setup_submissions")
-        .select("status")
-        .not("status", "is", null),
-
-      // Get total equipment count
-      supabase.from("equipment").select("*", { count: "exact", head: true }),
-
-      // Get total players count
-      supabase.from("players").select("*", { count: "exact", head: true }),
-    ]);
-
-    // Process the results to get status counts
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const getStatusCounts = (data: any[] | null): Record<string, number> => {
-      const counts: Record<string, number> = {
-        pending: 0,
-        awaiting_second_approval: 0,
-        approved: 0,
-        rejected: 0,
-      };
-
-      if (data) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.forEach((item: any) => {
-          if (item.status && counts.hasOwnProperty(item.status)) {
-            counts[item.status]++;
-          }
-        });
-      }
-
-      return counts;
-    };
-
-    const result = {
-      totals: {
-        equipmentSubmissions: equipmentSubmissionsQuery.data?.length || 0,
-        playerSubmissions: playerSubmissionsQuery.data?.length || 0,
-        playerEdits: playerEditsQuery.data?.length || 0,
-        equipmentReviews: equipmentReviewsQuery.data?.length || 0,
-        videoSubmissions: videoSubmissionsQuery.data?.length || 0,
-        playerEquipmentSetups: playerEquipmentSetupsQuery.data?.length || 0,
-        equipment: equipmentCountQuery.count || 0,
-        players: playersCountQuery.count || 0,
-      },
-      byStatus: {
-        equipmentSubmissions: getStatusCounts(equipmentSubmissionsQuery.data),
-        playerSubmissions: getStatusCounts(playerSubmissionsQuery.data),
-        playerEdits: getStatusCounts(playerEditsQuery.data),
-        equipmentReviews: getStatusCounts(equipmentReviewsQuery.data),
-        videoSubmissions: getStatusCounts(videoSubmissionsQuery.data),
-        playerEquipmentSetups: getStatusCounts(playerEquipmentSetupsQuery.data),
-      },
-    };
-
-    return result;
+    return await getAdminDashboardCounts(supabase);
   } catch (error) {
     Logger.error(
       "Error fetching admin dashboard counts",
       createLogContext("admin-index"),
       error instanceof Error ? error : undefined
     );
-
-    // Return empty counts as fallback
-    return {
-      totals: {
-        equipmentSubmissions: 0,
-        playerSubmissions: 0,
-        playerEdits: 0,
-        equipmentReviews: 0,
-        videoSubmissions: 0,
-        playerEquipmentSetups: 0,
-        equipment: 0,
-        players: 0,
-      },
-      byStatus: {
-        equipmentSubmissions: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-        playerSubmissions: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-        playerEdits: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-        playerEquipmentSetups: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-        equipmentReviews: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-        videoSubmissions: {
-          pending: 0,
-          awaiting_second_approval: 0,
-          approved: 0,
-          rejected: 0,
-        },
-      },
-    };
+    return emptyDashboardCounts();
   }
 }
 
@@ -188,109 +52,41 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const supabase = createSupabaseAdminClient(context);
 
-  // Now safe to use admin client to bypass RLS policies since user is verified admin
-  const dashboardCounts = await getAdminDashboardCountsWithClient(supabase);
-
-  // Extract totals for easier access
-  const {
-    equipmentSubmissions: equipmentSubmissionsCount,
-    playerSubmissions: playerSubmissionsCount,
-    playerEdits: playerEditsCount,
-    equipmentReviews: equipmentReviewsCount,
-    videoSubmissions: videoSubmissionsCount,
-    playerEquipmentSetups: playerEquipmentSetupsCount,
-    equipment: equipmentCount,
-    players: playersCount,
-  } = dashboardCounts.totals;
-
-  // Extract status counts from the optimized query results
-  const {
-    equipmentSubmissions: equipmentSubmissionsByStatus,
-    playerSubmissions: playerSubmissionsByStatus,
-    playerEdits: playerEditsByStatus,
-    equipmentReviews: equipmentReviewsByStatus,
-    videoSubmissions: videoSubmissionsByStatus,
-    playerEquipmentSetups: playerEquipmentSetupsByStatus,
-  } = dashboardCounts.byStatus;
-
-  // Extract individual status counts for easier access
-  const pendingEquipmentSubmissions = equipmentSubmissionsByStatus.pending;
-  const awaitingEquipmentSubmissions =
-    equipmentSubmissionsByStatus.awaiting_second_approval;
-  const approvedEquipmentSubmissions = equipmentSubmissionsByStatus.approved;
-  const rejectedEquipmentSubmissions = equipmentSubmissionsByStatus.rejected;
-
-  const pendingPlayerSubmissions = playerSubmissionsByStatus.pending;
-  const awaitingPlayerSubmissions =
-    playerSubmissionsByStatus.awaiting_second_approval;
-  const approvedPlayerSubmissions = playerSubmissionsByStatus.approved;
-  const rejectedPlayerSubmissions = playerSubmissionsByStatus.rejected;
-
-  const pendingPlayerEdits = playerEditsByStatus.pending;
-  const awaitingPlayerEdits = playerEditsByStatus.awaiting_second_approval;
-  const approvedPlayerEdits = playerEditsByStatus.approved;
-  const rejectedPlayerEdits = playerEditsByStatus.rejected;
-
-  const pendingEquipmentReviews = equipmentReviewsByStatus.pending;
-  const awaitingEquipmentReviews =
-    equipmentReviewsByStatus.awaiting_second_approval;
-  const approvedEquipmentReviews = equipmentReviewsByStatus.approved;
-  const rejectedEquipmentReviews = equipmentReviewsByStatus.rejected;
-
-  const pendingVideoSubmissions = videoSubmissionsByStatus.pending;
-  const awaitingVideoSubmissions =
-    videoSubmissionsByStatus.awaiting_second_approval;
-  const approvedVideoSubmissions = videoSubmissionsByStatus.approved;
-  const rejectedVideoSubmissions = videoSubmissionsByStatus.rejected;
-
-  const pendingPlayerEquipmentSetups = playerEquipmentSetupsByStatus.pending;
-  const awaitingPlayerEquipmentSetups =
-    playerEquipmentSetupsByStatus.awaiting_second_approval;
-  const approvedPlayerEquipmentSetups = playerEquipmentSetupsByStatus.approved;
-  const rejectedPlayerEquipmentSetups = playerEquipmentSetupsByStatus.rejected;
+  // Safe to use admin client (bypasses RLS) — user is verified admin above.
+  const counts = await loadDashboardCountsSafe(supabase);
+  const { totals, byStatus } = counts;
 
   return data({
     stats: {
-      equipmentSubmissions: equipmentSubmissionsCount || 0,
-      playerSubmissions: playerSubmissionsCount || 0,
-      playerEdits: playerEditsCount || 0,
-      equipmentReviews: equipmentReviewsCount || 0,
-      videoSubmissions: videoSubmissionsCount || 0,
-      playerEquipmentSetups: playerEquipmentSetupsCount || 0,
-      equipment: equipmentCount || 0,
-      players: playersCount || 0,
-      // Equipment submission status breakdown
-      equipmentPending:
-        (pendingEquipmentSubmissions || 0) +
-        (awaitingEquipmentSubmissions || 0),
-      equipmentApproved: approvedEquipmentSubmissions || 0,
-      equipmentRejected: rejectedEquipmentSubmissions || 0,
-      // Player submission status breakdown
-      playerSubmissionsPending:
-        (pendingPlayerSubmissions || 0) + (awaitingPlayerSubmissions || 0),
-      playerSubmissionsApproved: approvedPlayerSubmissions || 0,
-      playerSubmissionsRejected: rejectedPlayerSubmissions || 0,
-      // Player edits status breakdown
-      playerEditsPending:
-        (pendingPlayerEdits || 0) + (awaitingPlayerEdits || 0),
-      playerEditsApproved: approvedPlayerEdits || 0,
-      playerEditsRejected: rejectedPlayerEdits || 0,
-      // Equipment reviews status breakdown
-      equipmentReviewsPending:
-        (pendingEquipmentReviews || 0) + (awaitingEquipmentReviews || 0),
-      equipmentReviewsApproved: approvedEquipmentReviews || 0,
-      equipmentReviewsRejected: rejectedEquipmentReviews || 0,
-      // Video submissions status breakdown
-      videoSubmissionsPending:
-        (pendingVideoSubmissions || 0) + (awaitingVideoSubmissions || 0),
-      videoSubmissionsApproved: approvedVideoSubmissions || 0,
-      videoSubmissionsRejected: rejectedVideoSubmissions || 0,
-      // Player equipment setups status breakdown
-      playerEquipmentSetupsPending:
-        (pendingPlayerEquipmentSetups || 0) +
-        (awaitingPlayerEquipmentSetups || 0),
-      playerEquipmentSetupsApproved: approvedPlayerEquipmentSetups || 0,
-      playerEquipmentSetupsRejected: rejectedPlayerEquipmentSetups || 0,
+      equipmentSubmissions: totals.equipmentSubmissions,
+      playerSubmissions: totals.playerSubmissions,
+      playerEdits: totals.playerEdits,
+      equipmentReviews: totals.equipmentReviews,
+      videoSubmissions: totals.videoSubmissions,
+      playerEquipmentSetups: totals.playerEquipmentSetups,
+      equipment: totals.equipment,
+      players: totals.players,
+      // Pending = pending + awaiting_second_approval (matches the badge convention).
+      equipmentPending: pendingTotal(byStatus.equipmentSubmissions),
+      equipmentApproved: byStatus.equipmentSubmissions.approved,
+      equipmentRejected: byStatus.equipmentSubmissions.rejected,
+      playerSubmissionsPending: pendingTotal(byStatus.playerSubmissions),
+      playerSubmissionsApproved: byStatus.playerSubmissions.approved,
+      playerSubmissionsRejected: byStatus.playerSubmissions.rejected,
+      playerEditsPending: pendingTotal(byStatus.playerEdits),
+      playerEditsApproved: byStatus.playerEdits.approved,
+      playerEditsRejected: byStatus.playerEdits.rejected,
+      equipmentReviewsPending: pendingTotal(byStatus.equipmentReviews),
+      equipmentReviewsApproved: byStatus.equipmentReviews.approved,
+      equipmentReviewsRejected: byStatus.equipmentReviews.rejected,
+      videoSubmissionsPending: pendingTotal(byStatus.videoSubmissions),
+      videoSubmissionsApproved: byStatus.videoSubmissions.approved,
+      videoSubmissionsRejected: byStatus.videoSubmissions.rejected,
+      playerEquipmentSetupsPending: pendingTotal(
+        byStatus.playerEquipmentSetups
+      ),
+      playerEquipmentSetupsApproved: byStatus.playerEquipmentSetups.approved,
+      playerEquipmentSetupsRejected: byStatus.playerEquipmentSetups.rejected,
     },
   });
 }
