@@ -87,15 +87,32 @@ export type EnvValidationResult =
   | { ok: true }
   | { ok: false; problems: string[] };
 
+export interface ValidateEnvOptions {
+  /**
+   * Whether to skip prod-only required vars and Discord-placeholder checks.
+   * Caller should pass `import.meta.env.DEV` from the Worker entry — that's
+   * baked at build time, so it's true under `react-router dev` (local + CI
+   * e2e webServer) and false in the deployed prod bundle. Falls back to the
+   * runtime `env.ENVIRONMENT` when unspecified, but that's unreliable under
+   * Vite dev because wrangler.toml's top-level `[vars]` (ENVIRONMENT =
+   * "production") wins over `.dev.vars`.
+   */
+  isDev?: boolean;
+}
+
 /**
  * Pure validation: takes the Worker env, returns the list of misconfigurations.
  * Used by the memoized fetch-entry guard; also unit-tested directly so each
  * rule has explicit coverage.
  */
-export function validateEnv(env: Record<string, unknown>): EnvValidationResult {
+export function validateEnv(
+  env: Record<string, unknown>,
+  options: ValidateEnvOptions = {}
+): EnvValidationResult {
   const problems: string[] = [];
   const environment = env.ENVIRONMENT;
-  const isProd = environment === "production";
+  const isDev = options.isDev ?? environment === "development";
+  const isProd = !isDev;
 
   if (environment !== "development" && environment !== "production") {
     problems.push("ENVIRONMENT: must be 'development' or 'production'");
@@ -147,16 +164,19 @@ let memoResult: EnvValidationResult | null = null;
 /**
  * Memoized validation, keyed by env-object identity. Workers reuse one env
  * per isolate, so this runs once on cold start; tests pass distinct refs to
- * exercise the validator directly.
+ * exercise the validator directly. Pass `isDev: import.meta.env.DEV` from
+ * the Worker entry so dev-vs-prod is decided at build time, not from a
+ * runtime var that Vite dev can't reliably overwrite.
  */
 export function getValidatedEnv(
-  env: Record<string, unknown>
+  env: Record<string, unknown>,
+  options: ValidateEnvOptions = {}
 ): EnvValidationResult {
   if (memoEnv === env && memoResult) {
     return memoResult;
   }
   memoEnv = env;
-  memoResult = validateEnv(env);
+  memoResult = validateEnv(env, options);
   return memoResult;
 }
 

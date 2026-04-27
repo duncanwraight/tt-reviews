@@ -126,6 +126,28 @@ describe("validateEnv", () => {
       "SESSION_SECRET: too short (<16 chars)"
     );
   });
+
+  it("treats opts.isDev=true as dev regardless of env.ENVIRONMENT", () => {
+    // react-router dev exposes the prod [vars] block where ENVIRONMENT is
+    // "production"; the caller hands isDev based on import.meta.env.DEV so
+    // we don't enforce prod-only rules against the e2e dev server.
+    const env = {
+      ...DEV_OK,
+      ENVIRONMENT: "production",
+      DISCORD_BOT_TOKEN: "stub",
+    };
+    expect(validateEnv(env, { isDev: true })).toEqual({ ok: true });
+  });
+
+  it("treats opts.isDev=false as prod regardless of env.ENVIRONMENT", () => {
+    const env = { ...PROD_OK, ENVIRONMENT: "development" };
+    // ENVIRONMENT itself is now wrong, but the prod-only required list
+    // should fire because isDev=false.
+    delete (env as Partial<typeof PROD_OK>).AUTO_ADMIN_EMAILS;
+    const result = validateEnv(env, { isDev: false });
+    if (result.ok) throw new Error("expected failure");
+    expect(result.problems).toContain("AUTO_ADMIN_EMAILS: missing");
+  });
 });
 
 describe("getValidatedEnv (memoized)", () => {
