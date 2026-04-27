@@ -85,6 +85,16 @@ When editing `.github/workflows/`, use the latest major of any third-party actio
 
 `gh run watch --exit-status <id>` is unreliable as a green/red signal — it propagates the latest non-zero step exit code, so a `continue-on-error: true` step that exited non-zero will make `watch` return 1 even when the run conclusion is `success`. Use `gh run view <id> --json status,conclusion` instead — `conclusion` is authoritative.
 
+**Polling pattern (Claude Code).** Don't chain `sleep 270 && gh run view ...` — the harness blocks long leading sleeps and you'll get a `Blocked:` error. Use a backgrounded `until` loop instead so the wait happens inside the loop body, not in front of the command:
+
+```sh
+# run with run_in_background: true — fires one notification on completion
+until [ "$(gh run view <id> --json status --jq .status)" = "completed" ]; do sleep 15; done
+gh run view <id> --json status,conclusion --jq '{status, conclusion}'
+```
+
+Same shape works for `gh pr checks`, deploy status, or anything else where you're waiting on a single terminal event. For multi-event streams (each step result as it lands) reach for the Monitor tool instead.
+
 ## `/ultrareview` — opt-in second opinion
 
 For changes to `app/lib/submissions/**`, `app/lib/moderation.server.ts`, auth, or RLS migrations, ask me to run `/ultrareview` before pushing. Cheap second opinion on the risky paths.
