@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { validateSubmission, validateUrl } from "../validate.server";
+import {
+  validateSubmission,
+  validateUrl,
+  parseEquipmentSpecs,
+} from "../validate.server";
+import type { CategoryOption } from "~/lib/categories.server";
 
 /**
  * SECURITY.md Phase 7 (TT-16). The submission action used to pass form
@@ -217,7 +222,18 @@ describe("validateSubmission — player_edit", () => {
 });
 
 describe("validateSubmission — equipment", () => {
-  it("caps specifications (textarea) at 5000 chars", () => {
+  it("rejects a missing name", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({ manufacturer: "DHS", category: "rubber" })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.name).toMatch(/required/);
+  });
+
+  it("ignores raw `specifications` from formData (handled by parseEquipmentSpecs)", () => {
+    // The freeform textarea is gone; if a stale client posts a stray
+    // `specifications` text field it should not block validation.
     const result = validateSubmission(
       "equipment",
       fd({
@@ -227,17 +243,170 @@ describe("validateSubmission — equipment", () => {
         specifications: "x".repeat(5001),
       })
     );
-    expect(result.valid).toBe(false);
-    expect(result.errors?.specifications).toMatch(/5000/);
+    expect(result.valid).toBe(true);
+  });
+});
+
+/**
+ * parseEquipmentSpecs walks the spec_field metadata, reads `spec_*` form
+ * fields, and emits typed JSONB matching archive/EQUIPMENT-SPECS.md.
+ * scale_min / scale_max are display hints only — never enforced as bounds.
+ */
+function specField(
+  value: string,
+  field_type: CategoryOption["field_type"],
+  extra: Partial<CategoryOption> = {}
+): CategoryOption {
+  return {
+    id: `id-${value}`,
+    name: extra.name ?? value,
+    value,
+    display_order: 0,
+    field_type,
+    ...extra,
+  };
+}
+
+describe("parseEquipmentSpecs", () => {
+  it("parses int fields with whitespace and writes JSONB number", () => {
+    const result = parseEquipmentSpecs(fd({ spec_weight: " 86 " }), [
+      specField("weight", "int", { unit: "g" }),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ weight: 86 });
   });
 
-  it("rejects a missing name", () => {
-    const result = validateSubmission(
-      "equipment",
-      fd({ manufacturer: "DHS", category: "rubber" })
+  it("rejects non-integer in int field", () => {
+    const result = parseEquipmentSpecs(fd({ spec_weight: "86.5" }), [
+      specField("weight", "int"),
+    ]);
+    expect(result.errors.spec_weight).toMatch(/whole number/);
+    expect(result.specifications.weight).toBeUndefined();
+  });
+
+  it("parses float fields", () => {
+    const result = parseEquipmentSpecs(fd({ spec_thickness: "5.7" }), [
+      specField("thickness", "float", { unit: "mm" }),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ thickness: 5.7 });
+  });
+
+  it("rejects garbage in float field", () => {
+    const result = parseEquipmentSpecs(fd({ spec_thickness: "thick" }), [
+      specField("thickness", "float"),
+    ]);
+    expect(result.errors.spec_thickness).toMatch(/number/);
+  });
+
+  it("does NOT enforce scale_min / scale_max as bounds", () => {
+    // Per design doc: some manufacturers publish 12 on a 0-10 scale.
+    const result = parseEquipmentSpecs(fd({ spec_speed: "12" }), [
+      specField("speed", "float", { scale_min: 0, scale_max: 10 }),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ speed: 12 });
+  });
+
+  it("collapses range with min-only into {min, max:min}", () => {
+    const result = parseEquipmentSpecs(fd({ spec_hardness_min: "40" }), [
+      specField("hardness", "range"),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ hardness: { min: 40, max: 40 } });
+  });
+
+  it("parses range with both min and max", () => {
+    const result = parseEquipmentSpecs(
+      fd({ spec_hardness_min: "40", spec_hardness_max: "42" }),
+      [specField("hardness", "range")]
     );
-    expect(result.valid).toBe(false);
-    expect(result.errors?.name).toMatch(/required/);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ hardness: { min: 40, max: 42 } });
+  });
+
+  it("rejects range with min > max", () => {
+    const result = parseEquipmentSpecs(
+      fd({ spec_hardness_min: "50", spec_hardness_max: "40" }),
+      [specField("hardness", "range")]
+    );
+    expect(result.errors.spec_hardness).toMatch(/max/);
+    expect(result.specifications.hardness).toBeUndefined();
+  });
+
+  it("rejects range with only max", () => {
+    const result = parseEquipmentSpecs(fd({ spec_hardness_max: "42" }), [
+      specField("hardness", "range"),
+    ]);
+    expect(result.errors.spec_hardness).toMatch(/minimum/);
+  });
+
+  it("passes through text fields trimmed", () => {
+    const result = parseEquipmentSpecs(
+      fd({ spec_material: "  Arylate Carbon  " }),
+      [specField("material", "text")]
+    );
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ material: "Arylate Carbon" });
+  });
+
+  it("caps text field length", () => {
+    const result = parseEquipmentSpecs(fd({ spec_material: "x".repeat(201) }), [
+      specField("material", "text"),
+    ]);
+    expect(result.errors.spec_material).toMatch(/200/);
+  });
+
+  it("plies: wood-only blade omits plies_composite", () => {
+    const result = parseEquipmentSpecs(fd({ spec_plies_wood: "5" }), [
+      specField("plies_wood", "int"),
+      specField("plies_composite", "int"),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ plies_wood: 5 });
+  });
+
+  it("plies: composite blade has both fields", () => {
+    const result = parseEquipmentSpecs(
+      fd({ spec_plies_wood: "5", spec_plies_composite: "2" }),
+      [specField("plies_wood", "int"), specField("plies_composite", "int")]
+    );
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({
+      plies_wood: 5,
+      plies_composite: 2,
+    });
+  });
+
+  it("plies: composite without wood is rejected", () => {
+    const result = parseEquipmentSpecs(fd({ spec_plies_composite: "2" }), [
+      specField("plies_wood", "int"),
+      specField("plies_composite", "int"),
+    ]);
+    expect(result.errors.spec_plies_wood).toMatch(/Wood plies are required/);
+  });
+
+  it("empty payload yields empty specifications and no errors", () => {
+    const result = parseEquipmentSpecs(fd({}), [
+      specField("weight", "int"),
+      specField("hardness", "range"),
+      specField("material", "text"),
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({});
+  });
+
+  it("dedupes spec keys that appear under multiple parents", () => {
+    // `speed` exists under blade + every rubber subcategory; the parser
+    // must not double-write or error on the duplicate metadata.
+    const speed = specField("speed", "float", { scale_min: 0, scale_max: 10 });
+    const result = parseEquipmentSpecs(fd({ spec_speed: "9.5" }), [
+      speed,
+      speed,
+      speed,
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.specifications).toEqual({ speed: 9.5 });
   });
 });
 

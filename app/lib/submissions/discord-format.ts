@@ -46,6 +46,38 @@ export const createTruncatedTextField = (
       ]
     : [];
 
+// Render typed equipment.specifications JSONB as a compact "k: v" list for
+// Discord. Range values show as `min–max` (or just `min` when equal). Falls
+// through to JSON.stringify on shapes that don't match the typed schema —
+// belt-and-braces for any in-flight `{notes: "..."}` records pre-TT-76.
+export const createSpecificationsField = (
+  specs: Record<string, unknown> | null | undefined
+) => {
+  if (!specs || typeof specs !== "object") return [];
+  const entries = Object.entries(specs);
+  if (entries.length === 0) return [];
+
+  const formatValue = (raw: unknown): string => {
+    if (raw === null || raw === undefined || raw === "") return "—";
+    if (
+      typeof raw === "object" &&
+      raw !== null &&
+      "min" in raw &&
+      "max" in raw
+    ) {
+      const r = raw as { min: unknown; max: unknown };
+      const min = String(r.min);
+      const max = String(r.max);
+      return min === max ? min : `${min}–${max}`;
+    }
+    if (typeof raw === "object") return JSON.stringify(raw);
+    return String(raw);
+  };
+
+  const lines = entries.map(([k, v]) => `${k}: ${formatValue(v)}`).join("\n");
+  return createTruncatedTextField("Specifications", lines, 800);
+};
+
 export function formatSubmissionForDiscord(
   type: SubmissionType,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

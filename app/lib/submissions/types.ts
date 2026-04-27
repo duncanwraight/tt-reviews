@@ -33,6 +33,7 @@ export type FieldType =
   | "video_list"
   | "equipment_setup"
   | "equipment_setup_standalone"
+  | "equipment_specs"
   | "checkbox"
   | "hidden"
   | "rating_slider"

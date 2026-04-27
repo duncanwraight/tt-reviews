@@ -3,6 +3,7 @@ import {
   createAdminUrl,
   createDiscordField,
   createOptionalDiscordField,
+  createSpecificationsField,
   createSubmitterField,
   createTruncatedTextField,
 } from "./discord-format";
@@ -122,11 +123,13 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           placeholder: "Upload the manufacturer's official product photo",
           layout: { colSpan: 2 },
         },
-        createTextAreaField(
-          "specifications",
-          "Additional Specifications (Optional)",
-          "Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)"
-        ),
+        {
+          name: "specifications",
+          label: "Manufacturer Specifications",
+          type: "equipment_specs",
+          required: false,
+          layout: { colSpan: 2 },
+        },
       ],
     },
     discord: {
@@ -150,10 +153,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createDiscordField("Category", data.category || "Unknown"),
         ...createOptionalDiscordField("Subcategory", data.subcategory),
         createSubmitterField(data.submitter_email),
-        ...createTruncatedTextField(
-          "Specifications",
-          data.specifications?.notes
-        ),
+        ...createSpecificationsField(data.specifications),
       ],
     }),
   },

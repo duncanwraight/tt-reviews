@@ -8,6 +8,7 @@ import type {
   FormField as FormFieldConfig,
 } from "~/lib/submissions/registry";
 import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
+import type { CategoryOption } from "~/lib/categories.server";
 
 interface UnifiedSubmissionFormProps {
   config: SubmissionConfig;
@@ -23,6 +24,7 @@ interface UnifiedSubmissionFormProps {
     }>;
     blades?: EquipmentOption[];
     rubbers?: EquipmentOption[];
+    spec_fields_by_parent?: Record<string, CategoryOption[]>;
   };
   // Pre-selected values (e.g., from URL params)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,6 +62,13 @@ export function UnifiedSubmissionForm({
     const newErrors: Record<string, string> = {};
 
     config.form.fields.forEach((field: FormFieldConfig) => {
+      // equipment_specs is a multi-input compound — server-side validation
+      // is the source of truth (numeric checks, range min<=max, plies-pair
+      // shape). Skip the client-side required check entirely.
+      if (field.type === "equipment_specs") {
+        return;
+      }
+
       if (field.required && !formValues[field.name]) {
         newErrors[field.name] = `${field.label} is required`;
       }
@@ -239,6 +248,10 @@ export function UnifiedSubmissionForm({
                         ratingCategories={fieldOptions.rating_categories || []}
                         blades={fieldOptions.blades || []}
                         rubbers={fieldOptions.rubbers || []}
+                        specFieldsByParent={
+                          fieldOptions.spec_fields_by_parent || {}
+                        }
+                        allErrors={errors}
                       />
                     ))}
                 </div>

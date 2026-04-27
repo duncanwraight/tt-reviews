@@ -250,6 +250,37 @@ export async function getCandidatesForEquipment(
   >;
 }
 
+export async function getPendingEquipmentSubmissions(userId: string): Promise<
+  Array<{
+    id: string;
+    name: string;
+    manufacturer: string;
+    category: string;
+    subcategory: string | null;
+    specifications: Record<string, unknown>;
+    status: string;
+  }>
+> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_submissions?user_id=eq.${userId}&select=id,name,manufacturer,category,subcategory,specifications,status`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(`getPendingEquipmentSubmissions failed (${res.status})`);
+  }
+  return res.json() as Promise<
+    Array<{
+      id: string;
+      name: string;
+      manufacturer: string;
+      category: string;
+      subcategory: string | null;
+      specifications: Record<string, unknown>;
+      status: string;
+    }>
+  >;
+}
+
 export async function getPendingEquipmentReviews(userId: string): Promise<
   Array<{
     id: string;

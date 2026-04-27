@@ -5,8 +5,10 @@ import { VideoSubmissionSection } from "~/components/forms/VideoSubmissionSectio
 import { PlayerEquipmentSetup } from "~/components/players/PlayerEquipmentSetup";
 import { RatingSlider } from "./RatingSlider";
 import { RatingCategories } from "./RatingCategories";
+import { EquipmentSpecsField } from "./EquipmentSpecsField";
 import { createBrowserClient } from "@supabase/ssr";
 import type { EquipmentOption } from "~/lib/submissions/field-loaders.server";
+import type { CategoryOption } from "~/lib/categories.server";
 
 interface FormFieldProps {
   field: FormFieldConfig;
@@ -35,6 +37,10 @@ interface FormFieldProps {
   // For equipment setup
   blades?: EquipmentOption[];
   rubbers?: EquipmentOption[];
+  // For equipment_specs: spec field metadata grouped by parent value, and
+  // the parent's full error map so per-spec errors surface inline.
+  specFieldsByParent?: Record<string, CategoryOption[]>;
+  allErrors?: Record<string, string>;
 }
 
 export function FormField({
@@ -49,6 +55,8 @@ export function FormField({
   ratingCategories = [],
   blades = [],
   rubbers = [],
+  specFieldsByParent = {},
+  allErrors = {},
 }: FormFieldProps) {
   const [dynamicOptions, setDynamicOptions] = useState<
     Array<{ value: string; label: string }>
@@ -340,6 +348,27 @@ export function FormField({
           />
         );
 
+      case "equipment_specs":
+        return (
+          <EquipmentSpecsField
+            specFieldsByParent={specFieldsByParent}
+            category={
+              typeof allValues.category === "string"
+                ? allValues.category
+                : undefined
+            }
+            subcategory={
+              typeof allValues.subcategory === "string"
+                ? allValues.subcategory
+                : undefined
+            }
+            values={allValues}
+            onChange={onChange}
+            disabled={disabled}
+            errors={allErrors}
+          />
+        );
+
       default:
         return (
           <div className="text-red-500 text-sm">
@@ -354,7 +383,8 @@ export function FormField({
       {field.type !== "checkbox" &&
         field.type !== "image" &&
         field.type !== "hidden" &&
-        field.type !== "rating_categories" && (
+        field.type !== "rating_categories" &&
+        field.type !== "equipment_specs" && (
           <label
             htmlFor={field.name}
             className="block text-sm font-medium text-gray-700 mb-2"

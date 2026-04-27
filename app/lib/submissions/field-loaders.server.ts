@@ -4,7 +4,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubmissionType } from "~/lib/types";
-import { createCategoryService } from "~/lib/categories.server";
+import {
+  createCategoryService,
+  type CategoryOption,
+} from "~/lib/categories.server";
 
 interface OptionLoaderConfig {
   table: string;
@@ -189,7 +192,91 @@ type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
   }>;
   blades?: EquipmentOption[];
   rubbers?: EquipmentOption[];
+  // Equipment spec fields, grouped by parent category/subcategory value
+  // (e.g., "blade", "inverted") so the equipment submission form can switch
+  // typed inputs reactively when the category dropdown changes. Subcategory
+  // takes precedence — same lookup rule as CategoryService.getEquipmentSpecFields.
+  spec_fields_by_parent?: Record<string, CategoryOption[]>;
 };
+
+/**
+ * Load every active equipment_spec_field row with its type metadata, flat.
+ * Used by the submission action to parse `spec_*` form values into typed
+ * JSONB. Duplicates by `value` are fine — the parser dedupes.
+ */
+export async function loadAllEquipmentSpecFields(
+  sbClient: SupabaseClient
+): Promise<CategoryOption[]> {
+  const { data, error } = await sbClient
+    .from("categories")
+    .select(
+      "id, name, value, display_order, field_type, unit, scale_min, scale_max"
+    )
+    .eq("type", "equipment_spec_field")
+    .eq("is_active", true);
+
+  if (error || !data) return [];
+  return data as CategoryOption[];
+}
+
+/**
+ * Preload all equipment spec fields, grouped by their parent value
+ * (equipment category or subcategory). The client picks the right group at
+ * render time based on the selected category/subcategory.
+ *
+ * Two queries instead of a self-FK embed: PostgREST's nested-select hints
+ * for self-referencing relationships return `parent: []` silently when
+ * they fail to resolve, which is impossible to distinguish from "no
+ * parent." Joining in JS is boring and correct.
+ */
+async function loadEquipmentSpecFieldsByParent(
+  sbClient: SupabaseClient
+): Promise<Record<string, CategoryOption[]>> {
+  const [specFieldsResult, parentsResult] = await Promise.all([
+    sbClient
+      .from("categories")
+      .select(
+        "id, name, value, display_order, field_type, unit, scale_min, scale_max, parent_id"
+      )
+      .eq("type", "equipment_spec_field")
+      .eq("is_active", true)
+      .order("display_order"),
+    sbClient
+      .from("categories")
+      .select("id, value")
+      .in("type", ["equipment_category", "equipment_subcategory"])
+      .eq("is_active", true),
+  ]);
+
+  if (specFieldsResult.error || !specFieldsResult.data) return {};
+  if (parentsResult.error || !parentsResult.data) return {};
+
+  const parentValueById = new Map<string, string>();
+  for (const row of parentsResult.data) {
+    parentValueById.set(row.id, row.value);
+  }
+
+  const grouped: Record<string, CategoryOption[]> = {};
+  for (const row of specFieldsResult.data as Array<
+    CategoryOption & { parent_id: string | null }
+  >) {
+    if (!row.parent_id) continue;
+    const parentValue = parentValueById.get(row.parent_id);
+    if (!parentValue) continue;
+    if (!grouped[parentValue]) grouped[parentValue] = [];
+    grouped[parentValue].push({
+      id: row.id,
+      name: row.name,
+      value: row.value,
+      display_order: row.display_order,
+      field_type: row.field_type,
+      unit: row.unit,
+      scale_min: row.scale_min,
+      scale_max: row.scale_max,
+    });
+  }
+  return grouped;
+}
 
 /**
  * Load all field options for a specific submission type
@@ -228,6 +315,14 @@ export async function loadFieldOptions(
     );
     // Pass through as-is - RatingCategories component expects { name, label, description }
     fieldOptions.rating_categories = ratingCategories;
+  }
+
+  // For equipment submissions, preload spec field metadata grouped by
+  // parent value so the form can render typed inputs per selected
+  // category/subcategory without an extra round-trip.
+  if (submissionType === "equipment") {
+    fieldOptions.spec_fields_by_parent =
+      await loadEquipmentSpecFieldsByParent(sbClient);
   }
 
   // For player_equipment_setup, load blades and rubbers for combobox selection

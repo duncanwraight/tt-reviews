@@ -17,8 +17,12 @@ import {
 import {
   loadFieldOptions,
   handlePreSelections,
+  loadAllEquipmentSpecFields,
 } from "~/lib/submissions/field-loaders.server";
-import { validateSubmission } from "~/lib/submissions/validate.server";
+import {
+  validateSubmission,
+  parseEquipmentSpecs,
+} from "~/lib/submissions/validate.server";
 import type { SubmissionType } from "~/lib/types";
 import { PageLayout } from "~/components/layout/PageLayout";
 import { Logger, createLogContext } from "~/lib/logger.server";
@@ -184,11 +188,23 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   }
 
   const fieldValidation = validateSubmission(submissionType, formData);
-  if (!fieldValidation.valid) {
+  // Equipment submissions also carry typed `spec_*` fields validated/parsed
+  // separately — merge any errors into one response so the form surfaces
+  // them all at once.
+  let parsedSpecs: ReturnType<typeof parseEquipmentSpecs> | null = null;
+  if (submissionType === "equipment") {
+    const specFields = await loadAllEquipmentSpecFields(sbServerClient.client);
+    parsedSpecs = parseEquipmentSpecs(formData, specFields);
+  }
+  const mergedErrors: Record<string, string> = {
+    ...(fieldValidation.errors || {}),
+    ...(parsedSpecs?.errors || {}),
+  };
+  if (Object.keys(mergedErrors).length > 0) {
     return data(
       {
         error: "Submission is invalid. Please check the highlighted fields.",
-        fieldErrors: fieldValidation.errors,
+        fieldErrors: mergedErrors,
       },
       { status: 400, headers: sbServerClient.headers }
     );
@@ -209,14 +225,16 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
     // Extract form fields based on configuration
     for (const field of config.form.fields) {
+      // equipment_specs is parsed by parseEquipmentSpecs above into typed
+      // JSONB; skip the loop's value lookup (the input names are spec_*,
+      // not "specifications").
+      if (field.type === "equipment_specs") {
+        continue;
+      }
       const value = formData.get(field.name);
       if (value !== null && value !== "") {
-        // Handle specifications as JSON for equipment submissions
-        if (field.name === "specifications" && submissionType === "equipment") {
-          submissionData[field.name] = { notes: value };
-        }
         // Skip image fields - handled separately below with R2 upload
-        else if (field.type === "image") {
+        if (field.type === "image") {
           continue;
         }
         // Skip rating_categories field - handled separately below
@@ -239,6 +257,13 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           submissionData[field.name] = value;
         }
       }
+    }
+
+    // Equipment: assign typed specifications JSONB built by parseEquipmentSpecs.
+    // Always assign (default {}) so the column is non-null for the trigger /
+    // approval-copy step that lifts this onto the equipment row.
+    if (submissionType === "equipment") {
+      submissionData.specifications = parsedSpecs?.specifications || {};
     }
 
     // Handle player_equipment_setup - extract individual fields rendered by the component

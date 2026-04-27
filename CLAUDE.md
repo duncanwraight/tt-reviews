@@ -4,6 +4,15 @@
 
 **Before any change to `app/` or `workers/`, read `docs/CODING-STANDARDS.md`.** It is the single source of truth for TypeScript, components, routes, loader/action shape, logging, env access, tests, imports, and comments. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
 
+## Data model — manufacturer vs review data
+
+Two distinct kinds of equipment data live in this app; don't conflate them when scoping work.
+
+- **Manufacturer data** (`equipment.specifications` JSONB): values as the manufacturer publishes them — weight, thickness, hardness, plus marketing-style speed/spin/control ratings. Not necessarily reliable, and scales aren't comparable across brands — DHS "speed 12" and Butterfly "speed 12" don't mean the same thing. Typed schema is locked in `archive/EQUIPMENT-SPECS.md`.
+- **Review data** (`equipment_reviews.category_ratings`, `equipment_reviews.overall_rating`): community-moderated "out of 10" ratings from players who've actually used the equipment. The trustworthy comparable signal.
+
+Public equipment submissions capture manufacturer data only — if a user wants to share their playing experience, they go through the review flow separately. Editing existing manufacturer data is admin-only (tracked in TT-74); there is no public edit form for equipment today.
+
 ## Environment variables — runtime gate + smoke fallback
 
 Any new env var the app actually requires **must** be registered with `validateEnv` in `app/lib/env.server.ts`. Otherwise it'll be silently undefined at runtime and surface as a 500 in whichever loader/action reads it.

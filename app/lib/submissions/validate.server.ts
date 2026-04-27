@@ -1,4 +1,5 @@
 import type { SubmissionType } from "~/lib/types";
+import type { CategoryOption } from "~/lib/categories.server";
 
 /**
  * Server-side input validation at the submission boundary
@@ -43,7 +44,10 @@ const SUBMISSION_CONSTRAINTS: Record<
     manufacturer: { required: true, spec: { kind: "text", maxLength: 200 } },
     category: { required: true, spec: { kind: "text", maxLength: 50 } },
     subcategory: { spec: { kind: "text", maxLength: 50 } },
-    specifications: { spec: { kind: "text", maxLength: 5000 } },
+    // Per-spec inputs (`spec_*`) are validated separately by
+    // parseEquipmentSpecs, which also produces the typed JSONB. They
+    // can't be enumerated here because the field set depends on the
+    // selected (category, subcategory).
   },
 
   player: {
@@ -241,6 +245,127 @@ export function validateUrl(
   }
 
   return null;
+}
+
+/**
+ * Parse and validate the per-spec form inputs for an equipment submission
+ * into a typed JSONB shape that matches `archive/EQUIPMENT-SPECS.md`. Reads
+ * `spec_<key>` (and `spec_<key>_min` / `_max` for range fields) from
+ * formData. `scale_min` / `scale_max` from the spec metadata are display
+ * hints only — not enforced as bounds.
+ *
+ * Plies special case: composite without wood is rejected, since the design
+ * stores plies_wood as required when any plies value is present.
+ */
+export interface ParsedEquipmentSpecs {
+  specifications: Record<string, unknown>;
+  errors: Record<string, string>;
+}
+
+const NUM_RE = /^-?\d+(\.\d+)?$/;
+const INT_RE = /^-?\d+$/;
+
+export function parseEquipmentSpecs(
+  formData: FormData,
+  specFields: CategoryOption[]
+): ParsedEquipmentSpecs {
+  const specifications: Record<string, unknown> = {};
+  const errors: Record<string, string> = {};
+  // Each spec key can appear under multiple parents (e.g. `speed` exists
+  // under blade and every rubber subcategory) but with identical type
+  // metadata — dedupe so we only parse once per key.
+  const seen = new Set<string>();
+
+  for (const field of specFields) {
+    if (!field.field_type) continue;
+    if (seen.has(field.value)) continue;
+    seen.add(field.value);
+
+    const baseKey = `spec_${field.value}`;
+
+    switch (field.field_type) {
+      case "int": {
+        const raw = formData.get(baseKey);
+        const v = typeof raw === "string" ? raw.trim() : "";
+        if (v === "") break;
+        if (!INT_RE.test(v)) {
+          errors[baseKey] = `${field.name} must be a whole number`;
+          break;
+        }
+        specifications[field.value] = parseInt(v, 10);
+        break;
+      }
+
+      case "float": {
+        const raw = formData.get(baseKey);
+        const v = typeof raw === "string" ? raw.trim() : "";
+        if (v === "") break;
+        if (!NUM_RE.test(v)) {
+          errors[baseKey] = `${field.name} must be a number`;
+          break;
+        }
+        specifications[field.value] = parseFloat(v);
+        break;
+      }
+
+      case "range": {
+        const minRaw = formData.get(`${baseKey}_min`);
+        const maxRaw = formData.get(`${baseKey}_max`);
+        const minStr = typeof minRaw === "string" ? minRaw.trim() : "";
+        const maxStr = typeof maxRaw === "string" ? maxRaw.trim() : "";
+        if (minStr === "" && maxStr === "") break;
+        if (minStr === "") {
+          errors[baseKey] = `${field.name} requires a minimum`;
+          break;
+        }
+        if (!NUM_RE.test(minStr)) {
+          errors[baseKey] = `${field.name} must be a number`;
+          break;
+        }
+        const min = parseFloat(minStr);
+        let max = min;
+        if (maxStr !== "") {
+          if (!NUM_RE.test(maxStr)) {
+            errors[baseKey] = `${field.name} max must be a number`;
+            break;
+          }
+          max = parseFloat(maxStr);
+          if (max < min) {
+            errors[baseKey] = `${field.name} max must be ≥ min`;
+            break;
+          }
+        }
+        specifications[field.value] = { min, max };
+        break;
+      }
+
+      case "text": {
+        const raw = formData.get(baseKey);
+        const v = typeof raw === "string" ? raw.trim() : "";
+        if (v === "") break;
+        if (v.length > 200) {
+          errors[baseKey] = `${field.name} must be 200 characters or fewer`;
+          break;
+        }
+        specifications[field.value] = v;
+        break;
+      }
+    }
+  }
+
+  // Plies pair: design treats plies_wood as required whenever any plies
+  // value is provided. Composite-only is incoherent; surface it inline.
+  const woodKey = "spec_plies_wood";
+  if (
+    specifications.plies_composite !== undefined &&
+    specifications.plies_wood === undefined &&
+    !errors[woodKey]
+  ) {
+    errors[woodKey] =
+      "Wood plies are required when composite plies are entered";
+  }
+
+  return { specifications, errors };
 }
 
 function isPrivateOrLocalHost(hostname: string): boolean {
