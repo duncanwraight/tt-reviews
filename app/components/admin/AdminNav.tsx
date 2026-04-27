@@ -6,7 +6,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import {
   ADMIN_DASHBOARD_PATH,
   ADMIN_NAV_GROUPS,
@@ -28,10 +28,14 @@ export function AdminNav() {
   const activeGroupIndex = getActiveGroupIndex(location.pathname);
 
   const [openGroupIndex, setOpenGroupIndex] = useState<number | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelId = useId();
 
   useEffect(() => {
     setOpenGroupIndex(null);
+    setMobileOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -52,6 +56,18 @@ export function AdminNav() {
     };
   }, [openGroupIndex]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        hamburgerRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [mobileOpen]);
+
   return (
     <nav
       ref={navRef}
@@ -59,7 +75,8 @@ export function AdminNav() {
       className="bg-white border-b border-gray-200"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex space-x-8">
+        {/* Desktop: grouped dropdown nav (md+) */}
+        <div className="hidden md:flex space-x-8">
           <Link
             to={ADMIN_DASHBOARD_PATH}
             aria-current={dashboardActive ? "page" : undefined}
@@ -83,8 +100,136 @@ export function AdminNav() {
             />
           ))}
         </div>
+
+        {/* Mobile: hamburger + collapsible panel (< md) */}
+        <div className="md:hidden flex items-center justify-between py-2">
+          <span className="text-sm font-medium text-gray-700">Admin Menu</span>
+          <button
+            ref={hamburgerRef}
+            type="button"
+            aria-label="Toggle admin navigation"
+            aria-expanded={mobileOpen}
+            aria-controls={mobilePanelId}
+            onClick={() => setMobileOpen(open => !open)}
+            className="p-2 rounded-md text-gray-700 hover:text-purple-600 hover:bg-gray-100"
+          >
+            {mobileOpen ? (
+              <X className="size-5" aria-hidden />
+            ) : (
+              <Menu className="size-5" aria-hidden />
+            )}
+          </button>
+        </div>
       </div>
+
+      {mobileOpen && (
+        <AdminNavMobilePanel
+          id={mobilePanelId}
+          currentPath={location.pathname}
+          activeGroupIndex={activeGroupIndex}
+          dashboardActive={dashboardActive}
+          onNavigate={() => setMobileOpen(false)}
+        />
+      )}
     </nav>
+  );
+}
+
+interface AdminNavMobilePanelProps {
+  id: string;
+  currentPath: string;
+  activeGroupIndex: number;
+  dashboardActive: boolean;
+  onNavigate: () => void;
+}
+
+function AdminNavMobilePanel({
+  id,
+  currentPath,
+  activeGroupIndex,
+  dashboardActive,
+  onNavigate,
+}: AdminNavMobilePanelProps) {
+  const [openIndexes, setOpenIndexes] = useState<Set<number>>(
+    () => new Set(activeGroupIndex >= 0 ? [activeGroupIndex] : [])
+  );
+
+  function toggleSection(index: number) {
+    setOpenIndexes(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      id={id}
+      className="md:hidden border-t border-gray-200 bg-white px-4 sm:px-6 py-2"
+    >
+      <Link
+        to={ADMIN_DASHBOARD_PATH}
+        onClick={onNavigate}
+        aria-current={dashboardActive ? "page" : undefined}
+        className={`block px-3 py-2 rounded-md text-base font-medium ${
+          dashboardActive
+            ? "bg-purple-50 text-purple-700"
+            : "text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        Dashboard
+      </Link>
+      {ADMIN_NAV_GROUPS.map((group, index) => {
+        const isOpen = openIndexes.has(index);
+        const isActive = activeGroupIndex === index;
+        const sectionId = `${id}-section-${index}`;
+        return (
+          <div key={group.label} className="border-t border-gray-100 mt-2 pt-2">
+            <button
+              type="button"
+              aria-expanded={isOpen}
+              aria-controls={sectionId}
+              onClick={() => toggleSection(index)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-base font-medium ${
+                isActive ? "text-purple-700" : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span>{group.label}</span>
+              <ChevronDown
+                className={`size-4 transition-transform ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+                aria-hidden
+              />
+            </button>
+            {isOpen && (
+              <ul id={sectionId} className="pl-3">
+                {group.items.map(item => {
+                  const active = isNavItemActive(currentPath, item);
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        onClick={onNavigate}
+                        aria-current={active ? "page" : undefined}
+                        className={`block px-3 py-2 rounded-md text-sm ${
+                          active
+                            ? "bg-purple-50 text-purple-700 font-medium"
+                            : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

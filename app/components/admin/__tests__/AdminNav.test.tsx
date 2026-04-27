@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AdminNav } from "../AdminNav";
@@ -12,6 +12,14 @@ function renderAt(path: string) {
       <AdminNav />
     </MemoryRouter>
   );
+}
+
+function getMobilePanel(hamburger: HTMLElement): HTMLElement {
+  const id = hamburger.getAttribute("aria-controls");
+  if (!id) throw new Error("hamburger missing aria-controls");
+  const panel = document.getElementById(id);
+  if (!panel) throw new Error(`mobile panel #${id} not in document`);
+  return panel;
 }
 
 describe("AdminNav", () => {
@@ -127,5 +135,85 @@ describe("AdminNav", () => {
 
     await user.keyboard("{ArrowUp}");
     expect(items[0]).toHaveFocus();
+  });
+});
+
+describe("AdminNav mobile", () => {
+  it("toggles the mobile panel via the hamburger and renders all groups", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin");
+
+    const hamburger = screen.getByRole("button", {
+      name: /toggle admin navigation/i,
+    });
+    expect(hamburger).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(hamburger);
+    expect(hamburger).toHaveAttribute("aria-expanded", "true");
+
+    const panel = getMobilePanel(hamburger);
+    expect(
+      within(panel).getByRole("link", { name: "Dashboard" })
+    ).toBeInTheDocument();
+    for (const group of ADMIN_NAV_GROUPS) {
+      expect(
+        within(panel).getByRole("button", {
+          name: new RegExp(`^${group.label}`),
+        })
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("auto-expands the active group's mobile section and reveals its items", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin/equipment-reviews");
+
+    const hamburger = screen.getByRole("button", {
+      name: /toggle admin navigation/i,
+    });
+    await user.click(hamburger);
+
+    const panel = getMobilePanel(hamburger);
+    expect(
+      within(panel).getByRole("link", { name: "Equipment Reviews" })
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("closes the mobile panel after tapping a link", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin");
+
+    const hamburger = screen.getByRole("button", {
+      name: /toggle admin navigation/i,
+    });
+    await user.click(hamburger);
+
+    const panel = getMobilePanel(hamburger);
+    const moderationToggle = within(panel).getByRole("button", {
+      name: /^Moderation/,
+    });
+    await user.click(moderationToggle);
+
+    const link = within(panel).getByRole("link", {
+      name: "Equipment Submissions",
+    });
+    await user.click(link);
+
+    expect(hamburger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the mobile panel on Escape and returns focus to the hamburger", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin");
+
+    const hamburger = screen.getByRole("button", {
+      name: /toggle admin navigation/i,
+    });
+    await user.click(hamburger);
+    expect(hamburger).toHaveAttribute("aria-expanded", "true");
+
+    await user.keyboard("{Escape}");
+    expect(hamburger).toHaveAttribute("aria-expanded", "false");
+    expect(hamburger).toHaveFocus();
   });
 });
