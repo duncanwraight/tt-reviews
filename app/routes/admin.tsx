@@ -34,23 +34,14 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
   return (
     <PageLayout user={user}>
       <div className="min-h-screen bg-gray-100">
-        {/* Admin Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
+        {/* Admin Header — thin context bar; sub-pages own their h1/h2 */}
+        <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Admin Dashboard
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
-                  Welcome, {user.email}
-                </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  Admin
-                </span>
-              </div>
+            <div className="flex justify-end items-center h-10 gap-3">
+              <span className="text-xs text-gray-600">{user.email}</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-800">
+                Admin
+              </span>
             </div>
           </div>
         </div>

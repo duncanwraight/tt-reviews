@@ -439,6 +439,7 @@ export default function AdminEquipmentReviews({
 
   return (
     <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Equipment Reviews</h2>
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
