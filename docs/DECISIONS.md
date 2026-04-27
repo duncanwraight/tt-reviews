@@ -23,7 +23,7 @@
 - **Discord Moderation**: Cloudflare Workers handle webhook endpoints
   - Outbound: Workers send Discord webhooks on content submission
   - Inbound: Discord interactions → Workers endpoints → Supabase updates
-- **Image Storage**: Supabase Storage for player/equipment photos
+- **Image Storage**: Cloudflare R2 for player/equipment photos (see "Image Storage" section below and `docs/IMAGES.md`)
 
 ## Discord Integration
 
