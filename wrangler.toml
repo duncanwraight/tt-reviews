@@ -39,6 +39,11 @@ simple = { limit = 30, period = 60 }
 enabled = true
 head_sampling_rate = 1
 
+# Daily recompute of equipment_similar (TT-70). Local trigger:
+#   curl 'http://tt-reviews.local:8787/__scheduled?cron=0+3+*+*+*'
+[triggers]
+crons = ["0 3 * * *"]
+
 [vars]
 ENVIRONMENT = "production"
 SITE_URL = "https://tabletennis.reviews"

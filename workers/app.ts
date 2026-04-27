@@ -1,6 +1,8 @@
 import { createRequestHandler } from "react-router";
+import { createClient } from "@supabase/supabase-js";
 import { getValidatedEnv } from "../app/lib/env.server";
 import { Logger, createLogContext } from "../app/lib/logger.server";
+import { recomputeSimilarEquipment } from "../app/lib/equipment/recompute-similar.server";
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -76,5 +78,49 @@ export default {
       );
       throw err;
     }
+  },
+
+  // Cron trigger: recompute equipment_similar nightly. Wrangler exposes this
+  // locally via `curl 'http://tt-reviews.local:8787/__scheduled?cron=0+3+*+*+*'`
+  // while `wrangler dev` runs. Mirrors the fetch path's env gate.
+  async scheduled(controller, env, ctx) {
+    const envCheck = getValidatedEnv(
+      env as unknown as Record<string, unknown>,
+      { isDev: import.meta.env.DEV }
+    );
+    if (!envCheck.ok) {
+      Logger.error(
+        "scheduled.env-validation-failed",
+        createLogContext("scheduled", {
+          source: "scheduled",
+          cron: controller.cron,
+          problems: envCheck.problems.join("; "),
+        })
+      );
+      return;
+    }
+
+    const ctxLog = createLogContext("scheduled", {
+      source: "scheduled",
+      cron: controller.cron,
+    });
+
+    const job = (async () => {
+      try {
+        const client = createClient(
+          env.SUPABASE_URL,
+          env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        await recomputeSimilarEquipment(client, ctxLog);
+      } catch (err) {
+        Logger.error(
+          "scheduled.recompute-similar.failed",
+          ctxLog,
+          err instanceof Error ? err : undefined
+        );
+      }
+    })();
+
+    ctx.waitUntil(job);
   },
 } satisfies ExportedHandler<Env>;

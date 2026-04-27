@@ -1,8 +1,9 @@
 import type { Route } from "./+types/admin._index";
-import { data, redirect } from "react-router";
+import { data, redirect, useFetcher } from "react-router";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
+import { issueCSRFToken } from "~/lib/security.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { AlertTriangle, ArrowRight, Package, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -61,6 +62,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   const supabase = createSupabaseAdminClient(context);
+  const csrfToken = await issueCSRFToken(request, context, user.id);
 
   // Safe to use admin client (bypasses RLS) — user is verified admin above.
   const [counts, nextPending, recentActivity] = await Promise.all([
@@ -85,6 +87,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { totals, byStatus } = counts;
 
   return data({
+    csrfToken,
     nextPending,
     recentActivity,
     stats: {
@@ -122,7 +125,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
-  const { stats, nextPending, recentActivity } = loaderData;
+  const { stats, nextPending, recentActivity, csrfToken } = loaderData;
 
   const queueRows = [
     {
@@ -340,7 +343,68 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
           <AdminActivityWidget entries={recentActivity} />
         </div>
+
+        <RecomputeSimilarSection csrfToken={csrfToken} />
       </div>
+    </div>
+  );
+}
+
+interface RecomputeSimilarSectionProps {
+  csrfToken: string;
+}
+
+function RecomputeSimilarSection({ csrfToken }: RecomputeSimilarSectionProps) {
+  const fetcher = useFetcher<
+    | {
+        success: true;
+        equipmentProcessed: number;
+        pairsWritten: number;
+        durationMs: number;
+      }
+    | { success: false; error: string }
+  >();
+  const isSubmitting = fetcher.state !== "idle";
+  const result = fetcher.data;
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 mt-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        Similar equipment recompute
+      </h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Rebuild the precomputed similarity table. The daily 03:00 UTC cron does
+        this automatically — use this button after a fresh deploy or to debug.
+      </p>
+      <fetcher.Form method="post" action="/admin/recompute-similar">
+        <input type="hidden" name="_csrf" value={csrfToken} />
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          data-testid="recompute-similar-button"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 disabled:opacity-50"
+        >
+          {isSubmitting ? "Recomputing…" : "Recompute now"}
+        </button>
+      </fetcher.Form>
+
+      {result && result.success && (
+        <p
+          className="mt-3 text-sm text-green-700"
+          data-testid="recompute-similar-success"
+        >
+          Recomputed {result.pairsWritten} pairs across{" "}
+          {result.equipmentProcessed} items in {result.durationMs}ms.
+        </p>
+      )}
+      {result && !result.success && (
+        <p
+          className="mt-3 text-sm text-red-700"
+          data-testid="recompute-similar-error"
+        >
+          {result.error}
+        </p>
+      )}
     </div>
   );
 }
