@@ -17,6 +17,11 @@ import {
   findOldestPendingTarget,
   type OldestPendingTarget,
 } from "~/lib/admin/oldest-pending.server";
+import {
+  getRecentAdminActivity,
+  type AdminActivityEntry,
+} from "~/lib/admin/activity.server";
+import { AdminActivityWidget } from "~/components/admin/AdminActivityWidget";
 
 const pendingTotal = (s: StatusCounts) =>
   s.pending + s.awaiting_second_approval;
@@ -58,7 +63,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const supabase = createSupabaseAdminClient(context);
 
   // Safe to use admin client (bypasses RLS) — user is verified admin above.
-  const [counts, nextPending] = await Promise.all([
+  const [counts, nextPending, recentActivity] = await Promise.all([
     loadDashboardCountsSafe(supabase),
     findOldestPendingTarget(supabase).catch(error => {
       Logger.error(
@@ -68,11 +73,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       );
       return null as OldestPendingTarget | null;
     }),
+    getRecentAdminActivity(supabase).catch(error => {
+      Logger.error(
+        "Error fetching recent admin activity",
+        createLogContext("admin-index"),
+        error instanceof Error ? error : undefined
+      );
+      return [] as AdminActivityEntry[];
+    }),
   ]);
   const { totals, byStatus } = counts;
 
   return data({
     nextPending,
+    recentActivity,
     stats: {
       equipmentSubmissions: totals.equipmentSubmissions,
       playerSubmissions: totals.playerSubmissions,
@@ -108,7 +122,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
-  const { stats, nextPending } = loaderData;
+  const { stats, nextPending, recentActivity } = loaderData;
 
   const statCards = [
     {
@@ -291,26 +305,30 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           ))}
         </div>
 
-        {/* Content Stats */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Content Statistics
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {contentStats.map((stat, index) => (
-              <div key={index} className="flex items-center">
-                <div className={`${stat.color} rounded-lg p-3 mr-4`}>
-                  <stat.icon className="size-6" aria-hidden />
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {stat.count}
+        {/* Content Stats + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Content Statistics
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {contentStats.map((stat, index) => (
+                <div key={index} className="flex items-center">
+                  <div className={`${stat.color} rounded-lg p-3 mr-4`}>
+                    <stat.icon className="size-6" aria-hidden />
                   </div>
-                  <div className="text-sm text-gray-600">{stat.title}</div>
+                  <div>
+                    <div className="text-2xl font-semibold text-gray-900">
+                      {stat.count}
+                    </div>
+                    <div className="text-sm text-gray-600">{stat.title}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          <AdminActivityWidget entries={recentActivity} />
         </div>
       </div>
     </div>
