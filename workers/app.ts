@@ -107,9 +107,12 @@ export default {
 
     const job = (async () => {
       try {
+        // Both vars are guaranteed by validateEnv above; the cast just bypasses
+        // the optional-typing that cf-typegen emits in CI (no .dev.vars there).
+        const envVars = env as unknown as Record<string, string>;
         const client = createClient(
-          env.SUPABASE_URL,
-          env.SUPABASE_SERVICE_ROLE_KEY
+          envVars.SUPABASE_URL,
+          envVars.SUPABASE_SERVICE_ROLE_KEY
         );
         await recomputeSimilarEquipment(client, ctxLog);
       } catch (err) {
