@@ -5,6 +5,7 @@ import { getUserWithRole } from "~/lib/auth.server";
 import { data, redirect } from "react-router";
 
 import { PageLayout } from "~/components/layout/PageLayout";
+import { AdminNav } from "~/components/admin/AdminNav";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
@@ -55,78 +56,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Admin Navigation */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex space-x-8">
-              <a
-                href="/admin"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Dashboard
-              </a>
-              <a
-                href="/admin/equipment-submissions"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Equipment Submissions
-              </a>
-              <a
-                href="/admin/equipment-photos"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Equipment Photos
-              </a>
-              <a
-                href="/admin/equipment-reviews"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Equipment Reviews
-              </a>
-              <a
-                href="/admin/player-submissions"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Player Submissions
-              </a>
-              <a
-                href="/admin/player-edits"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Player Edits
-              </a>
-              <a
-                href="/admin/player-equipment-setups"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Equipment Setups
-              </a>
-              <a
-                href="/admin/categories"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Categories
-              </a>
-              <a
-                href="/admin/video-submissions"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Video Submissions
-              </a>
-              <a
-                href="/admin/content"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Content
-              </a>
-              <a
-                href="/admin/import"
-                className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-              >
-                Import
-              </a>
-            </nav>
-          </div>
-        </div>
+        <AdminNav />
 
         {/* Admin Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
