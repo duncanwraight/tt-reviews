@@ -210,127 +210,134 @@ INSERT INTO categories (type, name, value, description, display_order, parent_id
 SELECT 'review_rating_category', 'Durability', 'durability', 'How long pips maintain effectiveness', 5, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
--- Equipment spec fields (TT-25: equipment comparison page)
+-- Equipment spec fields (TT-25 / TT-72)
 -- Drives the DB-driven spec table in the comparison UI. Each row = a key in the
 -- equipment.specifications JSONB blob; value MUST match the JSON key exactly
 -- (e.g. 'thickness' matches equipment.specifications->>'thickness'). Parented by
 -- equipment_category for blade/ball, equipment_subcategory for rubber types.
+--
+-- field_type / unit / scale_min / scale_max define the typed shape — see
+-- archive/EQUIPMENT-SPECS.md for the locked design.
 
 -- Blade spec fields
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Thickness', 'thickness', 'Blade thickness', 1, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, unit)
+SELECT 'equipment_spec_field', 'Thickness', 'thickness', 'Blade thickness', 1, c.id, true, 'float', 'mm'
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Plies', 'plies', 'Number of wood/composite layers', 2, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Plies (wood)', 'plies_wood', 'Number of wood plies', 2, c.id, true, 'int'
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Weight', 'weight', 'Blade weight', 3, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Plies (composite)', 'plies_composite', 'Number of composite plies (carbon, ALC, etc.). NULL for pure-wood blades.', 3, c.id, true, 'int'
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Material', 'material', 'Core material composition', 4, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, unit)
+SELECT 'equipment_spec_field', 'Weight', 'weight', 'Blade weight', 4, c.id, true, 'int', 'g'
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 5, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Material', 'material', 'Core material composition', 5, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 6, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 6, c.id, true, 'float', 0, 10
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 7, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'blade';
 
 -- Inverted rubber spec fields
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Hardness', 'hardness', 'Sponge hardness', 6, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Hardness', 'hardness', 'Sponge hardness', 6, c.id, true, 'range'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Year', 'year', 'Release year', 7, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Year', 'year', 'Release year', 7, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
 -- Anti-spin rubber spec fields
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'anti';
 
 -- Long pips rubber spec fields
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 
 -- Short pips rubber spec fields
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true, 'text'
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
-SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
 
 -- Ball spec fields: intentionally none seeded. No ball specs exist in data yet;
@@ -340,99 +347,99 @@ FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pi
 INSERT INTO equipment (name, slug, category, manufacturer, specifications) VALUES
 -- Top 20 most popular blades
 ('Butterfly Viscaria', 'butterfly-viscaria', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Arylate Carbon", "weight": "86g", "thickness": "5.7mm", "speed": 9.8, "control": 8.3}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Arylate Carbon", "weight": 86, "thickness": 5.7, "speed": 9.8, "control": 8.3}'),
 ('Butterfly Timo Boll ALC', 'butterfly-timo-boll-alc', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Arylate Carbon", "weight": "85g", "thickness": "5.9mm", "speed": 9.5, "control": 8.8}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Arylate Carbon", "weight": 85, "thickness": 5.9, "speed": 9.5, "control": 8.8}'),
 ('Yasaka Ma Lin Extra Offensive', 'yasaka-ma-lin-extra-offensive', 'blade', 'Yasaka', 
- '{"plies": 5, "material": "Wood", "weight": "88g", "thickness": "6.1mm", "speed": 9.0, "control": 8.5}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 88, "thickness": 6.1, "speed": 9.0, "control": 8.5}'),
 ('DHS Power-G PG7', 'dhs-power-g-pg7', 'blade', 'DHS', 
- '{"plies": 7, "material": "Carbon", "weight": "86g", "thickness": "6.0mm", "speed": 9.5, "control": 8.2}'),
+ '{"plies_wood": 7, "plies_composite": null, "material": "Carbon", "weight": 86, "thickness": 6.0, "speed": 9.5, "control": 8.2}'),
 ('Butterfly Timo Boll Spirit', 'butterfly-timo-boll-spirit', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.9mm", "speed": 8.8, "control": 9.0}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.9, "speed": 8.8, "control": 9.0}'),
 ('Tibhar Stratus Power Wood', 'tibhar-stratus-power-wood', 'blade', 'Tibhar', 
- '{"plies": 5, "material": "Wood", "weight": "82g", "thickness": "5.6mm", "speed": 8.8, "control": 9.0}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 82, "thickness": 5.6, "speed": 8.8, "control": 9.0}'),
 ('Stiga Infinity VPS V Diamond Touch', 'stiga-infinity-vps-v-diamond-touch', 'blade', 'Stiga', 
- '{"plies": 7, "material": "Carbon", "weight": "90g", "thickness": "6.2mm", "speed": 9.6, "control": 8.4}'),
+ '{"plies_wood": 7, "plies_composite": null, "material": "Carbon", "weight": 90, "thickness": 6.2, "speed": 9.6, "control": 8.4}'),
 ('DHS Hurricane 301', 'dhs-hurricane-301', 'blade', 'DHS', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.8mm", "speed": 8.9, "control": 8.7}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.8, "speed": 8.9, "control": 8.7}'),
 ('Butterfly Petr Korbel', 'butterfly-petr-korbel', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.8mm", "speed": 8.5, "control": 9.2}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.8, "speed": 8.5, "control": 9.2}'),
 ('Yinhe (Galaxy/Milkyway) T-11+', 'yinhe-galaxy-milkyway-t11-plus', 'blade', 'Yinhe (Galaxy/Milkyway)', 
- '{"plies": 5, "material": "Wood", "weight": "83g", "thickness": "5.7mm", "speed": 8.7, "control": 8.9}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 83, "thickness": 5.7, "speed": 8.7, "control": 8.9}'),
 ('Butterfly Primorac', 'butterfly-primorac', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.8mm", "speed": 8.8, "control": 9.0}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.8, "speed": 8.8, "control": 9.0}'),
 ('DHS Hurricane Long 5', 'dhs-hurricane-long-5', 'blade', 'DHS', 
- '{"plies": 5, "material": "Wood", "weight": "87g", "thickness": "6.0mm", "speed": 9.2, "control": 8.5}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 87, "thickness": 6.0, "speed": 9.2, "control": 8.5}'),
 ('Yasaka Sweden Extra', 'yasaka-sweden-extra', 'blade', 'Yasaka', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.9mm", "speed": 8.6, "control": 9.1}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.9, "speed": 8.6, "control": 9.1}'),
 ('Butterfly Sardius', 'butterfly-sardius', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Wood", "weight": "84g", "thickness": "5.7mm", "speed": 8.7, "control": 8.9}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 84, "thickness": 5.7, "speed": 8.7, "control": 8.9}'),
 ('Stiga Allround Classic', 'stiga-allround-classic', 'blade', 'Stiga', 
- '{"plies": 5, "material": "Wood", "weight": "85g", "thickness": "5.8mm", "speed": 8.0, "control": 9.5}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 85, "thickness": 5.8, "speed": 8.0, "control": 9.5}'),
 ('Donic Waldner Senso Carbon', 'donic-waldner-senso-carbon', 'blade', 'Donic', 
- '{"plies": 7, "material": "Carbon", "weight": "85g", "thickness": "5.9mm", "speed": 9.3, "control": 8.6}'),
+ '{"plies_wood": 7, "plies_composite": null, "material": "Carbon", "weight": 85, "thickness": 5.9, "speed": 9.3, "control": 8.6}'),
 ('Butterfly Gergely Carbon', 'butterfly-gergely-carbon', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Carbon", "weight": "86g", "thickness": "5.8mm", "speed": 9.4, "control": 8.4}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Carbon", "weight": 86, "thickness": 5.8, "speed": 9.4, "control": 8.4}'),
 ('Butterfly Amultart ZL Carbon', 'butterfly-amultart-zl-carbon', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "ZL Carbon", "weight": "86g", "thickness": "5.8mm", "speed": 9.6, "control": 8.2}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "ZL Carbon", "weight": 86, "thickness": 5.8, "speed": 9.6, "control": 8.2}'),
 ('Butterfly Zhang Jike ALC', 'butterfly-zhang-jike-alc', 'blade', 'Butterfly', 
- '{"plies": 5, "material": "Arylate Carbon", "weight": "85g", "thickness": "5.8mm", "speed": 9.7, "control": 8.1}'),
+ '{"plies_wood": 5, "plies_composite": null, "material": "Arylate Carbon", "weight": 85, "thickness": 5.8, "speed": 9.7, "control": 8.1}'),
 ('Nittaku Acoustic', 'nittaku-acoustic', 'blade', 'Nittaku', 
- '{"plies": 5, "material": "Wood", "weight": "86g", "thickness": "6.0mm", "speed": 8.4, "control": 9.3}');
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 86, "thickness": 6.0, "speed": 8.4, "control": 9.3}');
 
 -- Insert equipment (popular rubbers from revspin.net - all inverted type)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
 -- Top 25 most popular rubbers
 ('Butterfly Tenergy 05', 'butterfly-tenergy-05', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.7, "spin": 9.9, "control": 8.3, "hardness": "36"}'),
+ '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.7, "spin": 9.9, "control": 8.3, "hardness": {"min": 36, "max": 36}}'),
 ('DHS NEO Hurricane 3', 'dhs-neo-hurricane-3', 'rubber', 'inverted', 'DHS', 
- '{"topsheet": "Tacky", "sponge": "Hard", "speed": 8.5, "spin": 9.9, "control": 8.2, "hardness": "40"}'),
+ '{"topsheet": "Tacky", "sponge": "Hard", "speed": 8.5, "spin": 9.9, "control": 8.2, "hardness": {"min": 40, "max": 40}}'),
 ('Yasaka Mark V', 'yasaka-mark-v', 'rubber', 'inverted', 'Yasaka', 
- '{"topsheet": "Natural", "sponge": "Medium", "speed": 8.0, "spin": 8.5, "control": 9.5, "hardness": "40-42"}'),
+ '{"topsheet": "Natural", "sponge": "Medium", "speed": 8.0, "spin": 8.5, "control": 9.5, "hardness": {"min": 40, "max": 42}}'),
 ('Yasaka Rakza 7', 'yasaka-rakza-7', 'rubber', 'inverted', 'Yasaka', 
- '{"topsheet": "Tensor", "sponge": "Dynamic", "speed": 9.0, "spin": 9.0, "control": 8.8, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Dynamic", "speed": 9.0, "spin": 9.0, "control": 8.8, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Butterfly Tenergy 05 FX', 'butterfly-tenergy-05-fx', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "High Tension", "sponge": "Spring Sponge FX", "speed": 9.5, "spin": 9.8, "control": 8.7, "hardness": "36"}'),
+ '{"topsheet": "High Tension", "sponge": "Spring Sponge FX", "speed": 9.5, "spin": 9.8, "control": 8.7, "hardness": {"min": 36, "max": 36}}'),
 ('Nittaku Fastarc G-1', 'nittaku-fastarc-g1', 'rubber', 'inverted', 'Nittaku', 
- '{"topsheet": "Tensor", "sponge": "High Energy", "speed": 9.2, "spin": 9.3, "control": 8.5, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "High Energy", "speed": 9.2, "spin": 9.3, "control": 8.5, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Tibhar Evolution MX-P', 'tibhar-evolution-mx-p', 'rubber', 'inverted', 'Tibhar', 
- '{"topsheet": "Tensor", "sponge": "Dynamic", "speed": 9.4, "spin": 9.2, "control": 8.2, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Dynamic", "speed": 9.4, "spin": 9.2, "control": 8.2, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Yasaka Rakza 7 Soft', 'yasaka-rakza-7-soft', 'rubber', 'inverted', 'Yasaka', 
- '{"topsheet": "Tensor", "sponge": "Soft Dynamic", "speed": 8.7, "spin": 9.0, "control": 9.0, "hardness": "42.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Soft Dynamic", "speed": 8.7, "spin": 9.0, "control": 9.0, "hardness": {"min": 42.5, "max": 42.5}}'),
 ('Xiom Vega Europe', 'xiom-vega-europe', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 8.8, "spin": 8.8, "control": 9.0, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 8.8, "spin": 8.8, "control": 9.0, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Butterfly Tenergy 64', 'butterfly-tenergy-64', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.5, "spin": 9.8, "control": 8.5, "hardness": "36-38"}'),
+ '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.5, "spin": 9.8, "control": 8.5, "hardness": {"min": 36, "max": 38}}'),
 ('Xiom Vega Pro', 'xiom-vega-pro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 9.0, "spin": 9.2, "control": 8.8, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 9.0, "spin": 9.2, "control": 8.8, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Donic Bluefire M2', 'donic-bluefire-m2', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.1, "spin": 9.0, "control": 8.6, "hardness": "45"}'),
+ '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.1, "spin": 9.0, "control": 8.6, "hardness": {"min": 45, "max": 45}}'),
 ('Donic Baracuda', 'donic-baracuda', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.3, "spin": 8.8, "control": 8.4, "hardness": "42.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.3, "spin": 8.8, "control": 8.4, "hardness": {"min": 42.5, "max": 42.5}}'),
 ('Butterfly Tenergy 80', 'butterfly-tenergy-80', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.8, "spin": 9.5, "control": 8.0, "hardness": "36"}'),
+ '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.8, "spin": 9.5, "control": 8.0, "hardness": {"min": 36, "max": 36}}'),
 ('Butterfly Dignics 09C', 'butterfly-dignics-09c', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.6, "spin": 9.8, "control": 8.4, "hardness": "40"}'),
+ '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.6, "spin": 9.8, "control": 8.4, "hardness": {"min": 40, "max": 40}}'),
 ('Butterfly Dignics 05', 'butterfly-dignics-05', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.8, "spin": 9.7, "control": 8.2, "hardness": "40"}'),
+ '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.8, "spin": 9.7, "control": 8.2, "hardness": {"min": 40, "max": 40}}'),
 ('DHS Hurricane 3 (H3)', 'dhs-hurricane-3-h3', 'rubber', 'inverted', 'DHS', 
- '{"topsheet": "Tacky", "sponge": "Hard", "speed": 8.5, "spin": 9.7, "control": 8.0, "hardness": "39-41"}'),
+ '{"topsheet": "Tacky", "sponge": "Hard", "speed": 8.5, "spin": 9.7, "control": 8.0, "hardness": {"min": 39, "max": 41}}'),
 ('Butterfly Rozena', 'butterfly-rozena', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.0, "spin": 9.0, "control": 8.8, "hardness": "35"}'),
+ '{"topsheet": "High Tension", "sponge": "Spring Sponge", "speed": 9.0, "spin": 9.0, "control": 8.8, "hardness": {"min": 35, "max": 35}}'),
 ('DHS Gold Arc 8', 'dhs-gold-arc-8', 'rubber', 'inverted', 'DHS', 
- '{"topsheet": "Tacky", "sponge": "Medium Hard", "speed": 8.8, "spin": 9.5, "control": 8.5, "hardness": "38"}'),
+ '{"topsheet": "Tacky", "sponge": "Medium Hard", "speed": 8.8, "spin": 9.5, "control": 8.5, "hardness": {"min": 38, "max": 38}}'),
 ('Donic Acuda S2', 'donic-acuda-s2', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.0, "spin": 9.2, "control": 8.7, "hardness": "45"}'),
+ '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.0, "spin": 9.2, "control": 8.7, "hardness": {"min": 45, "max": 45}}'),
 ('Butterfly Sriver', 'butterfly-sriver', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Natural", "sponge": "Medium", "speed": 8.2, "spin": 8.8, "control": 9.0, "hardness": "35"}'),
+ '{"topsheet": "Natural", "sponge": "Medium", "speed": 8.2, "spin": 8.8, "control": 9.0, "hardness": {"min": 35, "max": 35}}'),
 ('Tibhar Evolution EL-P', 'tibhar-evolution-el-p', 'rubber', 'inverted', 'Tibhar', 
- '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 8.8, "spin": 9.0, "control": 8.9, "hardness": "42.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Elastic", "speed": 8.8, "spin": 9.0, "control": 8.9, "hardness": {"min": 42.5, "max": 42.5}}'),
 ('Andro Rasant', 'andro-rasant', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.2, "spin": 8.9, "control": 8.5, "hardness": "47.5"}'),
+ '{"topsheet": "Tensor", "sponge": "Energy Cell", "speed": 9.2, "spin": 8.9, "control": 8.5, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Butterfly Sriver FX', 'butterfly-sriver-fx', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Natural", "sponge": "Soft", "speed": 8.0, "spin": 8.8, "control": 9.2, "hardness": "25"}'),
+ '{"topsheet": "Natural", "sponge": "Soft", "speed": 8.0, "spin": 8.8, "control": 9.2, "hardness": {"min": 25, "max": 25}}'),
 ('Yasaka Rakza Z', 'yasaka-rakza-z', 'rubber', 'inverted', 'Yasaka', 
- '{"topsheet": "Tensor", "sponge": "Energy", "speed": 9.3, "spin": 9.2, "control": 8.3, "hardness": "50"}');
+ '{"topsheet": "Tensor", "sponge": "Energy", "speed": 9.3, "spin": 9.2, "control": 8.3, "hardness": {"min": 50, "max": 50}}');
 
 -- Insert equipment (popular pips rubbers from revspin.net)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
@@ -570,121 +577,121 @@ INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specific
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
 -- Butterfly Dignics Series (2019-2020)
 ('Butterfly Dignics 64', 'butterfly-dignics-64', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.8, "spin": 9.5, "control": 8.0, "hardness": "40", "year": 2019}'),
+ '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.8, "spin": 9.5, "control": 8.0, "hardness": {"min": 40, "max": 40}, "year": "2019"}'),
 ('Butterfly Dignics 80', 'butterfly-dignics-80', 'rubber', 'inverted', 'Butterfly', 
- '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.6, "spin": 9.6, "control": 8.2, "hardness": "40", "year": 2019}'),
+ '{"topsheet": "Spring Sponge X", "sponge": "High Tension", "speed": 9.6, "spin": 9.6, "control": 8.2, "hardness": {"min": 40, "max": 40}, "year": "2019"}'),
 
 -- Victas V Series (2019-2024)
 ('Victas V15 Extra', 'victas-v15-extra', 'rubber', 'inverted', 'Victas', 
- '{"topsheet": "Tensor", "sponge": "Offensive", "speed": 9.3, "spin": 9.2, "control": 8.9, "hardness": "47.5", "year": 2020}'),
+ '{"topsheet": "Tensor", "sponge": "Offensive", "speed": 9.3, "spin": 9.2, "control": 8.9, "hardness": {"min": 47.5, "max": 47.5}, "year": "2020"}'),
 ('Victas V20 Double Extra', 'victas-v20-double-extra', 'rubber', 'inverted', 'Victas', 
- '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.5, "spin": 9.0, "control": 8.5, "hardness": "53", "year": 2021}'),
+ '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.5, "spin": 9.0, "control": 8.5, "hardness": {"min": 53, "max": 53}, "year": "2021"}'),
 ('Victas V22 Double Extra', 'victas-v22-double-extra', 'rubber', 'inverted', 'Victas', 
- '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.4, "spin": 9.3, "control": 8.7, "hardness": "50", "year": 2022}'),
+ '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.4, "spin": 9.3, "control": 8.7, "hardness": {"min": 50, "max": 50}, "year": "2022"}'),
 
 -- Andro Rasanter Series (2019-2023)
 ('Andro Rasanter R53', 'andro-rasanter-r53', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Energy Cell", "sponge": "Dynamic", "speed": 9.2, "spin": 9.8, "control": 8.3, "hardness": "53", "year": 2020}'),
+ '{"topsheet": "Energy Cell", "sponge": "Dynamic", "speed": 9.2, "spin": 9.8, "control": 8.3, "hardness": {"min": 53, "max": 53}, "year": "2020"}'),
 ('Andro Rasanter C53', 'andro-rasanter-c53', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 9.0, "spin": 9.5, "control": 9.0, "hardness": "53", "year": 2021}'),
+ '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 9.0, "spin": 9.5, "control": 9.0, "hardness": {"min": 53, "max": 53}, "year": "2021"}'),
 ('Andro Rasanter C48', 'andro-rasanter-c48', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 8.8, "spin": 9.3, "control": 9.2, "hardness": "48", "year": 2021}'),
+ '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 8.8, "spin": 9.3, "control": 9.2, "hardness": {"min": 48, "max": 48}, "year": "2021"}'),
 
 -- Xiom Omega VII & VIII Series (2022-2024)
 ('Xiom Omega VII Pro', 'xiom-omega-vii-pro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.4, "spin": 9.4, "control": 8.8, "hardness": "47.5", "year": 2022}'),
+ '{"topsheet": "Tensor", "sponge": "Premium", "speed": 9.4, "spin": 9.4, "control": 8.8, "hardness": {"min": 47.5, "max": 47.5}, "year": "2022"}'),
 ('Xiom Omega VII Euro', 'xiom-omega-vii-euro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "European", "speed": 9.1, "spin": 9.6, "control": 9.0, "hardness": "45", "year": 2022}'),
+ '{"topsheet": "Tensor", "sponge": "European", "speed": 9.1, "spin": 9.6, "control": 9.0, "hardness": {"min": 45, "max": 45}, "year": "2022"}'),
 ('Xiom Omega VII Asia', 'xiom-omega-vii-asia', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "Asian", "speed": 8.8, "spin": 9.8, "control": 8.5, "hardness": "42", "year": 2022}'),
+ '{"topsheet": "Tensor", "sponge": "Asian", "speed": 8.8, "spin": 9.8, "control": 8.5, "hardness": {"min": 42, "max": 42}, "year": "2022"}'),
 ('Xiom Omega VIII Pro', 'xiom-omega-viii-pro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Advanced Tensor", "sponge": "Next-Gen", "speed": 9.6, "spin": 9.5, "control": 8.9, "hardness": "47.5", "year": 2024}'),
+ '{"topsheet": "Advanced Tensor", "sponge": "Next-Gen", "speed": 9.6, "spin": 9.5, "control": 8.9, "hardness": {"min": 47.5, "max": 47.5}, "year": "2024"}'),
 ('Xiom Omega VIII Euro', 'xiom-omega-viii-euro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Advanced Tensor", "sponge": "European Style", "speed": 9.2, "spin": 9.7, "control": 9.1, "hardness": "45", "year": 2024}'),
+ '{"topsheet": "Advanced Tensor", "sponge": "European Style", "speed": 9.2, "spin": 9.7, "control": 9.1, "hardness": {"min": 45, "max": 45}, "year": "2024"}'),
 
 -- Xiom Vega New Series (2023-2024)
 ('Xiom Vega China+', 'xiom-vega-china-plus', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tacky Tensor", "sponge": "Medium", "speed": 8.5, "spin": 9.9, "control": 8.8, "hardness": "42", "year": 2023}'),
+ '{"topsheet": "Tacky Tensor", "sponge": "Medium", "speed": 8.5, "spin": 9.9, "control": 8.8, "hardness": {"min": 42, "max": 42}, "year": "2023"}'),
 ('Xiom Tau 3', 'xiom-tau-3', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Ultra Tacky", "sponge": "Soft", "speed": 8.0, "spin": 10.0, "control": 9.0, "hardness": "39", "year": 2023}'),
+ '{"topsheet": "Ultra Tacky", "sponge": "Soft", "speed": 8.0, "spin": 10.0, "control": 9.0, "hardness": {"min": 39, "max": 39}, "year": "2023"}'),
 ('Xiom Vega Pro H', 'xiom-vega-pro-h', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Hybrid Tensor", "sponge": "Medium Hard", "speed": 8.8, "spin": 9.4, "control": 8.9, "hardness": "47.5", "year": 2024}'),
+ '{"topsheet": "Hybrid Tensor", "sponge": "Medium Hard", "speed": 8.8, "spin": 9.4, "control": 8.9, "hardness": {"min": 47.5, "max": 47.5}, "year": "2024"}'),
 ('Xiom Vega Euro H', 'xiom-vega-euro-h', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Hybrid Tensor", "sponge": "European", "speed": 8.5, "spin": 9.6, "control": 9.1, "hardness": "45", "year": 2024}'),
+ '{"topsheet": "Hybrid Tensor", "sponge": "European", "speed": 8.5, "spin": 9.6, "control": 9.1, "hardness": {"min": 45, "max": 45}, "year": "2024"}'),
 
 -- Stiga Latest Series (2020-2023)
 ('Stiga Calibra LT Plus', 'stiga-calibra-lt-plus', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Tensor", "sponge": "Light Weight", "speed": 8.8, "spin": 9.0, "control": 9.2, "hardness": "45", "year": 2020}'),
+ '{"topsheet": "Tensor", "sponge": "Light Weight", "speed": 8.8, "spin": 9.0, "control": 9.2, "hardness": {"min": 45, "max": 45}, "year": "2020"}'),
 ('Stiga Mantra M', 'stiga-mantra-m', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Advanced Tensor", "sponge": "Medium", "speed": 9.2, "spin": 9.3, "control": 8.7, "hardness": "47.5", "year": 2021}'),
+ '{"topsheet": "Advanced Tensor", "sponge": "Medium", "speed": 9.2, "spin": 9.3, "control": 8.7, "hardness": {"min": 47.5, "max": 47.5}, "year": "2021"}'),
 ('Stiga Airoc M', 'stiga-airoc-m', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "High Performance", "sponge": "Air Cell", "speed": 9.4, "spin": 9.1, "control": 8.5, "hardness": "50", "year": 2022}'),
+ '{"topsheet": "High Performance", "sponge": "Air Cell", "speed": 9.4, "spin": 9.1, "control": 8.5, "hardness": {"min": 50, "max": 50}, "year": "2022"}'),
 ('Stiga DNA Platinum M', 'stiga-dna-platinum-m', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Platinum Series", "sponge": "Professional", "speed": 9.5, "spin": 9.4, "control": 8.6, "hardness": "52.5", "year": 2023}');
+ '{"topsheet": "Platinum Series", "sponge": "Professional", "speed": 9.5, "spin": 9.4, "control": 8.6, "hardness": {"min": 52.5, "max": 52.5}, "year": "2023"}');
 
 -- Insert equipment (additional inverted rubbers from comprehensive list)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
 -- New Inverted Rubbers
 ('Andro Nuzn 50', 'andro-nuzn-50', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Tensor", "sponge": "Medium", "speed": 9.0, "spin": 9.2, "control": 8.8, "hardness": "50"}'),
+ '{"topsheet": "Tensor", "sponge": "Medium", "speed": 9.0, "spin": 9.2, "control": 8.8, "hardness": {"min": 50, "max": 50}}'),
 ('Andro Nuzn 55', 'andro-nuzn-55', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Tensor", "sponge": "Hard", "speed": 9.2, "spin": 9.0, "control": 8.5, "hardness": "55"}'),
+ '{"topsheet": "Tensor", "sponge": "Hard", "speed": 9.2, "spin": 9.0, "control": 8.5, "hardness": {"min": 55, "max": 55}}'),
 ('Xiom Jekyll & Hyde Z52.5', 'xiom-jekyll-hyde-z525', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Hybrid", "sponge": "Zone", "speed": 9.1, "spin": 9.3, "control": 8.7, "hardness": "52.5"}'),
+ '{"topsheet": "Hybrid", "sponge": "Zone", "speed": 9.1, "spin": 9.3, "control": 8.7, "hardness": {"min": 52.5, "max": 52.5}}'),
 ('Stiga DNA Hybrid H', 'stiga-dna-hybrid-h', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Hybrid", "sponge": "Hard", "speed": 9.0, "spin": 9.5, "control": 8.8, "hardness": "50"}'),
+ '{"topsheet": "Hybrid", "sponge": "Hard", "speed": 9.0, "spin": 9.5, "control": 8.8, "hardness": {"min": 50, "max": 50}}'),
 ('Stiga DNA Hybrid M', 'stiga-dna-hybrid-m', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Hybrid", "sponge": "Medium", "speed": 8.8, "spin": 9.6, "control": 9.0, "hardness": "47.5"}'),
+ '{"topsheet": "Hybrid", "sponge": "Medium", "speed": 8.8, "spin": 9.6, "control": 9.0, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Xiom Jekyll & Hyde C55', 'xiom-jekyll-hyde-c55', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Chinese", "sponge": "Hard", "speed": 8.5, "spin": 9.8, "control": 8.5, "hardness": "55"}'),
+ '{"topsheet": "Chinese", "sponge": "Hard", "speed": 8.5, "spin": 9.8, "control": 8.5, "hardness": {"min": 55, "max": 55}}'),
 ('Nexy Etika Pro H', 'nexy-etika-pro-h', 'rubber', 'inverted', 'Nexy', 
- '{"topsheet": "Tensor", "sponge": "Hard", "speed": 9.1, "spin": 9.2, "control": 8.6, "hardness": "50"}'),
+ '{"topsheet": "Tensor", "sponge": "Hard", "speed": 9.1, "spin": 9.2, "control": 8.6, "hardness": {"min": 50, "max": 50}}'),
 ('Xiom Jekyll & Hyde C52.5', 'xiom-jekyll-hyde-c525', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Chinese", "sponge": "Medium Hard", "speed": 8.3, "spin": 9.7, "control": 8.7, "hardness": "52.5"}'),
+ '{"topsheet": "Chinese", "sponge": "Medium Hard", "speed": 8.3, "spin": 9.7, "control": 8.7, "hardness": {"min": 52.5, "max": 52.5}}'),
 ('Stiga DNA Hybrid XH', 'stiga-dna-hybrid-xh', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Hybrid", "sponge": "Extra Hard", "speed": 9.2, "spin": 9.3, "control": 8.5, "hardness": "52.5"}'),
+ '{"topsheet": "Hybrid", "sponge": "Extra Hard", "speed": 9.2, "spin": 9.3, "control": 8.5, "hardness": {"min": 52.5, "max": 52.5}}'),
 ('Xiom Jekyll & Hyde C57.5', 'xiom-jekyll-hyde-c575', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Chinese", "sponge": "Extra Hard", "speed": 8.7, "spin": 9.9, "control": 8.3, "hardness": "57.5"}'),
+ '{"topsheet": "Chinese", "sponge": "Extra Hard", "speed": 8.7, "spin": 9.9, "control": 8.3, "hardness": {"min": 57.5, "max": 57.5}}'),
 ('Donic BlueStar A1', 'donic-bluestar-a1', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Soft", "speed": 8.8, "spin": 9.0, "control": 9.0, "hardness": "42"}'),
+ '{"topsheet": "Tensor", "sponge": "Soft", "speed": 8.8, "spin": 9.0, "control": 9.0, "hardness": {"min": 42, "max": 42}}'),
 ('Xiom Omega VII Tour', 'xiom-omega-vii-tour', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Tensor", "sponge": "Tour", "speed": 9.0, "spin": 9.2, "control": 8.9, "hardness": "45"}'),
+ '{"topsheet": "Tensor", "sponge": "Tour", "speed": 9.0, "spin": 9.2, "control": 8.9, "hardness": {"min": 45, "max": 45}}'),
 ('JOOLA Dynaryz Inferno', 'joola-dynaryz-inferno', 'rubber', 'inverted', 'JOOLA', 
- '{"topsheet": "Tensor", "sponge": "High Energy", "speed": 9.4, "spin": 9.1, "control": 8.3, "hardness": "50"}'),
+ '{"topsheet": "Tensor", "sponge": "High Energy", "speed": 9.4, "spin": 9.1, "control": 8.3, "hardness": {"min": 50, "max": 50}}'),
 ('Nexy Etika Pro 47', 'nexy-etika-pro-47', 'rubber', 'inverted', 'Nexy', 
- '{"topsheet": "Tensor", "sponge": "Medium", "speed": 8.9, "spin": 9.3, "control": 8.8, "hardness": "47"}'),
+ '{"topsheet": "Tensor", "sponge": "Medium", "speed": 8.9, "spin": 9.3, "control": 8.8, "hardness": {"min": 47, "max": 47}}'),
 ('Stiga DNA Platinum XH', 'stiga-dna-platinum-xh', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Platinum Series", "sponge": "Extra Hard", "speed": 9.7, "spin": 9.2, "control": 8.3, "hardness": "55"}'),
+ '{"topsheet": "Platinum Series", "sponge": "Extra Hard", "speed": 9.7, "spin": 9.2, "control": 8.3, "hardness": {"min": 55, "max": 55}}'),
 ('Stiga DNA Platinum H', 'stiga-dna-platinum-h', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Platinum Series", "sponge": "Hard", "speed": 9.6, "spin": 9.3, "control": 8.5, "hardness": "52.5"}'),
+ '{"topsheet": "Platinum Series", "sponge": "Hard", "speed": 9.6, "spin": 9.3, "control": 8.5, "hardness": {"min": 52.5, "max": 52.5}}'),
 ('Stiga DNA Dragon Power 57.5', 'stiga-dna-dragon-power-575', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Dragon Power", "sponge": "Ultra Hard", "speed": 9.8, "spin": 9.0, "control": 8.0, "hardness": "57.5"}'),
+ '{"topsheet": "Dragon Power", "sponge": "Ultra Hard", "speed": 9.8, "spin": 9.0, "control": 8.0, "hardness": {"min": 57.5, "max": 57.5}}'),
 ('Stiga DNA Dragon Power 52.5', 'stiga-dna-dragon-power-525', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Dragon Power", "sponge": "Hard", "speed": 9.6, "spin": 9.2, "control": 8.2, "hardness": "52.5"}'),
+ '{"topsheet": "Dragon Power", "sponge": "Hard", "speed": 9.6, "spin": 9.2, "control": 8.2, "hardness": {"min": 52.5, "max": 52.5}}'),
 ('Stiga DNA Platinum S', 'stiga-dna-platinum-s', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Platinum Series", "sponge": "Soft", "speed": 9.2, "spin": 9.5, "control": 9.0, "hardness": "45"}'),
+ '{"topsheet": "Platinum Series", "sponge": "Soft", "speed": 9.2, "spin": 9.5, "control": 9.0, "hardness": {"min": 45, "max": 45}}'),
 ('Stiga DNA Dragon Power 55', 'stiga-dna-dragon-power-55', 'rubber', 'inverted', 'Stiga', 
- '{"topsheet": "Dragon Power", "sponge": "Extra Hard", "speed": 9.7, "spin": 9.1, "control": 8.1, "hardness": "55"}'),
+ '{"topsheet": "Dragon Power", "sponge": "Extra Hard", "speed": 9.7, "spin": 9.1, "control": 8.1, "hardness": {"min": 55, "max": 55}}'),
 ('Donic BlueStar A2', 'donic-bluestar-a2', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Medium", "speed": 9.0, "spin": 9.1, "control": 8.8, "hardness": "45"}'),
+ '{"topsheet": "Tensor", "sponge": "Medium", "speed": 9.0, "spin": 9.1, "control": 8.8, "hardness": {"min": 45, "max": 45}}'),
 ('Andro Rasanter C45', 'andro-rasanter-c45', 'rubber', 'inverted', 'Andro', 
- '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 8.6, "spin": 9.1, "control": 9.4, "hardness": "45"}'),
+ '{"topsheet": "Energy Cell", "sponge": "Counterspin", "speed": 8.6, "spin": 9.1, "control": 9.4, "hardness": {"min": 45, "max": 45}}'),
 ('Tibhar Hybrid K3 Pro', 'tibhar-hybrid-k3-pro', 'rubber', 'inverted', 'Tibhar', 
- '{"topsheet": "Hybrid", "sponge": "Professional", "speed": 9.0, "spin": 9.4, "control": 8.8, "hardness": "50"}'),
+ '{"topsheet": "Hybrid", "sponge": "Professional", "speed": 9.0, "spin": 9.4, "control": 8.8, "hardness": {"min": 50, "max": 50}}'),
 ('Tibhar Hybrid K3', 'tibhar-hybrid-k3', 'rubber', 'inverted', 'Tibhar', 
- '{"topsheet": "Hybrid", "sponge": "Medium", "speed": 8.8, "spin": 9.3, "control": 9.0, "hardness": "47"}'),
+ '{"topsheet": "Hybrid", "sponge": "Medium", "speed": 8.8, "spin": 9.3, "control": 9.0, "hardness": {"min": 47, "max": 47}}'),
 ('JOOLA Dynaryz ZGX', 'joola-dynaryz-zgx', 'rubber', 'inverted', 'JOOLA', 
- '{"topsheet": "Tensor", "sponge": "Zero Gravity", "speed": 9.2, "spin": 9.3, "control": 8.6, "hardness": "48"}'),
+ '{"topsheet": "Tensor", "sponge": "Zero Gravity", "speed": 9.2, "spin": 9.3, "control": 8.6, "hardness": {"min": 48, "max": 48}}'),
 ('Xiom Omega 8 Hybrid', 'xiom-omega-8-hybrid', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Hybrid Tensor", "sponge": "Next-Gen", "speed": 9.0, "spin": 9.6, "control": 8.9, "hardness": "47.5"}'),
+ '{"topsheet": "Hybrid Tensor", "sponge": "Next-Gen", "speed": 9.0, "spin": 9.6, "control": 8.9, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Xiom Omega 8 Euro', 'xiom-omega-8-euro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Advanced Tensor", "sponge": "European Style", "speed": 9.2, "spin": 9.7, "control": 9.1, "hardness": "45"}'),
+ '{"topsheet": "Advanced Tensor", "sponge": "European Style", "speed": 9.2, "spin": 9.7, "control": 9.1, "hardness": {"min": 45, "max": 45}}'),
 ('Xiom Omega 8 China', 'xiom-omega-8-china', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Chinese Style", "sponge": "Hard", "speed": 8.8, "spin": 9.9, "control": 8.4, "hardness": "52"}'),
+ '{"topsheet": "Chinese Style", "sponge": "Hard", "speed": 8.8, "spin": 9.9, "control": 8.4, "hardness": {"min": 52, "max": 52}}'),
 ('Xiom Omega 8 Pro', 'xiom-omega-8-pro', 'rubber', 'inverted', 'Xiom', 
- '{"topsheet": "Advanced Tensor", "sponge": "Next-Gen", "speed": 9.6, "spin": 9.5, "control": 8.9, "hardness": "47.5"}'),
+ '{"topsheet": "Advanced Tensor", "sponge": "Next-Gen", "speed": 9.6, "spin": 9.5, "control": 8.9, "hardness": {"min": 47.5, "max": 47.5}}'),
 ('Donic Bluestorm Pro', 'donic-bluestorm-pro', 'rubber', 'inverted', 'Donic', 
- '{"topsheet": "Tensor", "sponge": "Professional", "speed": 9.3, "spin": 9.2, "control": 8.5, "hardness": "50"}');
+ '{"topsheet": "Tensor", "sponge": "Professional", "speed": 9.3, "spin": 9.2, "control": 8.5, "hardness": {"min": 50, "max": 50}}');
 
 -- Insert equipment (anti-spin rubbers)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES

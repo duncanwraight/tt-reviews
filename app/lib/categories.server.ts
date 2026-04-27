@@ -10,6 +10,8 @@ export type CategoryType =
   | "review_rating_category"
   | "equipment_spec_field";
 
+export type SpecFieldType = "int" | "float" | "range" | "text";
+
 export interface Category {
   id: string;
   type: CategoryType;
@@ -21,6 +23,10 @@ export interface Category {
   description?: string;
   min_label?: string;
   max_label?: string;
+  field_type?: SpecFieldType;
+  unit?: string;
+  scale_min?: number;
+  scale_max?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -34,6 +40,10 @@ export interface CategoryOption {
   description?: string;
   min_label?: string;
   max_label?: string;
+  field_type?: SpecFieldType;
+  unit?: string;
+  scale_min?: number;
+  scale_max?: number;
   display_order: number;
 }
 
@@ -454,7 +464,11 @@ export class CategoryService {
           name,
           value,
           description,
-          display_order
+          display_order,
+          field_type,
+          unit,
+          scale_min,
+          scale_max
         `
         )
         .eq("type", "equipment_spec_field")

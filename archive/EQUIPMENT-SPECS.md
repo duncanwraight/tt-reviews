@@ -104,11 +104,10 @@ Search itself is **not implemented as part of TT-72**. It's a downstream child i
 - **A search/filter UI.** The schema enables it; building it is a separate child filed after this refactor lands.
 - **Validating `scale_min` / `scale_max` as hard bounds.** Display-only.
 
-## Implementation children (file under TT-72 once this design lands)
+## Implementation children (filed under TT-72)
 
-1. **Migration.** Schema additions above + data migration of existing `equipment.specifications` rows + reseed `equipment_spec_field` categories with `field_type` / `unit` / `scale_*` populated.
-2. **Admin / submission forms.** Read `field_type` from the spec-field row, render typed inputs accordingly. Validate "is a number" / "min ≤ max" / etc.
-3. **Specs table display.** `SpecsTable.tsx` switches on `field_type` to render: `"86g"` for int+unit, `"40–42"` for range, `"5+2"` when both `plies_wood` and `plies_composite` are present, etc.
-4. **TT-25 comparison-page follow-up.** Sortable numeric columns once values are typed.
+- **TT-75** — Migration + display, bundled. Schema additions + data migration of existing `equipment.specifications` rows + reseed of `equipment_spec_field` categories with `field_type` / `unit` / `scale_*` populated, plus the `SpecsTable.tsx` switch on `field_type`. Bundled because the JSONB shape change breaks the old `String(raw)` rendering, so they have to ship atomically.
+- **TT-76** — Typed admin / submission forms. Read `field_type` from the spec-field row, render typed inputs, validate "is a number" / "min ≤ max" / plies compound shape.
+- **TT-77** — TT-25 follow-up: sortable numeric columns once values are typed.
 
-Each lands as its own Plane card with this doc linked. Don't expand TT-72's body with implementation TODOs — file children.
+Don't expand TT-72's body with implementation TODOs — file children.

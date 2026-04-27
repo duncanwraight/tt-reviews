@@ -6,10 +6,63 @@ interface SpecsTableProps {
   specFields: CategoryOption[];
 }
 
-function renderValue(raw: unknown): string {
+const PLIES_WOOD_KEY = "plies_wood";
+const PLIES_COMPOSITE_KEY = "plies_composite";
+
+function isRangeValue(
+  raw: unknown
+): raw is { min: number | string; max: number | string } {
+  return (
+    typeof raw === "object" &&
+    raw !== null &&
+    "min" in raw &&
+    "max" in raw &&
+    (raw as Record<string, unknown>).min !== null &&
+    (raw as Record<string, unknown>).max !== null
+  );
+}
+
+function renderScalar(raw: unknown, unit?: string): string {
   if (raw === null || raw === undefined || raw === "") return "—";
   if (typeof raw === "object") return "—";
-  return String(raw);
+  return unit ? `${String(raw)}${unit}` : String(raw);
+}
+
+function renderRange(raw: unknown): string {
+  if (!isRangeValue(raw)) return "—";
+  const min = String(raw.min);
+  const max = String(raw.max);
+  return min === max ? min : `${min}–${max}`;
+}
+
+function renderCell(field: CategoryOption, raw: unknown): string {
+  switch (field.field_type) {
+    case "range":
+      return renderRange(raw);
+    case "int":
+    case "float":
+      return renderScalar(raw, field.unit);
+    case "text":
+    default:
+      return renderScalar(raw);
+  }
+}
+
+// Plies are a paired field — wood + composite — rendered as one row.
+// Wood-only blades show just the wood count; composite blades show "5+2".
+function renderPliesPair(specs: Record<string, unknown>): string {
+  const wood = specs[PLIES_WOOD_KEY];
+  const composite = specs[PLIES_COMPOSITE_KEY];
+  if (wood === null || wood === undefined || wood === "") return "—";
+  if (composite === null || composite === undefined || composite === "") {
+    return String(wood);
+  }
+  return `${wood}+${composite}`;
+}
+
+function hasAnyValue(specs: Record<string, unknown>, key: string): boolean {
+  const v = specs[key];
+  return v !== null && v !== undefined && v !== "";
 }
 
 export function SpecsTable({ items, specFields }: SpecsTableProps) {
@@ -21,14 +74,34 @@ export function SpecsTable({ items, specFields }: SpecsTableProps) {
     );
   }
 
+  // Collapse the plies_wood / plies_composite pair into a single virtual row
+  // so the table shows one "Plies" line instead of two.
+  const collapsedFields: CategoryOption[] = [];
+  let pliesWoodField: CategoryOption | null = null;
+  for (const field of specFields) {
+    if (field.value === PLIES_COMPOSITE_KEY) continue; // rendered alongside wood
+    if (field.value === PLIES_WOOD_KEY) {
+      pliesWoodField = field;
+      collapsedFields.push({ ...field, name: "Plies", value: PLIES_WOOD_KEY });
+      continue;
+    }
+    collapsedFields.push(field);
+  }
+
   // Hide rows where every item's value is missing — keeps the table tight
   // when manufacturer data is spotty.
-  const visibleRows = specFields.filter(field =>
-    items.some(({ equipment }) => {
-      const value = equipment.specifications[field.value];
-      return value !== null && value !== undefined && value !== "";
-    })
-  );
+  const visibleRows = collapsedFields.filter(field => {
+    if (field === pliesWoodField || field.value === PLIES_WOOD_KEY) {
+      return items.some(
+        ({ equipment }) =>
+          hasAnyValue(equipment.specifications, PLIES_WOOD_KEY) ||
+          hasAnyValue(equipment.specifications, PLIES_COMPOSITE_KEY)
+      );
+    }
+    return items.some(({ equipment }) =>
+      hasAnyValue(equipment.specifications, field.value)
+    );
+  });
 
   if (visibleRows.length === 0) {
     return (
@@ -77,7 +150,9 @@ export function SpecsTable({ items, specFields }: SpecsTableProps) {
                   key={equipment.id}
                   className="px-4 py-3 text-gray-900 break-words"
                 >
-                  {renderValue(equipment.specifications[field.value])}
+                  {field.value === PLIES_WOOD_KEY
+                    ? renderPliesPair(equipment.specifications)
+                    : renderCell(field, equipment.specifications[field.value])}
                 </td>
               ))}
             </tr>

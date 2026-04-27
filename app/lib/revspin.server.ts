@@ -304,7 +304,10 @@ function parseSpecifications(
   for (const { key, pattern } of ratingPatterns) {
     const match = html.match(pattern);
     if (match) {
-      specs[key] = parseFloat(match[1]);
+      const num = parseFloat(match[1]);
+      // Hardness is a {min, max} range post-TT-72; revspin gives a single value,
+      // store as min == max.
+      specs[key] = key === "hardness" ? { min: num, max: num } : num;
     }
   }
 
@@ -312,12 +315,13 @@ function parseSpecifications(
   if (category === "blade") {
     const pliesMatch = html.match(/(\d+)\s*(?:ply|plies)/i);
     if (pliesMatch) {
-      specs.plies = parseInt(pliesMatch[1], 10);
+      specs.plies_wood = parseInt(pliesMatch[1], 10);
+      specs.plies_composite = null;
     }
 
     const weightMatch = html.match(/Weight[:\s]+(\d+)g/i);
     if (weightMatch) {
-      specs.weight = `${weightMatch[1]}g`;
+      specs.weight = parseInt(weightMatch[1], 10);
     }
 
     // Look for materials like "Arylate Carbon", "Wood", etc.
