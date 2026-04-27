@@ -18,15 +18,17 @@ const requestHandler = createRequestHandler(
 
 export default {
   async fetch(request, env, ctx) {
-    // Layer 2 of the env-config gate (Layer 1 is `[secrets].required` in
-    // wrangler.toml, which blocks deploy when a secret is missing). This
-    // catches what Cloudflare can't: missing [vars], short SESSION_SECRET,
-    // Discord placeholders left in prod. Memoized per isolate so the cost
-    // is one walk on cold start. See app/lib/env.server.ts for the rules.
-    // `isDev` is read from Vite's build-time flag, not env.ENVIRONMENT, since
-    // wrangler.toml's top-level `[vars]` (ENVIRONMENT="production") wins over
-    // `.dev.vars` under react-router dev — the runtime var lies on the e2e
-    // CI dev server. The bundled prod Worker has DEV=false.
+    // Env-config gate. Memoized per isolate, so the cost is one walk on
+    // cold start. On failure we 503 every request — CI's preview-smoke
+    // step catches that before the new version takes traffic, so a
+    // misconfigured Worker can't replace a healthy one in prod. See
+    // app/lib/env.server.ts for the rule list.
+    //
+    // `isDev` is read from Vite's build-time flag instead of
+    // `env.ENVIRONMENT` because wrangler.toml's top-level
+    // `[vars].ENVIRONMENT="production"` wins over `.dev.vars` under
+    // `react-router dev` — the runtime var lies on the e2e CI dev
+    // server. The bundled prod Worker has `import.meta.env.DEV=false`.
     const envCheck = getValidatedEnv(
       env as unknown as Record<string, unknown>,
       { isDev: import.meta.env.DEV }

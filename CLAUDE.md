@@ -4,21 +4,23 @@
 
 **Before any change to `app/` or `workers/`, read `docs/CODING-STANDARDS.md`.** It is the single source of truth for TypeScript, components, routes, loader/action shape, logging, env access, tests, imports, and comments. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
 
-## Environment variables — two-layer gate
+## Environment variables — runtime gate + smoke fallback
 
-Any new env var **must** be added to the appropriate layer; both must agree, or CI will block the deploy or the Worker will 503 on first request.
+Any new env var the app actually requires **must** be registered with `validateEnv` in `app/lib/env.server.ts`. Otherwise it'll be silently undefined at runtime and surface as a 500 in whichever loader/action reads it.
 
-- **Layer 1 — `[secrets].required` in `wrangler.toml`** (deploy-time gate). Native Cloudflare feature: `wrangler versions upload` fails if any listed secret isn't configured on the prod Worker, so a missing secret keeps prod on the previous version instead of going live broken.
-- **Layer 2 — `validateEnv()` in `app/lib/env.server.ts`** (runtime gate at fetch entry). Memoized per isolate. Catches what Cloudflare can't: missing non-secret `[vars]`, format/length checks, placeholder strings.
+- **`validateEnv()`** runs once per Worker isolate at the top of `fetch`. On failure it 503s every request and logs the offending var names. That gives "fail-fast on first request after deploy" instead of "lazy 500 on first form submit," and CI's preview-smoke step (`main.yml:355`, runs after `wrangler versions upload` and before promote) hits enough routes that a 503 there blocks the promote — so a misconfigured Worker can't replace a healthy one in prod.
+- We don't use Cloudflare's native `[secrets].required` deploy gate. It works, but defining it filters `.dev.vars` to only the listed keys, which drops `ENVIRONMENT=development` from the e2e CI dev server and breaks login over plain HTTP. The deploy-time gate is tracked separately on the board for revisit.
 
 Where to add a new var:
 
-| Kind                                                       | Action                                                                                                            |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Secret (set via `wrangler secret put` / dashboard)         | Append to `[secrets].required` in `wrangler.toml` **and** to `.dev.vars.example`.                                 |
-| Non-secret, prod-required (e.g. a public URL)              | Add to `wrangler.toml` `[vars]` for prod **and** to `REQUIRED_ALWAYS` (or `REQUIRED_PROD_ONLY`) in `validateEnv`. |
-| Has format constraint (length, no placeholders, URL shape) | Add the check inside `validateEnv` alongside the existing ones.                                                   |
-| Optional / has fallback path in code                       | Don't add to either layer — document the fallback at the call site.                                               |
+| Kind                                                       | Action                                                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Secret (set via `wrangler secret put` / dashboard)         | Append to `REQUIRED_PROD_ONLY` in `validateEnv` **and** to `.dev.vars.example`. Set the prod secret before merging. |
+| Non-secret, prod-required (e.g. a public URL)              | Add to `wrangler.toml` `[vars]` for prod **and** to `REQUIRED_ALWAYS` (or `REQUIRED_PROD_ONLY`) in `validateEnv`.   |
+| Has format constraint (length, no placeholders, URL shape) | Add the check inside `validateEnv` alongside the existing ones.                                                     |
+| Optional / has fallback path in code                       | Don't add to `validateEnv` — document the fallback at the call site.                                                |
+
+Don't infer dev/prod from `env.ENVIRONMENT` in new code; pass `import.meta.env.DEV` from the Worker entry. The runtime var lies under `react-router dev` because top-level `[vars]` wins over `.dev.vars`.
 
 Always run `npm run cf-typegen` after editing `wrangler.toml` so `worker-configuration.d.ts` stays in sync.
 

@@ -71,10 +71,10 @@ const REQUIRED_PROD_ONLY = [
   "AUTO_ADMIN_EMAILS",
 ] as const;
 
-// Discord secrets that get accidentally left as the placeholder strings
-// from `.dev.vars.example` would otherwise pass a presence check. Layer 1
-// (`[secrets].required` in wrangler.toml) only verifies a value was set,
-// not what it is — so we screen these in prod.
+// Discord secrets accidentally left as the placeholder strings from
+// `.dev.vars.example` would otherwise pass a non-empty presence check.
+// Screen them in prod so a forgotten `wrangler secret put` surfaces
+// before users hit a moderation flow.
 const DISCORD_PLACEHOLDER_VARS = [
   "DISCORD_PUBLIC_KEY",
   "DISCORD_BOT_TOKEN",
