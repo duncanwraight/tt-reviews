@@ -21,6 +21,7 @@ import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
 import { SimilarEquipmentSection } from "~/components/equipment/SimilarEquipmentSection";
 import { SpecsTable } from "~/components/equipment/SpecsTable";
+import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
 
 export function meta({ data }: Route.MetaArgs) {
@@ -288,6 +289,24 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
           />
         )}
       </PageSection>
+
+      {equipment.description && (
+        <PageSection background="white" padding="medium">
+          <section aria-labelledby="description-heading">
+            <h2
+              id="description-heading"
+              className="mb-3 text-xl font-semibold text-gray-900"
+            >
+              Manufacturer description
+            </h2>
+            <SafeHtml
+              content={equipment.description}
+              profile="review"
+              className="text-gray-700 leading-relaxed whitespace-pre-wrap"
+            />
+          </section>
+        </PageSection>
+      )}
 
       <PageSection background="white" padding="medium">
         <section aria-labelledby="specs-heading">

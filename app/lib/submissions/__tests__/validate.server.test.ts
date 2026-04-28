@@ -245,6 +245,34 @@ describe("validateSubmission — equipment", () => {
     );
     expect(result.valid).toBe(true);
   });
+
+  it("accepts an optional description within the 2000-char cap", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({
+        name: "Hurricane 3",
+        manufacturer: "DHS",
+        category: "rubber",
+        description: "A crisp, fast rubber with excellent control.",
+      })
+    );
+    expect(result.valid).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+
+  it("rejects a description longer than 2000 chars", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({
+        name: "Hurricane 3",
+        manufacturer: "DHS",
+        category: "rubber",
+        description: "x".repeat(2001),
+      })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.description).toMatch(/2000/);
+  });
 });
 
 /**

@@ -141,6 +141,7 @@ export async function action({ request, context }: Route.ActionArgs) {
             category: submission.category,
             subcategory: submission.subcategory,
             specifications: submission.specifications,
+            description: submission.description,
             image_key: submission.image_key,
           });
         }

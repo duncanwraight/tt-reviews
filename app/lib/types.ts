@@ -93,6 +93,7 @@ export interface Equipment {
   subcategory?: "inverted" | "long_pips" | "anti" | "short_pips";
   manufacturer: string;
   specifications: Record<string, unknown>;
+  description?: string;
   image_url?: string;
   image_key?: string; // R2 storage key for equipment photo
   image_etag?: string;

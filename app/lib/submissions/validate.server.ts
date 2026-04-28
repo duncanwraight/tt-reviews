@@ -44,6 +44,7 @@ const SUBMISSION_CONSTRAINTS: Record<
     manufacturer: { required: true, spec: { kind: "text", maxLength: 200 } },
     category: { required: true, spec: { kind: "text", maxLength: 50 } },
     subcategory: { spec: { kind: "text", maxLength: 50 } },
+    description: { spec: { kind: "text", maxLength: 2000 } },
     // Per-spec inputs (`spec_*`) are validated separately by
     // parseEquipmentSpecs, which also produces the typed JSONB. They
     // can't be enumerated here because the field set depends on the

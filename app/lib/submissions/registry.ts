@@ -130,6 +130,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           required: false,
           layout: { colSpan: 2 },
         },
+        createTextAreaField(
+          "description",
+          "Description (Optional)",
+          "Marketing-style description from the manufacturer (e.g., 'crisp, fast blade with excellent control...')"
+        ),
       ],
     },
     discord: {
@@ -154,6 +159,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         ...createOptionalDiscordField("Subcategory", data.subcategory),
         createSubmitterField(data.submitter_email),
         ...createSpecificationsField(data.specifications),
+        ...createTruncatedTextField("Description", data.description),
       ],
     }),
   },
