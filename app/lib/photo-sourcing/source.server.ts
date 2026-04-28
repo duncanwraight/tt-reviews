@@ -213,53 +213,68 @@ export async function sourcePhotosForEquipment(
       .filter((u): u is string => !!u)
   );
 
-  const inserts: Array<
-    Omit<SourcedCandidate, "id"> & { equipment_id: string }
-  > = [];
+  // Pre-filter dedupe: drop candidates whose pageUrl matches an existing
+  // pending row, AND drop within-list duplicates (keep first). The
+  // original loop did this incrementally via `seenUrls.add` mid-iter —
+  // doing it up-front lets us run downloads in parallel without losing
+  // dedupe semantics.
+  const dedupSeen = new Set(seenUrls);
+  const filtered = resolved.filter(candidate => {
+    if (!candidate.pageUrl) return true;
+    if (dedupSeen.has(candidate.pageUrl)) return false;
+    dedupSeen.add(candidate.pageUrl);
+    return true;
+  });
 
-  for (const candidate of resolved) {
-    if (candidate.pageUrl && seenUrls.has(candidate.pageUrl)) continue;
+  type Insert = Omit<SourcedCandidate, "id"> & { equipment_id: string };
 
-    const downloaded = await fetchImageBytes(candidate.imageUrl, fetchImpl);
-    if (!downloaded) continue;
+  // Parallel downloads + R2 PUTs. `resolved` is already capped at
+  // DEFAULT_LIMIT (6 by default) so Promise.all bounds the concurrency
+  // naturally. randomId() is called only after a successful download to
+  // preserve the original "no UUID burned for failed downloads" order.
+  const outcomes = await Promise.all(
+    filtered.map(async (candidate): Promise<Insert | null> => {
+      const downloaded = await fetchImageBytes(candidate.imageUrl, fetchImpl);
+      if (!downloaded) return null;
 
-    const ext = extensionFromContentType(
-      downloaded.contentType,
-      candidate.imageUrl
-    );
-    const r2Key = `equipment/${row.slug}/cand/${randomId()}.${ext}`;
+      const ext = extensionFromContentType(
+        downloaded.contentType,
+        candidate.imageUrl
+      );
+      const r2Key = `equipment/${row.slug}/cand/${randomId()}.${ext}`;
 
-    try {
-      await bucket.put(r2Key, downloaded.bytes, {
-        httpMetadata: {
-          contentType: downloaded.contentType ?? "application/octet-stream",
-        },
-        customMetadata: {
-          equipment_id: row.id,
-          equipment_slug: row.slug,
-          source_label: candidate.tierLabel,
-          source_host: candidate.host,
-          uploadedAt: new Date().toISOString(),
-        },
-      });
-    } catch {
-      continue;
-    }
+      try {
+        await bucket.put(r2Key, downloaded.bytes, {
+          httpMetadata: {
+            contentType: downloaded.contentType ?? "application/octet-stream",
+          },
+          customMetadata: {
+            equipment_id: row.id,
+            equipment_slug: row.slug,
+            source_label: candidate.tierLabel,
+            source_host: candidate.host,
+            uploadedAt: new Date().toISOString(),
+          },
+        });
+      } catch {
+        return null;
+      }
 
-    inserts.push({
-      equipment_id: row.id,
-      r2_key: r2Key,
-      source_url: candidate.pageUrl,
-      image_source_host: candidate.host || null,
-      source_label: candidate.tierLabel,
-      match_kind: candidate.match,
-      tier: candidate.tier,
-      width: null,
-      height: null,
-    });
+      return {
+        equipment_id: row.id,
+        r2_key: r2Key,
+        source_url: candidate.pageUrl,
+        image_source_host: candidate.host || null,
+        source_label: candidate.tierLabel,
+        match_kind: candidate.match,
+        tier: candidate.tier,
+        width: null,
+        height: null,
+      };
+    })
+  );
 
-    if (candidate.pageUrl) seenUrls.add(candidate.pageUrl);
-  }
+  const inserts = outcomes.filter((o): o is Insert => o !== null);
 
   let candidates: SourcedCandidate[] = [];
   if (inserts.length > 0) {

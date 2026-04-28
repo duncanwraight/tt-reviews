@@ -393,6 +393,54 @@ describe("sourcePhotosForEquipment", () => {
     );
   });
 
+  it("downloads candidates in parallel rather than serially", async () => {
+    const { supabase } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket } = makeBucket();
+    const randomId = deterministicIds("uuid");
+
+    const resolve = vi.fn().mockResolvedValue([
+      fakeResolved({
+        imageUrl: "https://r.example/a.png",
+        pageUrl: "https://r.example/a",
+      }),
+      fakeResolved({
+        imageUrl: "https://r.example/b.png",
+        pageUrl: "https://r.example/b",
+      }),
+      fakeResolved({
+        imageUrl: "https://r.example/c.png",
+        pageUrl: "https://r.example/c",
+      }),
+    ]);
+
+    let active = 0;
+    let maxActive = 0;
+    const fetchImpl = (async () => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      // 20ms is enough to ensure the next task's fetch starts before
+      // this one resolves (event loop ticks are sub-ms).
+      await new Promise<void>(r => setTimeout(r, 20));
+      active -= 1;
+      return new Response(PNG.slice(), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      { deps: { resolve, fetchImpl, randomId } }
+    );
+
+    expect(result.insertedCount).toBe(3);
+    // Serial would mean maxActive === 1. Parallel means maxActive > 1.
+    expect(maxActive).toBeGreaterThan(1);
+  });
+
   it("throws when the equipment slug doesn't exist", async () => {
     const { supabase } = makeSupabase({ equipment: [] });
     const { bucket } = makeBucket();
