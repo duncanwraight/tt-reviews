@@ -94,15 +94,18 @@ When editing `.github/workflows/`, use the latest major of any third-party actio
 
 `gh run watch --exit-status <id>` is unreliable as a green/red signal — it propagates the latest non-zero step exit code, so a `continue-on-error: true` step that exited non-zero will make `watch` return 1 even when the run conclusion is `success`. Use `gh run view <id> --json status,conclusion` instead — `conclusion` is authoritative.
 
-**Polling pattern (Claude Code).** Don't chain `sleep 270 && gh run view ...` — the harness blocks long leading sleeps and you'll get a `Blocked:` error. Use a backgrounded `until` loop instead so the wait happens inside the loop body, not in front of the command:
+**Use `./scripts/ci-wait.sh`.** It polls a single run id (or the latest run on the current branch if none given), prints the conclusion, dumps `gh run view --log-failed` on red, and exits 0 / 1 based on the authoritative conclusion. One stable command form means a single `Bash(./scripts/ci-wait.sh:*)` allowlist entry covers every invocation — Claude Code shouldn't have to ask permission per id.
 
 ```sh
-# run with run_in_background: true — fires one notification on completion
-until [ "$(gh run view <id> --json status --jq .status)" = "completed" ]; do sleep 15; done
-gh run view <id> --json status,conclusion --jq '{status, conclusion}'
+./scripts/ci-wait.sh                     # latest run on the current branch
+./scripts/ci-wait.sh 25072290590         # specific run id
+./scripts/ci-wait.sh --branch main       # latest run on main
+CI_WAIT_INTERVAL=15 ./scripts/ci-wait.sh # tighter poll for short jobs
 ```
 
-Same shape works for `gh pr checks`, deploy status, or anything else where you're waiting on a single terminal event. For multi-event streams (each step result as it lands) reach for the Monitor tool instead.
+Run with `run_in_background: true` — the harness fires one notification on completion, no need to sleep or poll from the conversation. Don't chain `sleep 270 && gh run view ...` from the conversation — the harness blocks long leading sleeps; the wrapper does the waiting inside its own process.
+
+For `gh pr checks`, deploy status, or any other "one terminal event" wait, the same backgrounded-script-with-internal-loop shape applies. For multi-event streams (each step result as it lands) reach for the Monitor tool instead.
 
 ## `/ultrareview` — opt-in second opinion
 
