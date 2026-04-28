@@ -23,8 +23,13 @@ import {
   type AdminActivityEntry,
 } from "~/lib/admin/activity.server";
 import { AdminActivityWidget } from "~/components/admin/AdminActivityWidget";
+import { EquipmentPhotoCoverageCard } from "~/components/admin/EquipmentPhotoCoverageCard";
 import { getEquipmentSimilarStatus } from "~/lib/database/equipment";
 import { formatRelativeTime } from "~/lib/date";
+import {
+  loadCoverageCounts,
+  type CoverageCounts,
+} from "~/lib/photo-sourcing/queue-stats.server";
 
 const pendingTotal = (s: StatusCounts) =>
   s.pending + s.awaiting_second_approval;
@@ -67,7 +72,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const csrfToken = await issueCSRFToken(request, context, user.id);
 
   // Safe to use admin client (bypasses RLS) — user is verified admin above.
-  const [counts, nextPending, recentActivity, similarStatus] =
+  const [counts, nextPending, recentActivity, similarStatus, photoCoverage] =
     await Promise.all([
       loadDashboardCountsSafe(supabase),
       findOldestPendingTarget(supabase).catch(error => {
@@ -90,6 +95,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         supabase,
         context: createLogContext("admin-index"),
       }),
+      loadCoverageCounts(supabase).catch(error => {
+        Logger.error(
+          "Error loading equipment photo coverage",
+          createLogContext("admin-index"),
+          error instanceof Error ? error : undefined
+        );
+        return null as CoverageCounts | null;
+      }),
     ]);
   const { totals, byStatus } = counts;
 
@@ -98,6 +111,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     nextPending,
     recentActivity,
     similarStatus,
+    photoCoverage,
     stats: {
       equipmentSubmissions: totals.equipmentSubmissions,
       playerSubmissions: totals.playerSubmissions,
@@ -133,8 +147,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
-  const { stats, nextPending, recentActivity, csrfToken, similarStatus } =
-    loaderData;
+  const {
+    stats,
+    nextPending,
+    recentActivity,
+    csrfToken,
+    similarStatus,
+    photoCoverage,
+  } = loaderData;
 
   const queueRows = [
     {
@@ -327,8 +347,8 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
 
-        {/* Content Stats + Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Content Stats + Photo Coverage + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Content Statistics
@@ -349,6 +369,10 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
               ))}
             </div>
           </div>
+
+          {photoCoverage && (
+            <EquipmentPhotoCoverageCard counts={photoCoverage} />
+          )}
 
           <AdminActivityWidget entries={recentActivity} />
         </div>

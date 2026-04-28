@@ -15,6 +15,11 @@ import {
 } from "~/lib/photo-sourcing/review.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
 import { buildProvidersFromEnv } from "~/lib/photo-sourcing/providers/factory";
+import {
+  loadFullPhotoStats,
+  type FullPhotoStats,
+} from "~/lib/photo-sourcing/queue-stats.server";
+import { EquipmentPhotoStatsBanner } from "~/components/admin/EquipmentPhotoStatsBanner";
 import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 export function meta({}: Route.MetaArgs) {
@@ -49,10 +54,36 @@ interface EquipmentReviewRow {
 
 const CATEGORY_ORDER: Record<string, number> = { blade: 0, rubber: 1 };
 
+async function loadStatsSafe(
+  supabaseAdmin: ReturnType<
+    typeof import("~/lib/database.server").createSupabaseAdminClient
+  >,
+  context: import("react-router").AppLoadContext
+): Promise<FullPhotoStats | null> {
+  try {
+    const env = context.cloudflare.env as unknown as {
+      PROVIDER_QUOTA?: import("~/lib/photo-sourcing/providers/budget").BudgetKV;
+    };
+    return await loadFullPhotoStats(supabaseAdmin, { kv: env.PROVIDER_QUOTA });
+  } catch (error) {
+    Logger.error(
+      "equipment-photos: stats load failed",
+      createLogContext("admin-equipment-photos"),
+      error instanceof Error ? error : undefined
+    );
+    return null;
+  }
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const gate = await ensureAdminLoader(request, context);
   if (gate instanceof Response) return gate;
   const { sbServerClient, user, supabaseAdmin, csrfToken } = gate;
+
+  // Stats run alongside the candidate-row query so the banner renders
+  // on the same loader pass. Failures here are logged and returned as
+  // null — the queue UI works without the banner.
+  const statsPromise = loadStatsSafe(supabaseAdmin, context);
 
   // Query candidates first, then look up the (much smaller) set of
   // equipment rows that have any. The opposite order would push a
@@ -73,7 +104,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       candidateError instanceof Error ? candidateError : undefined
     );
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken },
+      {
+        items: [] as EquipmentReviewRow[],
+        user,
+        csrfToken,
+        stats: await statsPromise,
+      },
       { headers: sbServerClient.headers }
     );
   }
@@ -98,7 +134,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const candidateEquipmentIds = [...candidatesByEquipment.keys()];
   if (candidateEquipmentIds.length === 0) {
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken },
+      {
+        items: [] as EquipmentReviewRow[],
+        user,
+        csrfToken,
+        stats: await statsPromise,
+      },
       { headers: sbServerClient.headers }
     );
   }
@@ -117,7 +158,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipmentError instanceof Error ? equipmentError : undefined
     );
     return data(
-      { items: [] as EquipmentReviewRow[], user, csrfToken },
+      {
+        items: [] as EquipmentReviewRow[],
+        user,
+        csrfToken,
+        stats: await statsPromise,
+      },
       { headers: sbServerClient.headers }
     );
   }
@@ -142,7 +188,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       return a.name.localeCompare(b.name);
     });
 
-  return data({ items, user, csrfToken }, { headers: sbServerClient.headers });
+  return data(
+    { items, user, csrfToken, stats: await statsPromise },
+    { headers: sbServerClient.headers }
+  );
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -266,7 +315,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function AdminEquipmentPhotos({
   loaderData,
 }: Route.ComponentProps) {
-  const { items, csrfToken } = loaderData;
+  const { items, csrfToken, stats } = loaderData;
   const navigation = useNavigation();
 
   // Any in-flight POST to a route under /admin/equipment-photos —
@@ -282,6 +331,7 @@ export default function AdminEquipmentPhotos({
 
   return (
     <div className="space-y-6">
+      {stats && <EquipmentPhotoStatsBanner stats={stats} />}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">
           Equipment Photo Review Queue
