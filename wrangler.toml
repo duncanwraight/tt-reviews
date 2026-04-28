@@ -48,6 +48,12 @@ crons = ["0 3 * * *"]
 ENVIRONMENT = "production"
 SITE_URL = "https://tabletennis.reviews"
 R2_BUCKET_NAME = "tt-reviews-prod"
+# DISCORD_ALERTS_CHANNEL_ID is intentionally set as a wrangler secret in
+# prod (not here) — top-level [vars] wins over .dev.vars under
+# `react-router dev`, so listing it here would poison local dev with the
+# prod channel ID. Set via:
+#   wrangler secret put DISCORD_ALERTS_CHANNEL_ID
+# See docs/OBSERVABILITY.md.
 
 # Local dev settings
 [env.dev]

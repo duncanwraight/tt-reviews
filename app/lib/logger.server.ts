@@ -5,6 +5,11 @@
  * and proper log levels for development vs production environments.
  */
 
+import {
+  getInstalledAlerter,
+  getCurrentWaitUntil,
+} from "./alerts/discord-alerter.server";
+
 export interface LogContext {
   requestId?: string;
   userId?: string;
@@ -164,27 +169,40 @@ class LoggerService {
         break;
     }
 
-    // In production, could send to external logging service
-    if (!this.isDevelopment && logEntry.level === LogLevel.ERROR) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.sendToExternalService(logEntry);
-    }
-  }
-
-  /**
-   * Send critical logs to external service (placeholder for future implementation)
-   */
-  private async sendToExternalService(logEntry: LogMetadata): Promise<void> {
-    // TODO: Implement external logging service integration
-    // Could use Cloudflare Analytics Engine, Logpush, or third-party service
-    try {
-      // Example: await fetch('https://logging-service.com/logs', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(logEntry)
-      // });
-    } catch (error) {
-      // Silently fail external logging to avoid recursive logging issues
+    // Discord alerter — fires on every error log. Gating + dedup live on
+    // the alerter itself; this is just the fan-out point. Drained via
+    // ctx.waitUntil so the fetch survives the request lifecycle.
+    if (logEntry.level === LogLevel.ERROR) {
+      const alerter = getInstalledAlerter();
+      const waitUntil = getCurrentWaitUntil();
+      if (alerter) {
+        const promise = alerter.notify({
+          message: logEntry.message,
+          source:
+            typeof logEntry.context.source === "string"
+              ? logEntry.context.source
+              : undefined,
+          route:
+            typeof logEntry.context.route === "string"
+              ? logEntry.context.route
+              : undefined,
+          requestId:
+            typeof logEntry.context.requestId === "string"
+              ? logEntry.context.requestId
+              : undefined,
+          error: logEntry.error
+            ? { name: logEntry.error.name, message: logEntry.error.message }
+            : undefined,
+        });
+        if (waitUntil) {
+          waitUntil(promise);
+        } else {
+          // Scheduled-handler or non-request paths may not have ctx
+          // installed yet; let the promise drain naturally and swallow
+          // rejections so the logger never throws.
+          promise.catch(() => {});
+        }
+      }
     }
   }
 

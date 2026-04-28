@@ -37,6 +37,12 @@ DISCORD_PUBLIC_KEY=your_dev_discord_public_key
 # whatever's listed here, so Playwright Discord specs pass without
 # appending it. In prod, only the listed role IDs apply.
 DISCORD_ALLOWED_ROLES=role_id_1,role_id_2
+# DISCORD_ALERTS_CHANNEL_ID receives error alerts (Logger.error → Discord
+# embed). Leave unset locally to silence the alerter during normal dev.
+# Set to a dedicated test channel ID if you want to exercise the e2e
+# alerts spec or eyeball alert formatting against your dev guild. Prod
+# value lives in wrangler.toml [vars].
+# DISCORD_ALERTS_CHANNEL_ID=your_dev_alerts_channel_id
 
 # Auto Admin Promotion
 # Comma-separated list of email addresses that should be automatically promoted to admin

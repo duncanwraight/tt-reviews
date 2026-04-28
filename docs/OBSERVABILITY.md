@@ -7,8 +7,9 @@ How to see what's happening in production — written for Claude Code and humans
 - Live-tail everything: `npm run logs`
 - Live-tail errors only: `npm run logs:errors`
 - Uncaught errors have a stable tag (`source:"worker-entry"`) so they can be filtered, see [Stable error tags](#stable-error-tags) below.
+- Every `Logger.error` in prod also fires a Discord embed into `#alerts` — see [Discord error alerts](#discord-error-alerts) below.
 
-No paid service (Sentry, Datadog, etc.) is wired in. We rely on Cloudflare Workers Observability (already enabled in `wrangler.toml`), `wrangler tail`, and the Cloudflare Logs API. All free, all Claude-Code-compatible.
+No paid service (Sentry, Datadog, etc.) is wired in. We rely on Cloudflare Workers Observability (already enabled in `wrangler.toml`), `wrangler tail`, the Cloudflare Logs API, and a Discord webhook for active paging. All free, all Claude-Code-compatible.
 
 ## Authentication
 
@@ -118,3 +119,38 @@ Shows the version IDs, authors, and messages. Useful when a rollback is in play 
 | "What errors happened overnight?"        | Cloudflare dashboard → Workers → Logs                                        |
 | "Which version is live?"                 | `npx wrangler deployments list`                                              |
 | "What's the stack trace for a known 5xx" | `wrangler tail --format=json --search "source:worker-entry"` during a repro. |
+
+## Discord error alerts
+
+Every `Logger.error` call fans out to a Discord embed posted into `#alerts` in the project Discord. This is the primary "something is broken" page — without it, you'd only know about a prod bug if you happened to be tailing logs or a user complained.
+
+### How it works
+
+`workers/app.ts` calls `installAlerter(env, ctx)` at the top of `fetch()` and `scheduled()`. The alerter is a module singleton (`app/lib/alerts/discord-alerter.server.ts`) with per-isolate dedup state. `Logger.error` then drains `alerter.notify(...)` through `ctx.waitUntil` so the POST survives the request lifecycle without blocking the response.
+
+The alert is short by design — title (the error message), env, source, route, request ID, error name+message. No stack traces. If you need stacks, `wrangler tail` is one click away from the alert.
+
+### Gating
+
+The alerter is silent unless **both** are true:
+
+- `DISCORD_ALERTS_CHANNEL_ID` is set and not a placeholder
+- `DISCORD_BOT_TOKEN` is set, real-looking (≥50 chars), and not a placeholder
+
+In CI e2e the channel ID is set to the test channel but the bot token is `stub`; the alerter records the attempt for the e2e spec to verify but doesn't actually POST. TT-83 tracks fixing CI Discord credentials so e2e can round-trip through Discord directly.
+
+In normal local dev the channel ID is unset → no-op. Set `DISCORD_ALERTS_CHANNEL_ID` in your `.dev.vars` if you want to exercise the e2e spec or eyeball the embed in your dev guild.
+
+### Dedup
+
+In-memory `Map<message, lastFiredAt>` per isolate, 5-minute window. Cross-isolate dupes during an active incident are acceptable (and useful — multiple isolates firing the same error tells you something is widespread). Dedup is keyed by error message, so distinct errors during a cascade still all fire.
+
+### Setup
+
+Prod requires three things wired up:
+
+1. `wrangler secret put DISCORD_ALERTS_CHANNEL_ID` — the prod channel ID. Set as a secret rather than a `[vars]` entry because top-level `[vars]` wins over `.dev.vars` under `react-router dev`, so listing it there would poison local dev.
+2. `wrangler secret put DISCORD_BOT_TOKEN` — already required for the moderation bot. Reused by the alerter.
+3. The bot must be a member of the alerts channel with **Send Messages** + **Embed Links** permissions in that channel.
+
+`validateEnv` in `app/lib/env.server.ts` will 503 prod requests if `DISCORD_ALERTS_CHANNEL_ID` is missing, so a forgotten secret surfaces on first request after deploy rather than silently failing.

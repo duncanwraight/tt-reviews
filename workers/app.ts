@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getValidatedEnv } from "../app/lib/env.server";
 import { Logger, createLogContext } from "../app/lib/logger.server";
 import { recomputeSimilarEquipment } from "../app/lib/equipment/recompute-similar.server";
+import { installAlerter } from "../app/lib/alerts/discord-alerter.server";
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -55,6 +56,12 @@ export default {
       });
     }
 
+    // Install the Discord alerter for this request. The alerter is a
+    // module singleton with per-isolate dedup state; install just refreshes
+    // the env reference and per-request waitUntil ctx so Logger.error can
+    // fire alerts without blocking the response. See app/lib/alerts/.
+    installAlerter(env as unknown as Record<string, string>, ctx);
+
     try {
       return await requestHandler(request, {
         cloudflare: { env, ctx },
@@ -99,6 +106,9 @@ export default {
       );
       return;
     }
+
+    // Same alerter install as the fetch path so cron failures alert too.
+    installAlerter(env as unknown as Record<string, string>, ctx);
 
     const ctxLog = createLogContext("scheduled", {
       source: "scheduled",

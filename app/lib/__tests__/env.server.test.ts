@@ -11,6 +11,7 @@ const PROD_OK = {
   DISCORD_PUBLIC_KEY: "deadbeef0123456789abcdef",
   DISCORD_BOT_TOKEN: "bot-token-with-real-looking-value",
   DISCORD_CHANNEL_ID: "123456789012345678",
+  DISCORD_ALERTS_CHANNEL_ID: "987654321098765432",
   DISCORD_ALLOWED_ROLES: "role_1,role_2",
   AUTO_ADMIN_EMAILS: "admin@example.com",
 };
