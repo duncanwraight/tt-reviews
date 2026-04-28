@@ -26,6 +26,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         equipmentProcessed: result.equipmentProcessed,
         pairsWritten: result.pairsWritten,
         durationMs: result.durationMs,
+        runStart: result.runStart,
       },
       { headers: sbServerClient.headers }
     );

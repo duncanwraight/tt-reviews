@@ -648,6 +648,46 @@ describe("equipment.getRankedSimilarEquipment", () => {
   });
 });
 
+describe("equipment.getEquipmentSimilarStatus", () => {
+  it("returns lastRun + pairCount populated from equipment_similar", async () => {
+    const supabase = makeSupabase({
+      tables: {
+        equipment_similar: {
+          data: { computed_at: "2026-04-28T11:00:00.000Z" },
+          count: 1386,
+        },
+      },
+    });
+    const result = await equipment.getEquipmentSimilarStatus(makeCtx(supabase));
+    expect(result).toEqual({
+      lastRun: "2026-04-28T11:00:00.000Z",
+      pairCount: 1386,
+    });
+    const b = supabase._builders.get("equipment_similar")!;
+    expect(b.calls).toContainEqual({
+      method: "order",
+      args: ["computed_at", { ascending: false }],
+    });
+    expect(b.calls).toContainEqual({ method: "limit", args: [1] });
+  });
+
+  it("returns null lastRun + 0 pairCount when table is empty", async () => {
+    const supabase = makeSupabase({
+      tables: { equipment_similar: { data: null, count: 0 } },
+    });
+    const result = await equipment.getEquipmentSimilarStatus(makeCtx(supabase));
+    expect(result).toEqual({ lastRun: null, pairCount: 0 });
+  });
+
+  it("falls back to {null, 0} on query error", async () => {
+    const supabase = makeSupabase({
+      tables: { equipment_similar: { error: { message: "boom" } } },
+    });
+    const result = await equipment.getEquipmentSimilarStatus(makeCtx(supabase));
+    expect(result).toEqual({ lastRun: null, pairCount: 0 });
+  });
+});
+
 describe("equipment.getPlayersUsingEquipment", () => {
   it("deduplicates players across multiple setup rows", async () => {
     const setups = [

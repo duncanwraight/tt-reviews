@@ -550,6 +550,53 @@ export async function getRankedSimilarEquipment(
   ).catch((): Result => []);
 }
 
+/**
+ * Status snapshot for the equipment_similar precomputed table — surfaces
+ * the most recent recompute timestamp + total pair count to the admin
+ * dashboard. Two queries: the recompute job stamps every row in a single
+ * run with the same `computed_at`, so MAX(computed_at) is the run-time;
+ * COUNT(*) reflects the current state because the recompute prunes stale
+ * rows after each run.
+ */
+export async function getEquipmentSimilarStatus(
+  ctx: DatabaseContext
+): Promise<{ lastRun: string | null; pairCount: number }> {
+  type Status = { lastRun: string | null; pairCount: number };
+  return withLogging<Status>(ctx, "get_equipment_similar_status", async () => {
+    const lastRunResult = await ctx.supabase
+      .from("equipment_similar")
+      .select("computed_at")
+      .order("computed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastRunResult.error) {
+      return { data: null as Status | null, error: lastRunResult.error };
+    }
+
+    const countResult = await ctx.supabase
+      .from("equipment_similar")
+      .select("*", { count: "exact", head: true });
+
+    if (countResult.error) {
+      return { data: null as Status | null, error: countResult.error };
+    }
+
+    const lastRunRow = lastRunResult.data as
+      | { computed_at: string }
+      | null
+      | undefined;
+
+    return {
+      data: {
+        lastRun: lastRunRow?.computed_at ?? null,
+        pairCount: countResult.count ?? 0,
+      } satisfies Status,
+      error: null,
+    };
+  }).catch((): Status => ({ lastRun: null, pairCount: 0 }));
+}
+
 export async function getPlayersUsingEquipment(
   ctx: DatabaseContext,
   equipmentId: string

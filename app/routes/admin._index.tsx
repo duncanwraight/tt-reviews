@@ -23,6 +23,8 @@ import {
   type AdminActivityEntry,
 } from "~/lib/admin/activity.server";
 import { AdminActivityWidget } from "~/components/admin/AdminActivityWidget";
+import { getEquipmentSimilarStatus } from "~/lib/database/equipment";
+import { formatRelativeTime } from "~/lib/date";
 
 const pendingTotal = (s: StatusCounts) =>
   s.pending + s.awaiting_second_approval;
@@ -65,31 +67,37 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const csrfToken = await issueCSRFToken(request, context, user.id);
 
   // Safe to use admin client (bypasses RLS) — user is verified admin above.
-  const [counts, nextPending, recentActivity] = await Promise.all([
-    loadDashboardCountsSafe(supabase),
-    findOldestPendingTarget(supabase).catch(error => {
-      Logger.error(
-        "Error finding oldest pending submission",
-        createLogContext("admin-index"),
-        error instanceof Error ? error : undefined
-      );
-      return null as OldestPendingTarget | null;
-    }),
-    getRecentAdminActivity(supabase).catch(error => {
-      Logger.error(
-        "Error fetching recent admin activity",
-        createLogContext("admin-index"),
-        error instanceof Error ? error : undefined
-      );
-      return [] as AdminActivityEntry[];
-    }),
-  ]);
+  const [counts, nextPending, recentActivity, similarStatus] =
+    await Promise.all([
+      loadDashboardCountsSafe(supabase),
+      findOldestPendingTarget(supabase).catch(error => {
+        Logger.error(
+          "Error finding oldest pending submission",
+          createLogContext("admin-index"),
+          error instanceof Error ? error : undefined
+        );
+        return null as OldestPendingTarget | null;
+      }),
+      getRecentAdminActivity(supabase).catch(error => {
+        Logger.error(
+          "Error fetching recent admin activity",
+          createLogContext("admin-index"),
+          error instanceof Error ? error : undefined
+        );
+        return [] as AdminActivityEntry[];
+      }),
+      getEquipmentSimilarStatus({
+        supabase,
+        context: createLogContext("admin-index"),
+      }),
+    ]);
   const { totals, byStatus } = counts;
 
   return data({
     csrfToken,
     nextPending,
     recentActivity,
+    similarStatus,
     stats: {
       equipmentSubmissions: totals.equipmentSubmissions,
       playerSubmissions: totals.playerSubmissions,
@@ -125,7 +133,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
-  const { stats, nextPending, recentActivity, csrfToken } = loaderData;
+  const { stats, nextPending, recentActivity, csrfToken, similarStatus } =
+    loaderData;
 
   const queueRows = [
     {
@@ -344,7 +353,10 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           <AdminActivityWidget entries={recentActivity} />
         </div>
 
-        <RecomputeSimilarSection csrfToken={csrfToken} />
+        <RecomputeSimilarSection
+          csrfToken={csrfToken}
+          initialStatus={similarStatus}
+        />
       </div>
     </div>
   );
@@ -352,20 +364,32 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
 interface RecomputeSimilarSectionProps {
   csrfToken: string;
+  initialStatus: { lastRun: string | null; pairCount: number };
 }
 
-function RecomputeSimilarSection({ csrfToken }: RecomputeSimilarSectionProps) {
+function RecomputeSimilarSection({
+  csrfToken,
+  initialStatus,
+}: RecomputeSimilarSectionProps) {
   const fetcher = useFetcher<
     | {
         success: true;
         equipmentProcessed: number;
         pairsWritten: number;
         durationMs: number;
+        runStart: string;
       }
     | { success: false; error: string }
   >();
   const isSubmitting = fetcher.state !== "idle";
   const result = fetcher.data;
+
+  // After a manual recompute completes, the action result becomes the source
+  // of truth without needing a page reload. Loader value is the fallback.
+  const status =
+    result && result.success
+      ? { lastRun: result.runStart, pairCount: result.pairsWritten }
+      : initialStatus;
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mt-6">
@@ -376,6 +400,30 @@ function RecomputeSimilarSection({ csrfToken }: RecomputeSimilarSectionProps) {
         Rebuild the precomputed similarity table. The daily 03:00 UTC cron does
         this automatically — use this button after a fresh deploy or to debug.
       </p>
+
+      <p
+        className="text-sm text-gray-700 mb-4"
+        data-testid="recompute-similar-status"
+      >
+        {status.lastRun ? (
+          <>
+            Last run:{" "}
+            <span data-testid="recompute-similar-last-run">
+              {formatRelativeTime(status.lastRun)}
+            </span>
+            {" — "}
+            <span data-testid="recompute-similar-pair-count">
+              {status.pairCount.toLocaleString()}
+            </span>{" "}
+            pairs stored.
+          </>
+        ) : (
+          <span data-testid="recompute-similar-never-run">
+            Never run — use the button below to populate the similarity table.
+          </span>
+        )}
+      </p>
+
       <fetcher.Form method="post" action="/admin/recompute-similar">
         <input type="hidden" name="_csrf" value={csrfToken} />
         <button

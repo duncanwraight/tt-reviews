@@ -33,3 +33,33 @@ export function formatDateLong(input: string | Date): string {
 function toDate(input: string | Date): Date {
   return input instanceof Date ? input : new Date(input);
 }
+
+/**
+ * Compact "time ago" label, computed against a reference instant (defaults
+ * to `Date.now()`). Caller passes `now` explicitly when SSR must produce a
+ * value tied to a specific timestamp (e.g. so a server-rendered "4 hours
+ * ago" stays consistent if the page is later inspected). Result is frozen
+ * at format time — it won't tick on the client without a re-render.
+ *
+ * Buckets: <60s "just now"; <60m "Nm ago"; <24h "Nh ago"; else "Nd ago".
+ */
+export function formatRelativeTime(
+  input: string | Date,
+  now: Date = new Date()
+): string {
+  const target = toDate(input);
+  const diffMs = now.getTime() - target.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "just now";
+
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "just now";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}

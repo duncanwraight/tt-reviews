@@ -37,6 +37,9 @@ export interface RecomputeResult {
   equipmentProcessed: number;
   pairsWritten: number;
   durationMs: number;
+  // ISO timestamp stamped on every row written this run — same value the
+  // status indicator's MAX(computed_at) query reads back.
+  runStart: string;
 }
 
 const UPSERT_CHUNK_SIZE = 500;
@@ -223,6 +226,7 @@ export async function recomputeSimilarEquipment(
     equipmentProcessed: equipment.length,
     pairsWritten: rows.length,
     durationMs,
+    runStart: runStart.toISOString(),
   };
 
   Logger.info("recompute-similar.done", ctxLog, result);
