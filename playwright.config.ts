@@ -47,5 +47,11 @@ export default defineConfig({
     timeout: 120_000,
     stdout: "pipe",
     stderr: "pipe",
+    env: {
+      // TT-92: makes the photo-sourcing factory return a stub provider
+      // so e2e queue tests don't hit Brave. The factory's real-Brave
+      // path is exercised by unit tests and by manual prod runs.
+      TEST_SOURCING_PROVIDER: "true",
+    },
   },
 });

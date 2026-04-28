@@ -183,6 +183,7 @@ jobs:
           DISCORD_GUILD_ID=${CI_DISCORD_GUILD_ID}
           DISCORD_ALLOWED_ROLES=role_e2e_moderator
           DISCORD_ALERTS_CHANNEL_ID=${CI_DISCORD_ALERTS_CHANNEL_ID}
+          TEST_SOURCING_PROVIDER=true
           EOF
 
       - name: E2E tests

@@ -313,3 +313,64 @@ test("non-admin user does not see the trim toggle", async ({ page }) => {
     await deleteUser(userId);
   }
 });
+
+// TT-92: end-to-end smoke for the photo-source queue. Verifies the
+// chain admin-click → action-route → queue.send → queue() handler →
+// processOneSourceMessage → DB writeback. The test stub provider
+// (TEST_SOURCING_PROVIDER=true, set by playwright.config.ts) returns
+// status='ok' with no candidates, so the consumer hits the
+// no-candidates branch and stamps image_sourcing_attempted_at — that's
+// the assertion target.
+//
+// Fully exercising auto-pick / review-queue paths requires fakeable
+// image bytes for R2 PUT, which would mean stubbing fetchImpl on the
+// queue side too. That's covered by unit tests (queue.test.ts);
+// here we just want the integration-level confidence that the queue
+// plumbing works under wrangler dev's Miniflare Queues.
+test("queue end-to-end: enqueue → consumer drains → attempted_at stamped", async ({
+  page,
+}) => {
+  const adminEmail = generateTestEmail("queueadm");
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+
+  const equipment = await getFirstEquipment();
+  const snapshot = await snapshotEquipmentImage(equipment.id);
+
+  // Reset to the unsourced state so 'Enqueue all unsourced' picks it
+  // up. Local seed typically leaves rows already-attempted; without
+  // this clear the click would enqueue zero messages.
+  await setEquipmentImage(equipment.id, {
+    image_key: null,
+    image_etag: null,
+    image_credit_text: null,
+    image_credit_link: null,
+    image_license_short: null,
+    image_license_url: null,
+    image_source_url: null,
+    image_skipped_at: null,
+    image_sourcing_attempted_at: null,
+    image_trim_kind: null,
+  });
+
+  try {
+    await login(page, adminEmail);
+    await page.goto("/admin/equipment-photos");
+    await page.getByTestId("enqueue-all-button").click();
+
+    // Poll for attempted_at to flip from null. The queue + consumer
+    // need a moment to wake up under Miniflare; 20s is conservative
+    // for a single-message drain.
+    const deadline = Date.now() + 20_000;
+    let after: EquipmentImageSnapshot | null = null;
+    while (Date.now() < deadline) {
+      after = await snapshotEquipmentImage(equipment.id);
+      if (after.image_sourcing_attempted_at) break;
+      await page.waitForTimeout(500);
+    }
+    expect(after?.image_sourcing_attempted_at).toBeTruthy();
+  } finally {
+    await setEquipmentImage(equipment.id, snapshot);
+    await deleteUser(adminId);
+  }
+});

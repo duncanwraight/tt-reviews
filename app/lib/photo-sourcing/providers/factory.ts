@@ -11,6 +11,7 @@
 
 import { braveProvider } from "./brave";
 import { withBudget, type BudgetKV, type BudgetRateLimit } from "./budget";
+import { testProvider } from "./test-provider";
 import type { Provider } from "./types";
 import { Logger, createLogContext } from "../../logger.server";
 
@@ -27,6 +28,10 @@ interface ProviderEnv {
   PROVIDER_QUOTA?: BudgetKV;
   BRAVE_MONTHLY_CAP?: string;
   BRAVE_DAILY_CAP?: string;
+  // TT-92: when "true", swap the real Brave provider for a
+  // deterministic test stub. Set by Playwright's webServer config and
+  // CI's e2e step. Never set in production.
+  TEST_SOURCING_PROVIDER?: string;
 }
 
 function parseCapOrDefault(raw: string | undefined, fallback: number): number {
@@ -36,6 +41,13 @@ function parseCapOrDefault(raw: string | undefined, fallback: number): number {
 }
 
 export function buildProvidersFromEnv(env: ProviderEnv): Provider[] {
+  if (env.TEST_SOURCING_PROVIDER === "true") {
+    Logger.info(
+      "photo-sourcing: TEST_SOURCING_PROVIDER active — using stub provider",
+      createLogContext("photo-sourcing-budget")
+    );
+    return [testProvider];
+  }
   if (!env.PROVIDER_QUOTA) {
     Logger.warn(
       "PROVIDER_QUOTA KV binding missing — sourcing will run without daily/monthly cap enforcement",
