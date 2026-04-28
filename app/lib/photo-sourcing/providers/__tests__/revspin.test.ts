@@ -92,7 +92,6 @@ describe("revspinProvider.resolveCandidates", () => {
         // EquipmentSeed in current types doesn't include subcategory
         // but the provider downcasts and reads it.
         subcategory: "long_pips",
-         
       } as any,
       ENV
     );
