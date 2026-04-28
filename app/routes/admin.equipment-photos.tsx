@@ -271,15 +271,14 @@ export default function AdminEquipmentPhotos({
 
   // Any in-flight POST to a route under /admin/equipment-photos —
   // bulk source, pick, reject, skip, re-source — counts as "the
-  // queue is mutating". Disable the bulk button + show a global
-  // hint while that's happening so the user knows their click
-  // landed (each chunk takes ~6s for Brave throttling).
+  // queue is mutating". Disable the action buttons + show a global
+  // hint while that's happening so the user knows their click landed.
   const isMutating =
     navigation.state === "submitting" &&
     (navigation.formAction?.startsWith("/admin/equipment-photos") ?? false);
-  const isBulkSourcing =
+  const isEnqueuing =
     isMutating &&
-    navigation.formAction === "/admin/equipment-photos-bulk-source";
+    navigation.formAction === "/admin/equipment-photos-enqueue-all";
 
   return (
     <div className="space-y-6">
@@ -291,20 +290,21 @@ export default function AdminEquipmentPhotos({
           <span className="text-sm text-gray-600">
             {items.length} item{items.length === 1 ? "" : "s"} pending
           </span>
-          <Form method="post" action="/admin/equipment-photos-bulk-source">
+          <Form method="post" action="/admin/equipment-photos-enqueue-all">
             <input type="hidden" name="_csrf" value={csrfToken} />
             <button
               type="submit"
               disabled={isMutating}
               className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              data-testid="enqueue-all-button"
             >
-              {isBulkSourcing ? (
+              {isEnqueuing ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Sourcing…
+                  Enqueuing…
                 </>
               ) : (
-                "Source next chunk"
+                "Enqueue all unsourced"
               )}
             </button>
           </Form>

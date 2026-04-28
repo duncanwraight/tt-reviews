@@ -82,6 +82,7 @@ function fakeSourcing(over: Partial<SourcingResult>): SourcingResult {
     equipment: { id: "eq-1", slug: "eq-1-slug", name: "x" },
     candidates: [],
     insertedCount: 0,
+    providerStatuses: [],
     ...over,
   };
 }

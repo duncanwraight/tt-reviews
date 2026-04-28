@@ -4,6 +4,13 @@ import { getValidatedEnv } from "../app/lib/env.server";
 import { Logger, createLogContext } from "../app/lib/logger.server";
 import { recomputeSimilarEquipment } from "../app/lib/equipment/recompute-similar.server";
 import { installAlerter } from "../app/lib/alerts/discord-alerter.server";
+import {
+  processOneSourceMessage,
+  computeRetryDelaySeconds,
+  type PhotoSourceMessage,
+} from "../app/lib/photo-sourcing/queue.server";
+import { buildProvidersFromEnv } from "../app/lib/photo-sourcing/providers/factory";
+import type { SourcingEnv } from "../app/lib/photo-sourcing/source.server";
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -136,4 +143,92 @@ export default {
 
     ctx.waitUntil(job);
   },
-} satisfies ExportedHandler<Env>;
+
+  // Photo-source queue consumer (TT-91). Each message represents one
+  // equipment row to source. max_batch_size=1 keeps retry semantics
+  // simple — ack the whole batch on success, retry the whole batch on
+  // transient. The message's `attempts` counter (distinct from CF's
+  // max_retries which resets on ack) drives our exponential backoff
+  // for out-of-budget retries; CF's max_retries handles thrown errors.
+  async queue(batch, env, ctx) {
+    const envCheck = getValidatedEnv(
+      env as unknown as Record<string, unknown>,
+      { isDev: import.meta.env.DEV }
+    );
+    if (!envCheck.ok) {
+      Logger.error(
+        "queue.env-validation-failed",
+        createLogContext("queue", {
+          source: "queue",
+          queue: batch.queue,
+          problems: envCheck.problems.join("; "),
+        })
+      );
+      // Throw so CF retries the batch when config is fixed.
+      throw new Error(`queue: env validation failed`);
+    }
+
+    installAlerter(env as unknown as Record<string, string>, ctx);
+
+    const envVars = env as unknown as Record<string, string>;
+    const supabase = createClient(
+      envVars.SUPABASE_URL,
+      envVars.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const providers = buildProvidersFromEnv(
+      env as unknown as Parameters<typeof buildProvidersFromEnv>[0]
+    );
+    const triggeredBy = "queue-consumer";
+
+    const queueEnv = env as unknown as {
+      IMAGE_BUCKET: R2Bucket;
+      PHOTO_SOURCE_QUEUE: Queue<PhotoSourceMessage>;
+    };
+
+    for (const msg of batch.messages) {
+      const ctxLog = createLogContext("queue", {
+        queue: batch.queue,
+        slug: msg.body.slug,
+        attempts: msg.body.attempts ?? 0,
+      });
+
+      const outcome = await processOneSourceMessage(
+        supabase,
+        queueEnv.IMAGE_BUCKET,
+        envVars as unknown as SourcingEnv,
+        providers,
+        triggeredBy,
+        msg.body
+      );
+
+      if (outcome.status === "transient") {
+        const attempts = (msg.body.attempts ?? 0) + 1;
+        const delaySeconds = computeRetryDelaySeconds(attempts);
+        Logger.info("queue.transient.requeue", ctxLog, {
+          reason: outcome.reason,
+          delaySeconds,
+          attempts,
+        });
+        // Send a fresh message with bumped attempts; ack the original
+        // so CF's max_retries doesn't double-count this against the
+        // hard retry budget (those are reserved for thrown errors).
+        await queueEnv.PHOTO_SOURCE_QUEUE.send(
+          { slug: msg.body.slug, attempts },
+          { delaySeconds }
+        );
+        msg.ack();
+        continue;
+      }
+
+      if (outcome.status === "error") {
+        Logger.error("queue.message.error", ctxLog, new Error(outcome.message));
+        // Throw to let CF retry via max_retries; eventually DLQ.
+        msg.retry();
+        continue;
+      }
+
+      Logger.info("queue.message.processed", ctxLog, { outcome });
+      msg.ack();
+    }
+  },
+} satisfies ExportedHandler<Env, PhotoSourceMessage>;

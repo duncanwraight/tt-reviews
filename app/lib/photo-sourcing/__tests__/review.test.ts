@@ -483,6 +483,7 @@ describe("resourceEquipment", () => {
       equipment: { id: "eq-1", slug: "stiga-airoc-m", name: "Stiga Airoc M" },
       candidates: [],
       insertedCount: 0,
+      providerStatuses: [],
     });
 
     const result = await resourceEquipment(

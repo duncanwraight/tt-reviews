@@ -43,6 +43,15 @@ export interface SourcingResult {
   // Set when status === "sourced"; reflects what got inserted (after
   // de-duplication against existing pending candidates for this row).
   insertedCount: number;
+  // Per-provider outcome status. Lets the queue consumer decide whether
+  // a 'no-candidates' result is genuine (all providers said 'ok') or
+  // transient (a provider was rate_limited / out_of_budget) and worth
+  // re-queueing. Empty for the 'already-imaged' early-return path
+  // because no providers were called.
+  providerStatuses: Array<{
+    name: string;
+    status: "ok" | "rate_limited" | "out_of_budget";
+  }>;
 }
 
 // Minimal R2 surface so the lib doesn't depend on the cloudflare-
@@ -171,6 +180,7 @@ export async function sourcePhotosForEquipment(
       equipment: { id: row.id, slug: row.slug, name: row.name },
       candidates: (existing ?? []) as SourcedCandidate[],
       insertedCount: 0,
+      providerStatuses: [],
     };
   }
 
@@ -247,16 +257,29 @@ export async function sourcePhotosForEquipment(
 
   const resolved = merged.slice(0, limit);
 
+  const providerStatuses = providerOutcomes.map(o => ({
+    name: o.name,
+    status: o.status,
+  }));
+  const allProvidersOk = providerOutcomes.every(o => o.status === "ok");
+
   if (resolved.length === 0) {
-    await supabase
-      .from("equipment")
-      .update({ image_sourcing_attempted_at: new Date().toISOString() })
-      .eq("id", row.id);
+    // Stamp attempted_at only when every provider returned 'ok' — i.e.,
+    // we genuinely got back zero matches. If any provider was rate-
+    // limited / out-of-budget, leave the column null so the queue can
+    // re-run the row when budgets reset (TT-91 retry path).
+    if (allProvidersOk) {
+      await supabase
+        .from("equipment")
+        .update({ image_sourcing_attempted_at: new Date().toISOString() })
+        .eq("id", row.id);
+    }
     return {
       status: "no-candidates",
       equipment: { id: row.id, slug: row.slug, name: row.name },
       candidates: [],
       insertedCount: 0,
+      providerStatuses,
     };
   }
 
@@ -356,5 +379,6 @@ export async function sourcePhotosForEquipment(
     equipment: { id: row.id, slug: row.slug, name: row.name },
     candidates,
     insertedCount: candidates.length,
+    providerStatuses,
   };
 }

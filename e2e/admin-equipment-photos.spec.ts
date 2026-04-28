@@ -161,13 +161,12 @@ test("admin clicks 'None of these' → image_skipped_at set, candidates cleared"
 });
 
 // Regression guard for the route-collision class of bug: when admin
-// clicks "Source next chunk", the form must POST to a real route, not
-// a 404. We don't exercise the full Brave + R2 pipeline here (that's
-// covered by the bulk.server unit tests with mocks). All we want to
-// know is "does the URL exist and accept admin POSTs?". A 500 from a
-// missing BRAVE_SEARCH_API_KEY in test would be acceptable; a 404 is
-// the failure mode this test exists to prevent.
-test("'Source next chunk' button POSTs to a non-404 route", async ({
+// clicks "Enqueue all unsourced", the form must POST to a real route,
+// not a 404. TT-91 replaced the chunk-by-chunk "Source next chunk"
+// button with this queue-driven path. We don't exercise the queue
+// drain here (TT-92 covers that); only the route's existence + admin
+// gating + CSRF.
+test("'Enqueue all unsourced' button POSTs to a non-404 route", async ({
   page,
 }) => {
   const adminEmail = generateTestEmail("photoadm");
@@ -182,16 +181,16 @@ test("'Source next chunk' button POSTs to a non-404 route", async ({
     // submission. The button performs a `fetch`-like navigation (RR
     // Form), so we listen on the network for the request URL.
     const responsePromise = page.waitForResponse(resp =>
-      resp.url().includes("/admin/equipment-photos-bulk-source")
+      resp.url().includes("/admin/equipment-photos-enqueue-all")
     );
-    await page.getByRole("button", { name: /Source next chunk/i }).click();
+    await page.getByTestId("enqueue-all-button").click();
     const response = await responsePromise;
 
-    // The point of this test is to catch route-collision regressions
-    // where flatRoutes maps the URL to a non-existent or unrenderable
-    // route. Any meaningful response (auth gate, rate limit, success
-    // redirect, or even a 5xx from missing prod creds) proves the URL
-    // is wired up. A 404 or "Not Found" body is the failure mode.
+    // Any non-404 means the URL is wired. The action might 500 in dev
+    // because the queue binding is unbound under non-wrangler-dev test
+    // contexts (e2e uses `npm run dev` which DOES bind PHOTO_SOURCE_
+    // QUEUE locally via Miniflare, so 200/302 is the expected case
+    // here). 404 is the failure mode this test exists to prevent.
     expect(response.status()).not.toBe(404);
   } finally {
     await deleteUser(adminId);
