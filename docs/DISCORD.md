@@ -1,5 +1,13 @@
 # Discord Integration
 
+## Integration approach — bot token + channel ID, never webhook URLs
+
+All Discord output from this app goes through bot-token REST calls — `POST https://discord.com/api/v10/channels/{channelId}/messages` with `Authorization: Bot ${DISCORD_BOT_TOKEN}`. Discord webhook URLs (`https://discord.com/api/webhooks/{id}/{token}`) are **not** used and must not be introduced.
+
+Why: one bot identity keeps the author/avatar consistent, lets us post message components (the moderation buttons depend on this — webhooks can't deliver interaction-routed components for an app the way a bot can), and we already manage `DISCORD_BOT_TOKEN` / `DISCORD_CHANNEL_ID` as required env vars. Adding webhook URLs would mean a second credential type with its own rotation/revocation story.
+
+When adding a new Discord notification surface (alerts, moderation messages, anything else), reuse `app/lib/discord/unified-notifier.server.ts` or `app/lib/alerts/discord-alerter.server.ts`, or follow the same bot+channel-ID pattern. Do not propose `*_WEBHOOK_URL` env vars or `discord.com/api/webhooks/...` POST paths.
+
 ## Moderation Workflow
 
 ### 1. Button Interactions (Primary Method)
@@ -37,7 +45,7 @@ Only users with configured Discord roles can moderate:
 
 ## Workflow Summary
 
-1. User submits content → Discord webhook sends embed with buttons
+1. User submits content → bot posts embed with buttons in the moderation channel
 2. Moderator clicks "Approve" button → First approval recorded
 3. Another moderator clicks "Approve" → Second approval recorded, content published
 

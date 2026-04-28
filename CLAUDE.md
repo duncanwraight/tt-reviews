@@ -41,7 +41,7 @@ Always run `npm run cf-typegen` after editing `wrangler.toml` so `worker-configu
 - SEO: `docs/SEO.md` — reference when designing any user-facing surface
 - **Auth & RBAC patterns**: `docs/AUTH.md`
 - **RLS policy patterns**: `docs/RLS.md`
-- **Discord moderation workflow**: `docs/DISCORD.md`
+- **Discord integration + moderation workflow**: `docs/DISCORD.md` — note the bot-token-only rule; we never use webhook URLs
 - **E2E test requirements**: `docs/E2E.md`
 - **Production observability**: `docs/OBSERVABILITY.md`
 - **Plane API + wrapper**: `docs/PLANE.md`
