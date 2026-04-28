@@ -11,6 +11,7 @@
 
 import { braveProvider } from "./brave";
 import { withBudget, type BudgetKV, type BudgetRateLimit } from "./budget";
+import { megaspinProvider } from "./megaspin";
 import { revspinProvider } from "./revspin";
 import { testProvider } from "./test-provider";
 import type { Provider } from "./types";
@@ -76,5 +77,8 @@ export function buildProvidersFromEnv(env: ProviderEnv): Provider[] {
     // wrapping needed; the provider scrapes a site we don't pay per
     // request for.
     revspinProvider,
+    // megaspin direct-crawl (TT-95). Same shape as revspin —
+    // free-to-scrape with an in-module 1.1s throttle.
+    megaspinProvider,
   ];
 }
