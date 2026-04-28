@@ -572,9 +572,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     }),
   },
 
-  // TT-74: equipment_edit submission flow. Form fields are stub here
-  // — TT-103 builds the pre-filled, category-aware form route. Discord
-  // card uses a basic shape; TT-106 may refine it with diff rendering.
+  // TT-74: equipment_edit submission flow. Form pre-fills from the
+  // current equipment row (see field-loaders preSelectionHandler) so
+  // the submitter sees and edits the current state rather than working
+  // against blank fields. The action (TT-104) diffs the submitted
+  // values against the current row to derive edit_data.
   equipment_edit: {
     type: "equipment_edit",
     tableName: "equipment_edits",
@@ -589,7 +591,78 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       successMessage:
         "Your suggested changes have been submitted and will be reviewed by our team.",
       redirectPath: "/profile",
-      fields: [],
+      fields: [
+        {
+          name: "equipment_id",
+          label: "Equipment ID",
+          type: "hidden",
+          required: true,
+        },
+        {
+          name: "equipment_display",
+          label: "Editing",
+          type: "text",
+          required: false,
+          disabled: true,
+          layout: { colSpan: 2 },
+          placeholder: "Loading equipment...",
+        },
+        {
+          name: "name",
+          label: "Equipment Name",
+          type: "text",
+          required: false,
+          placeholder: "e.g., Hurricane 3",
+          layout: { colSpan: 2 },
+        },
+        createSelectField("category", "Category", 1, false),
+        {
+          name: "subcategory",
+          label: "Subcategory",
+          type: "select",
+          required: false,
+          layout: { colSpan: 1 },
+          dependencies: { field: "category", showWhen: ["rubber"] },
+        },
+        {
+          name: "image_action",
+          label: "Image",
+          type: "select",
+          required: true,
+          layout: { colSpan: 2 },
+          options: [
+            { value: "keep", label: "Keep the current image" },
+            { value: "replace", label: "Replace with a new upload" },
+          ],
+        },
+        {
+          name: "image",
+          label: "New Product Image",
+          type: "image",
+          required: false,
+          placeholder: "Upload the manufacturer's official product photo",
+          layout: { colSpan: 2 },
+          dependencies: { field: "image_action", showWhen: "replace" },
+        },
+        {
+          name: "specifications",
+          label: "Manufacturer Specifications",
+          type: "equipment_specs",
+          required: false,
+          layout: { colSpan: 2 },
+        },
+        createTextAreaField(
+          "description",
+          "Description",
+          "Marketing-style description from the manufacturer (e.g., 'crisp, fast blade with excellent control...')"
+        ),
+        createTextAreaField(
+          "edit_reason",
+          "Reason for Changes",
+          "Please explain why these changes should be made…",
+          true
+        ),
+      ],
     },
     discord: {
       color: DISCORD_COLORS.ORANGE,

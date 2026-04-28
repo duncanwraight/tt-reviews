@@ -280,6 +280,17 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
             csrfToken={adminCsrfToken}
           />
         )}
+        {user && (
+          <p className="mt-4 text-sm text-gray-500">
+            Spotted an error?{" "}
+            <a
+              href={`/submissions/equipment_edit/submit?equipment_id=${equipment.id}`}
+              className="text-purple-700 hover:text-purple-900 underline"
+            >
+              Suggest an edit
+            </a>
+          </p>
+        )}
       </PageSection>
 
       {equipment.description && (

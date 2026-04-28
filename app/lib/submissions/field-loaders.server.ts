@@ -331,10 +331,10 @@ export async function loadFieldOptions(
     fieldOptions.rating_categories = ratingCategories;
   }
 
-  // For equipment submissions, preload spec field metadata grouped by
-  // parent value so the form can render typed inputs per selected
-  // category/subcategory without an extra round-trip.
-  if (submissionType === "equipment") {
+  // For equipment submissions and equipment edits, preload spec field
+  // metadata grouped by parent value so the form can render typed
+  // inputs per selected category/subcategory without an extra round-trip.
+  if (submissionType === "equipment" || submissionType === "equipment_edit") {
     fieldOptions.spec_fields_by_parent =
       await loadEquipmentSpecFieldsByParent(sbClient);
   }
@@ -377,10 +377,11 @@ interface PreSelectionHandler {
 const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
   equipment: [],
   player: [],
-  // TT-74: pre-fill equipment_id from the URL when arriving from
-  // /equipment/:slug → "Suggest an edit". The form-level loader
-  // (TT-103) is responsible for fetching the equipment row and
-  // populating the rest of the editable fields.
+  // TT-74: pre-fill the form from the equipment row when arriving
+  // from /equipment/:slug → "Suggest an edit". Pulls the editable
+  // fields and flattens specifications JSONB into spec_<key> /
+  // spec_<key>_min / spec_<key>_max entries that EquipmentSpecsField
+  // reads at render time.
   equipment_edit: [
     {
       paramName: "equipment_id",
@@ -388,15 +389,48 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       handler: async (equipmentId, _fieldOptions, sbClient) => {
         const { data: equipment } = await sbClient
           .from("equipment")
-          .select("id, name, manufacturer")
+          .select(
+            "id, name, slug, manufacturer, category, subcategory, description, specifications, image_key"
+          )
           .eq("id", equipmentId)
           .single();
-        return equipment
-          ? {
-              equipment_id: equipment.id,
-              equipment_display: `${equipment.name} (${equipment.manufacturer})`,
-            }
-          : {};
+        if (!equipment) return {};
+
+        const specPrefill: Record<string, unknown> = {};
+        const specs = (equipment.specifications || {}) as Record<
+          string,
+          unknown
+        >;
+        for (const [key, value] of Object.entries(specs)) {
+          if (
+            value &&
+            typeof value === "object" &&
+            "min" in value &&
+            "max" in value
+          ) {
+            const range = value as { min: unknown; max: unknown };
+            specPrefill[`spec_${key}_min`] = range.min;
+            specPrefill[`spec_${key}_max`] = range.max;
+          } else if (value !== null) {
+            specPrefill[`spec_${key}`] = value;
+          }
+        }
+
+        return {
+          equipment_id: equipment.id,
+          equipment_display: `${equipment.name} (${equipment.manufacturer})`,
+          name: equipment.name,
+          category: equipment.category,
+          subcategory: equipment.subcategory ?? "",
+          description: equipment.description ?? "",
+          // Default to "keep" when an image already exists; force "replace"
+          // when there's no image yet (the form still lets the submitter
+          // change it but the server-side validation in TT-104 enforces
+          // upload-required-when-no-current-image).
+          image_action: equipment.image_key ? "keep" : "replace",
+          equipment_current_image_key: equipment.image_key ?? null,
+          ...specPrefill,
+        };
       },
     },
   ],

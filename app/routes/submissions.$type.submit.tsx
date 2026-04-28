@@ -192,7 +192,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // separately — merge any errors into one response so the form surfaces
   // them all at once.
   let parsedSpecs: ReturnType<typeof parseEquipmentSpecs> | null = null;
-  if (submissionType === "equipment") {
+  if (submissionType === "equipment" || submissionType === "equipment_edit") {
     const specFields = await loadAllEquipmentSpecFields(sbServerClient.client);
     parsedSpecs = parseEquipmentSpecs(formData, specFields);
   }
@@ -345,6 +345,143 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       }
     }
 
+    // Handle equipment_edit - diff against current equipment row and
+    // pack edit_data JSONB. The moderation queue (TT-105) re-applies
+    // these on approval. Image is staged via the generic image-upload
+    // block below; we move the resulting key into edit_data afterwards
+    // since equipment_edits has no top-level image_key column.
+    if (submissionType === "equipment_edit") {
+      const equipmentId = submissionData.equipment_id;
+      if (!equipmentId) {
+        return data(
+          { error: "Missing equipment_id." },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
+      const { data: current } = await sbServerClient.client
+        .from("equipment")
+        .select(
+          "name, category, subcategory, description, specifications, image_key"
+        )
+        .eq("id", equipmentId)
+        .single();
+
+      if (!current) {
+        return data(
+          { error: "Equipment not found." },
+          { status: 404, headers: sbServerClient.headers }
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const editData: Record<string, any> = {};
+
+      // Scalar diffs — only include fields that differ from current.
+      for (const fieldName of [
+        "name",
+        "category",
+        "subcategory",
+        "description",
+      ] as const) {
+        const submitted = submissionData[fieldName];
+        if (submitted === undefined) continue;
+        const submittedValue =
+          typeof submitted === "string" && submitted.trim() === ""
+            ? null
+            : submitted;
+        const currentValue =
+          (current as Record<string, unknown>)[fieldName] ?? null;
+        if (submittedValue !== currentValue) {
+          editData[fieldName] = submittedValue;
+        }
+      }
+
+      // Spec diffs — JSON-stringify-compare typed values.
+      const submittedSpecs = (parsedSpecs?.specifications || {}) as Record<
+        string,
+        unknown
+      >;
+      const currentSpecs = (current.specifications || {}) as Record<
+        string,
+        unknown
+      >;
+      const changedSpecs: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(submittedSpecs)) {
+        if (JSON.stringify(value) !== JSON.stringify(currentSpecs[key])) {
+          changedSpecs[key] = value;
+        }
+      }
+      // Spec keys present in current but absent from submitted → user
+      // cleared the field, mark for removal.
+      for (const key of Object.keys(currentSpecs)) {
+        if (!(key in submittedSpecs)) {
+          changedSpecs[key] = null;
+        }
+      }
+      if (Object.keys(changedSpecs).length > 0) {
+        editData.specifications = changedSpecs;
+      }
+
+      const imageAction = submissionData.image_action;
+      editData.image_action = imageAction;
+      if (submissionData.edit_reason) {
+        editData.edit_reason = submissionData.edit_reason;
+      }
+
+      // Image-action invariants.
+      if (imageAction === "keep" && !current.image_key) {
+        return data(
+          {
+            error: "There is no current image — please upload one.",
+            fieldErrors: {
+              image_action: "Upload required when no image exists yet.",
+            },
+          },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+      if (imageAction === "replace") {
+        const file = formData.get("image") as File | null;
+        if (!file || file.size === 0) {
+          return data(
+            {
+              error: "Please choose an image to replace the current one.",
+              fieldErrors: {
+                image: "An image file is required when replacing.",
+              },
+            },
+            { status: 400, headers: sbServerClient.headers }
+          );
+        }
+      }
+
+      // Reject empty edits — image_action and edit_reason alone don't
+      // count as a change.
+      const meaningfulChange =
+        Object.keys(editData).some(
+          k => k !== "edit_reason" && k !== "image_action"
+        ) || imageAction === "replace";
+      if (!meaningfulChange) {
+        return data(
+          {
+            error:
+              "No changes detected. Edit at least one field before submitting.",
+          },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
+      // Reshape submissionData to the equipment_edits row schema.
+      Object.keys(submissionData).forEach(key => {
+        if (key !== "user_id" && key !== "status") {
+          delete submissionData[key];
+        }
+      });
+      submissionData.equipment_id = equipmentId;
+      submissionData.edit_data = editData;
+    }
+
     // Handle player_edit - transform fields into edit_data JSONB
     if (submissionType === "player_edit") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -427,8 +564,15 @@ export async function action({ request, context, params }: Route.ActionArgs) {
             }
           );
 
-          // Store the key in submission data
-          submissionData.image_key = key;
+          // equipment_edits has no image_key column; the staged R2
+          // key lives inside edit_data so the moderation applier
+          // (TT-105) can promote it on approval and clean it up on
+          // rejection.
+          if (submissionType === "equipment_edit") {
+            submissionData.edit_data.image_pending_key = key;
+          } else {
+            submissionData.image_key = key;
+          }
         } catch (uploadError) {
           Logger.error(
             "Image upload error",
