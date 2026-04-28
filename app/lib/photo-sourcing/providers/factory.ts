@@ -4,10 +4,10 @@
 //
 // Brave's free tier: 1 query/sec, 2,000 queries/month. We layer the
 // QPS cap via the BRAVE_RATE_LIMITER binding (configured in
-// wrangler.toml) and the monthly cap via PROVIDER_QUOTA KV. The KV
-// binding is provisioned separately (`wrangler kv:namespace create
-// PROVIDER_QUOTA`); when absent the code logs a warning and proceeds
-// without quota enforcement — only the QPS binding gates throughput.
+// wrangler.toml) and the monthly cap via PROVIDER_QUOTA KV. Both
+// bindings are provisioned in wrangler.toml; the missing-KV warning
+// path remains as a defensive fallback for ad-hoc local runs that
+// haven't picked up the latest config.
 
 import { braveProvider } from "./brave";
 import { withBudget, type BudgetKV, type BudgetRateLimit } from "./budget";

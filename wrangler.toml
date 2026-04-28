@@ -11,6 +11,15 @@ routes = [
 binding = "IMAGE_BUCKET"
 bucket_name = "tt-reviews-prod"
 
+# TT-90 sourcing-provider quota counters (daily + monthly per-provider).
+# Created via `wrangler kv namespace create PROVIDER_QUOTA` and the
+# corresponding --preview variant. Keys: `provider:<name>:daily:<YYYY-
+# MM-DD>` (TTL 25h), `provider:<name>:monthly:<YYYY-MM>` (TTL 32d).
+[[kv_namespaces]]
+binding = "PROVIDER_QUOTA"
+id = "c873bc3d238440e2bc1a9cab26fe4ab2"
+preview_id = "203acdd5669c4ba89714ec8797ba46df"
+
 # Rate limiting bindings — SECURITY.md Phase 8 (TT-17). The in-memory
 # Map in security.server.ts cannot share state across Worker isolates,
 # so without these bindings a 5-per-minute cap is enforced only
@@ -35,8 +44,12 @@ type = "ratelimit"
 namespace_id = "2003"
 simple = { limit = 30, period = 60 }
 
-# Brave search QPS cap — TT-90. Brave's free tier is 1 query/sec; this
-# binding makes that the global ceiling across Worker isolates. The
+# Brave search QPS cap — TT-90. Brave's free tier is 1 query/sec.
+# Cloudflare's rate-limiter binding only accepts period values of 10 or
+# 60 (Miniflare enforces the same), so we approximate with limit=10 in
+# any 10-sec window — average 1/s with burst tolerance. App-side
+# pacing (bulk.server.ts DEFAULT_BRAVE_GAP_MS = 1100ms) handles the
+# "don't burst" job; this binding is the global runaway ceiling. The
 # daily/monthly cap (~2000/month) is layered on top via the
 # PROVIDER_QUOTA KV namespace (see app/lib/photo-sourcing/providers/
 # budget.ts).
@@ -44,7 +57,7 @@ simple = { limit = 30, period = 60 }
 name = "BRAVE_RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "2004"
-simple = { limit = 1, period = 1 }
+simple = { limit = 10, period = 10 }
 
 [observability]
 enabled = true
@@ -75,6 +88,10 @@ port = 8787
 binding = "IMAGE_BUCKET"
 bucket_name = "tt-reviews-dev"
 
+[[env.dev.kv_namespaces]]
+binding = "PROVIDER_QUOTA"
+id = "203acdd5669c4ba89714ec8797ba46df"
+
 [[env.dev.unsafe.bindings]]
 name = "FORM_RATE_LIMITER"
 type = "ratelimit"
@@ -97,7 +114,7 @@ simple = { limit = 30, period = 60 }
 name = "BRAVE_RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "2004"
-simple = { limit = 1, period = 1 }
+simple = { limit = 10, period = 10 }
 
 [env.dev.vars]
 ENVIRONMENT = "development"
