@@ -11,6 +11,7 @@
 
 import { braveProvider } from "./brave";
 import { withBudget, type BudgetKV, type BudgetRateLimit } from "./budget";
+import { revspinProvider } from "./revspin";
 import { testProvider } from "./test-provider";
 import type { Provider } from "./types";
 import { Logger, createLogContext } from "../../logger.server";
@@ -70,5 +71,10 @@ export function buildProvidersFromEnv(env: ProviderEnv): Provider[] {
       dailyCap,
       monthlyCap,
     }),
+    // revspin direct-crawl (TT-94). No external API quota — politeness
+    // throttle lives inside revspin.server.ts (1/sec). No budget
+    // wrapping needed; the provider scrapes a site we don't pay per
+    // request for.
+    revspinProvider,
   ];
 }

@@ -96,6 +96,51 @@ function parseNumber(text: string): number | undefined {
 }
 
 /**
+ * Extract the canonical product image URL from a revspin detail page
+ * (TT-94). Prefers the og:image meta tag (absolute URL, full-size); falls
+ * back to the `.product_detail_image` `<img>` tag with the relative
+ * `/images/<category>/<slug>.jpg` shape, which we resolve against the
+ * site origin.
+ */
+export function parseProductImageUrl(html: string): string | null {
+  const og = html.match(
+    /<meta\s+property=['"]og:image['"]\s+content=['"]([^'"]+)['"]/i
+  );
+  if (og?.[1]) return og[1];
+
+  const detail = html.match(
+    /<img[^>]+class=['"][^'"]*product_detail_image[^'"]*['"][^>]+src=['"]([^'"]+)['"]/i
+  );
+  if (detail?.[1]) {
+    const src = detail[1];
+    return src.startsWith("http") ? src : `${REVSPIN_BASE_URL}${src}`;
+  }
+  return null;
+}
+
+/**
+ * Fetch a revspin product page and extract just the canonical image
+ * URL. Lighter than fetchProductDetails — useful for the photo-sourcing
+ * provider (TT-94) which doesn't need the full spec parse.
+ */
+export async function fetchProductImageUrl(
+  url: string
+): Promise<string | null> {
+  try {
+    const response = await rateLimitedFetch(url);
+    const html = await response.text();
+    return parseProductImageUrl(html);
+  } catch (error) {
+    Logger.error(
+      `Error fetching revspin image url from ${url}`,
+      createLogContext("revspin", { url }),
+      error instanceof Error ? error : undefined
+    );
+    return null;
+  }
+}
+
+/**
  * Decode common HTML entities
  */
 function decodeHtmlEntities(text: string): string {
