@@ -128,10 +128,11 @@ export interface EquipmentImageSnapshot {
   image_source_url: string | null;
   image_skipped_at: string | null;
   image_sourcing_attempted_at: string | null;
+  image_trim_kind: string | null;
 }
 
 const EQUIPMENT_IMAGE_COLUMNS =
-  "image_key,image_etag,image_credit_text,image_credit_link,image_license_short,image_license_url,image_source_url,image_skipped_at,image_sourcing_attempted_at";
+  "image_key,image_etag,image_credit_text,image_credit_link,image_license_short,image_license_url,image_source_url,image_skipped_at,image_sourcing_attempted_at,image_trim_kind";
 
 export async function snapshotEquipmentImage(
   equipmentId: string
@@ -178,6 +179,7 @@ export async function clearEquipmentImage(equipmentId: string): Promise<void> {
     image_source_url: null,
     image_skipped_at: null,
     image_sourcing_attempted_at: null,
+    image_trim_kind: null,
   });
 }
 

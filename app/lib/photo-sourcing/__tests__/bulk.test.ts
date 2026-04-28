@@ -11,6 +11,7 @@ const ENV = {
 const BUCKET: R2BucketSurface = {
   put: async () => undefined,
   delete: async () => undefined,
+  get: async () => null,
 };
 
 interface FakeRow {

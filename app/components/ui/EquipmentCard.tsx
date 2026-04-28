@@ -20,6 +20,7 @@ interface Equipment {
   rating?: number;
   reviewCount?: number;
   image_key?: string;
+  image_trim_kind?: string | null;
 }
 
 interface EquipmentCardProps {
@@ -151,9 +152,13 @@ function CardBody({ equipment }: { equipment: Equipment }) {
   const imageUrl = useMemo(
     () =>
       equipment.image_key
-        ? buildEquipmentImageUrl(equipment.image_key, "card")
+        ? buildEquipmentImageUrl(
+            equipment.image_key,
+            "card",
+            equipment.image_trim_kind as "auto" | "border" | null | undefined
+          )
         : null,
-    [equipment.image_key]
+    [equipment.image_key, equipment.image_trim_kind]
   );
 
   const categoryLabel =

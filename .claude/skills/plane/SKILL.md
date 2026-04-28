@@ -34,6 +34,20 @@ Follow this loop per item. Don't skip steps; don't start the next item until the
 5. **Wait for CI to pass** before moving on. Check with `gh run list --branch <branch> --limit 3` / `gh run watch`. If CI fails, fix on the same item — don't open the next one on top of a red build. Only after CI is green (and, where applicable, the PR is merged / deployed) move the item to Completed with `./scripts/plane.sh done TT-N`.
 6. **Then** loop back to step 1 for the next item — re-invoke this skill so the board view and user selection happen fresh.
 
+## Autonomous flow across a parent's children
+
+If the user explicitly authorizes "fly through / fully automated / no need to pause" on a Plane parent ticket whose children have all been scoped and signed off, proceed through each child without pausing for per-step confirmation. The bar is CI green + robust tests; permission to commit / push / close / move-on is granted in advance for that parent's children only.
+
+Constraints:
+
+- **Scoped to that parent's children.** Authorization expires when the parent is fully done or the user changes topic. Do not generalize to other Plane work or to ad-hoc multi-step tasks.
+- **Use judgment per child.** If a child has a bigger blast radius than expected, scope ambiguity, or a hard-to-reverse change, still pause and check.
+- **Pause for manual testing.** If a child needs the user to verify by hand (UI eyeballing, image quality check, hitting a flaky external service) — push, then stop and tell the user exactly what to test and how. Don't close the child or move to the next until they confirm.
+- **Stop on CI red.** Autonomous flow does not authorize barreling through breakage.
+- **End-of-parent summary.** When the last child is done, give the user a one-shot recap of what shipped across the parent so they can audit.
+
+If autonomous flow has not been explicitly authorized for a given parent, fall back to the default workflow above (ask before commit, wait for explicit "next" between children).
+
 ## While working
 
 - **Move to In Progress the moment you pick up an item**, not after you've made progress. Reserves it and signals intent.

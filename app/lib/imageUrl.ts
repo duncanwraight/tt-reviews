@@ -32,10 +32,20 @@ const EQUIPMENT_VARIANT_WIDTHS = {
 
 export type EquipmentImageVariant = keyof typeof EQUIPMENT_VARIANT_WIDTHS;
 
+// TT-88: when set, the URL adds `,trim=border` so Cloudflare Image
+// Transformations auto-detects the dominant border colour and trims
+// it. 'auto' is system-set on pick after corner-pixel decode found
+// transparent edges; 'border' is admin-set via the manual toggle for
+// white/coloured edges. Both produce the same URL params — the column
+// is kept distinct only for provenance.
+export type EquipmentImageTrimKind = "auto" | "border" | null | undefined;
+
 export function buildEquipmentImageUrl(
   imageKey: string,
-  variant: EquipmentImageVariant
+  variant: EquipmentImageVariant,
+  trimKind?: EquipmentImageTrimKind
 ): string {
   const width = EQUIPMENT_VARIANT_WIDTHS[variant];
-  return `/cdn-cgi/image/width=${width},format=auto,fit=scale-down/api/images/${imageKey}`;
+  const trimSuffix = trimKind ? ",trim=border" : "";
+  return `/cdn-cgi/image/width=${width},format=auto,fit=scale-down${trimSuffix}/api/images/${imageKey}`;
 }

@@ -13,6 +13,7 @@ interface Equipment {
   manufacturer: string;
   specifications: Record<string, unknown>;
   image_key?: string;
+  image_trim_kind?: string | null;
 }
 
 interface Player {
@@ -56,7 +57,11 @@ export function EquipmentHeader({
   // header variant (1024px). Legacy specifications.image_url is an
   // external URL — render directly.
   const imageUrl = equipment.image_key
-    ? buildEquipmentImageUrl(equipment.image_key, "full")
+    ? buildEquipmentImageUrl(
+        equipment.image_key,
+        "full",
+        equipment.image_trim_kind as "auto" | "border" | null | undefined
+      )
     : (equipment.specifications?.image_url as string);
 
   return (

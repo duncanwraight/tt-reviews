@@ -101,6 +101,7 @@ export interface Equipment {
   image_license_short?: string;
   image_license_url?: string;
   image_source_url?: string;
+  image_trim_kind?: "auto" | "border" | null; // TT-88: render-time trim
   created_at: string;
   updated_at: string;
 }

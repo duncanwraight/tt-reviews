@@ -15,12 +15,23 @@ import {
   type SourcingEnv,
   type SourcingResult,
 } from "./source.server";
+import { detectTransparentEdges, type TrimDetectDeps } from "./trim-detect";
 
 // R2 surface used by review actions: put (proxied for re-source) +
-// delete. We extend `R2PutBucket` rather than redeclare to keep the
-// shape consistent.
+// delete + get (so pickCandidate can read the picked bytes for
+// transparent-edge detection). We extend `R2PutBucket` rather than
+// redeclare to keep the shape consistent.
 export interface R2BucketSurface extends R2PutBucket {
   delete(key: string): Promise<unknown>;
+  get(key: string): Promise<R2GetResult | null>;
+}
+
+// Minimal R2 GetObject surface — enough for pickCandidate's trim
+// detection without dragging the @cloudflare/workers-types dependency
+// into the test surface.
+export interface R2GetResult {
+  arrayBuffer(): Promise<ArrayBuffer>;
+  httpMetadata?: { contentType?: string | null } | null;
 }
 
 export interface ReviewDeps {
@@ -97,11 +108,15 @@ async function deleteCandidates(
 
 // Pick a candidate as the equipment's image. Promotes its R2 key onto
 // equipment.image_key, copies attribution fields, marks the candidate
-// picked_at/picked_by, and deletes the rest.
+// picked_at/picked_by, and deletes the rest. Runs transparent-edge
+// detection (TT-88) on the picked bytes and sets image_trim_kind='auto'
+// when corners are alpha=0; failure to detect leaves the column null
+// (manual button still works).
 export async function pickCandidate(
   supabase: SupabaseClient,
   bucket: R2BucketSurface,
-  args: PickArgs
+  args: PickArgs,
+  trimDeps: TrimDetectDeps = {}
 ): Promise<PickResult> {
   const candidates = await loadCandidatesForEquipment(
     supabase,
@@ -123,6 +138,34 @@ export async function pickCandidate(
   if (picked.image_source_host) {
     updates.image_credit_text = picked.image_source_host;
     updates.image_credit_link = picked.source_url ?? null;
+  }
+
+  // Auto-trim detection: only PNG/WebP carry alpha. We infer format
+  // from the R2 key extension because the picked candidate doesn't
+  // store a content-type column. Fetching the GetObject + decoding is
+  // wrapped in a try/catch in detectTransparentEdges, so this code
+  // path can never block the pick on a transient R2 / decode failure.
+  const ext = picked.r2_key.split(".").pop()?.toLowerCase() ?? "";
+  const inferredContentType =
+    ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+  if (ext === "png" || ext === "webp") {
+    try {
+      const obj = await bucket.get(picked.r2_key);
+      if (obj) {
+        const bytes = await obj.arrayBuffer();
+        const isTransparent = await detectTransparentEdges(
+          bytes,
+          inferredContentType,
+          trimDeps
+        );
+        if (isTransparent) {
+          updates.image_trim_kind = "auto";
+        }
+      }
+    } catch {
+      // Detection is best-effort; the manual button covers the gap.
+    }
   }
 
   const { error: equipmentError } = await supabase
@@ -149,6 +192,37 @@ export async function pickCandidate(
   await deleteCandidates(supabase, bucket, losers);
 
   return { equipmentId: args.equipmentId, pickedR2Key: picked.r2_key };
+}
+
+// Toggle equipment.image_trim_kind between 'border' and NULL. Used by
+// the admin "Trim white edges" button on the public equipment detail
+// page. The 'auto' state set by pickCandidate is also cleared by this —
+// admin override wins.
+export async function toggleEquipmentTrim(
+  supabase: SupabaseClient,
+  equipmentId: string
+): Promise<{ next: "border" | null }> {
+  const { data, error: readError } = await supabase
+    .from("equipment")
+    .select("image_trim_kind")
+    .eq("id", equipmentId)
+    .maybeSingle();
+  if (readError) {
+    throw new Error(`trim read failed: ${readError.message}`);
+  }
+  if (!data) {
+    throw new Error("equipment not found");
+  }
+  const current = (data as { image_trim_kind: string | null }).image_trim_kind;
+  const next: "border" | null = current ? null : "border";
+  const { error: writeError } = await supabase
+    .from("equipment")
+    .update({ image_trim_kind: next })
+    .eq("id", equipmentId);
+  if (writeError) {
+    throw new Error(`trim write failed: ${writeError.message}`);
+  }
+  return { next };
 }
 
 // Reject a single candidate: delete its R2 object + DB row. Other

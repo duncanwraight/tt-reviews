@@ -5,6 +5,7 @@ import {
   rejectCandidate,
   skipEquipment,
   resourceEquipment,
+  toggleEquipmentTrim,
   type R2BucketSurface,
 } from "../review.server";
 import type { SourcingResult } from "../source.server";
@@ -23,6 +24,7 @@ interface FakeEquipment {
   image_credit_link: string | null;
   image_source_url: string | null;
   image_skipped_at: string | null;
+  image_trim_kind?: string | null;
 }
 
 interface FakeCandidate {
@@ -67,8 +69,22 @@ function makeBucket(): {
       deletes.push(key);
       return undefined;
     },
+    get: async () => null,
   };
   return { bucket, deletes, puts };
+}
+
+// Bucket that returns canned bytes for any get(). Used by trim-detect
+// tests to feed pickCandidate a real ArrayBuffer.
+function makeBucketWithBytes(bytes: ArrayBuffer): R2BucketSurface {
+  return {
+    put: async () => undefined,
+    delete: async () => undefined,
+    get: async () => ({
+      arrayBuffer: async () => bytes,
+      httpMetadata: { contentType: "image/png" },
+    }),
+  };
 }
 
 class EqBuilder {
@@ -76,6 +92,10 @@ class EqBuilder {
   private filters: Array<{ col: string; val: unknown }> = [];
   private payload: Record<string, unknown> = {};
   constructor(private rows: FakeEquipment[]) {}
+  select(_cols: string) {
+    this.mode = "select";
+    return this;
+  }
   update(p: Record<string, unknown>) {
     this.mode = "update";
     this.payload = p;
@@ -96,6 +116,14 @@ class EqBuilder {
       return Promise.resolve({ error: null });
     }
     return this;
+  }
+  maybeSingle() {
+    const row = this.rows.find(r =>
+      this.filters.every(
+        f => (r as unknown as Record<string, unknown>)[f.col] === f.val
+      )
+    );
+    return Promise.resolve({ data: row ?? null, error: null });
   }
 }
 
@@ -266,6 +294,120 @@ describe("pickCandidate", () => {
         pickedBy: "u",
       })
     ).rejects.toThrow(/already picked/);
+  });
+
+  it("sets image_trim_kind='auto' when picked PNG has transparent corners (TT-88)", async () => {
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ }],
+      candidates: [{ ...C1 }],
+    });
+    // Stub decoder returns a 2x2 RGBA buffer with all corners alpha=0.
+    const decodePng = async () => ({
+      data: new Uint8ClampedArray([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ]),
+      width: 2,
+      height: 2,
+    });
+    const bucket = makeBucketWithBytes(new ArrayBuffer(8));
+
+    await pickCandidate(
+      supabase,
+      bucket,
+      { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
+      { decodePng }
+    );
+
+    expect(state.equipment[0].image_trim_kind).toBe("auto");
+  });
+
+  it("leaves image_trim_kind null when picked PNG has opaque corners", async () => {
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ }],
+      candidates: [{ ...C1 }],
+    });
+    const decodePng = async () => ({
+      // alpha = 255 in every corner
+      data: new Uint8ClampedArray([
+        0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255,
+      ]),
+      width: 2,
+      height: 2,
+    });
+    const bucket = makeBucketWithBytes(new ArrayBuffer(8));
+
+    await pickCandidate(
+      supabase,
+      bucket,
+      { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
+      { decodePng }
+    );
+
+    expect(state.equipment[0].image_trim_kind).toBeUndefined();
+  });
+
+  it("skips trim detection for JPEG candidates", async () => {
+    const jpegCandidate: FakeCandidate = {
+      ...C1,
+      r2_key: "equipment/stiga-airoc-m/cand/uuid-1.jpg",
+    };
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ }],
+      candidates: [jpegCandidate],
+    });
+    const decodePng = vi.fn();
+    const decodeWebp = vi.fn();
+    const bucket = makeBucketWithBytes(new ArrayBuffer(8));
+
+    await pickCandidate(
+      supabase,
+      bucket,
+      { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
+      { decodePng, decodeWebp }
+    );
+
+    expect(decodePng).not.toHaveBeenCalled();
+    expect(decodeWebp).not.toHaveBeenCalled();
+    expect(state.equipment[0].image_trim_kind).toBeUndefined();
+  });
+});
+
+describe("toggleEquipmentTrim", () => {
+  it("sets image_trim_kind='border' when null", async () => {
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ, image_trim_kind: null }],
+      candidates: [],
+    });
+    const result = await toggleEquipmentTrim(supabase, "eq-1");
+    expect(result.next).toBe("border");
+    expect(state.equipment[0].image_trim_kind).toBe("border");
+  });
+
+  it("clears image_trim_kind when 'border'", async () => {
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ, image_trim_kind: "border" }],
+      candidates: [],
+    });
+    const result = await toggleEquipmentTrim(supabase, "eq-1");
+    expect(result.next).toBeNull();
+    expect(state.equipment[0].image_trim_kind).toBeNull();
+  });
+
+  it("clears 'auto' to null on toggle (admin override wins)", async () => {
+    const { supabase, state } = makeSupabase({
+      equipment: [{ ...EQ, image_trim_kind: "auto" }],
+      candidates: [],
+    });
+    const result = await toggleEquipmentTrim(supabase, "eq-1");
+    expect(result.next).toBeNull();
+    expect(state.equipment[0].image_trim_kind).toBeNull();
+  });
+
+  it("throws when the equipment row doesn't exist", async () => {
+    const { supabase } = makeSupabase({ equipment: [], candidates: [] });
+    await expect(toggleEquipmentTrim(supabase, "ghost")).rejects.toThrow(
+      /equipment not found/
+    );
   });
 });
 

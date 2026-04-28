@@ -3,15 +3,18 @@ import { getServerClient } from "~/lib/supabase.server";
 import { DatabaseService } from "~/lib/database.server";
 import { createCategoryService } from "~/lib/categories.server";
 import { schemaService } from "~/lib/schema";
+import { issueCSRFToken } from "~/lib/security.server";
 import { data, redirect } from "react-router";
 import {
   withLoaderCorrelation,
   enhanceContextWithUser,
   logUserAction,
 } from "~/lib/middleware/correlation.server";
+import { getUserWithRole } from "~/lib/auth.server";
 
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
+import { AdminTrimToggle } from "~/components/equipment/AdminTrimToggle";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
@@ -112,10 +115,15 @@ export const loader = withLoaderCorrelation(
   }: Route.LoaderArgs & { logContext: any }) => {
     const { slug } = params;
 
-    // Get user for context enhancement
+    // Get user for context enhancement. getUserWithRole decodes the
+    // JWT to attach .role — used to gate the admin-only TT-88 trim
+    // toggle without a DB lookup.
     const sbServerClient = getServerClient(request, context);
-    const userResponse = await sbServerClient.client.auth.getUser();
-    const user = userResponse.data?.user;
+    const user = (await getUserWithRole(sbServerClient, context)) as
+      | (Awaited<
+          ReturnType<typeof sbServerClient.client.auth.getUser>
+        >["data"]["user"] & { role?: string })
+      | null;
 
     // Enhance log context with user information
     const enhancedContext = enhanceContextWithUser(logContext, user);
@@ -193,9 +201,16 @@ export const loader = withLoaderCorrelation(
     ]);
     const multipleSchemas = [equipmentSchema, breadcrumbSchema];
 
+    const isAdmin = user?.role === "admin";
+    const adminCsrfToken = isAdmin
+      ? await issueCSRFToken(request, context, user.id)
+      : null;
+
     return data(
       {
-        user: userResponse?.data?.user || null,
+        user: user || null,
+        isAdmin,
+        adminCsrfToken,
         equipment,
         reviews,
         usedByPlayers,
@@ -214,6 +229,8 @@ export const loader = withLoaderCorrelation(
 export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
   const {
     user,
+    isAdmin,
+    adminCsrfToken,
     equipment,
     reviews,
     usedByPlayers,
@@ -255,6 +272,13 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
           reviewCount={reviewCount}
           usedByPlayers={usedByPlayers}
         />
+        {isAdmin && adminCsrfToken && equipment.image_key && (
+          <AdminTrimToggle
+            slug={equipment.slug}
+            trimKind={equipment.image_trim_kind ?? null}
+            csrfToken={adminCsrfToken}
+          />
+        )}
       </PageSection>
 
       <PageSection background="white" padding="medium">

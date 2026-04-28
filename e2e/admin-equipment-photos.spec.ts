@@ -238,3 +238,79 @@ test("admin rejects a single candidate → only that candidate disappears", asyn
     await deleteUser(adminId);
   }
 });
+
+// TT-88: admin manual force-trim toggle on the public equipment detail
+// page. Sets equipment.image_trim_kind between 'border' and NULL so
+// buildEquipmentImageUrl injects `,trim=border` into variant URLs.
+test("admin can toggle image trim on the public equipment page", async ({
+  page,
+}) => {
+  const adminEmail = generateTestEmail("trimadm");
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+
+  const equipment = await getFirstEquipment();
+  const snapshot = await snapshotEquipmentImage(equipment.id);
+
+  // Need image_key set so the toggle widget renders. trim_kind starts
+  // null so the first click should switch it to 'border'.
+  await setEquipmentImage(equipment.id, {
+    image_key: "equipment/test/picked.png",
+    image_trim_kind: null,
+  });
+
+  try {
+    await login(page, adminEmail);
+    await page.goto(`/equipment/${equipment.slug}`);
+
+    const toggle = page.getByTestId("admin-trim-toggle");
+    await expect(toggle).toBeVisible();
+
+    const status = page.getByTestId("admin-trim-status");
+    await expect(status).toHaveAttribute("data-trim-kind", "null");
+
+    await page.getByTestId("admin-trim-button").click();
+    // Action redirects back to the public page; loader revalidates.
+    await expect(status).toHaveAttribute("data-trim-kind", "border");
+
+    let after = await snapshotEquipmentImage(equipment.id);
+    expect(after.image_trim_kind).toBe("border");
+
+    // Toggle off.
+    await page.getByTestId("admin-trim-button").click();
+    await expect(status).toHaveAttribute("data-trim-kind", "null");
+    after = await snapshotEquipmentImage(equipment.id);
+    expect(after.image_trim_kind).toBeNull();
+  } finally {
+    await setEquipmentImage(equipment.id, snapshot);
+    await deleteUser(adminId);
+  }
+});
+
+test("non-admin user does not see the trim toggle", async ({ page }) => {
+  const userEmail = generateTestEmail("triuser");
+  const { userId } = await createUser(userEmail);
+  // Default role is `user`; no setUserRole call.
+
+  const equipment = await getFirstEquipment();
+  const snapshot = await snapshotEquipmentImage(equipment.id);
+
+  await setEquipmentImage(equipment.id, {
+    image_key: "equipment/test/picked.png",
+    image_trim_kind: null,
+  });
+
+  try {
+    await login(page, userEmail);
+    await page.goto(`/equipment/${equipment.slug}`);
+
+    // Page renders, toggle does not.
+    await expect(
+      page.getByRole("heading", { name: equipment.name })
+    ).toBeVisible();
+    await expect(page.getByTestId("admin-trim-toggle")).toHaveCount(0);
+  } finally {
+    await setEquipmentImage(equipment.id, snapshot);
+    await deleteUser(userId);
+  }
+});
