@@ -230,6 +230,13 @@ export class DatabaseService {
     return equipment.getSimilarEquipment(this.ctx, equipmentId, limit);
   }
 
+  async getRankedSimilarEquipment(
+    equipmentId: string,
+    limit = 6
+  ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
+    return equipment.getRankedSimilarEquipment(this.ctx, equipmentId, limit);
+  }
+
   async getPlayersUsingEquipment(
     equipmentId: string
   ): Promise<Array<{ id: string; name: string; slug: string }>> {

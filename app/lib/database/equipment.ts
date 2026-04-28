@@ -448,6 +448,108 @@ export async function getSimilarEquipment(
   ).catch((): Equipment[] => []);
 }
 
+/**
+ * Read top-N precomputed similar equipment for a given equipment_id, joined
+ * with the equipment row + approved-review aggregate so the result drops
+ * straight into <EquipmentCard />. Order is the precomputed `rank` (ascending).
+ *
+ * Three queries:
+ *   1. Indexed lookup against equipment_similar (equipment_id, rank).
+ *   2. Equipment rows for the resulting IDs.
+ *   3. Approved review ratings for the resulting IDs (for averageRating).
+ *
+ * The recompute job (workers/app.ts → scheduled / admin.recompute-similar)
+ * keeps equipment_similar populated.
+ */
+export async function getRankedSimilarEquipment(
+  ctx: DatabaseContext,
+  equipmentId: string,
+  limit = 6
+): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
+  type SimilarRow = { similar_equipment_id: string; rank: number };
+  type ReviewRow = { equipment_id: string; overall_rating: number };
+  type Result = (Equipment & {
+    averageRating?: number;
+    reviewCount?: number;
+  })[];
+
+  return withLogging<Result>(
+    ctx,
+    "get_ranked_similar_equipment",
+    async () => {
+      const similarResult = await ctx.supabase
+        .from("equipment_similar")
+        .select("similar_equipment_id, rank")
+        .eq("equipment_id", equipmentId)
+        .order("rank", { ascending: true })
+        .limit(limit);
+
+      if (similarResult.error) {
+        return { data: [] as Result, error: similarResult.error };
+      }
+      const similarRows = (similarResult.data ?? []) as SimilarRow[];
+      if (similarRows.length === 0) {
+        return { data: [] as Result, error: null };
+      }
+
+      const ids = similarRows.map(r => r.similar_equipment_id);
+
+      const equipResult = await ctx.supabase
+        .from("equipment")
+        .select("*")
+        .in("id", ids);
+
+      if (equipResult.error) {
+        return { data: [] as Result, error: equipResult.error };
+      }
+      const equipRows = (equipResult.data ?? []) as Equipment[];
+
+      const reviewResult = await ctx.supabase
+        .from("equipment_reviews")
+        .select("equipment_id, overall_rating")
+        .in("equipment_id", ids)
+        .eq("status", "approved");
+
+      // Reviews are best-effort — a fetch failure here downgrades to "no
+      // ratings" rather than dropping the section entirely.
+      const reviewRows = (
+        reviewResult.error ? [] : (reviewResult.data ?? [])
+      ) as ReviewRow[];
+
+      const stats = new Map<string, { sum: number; count: number }>();
+      for (const r of reviewRows) {
+        const s = stats.get(r.equipment_id) ?? { sum: 0, count: 0 };
+        s.sum += r.overall_rating;
+        s.count += 1;
+        stats.set(r.equipment_id, s);
+      }
+
+      const equipById = new Map<string, Equipment>(
+        equipRows.map(e => [e.id, e])
+      );
+
+      const ordered: Result = [];
+      for (const row of similarRows) {
+        const eq = equipById.get(row.similar_equipment_id);
+        if (!eq) continue;
+        const s = stats.get(eq.id);
+        ordered.push(
+          s
+            ? {
+                ...eq,
+                averageRating: Math.round((s.sum / s.count) * 10) / 10,
+                reviewCount: s.count,
+              }
+            : { ...eq, averageRating: undefined, reviewCount: 0 }
+        );
+      }
+
+      return { data: ordered, error: null };
+    },
+    { equipmentId, limit }
+  ).catch((): Result => []);
+}
+
 export async function getPlayersUsingEquipment(
   ctx: DatabaseContext,
   equipmentId: string

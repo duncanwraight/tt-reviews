@@ -23,6 +23,7 @@ export interface MockBuilder {
   select: (cols?: unknown, options?: unknown) => MockBuilder;
   eq: (col: string, val: unknown) => MockBuilder;
   neq: (col: string, val: unknown) => MockBuilder;
+  in: (col: string, vals: unknown[]) => MockBuilder;
   or: (filter: string) => MockBuilder;
   not: (col: string, op: string, val: unknown) => MockBuilder;
   order: (col: string, opts?: unknown) => MockBuilder;
@@ -65,6 +66,7 @@ export function makeBuilder(
     "select",
     "eq",
     "neq",
+    "in",
     "or",
     "not",
     "order",

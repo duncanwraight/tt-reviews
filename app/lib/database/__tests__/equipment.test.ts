@@ -513,6 +513,141 @@ describe("equipment.getSimilarEquipment", () => {
   });
 });
 
+describe("equipment.getRankedSimilarEquipment", () => {
+  it("returns [] when no precomputed similar rows exist", async () => {
+    const supabase = makeSupabase({
+      tables: { equipment_similar: { data: [] } },
+    });
+    const result = await equipment.getRankedSimilarEquipment(
+      makeCtx(supabase),
+      "target",
+      6
+    );
+    expect(result).toEqual([]);
+    const b = supabase._builders.get("equipment_similar")!;
+    expect(b.calls).toContainEqual({
+      method: "eq",
+      args: ["equipment_id", "target"],
+    });
+    expect(b.calls).toContainEqual({
+      method: "order",
+      args: ["rank", { ascending: true }],
+    });
+    expect(b.calls).toContainEqual({ method: "limit", args: [6] });
+  });
+
+  it("preserves rank order, drops missing equipment, attaches stats", async () => {
+    // Precomputed similar IDs in rank order (lower rank = closer match).
+    const similar = [
+      { similar_equipment_id: "eq-2", rank: 1 },
+      { similar_equipment_id: "eq-3", rank: 2 },
+      { similar_equipment_id: "eq-missing", rank: 3 },
+    ];
+    // equipment table returns rows out of rank order — function must reorder.
+    const equipRows = [
+      {
+        id: "eq-3",
+        name: "Three",
+        slug: "three",
+        category: "blade",
+        manufacturer: "B",
+      },
+      {
+        id: "eq-2",
+        name: "Two",
+        slug: "two",
+        category: "blade",
+        manufacturer: "A",
+      },
+      // eq-missing intentionally absent — simulates a deleted equipment row
+      // surviving briefly in equipment_similar before the next prune.
+    ];
+    const reviews = [
+      { equipment_id: "eq-2", overall_rating: 8 },
+      { equipment_id: "eq-2", overall_rating: 6 },
+      // eq-3 has no approved reviews — should land with reviewCount=0.
+    ];
+
+    const supabase = makeSupabase({
+      tables: {
+        equipment_similar: { data: similar },
+        equipment: { data: equipRows },
+        equipment_reviews: { data: reviews },
+      },
+    });
+
+    const result = await equipment.getRankedSimilarEquipment(
+      makeCtx(supabase),
+      "target",
+      10
+    );
+
+    expect(result.map(r => r.id)).toEqual(["eq-2", "eq-3"]);
+    expect(result[0].averageRating).toBe(7);
+    expect(result[0].reviewCount).toBe(2);
+    expect(result[1].averageRating).toBeUndefined();
+    expect(result[1].reviewCount).toBe(0);
+
+    const eqBuilder = supabase._builders.get("equipment")!;
+    expect(eqBuilder.calls).toContainEqual({
+      method: "in",
+      args: ["id", ["eq-2", "eq-3", "eq-missing"]],
+    });
+
+    const reviewBuilder = supabase._builders.get("equipment_reviews")!;
+    expect(reviewBuilder.calls).toContainEqual({
+      method: "eq",
+      args: ["status", "approved"],
+    });
+  });
+
+  it("returns [] when the equipment fetch errors", async () => {
+    const supabase = makeSupabase({
+      tables: {
+        equipment_similar: {
+          data: [{ similar_equipment_id: "eq-2", rank: 1 }],
+        },
+        equipment: { error: { message: "boom" } },
+      },
+    });
+    const result = await equipment.getRankedSimilarEquipment(
+      makeCtx(supabase),
+      "target"
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("downgrades to no-ratings when review fetch errors but equipment ok", async () => {
+    const supabase = makeSupabase({
+      tables: {
+        equipment_similar: {
+          data: [{ similar_equipment_id: "eq-2", rank: 1 }],
+        },
+        equipment: {
+          data: [
+            {
+              id: "eq-2",
+              name: "Two",
+              slug: "two",
+              category: "blade",
+              manufacturer: "A",
+            },
+          ],
+        },
+        equipment_reviews: { error: { message: "boom" } },
+      },
+    });
+    const result = await equipment.getRankedSimilarEquipment(
+      makeCtx(supabase),
+      "target"
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("eq-2");
+    expect(result[0].averageRating).toBeUndefined();
+    expect(result[0].reviewCount).toBe(0);
+  });
+});
+
 describe("equipment.getPlayersUsingEquipment", () => {
   it("deduplicates players across multiple setup rows", async () => {
     const setups = [

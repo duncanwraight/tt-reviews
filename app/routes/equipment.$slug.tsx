@@ -15,6 +15,7 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
+import { SimilarEquipmentSection } from "~/components/equipment/SimilarEquipmentSection";
 import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { StructuredData } from "~/components/seo/StructuredData";
 
@@ -139,19 +140,37 @@ export const loader = withLoaderCorrelation(
 
     const categoryService = createCategoryService(sbServerClient.client);
 
-    const [reviews, usedByPlayers, ratingCategories, specFields] =
-      await Promise.all([
-        db.getEquipmentReviews(equipment.id, "approved"),
-        db.getPlayersUsingEquipment(equipment.id),
-        categoryService.getReviewRatingCategories(
-          equipment.category,
-          equipment.subcategory
-        ),
-        categoryService.getEquipmentSpecFields(
-          equipment.category,
-          equipment.subcategory
-        ),
-      ]);
+    const [
+      reviews,
+      usedByPlayers,
+      ratingCategories,
+      specFields,
+      similarEquipmentRaw,
+    ] = await Promise.all([
+      db.getEquipmentReviews(equipment.id, "approved"),
+      db.getPlayersUsingEquipment(equipment.id),
+      categoryService.getReviewRatingCategories(
+        equipment.category,
+        equipment.subcategory
+      ),
+      categoryService.getEquipmentSpecFields(
+        equipment.category,
+        equipment.subcategory
+      ),
+      db.getRankedSimilarEquipment(equipment.id),
+    ]);
+
+    const similarEquipment = similarEquipmentRaw.map(item => ({
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      category: item.category,
+      subcategory: item.subcategory,
+      manufacturer: item.manufacturer,
+      image_key: item.image_key,
+      rating: item.averageRating || undefined,
+      reviewCount: item.reviewCount || 0,
+    }));
 
     const averageRating =
       reviews.length > 0
@@ -184,6 +203,7 @@ export const loader = withLoaderCorrelation(
         reviewCount: reviews.length,
         ratingCategories,
         specFields,
+        similarEquipment,
         multipleSchemas,
       },
       { headers: sbServerClient.headers }
@@ -201,6 +221,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
     reviewCount,
     ratingCategories,
     specFields,
+    similarEquipment,
     multipleSchemas,
   } = loaderData;
 
@@ -256,6 +277,15 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
         equipmentSlug={equipment.slug}
         ratingCategories={ratingCategories}
       />
+
+      {similarEquipment.length >= 2 && (
+        <PageSection background="white" padding="medium">
+          <SimilarEquipmentSection
+            category={equipment.category}
+            equipment={similarEquipment}
+          />
+        </PageSection>
+      )}
 
       <PageSection background="gray" padding="medium">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
