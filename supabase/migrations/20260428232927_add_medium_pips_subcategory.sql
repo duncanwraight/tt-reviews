@@ -16,32 +16,52 @@
 -- No data backfill: existing equipment rows that should become
 -- medium_pips will be reclassified by admins via the new edit flow
 -- once it ships.
+--
+-- All data inserts are gated on the existence of `short_pips` so the
+-- migration is a no-op on a fresh `supabase db reset` (categories
+-- table empty before seed runs); seed.sql writes the new-shape rows
+-- directly in that case. Without this gate, a fresh-DB CI flow
+-- duplicates the row and trips categories_type_value_parent_unique.
 
--- 1. Insert medium_pips subcategory at display_order 3.
-INSERT INTO categories (type, name, value, display_order, parent_id, is_active)
-SELECT 'equipment_subcategory', 'Medium Pips', 'medium_pips', 3, NULL, true
-WHERE NOT EXISTS (
-  SELECT 1 FROM categories
-  WHERE type = 'equipment_subcategory' AND value = 'medium_pips'
-);
-
--- 2. Re-number existing pip / anti subcategories so the dropdown reads
---    short → medium → long → anti.
-UPDATE categories SET display_order = 2
-  WHERE type = 'equipment_subcategory' AND value = 'short_pips';
-UPDATE categories SET display_order = 4
-  WHERE type = 'equipment_subcategory' AND value = 'long_pips';
-UPDATE categories SET display_order = 5
-  WHERE type = 'equipment_subcategory' AND value = 'anti';
-
--- 3. Insert spec fields under medium_pips. Mirrors short_pips' set.
 DO $$
 DECLARE
+  short_pips_id UUID;
+  long_pips_id UUID;
+  anti_id UUID;
   medium_pips_id UUID;
 BEGIN
+  SELECT id INTO short_pips_id
+    FROM categories WHERE type = 'equipment_subcategory' AND value = 'short_pips';
+  SELECT id INTO long_pips_id
+    FROM categories WHERE type = 'equipment_subcategory' AND value = 'long_pips';
+  SELECT id INTO anti_id
+    FROM categories WHERE type = 'equipment_subcategory' AND value = 'anti';
+
+  -- Fresh DB: no existing pip subcategories yet, seed.sql will handle
+  -- the inserts in the new shape. Bail out before touching anything.
+  IF short_pips_id IS NULL OR long_pips_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- 1. Insert medium_pips subcategory at display_order 3.
+  INSERT INTO categories (type, name, value, display_order, parent_id, is_active)
+  SELECT 'equipment_subcategory', 'Medium Pips', 'medium_pips', 3, NULL, true
+  WHERE NOT EXISTS (
+    SELECT 1 FROM categories
+    WHERE type = 'equipment_subcategory' AND value = 'medium_pips'
+  );
+
+  -- 2. Re-number pip / anti subcategories so the dropdown reads
+  --    short → medium → long → anti.
+  UPDATE categories SET display_order = 2 WHERE id = short_pips_id;
+  UPDATE categories SET display_order = 4 WHERE id = long_pips_id;
+  IF anti_id IS NOT NULL THEN
+    UPDATE categories SET display_order = 5 WHERE id = anti_id;
+  END IF;
+
+  -- 3. Insert spec fields under medium_pips. Mirrors short_pips' set.
   SELECT id INTO medium_pips_id
-  FROM categories
-  WHERE type = 'equipment_subcategory' AND value = 'medium_pips';
+    FROM categories WHERE type = 'equipment_subcategory' AND value = 'medium_pips';
 
   IF medium_pips_id IS NULL THEN
     RAISE EXCEPTION 'medium_pips subcategory row missing after insert';
