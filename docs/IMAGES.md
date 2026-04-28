@@ -88,6 +88,24 @@ configuration are required for equipment photos:
    `CandidateImage` fallback. The site still functions for picks
    and rejects but no thumbnails render. With it enabled, all
    variant URLs work site-wide.
+3. **Photo-sourcing queue consumer attach (TT-91, one-time per
+   environment)** — `wrangler.toml`'s `[[queues.consumers]]` block
+   declares the consumer config, but it does **not** auto-attach the
+   Worker as a consumer on first deploy. The producer side registers
+   automatically; the consumer side requires a one-time CLI step:
+
+   ```sh
+   npx wrangler queues consumer worker add equipment-photo-source app \
+     --batch-size 1 --message-retries 5 --batch-timeout 5 \
+     --max-concurrency 1 --dead-letter-queue equipment-photo-source-dlq
+   ```
+
+   Symptom if forgotten: `npx wrangler queues info equipment-photo-source`
+   shows `Number of Consumers: 0`, the admin "Enqueue all unsourced"
+   action fills the backlog, and nothing drains. Once attached,
+   subsequent deploys keep the toml block in sync — the config block
+   isn't useless, it just doesn't bootstrap. The same applies to the
+   `-dev` queue under `[env.dev]` if you spin up a dev Worker.
 
 If you migrate the zone or the rendering plan changes, the fallback
 in `CandidateImage` (try transformed URL → swap to raw on error →
