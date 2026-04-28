@@ -161,8 +161,16 @@ jobs:
         # `Secure` on auth cookies, which the headless browser refuses over
         # plain http://localhost:5173 — login silently fails and every e2e
         # spec that calls login() times out at page.waitForURL.
+        #
+        # Discord creds (CI_DISCORD_*) are real dev-app values so e2e/alerts-discord-error.spec
+        # can poll the test channel directly instead of using an in-memory readout (TT-83).
+        env:
+          CI_DISCORD_BOT_TOKEN: ${{ secrets.CI_DISCORD_BOT_TOKEN }}
+          CI_DISCORD_CHANNEL_ID: ${{ secrets.CI_DISCORD_CHANNEL_ID }}
+          CI_DISCORD_GUILD_ID: ${{ secrets.CI_DISCORD_GUILD_ID }}
+          CI_DISCORD_ALERTS_CHANNEL_ID: ${{ secrets.CI_DISCORD_ALERTS_CHANNEL_ID }}
         run: |
-          cat > .dev.vars <<'EOF'
+          cat > .dev.vars <<EOF
           ENVIRONMENT=development
           SUPABASE_URL=http://localhost:54321
           SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
@@ -170,11 +178,11 @@ jobs:
           SESSION_SECRET=e2e-session-secret
           SITE_URL=http://localhost:5173
           DISCORD_PUBLIC_KEY=bf98a44479fb79df5a22a93bec408ecae0535f182152932022236205b9ea4480
-          DISCORD_BOT_TOKEN=stub
-          DISCORD_CHANNEL_ID=stub
-          DISCORD_GUILD_ID=stub
+          DISCORD_BOT_TOKEN=${CI_DISCORD_BOT_TOKEN}
+          DISCORD_CHANNEL_ID=${CI_DISCORD_CHANNEL_ID}
+          DISCORD_GUILD_ID=${CI_DISCORD_GUILD_ID}
           DISCORD_ALLOWED_ROLES=role_e2e_moderator
-          DISCORD_ALERTS_CHANNEL_ID=1382054634247553024
+          DISCORD_ALERTS_CHANNEL_ID=${CI_DISCORD_ALERTS_CHANNEL_ID}
           EOF
 
       - name: E2E tests

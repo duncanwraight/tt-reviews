@@ -71,7 +71,7 @@ describe("DiscordAlerter.notify", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("captures the attempt but doesn't POST when bot token is a stub (CI mode)", async () => {
+  it("captures the attempt but doesn't POST when bot token is a placeholder", async () => {
     const alerter = new DiscordAlerter(makeEnv({ DISCORD_BOT_TOKEN: "stub" }));
     const fired = await alerter.notify({ message: "boom" });
 

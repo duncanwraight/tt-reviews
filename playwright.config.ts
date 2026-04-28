@@ -21,6 +21,7 @@ if (process.env.PLAYWRIGHT_JSON_OUTPUT_NAME) {
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: IS_CI,
   retries: IS_CI ? 1 : 0,

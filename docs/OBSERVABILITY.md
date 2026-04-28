@@ -137,9 +137,9 @@ The alerter is silent unless **both** are true:
 - `DISCORD_ALERTS_CHANNEL_ID` is set and not a placeholder
 - `DISCORD_BOT_TOKEN` is set, real-looking (≥50 chars), and not a placeholder
 
-In CI e2e the channel ID is set to the test channel but the bot token is `stub`; the alerter records the attempt for the e2e spec to verify but doesn't actually POST. TT-83 tracks fixing CI Discord credentials so e2e can round-trip through Discord directly.
+CI e2e injects real dev-app credentials from `CI_DISCORD_*` GitHub secrets into the workflow's `.dev.vars`, so the alerts spec polls the test channel directly via the bot REST API. The bot needs **View Channel** + **Read Message History** in that channel for the GET — not just Send/Embed.
 
-In normal local dev the channel ID is unset → no-op. Set `DISCORD_ALERTS_CHANNEL_ID` in your `.dev.vars` if you want to exercise the e2e spec or eyeball the embed in your dev guild.
+In normal local dev the channel ID is unset → no-op. Set `DISCORD_ALERTS_CHANNEL_ID` and `DISCORD_BOT_TOKEN` in your `.dev.vars` if you want to exercise the e2e spec or eyeball the embed in your dev guild.
 
 ### Dedup
 

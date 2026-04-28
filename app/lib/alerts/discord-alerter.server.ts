@@ -9,8 +9,8 @@
  *
  * Gating: only fires when DISCORD_ALERTS_CHANNEL_ID is set AND
  * DISCORD_BOT_TOKEN is real (not a stub/placeholder). Local dev with the
- * channel unset → no-op. CI with stubbed bot token → POST 401s and is
- * swallowed; the e2e spec verifies via getLastAttempt() instead. See
+ * channel unset → no-op. The placeholder/length gate also short-circuits
+ * the POST without throwing, which is what unit tests rely on. See
  * docs/OBSERVABILITY.md for the alerts section.
  */
 
@@ -95,8 +95,9 @@ export class DiscordAlerter {
 
     const botToken = this.env.DISCORD_BOT_TOKEN;
     if (!botToken || isPlaceholder(botToken) || botToken.length < 50) {
-      // No real bot token (CI stub, local without creds). Attempt is
-      // captured for /e2e-last-alert; no network call.
+      // No real bot token (placeholder or unset). Attempt is still
+      // captured on `lastAttempt` for unit-test introspection; no
+      // network call.
       return true;
     }
 
@@ -121,7 +122,7 @@ export class DiscordAlerter {
     return true;
   }
 
-  /** Test/e2e helper: returns the most recent attempt regardless of post outcome. */
+  /** Unit-test helper: returns the most recent attempt regardless of post outcome. */
   getLastAttempt(): AlertAttempt | null {
     return this.lastAttempt;
   }
