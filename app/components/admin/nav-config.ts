@@ -16,7 +16,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { label: "Equipment Submissions", to: "/admin/equipment-submissions" },
       { label: "Equipment Reviews", to: "/admin/equipment-reviews" },
-      { label: "Equipment Photos", to: "/admin/equipment-photos" },
       { label: "Equipment Setups", to: "/admin/player-equipment-setups" },
       { label: "Player Submissions", to: "/admin/player-submissions" },
       { label: "Player Edits", to: "/admin/player-edits" },
@@ -29,6 +28,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { label: "Categories", to: "/admin/categories" },
       { label: "Content", to: "/admin/content" },
       { label: "Import", to: "/admin/import" },
+      { label: "Equipment Photos", to: "/admin/equipment-photos" },
     ],
   },
 ];
