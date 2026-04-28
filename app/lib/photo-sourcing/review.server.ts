@@ -275,11 +275,13 @@ export async function resourceEquipment(
   env: SourcingEnv,
   equipmentId: string,
   slug: string,
-  deps: ReviewDeps = {}
+  deps: ReviewDeps & {
+    providers?: import("./providers/types").Provider[];
+  } = {}
 ): Promise<SourcingResult> {
   const candidates = await loadCandidatesForEquipment(supabase, equipmentId);
   const pending = candidates.filter(c => !c.picked_at);
   await deleteCandidates(supabase, bucket, pending);
   const sourceFn = deps.resource ?? sourcePhotosForEquipment;
-  return sourceFn(supabase, bucket, env, slug);
+  return sourceFn(supabase, bucket, env, slug, { providers: deps.providers });
 }

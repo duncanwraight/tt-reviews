@@ -14,6 +14,7 @@ import {
   skipEquipment,
 } from "~/lib/photo-sourcing/review.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
+import { buildProvidersFromEnv } from "~/lib/photo-sourcing/providers/factory";
 import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 export function meta({}: Route.MetaArgs) {
@@ -218,7 +219,12 @@ export async function action({ request, context }: Route.ActionArgs) {
         bucket,
         env as SourcingEnv,
         equipmentId,
-        slug
+        slug,
+        {
+          providers: buildProvidersFromEnv(
+            env as Parameters<typeof buildProvidersFromEnv>[0]
+          ),
+        }
       );
     } else {
       return data(

@@ -4,6 +4,7 @@ import { ensureAdminAction } from "~/lib/admin/middleware.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { bulkSourcePhotos } from "~/lib/photo-sourcing/bulk.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
+import { buildProvidersFromEnv } from "~/lib/photo-sourcing/providers/factory";
 
 // POST /admin/equipment-photos-bulk-source — drains one chunk of
 // unimaged equipment through the per-item pipeline. The admin UI
@@ -37,7 +38,12 @@ export async function action({ request, context }: Route.ActionArgs) {
       supabaseAdmin,
       env.IMAGE_BUCKET,
       env as SourcingEnv,
-      user.id
+      user.id,
+      {
+        providers: buildProvidersFromEnv(
+          env as Parameters<typeof buildProvidersFromEnv>[0]
+        ),
+      }
     );
     Logger.info(
       "bulk-source completed",

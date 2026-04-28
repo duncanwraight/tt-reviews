@@ -35,6 +35,17 @@ type = "ratelimit"
 namespace_id = "2003"
 simple = { limit = 30, period = 60 }
 
+# Brave search QPS cap — TT-90. Brave's free tier is 1 query/sec; this
+# binding makes that the global ceiling across Worker isolates. The
+# daily/monthly cap (~2000/month) is layered on top via the
+# PROVIDER_QUOTA KV namespace (see app/lib/photo-sourcing/providers/
+# budget.ts).
+[[unsafe.bindings]]
+name = "BRAVE_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2004"
+simple = { limit = 1, period = 1 }
+
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -81,6 +92,12 @@ name = "ADMIN_RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "2003"
 simple = { limit = 30, period = 60 }
+
+[[env.dev.unsafe.bindings]]
+name = "BRAVE_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2004"
+simple = { limit = 1, period = 1 }
 
 [env.dev.vars]
 ENVIRONMENT = "development"

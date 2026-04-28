@@ -3,6 +3,7 @@ import { data, redirect } from "react-router";
 import { ensureAdminAction } from "~/lib/admin/middleware.server";
 import { sourcePhotosForEquipment } from "~/lib/photo-sourcing/source.server";
 import type { SourcingEnv } from "~/lib/photo-sourcing/source.server";
+import { buildProvidersFromEnv } from "~/lib/photo-sourcing/providers/factory";
 import { Logger, createLogContext } from "~/lib/logger.server";
 
 // POST /admin/equipment/:slug/source-photos — kicks the Brave + R2
@@ -54,7 +55,12 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       supabaseAdmin,
       env.IMAGE_BUCKET,
       env as SourcingEnv,
-      slug
+      slug,
+      {
+        providers: buildProvidersFromEnv(
+          env as Parameters<typeof buildProvidersFromEnv>[0]
+        ),
+      }
     );
     Logger.info(
       "source-photos completed",

@@ -20,6 +20,7 @@ import {
   type SourcingResult,
 } from "./source.server";
 import { pickCandidate, type R2BucketSurface } from "./review.server";
+import type { Provider } from "./providers/types";
 
 export const DEFAULT_CHUNK_SIZE = 5;
 export const DEFAULT_BRAVE_GAP_MS = 1100;
@@ -34,6 +35,10 @@ export interface BulkSourceOptions {
   sourceFn?: typeof sourcePhotosForEquipment;
   // Defaults to the lib's pick helper; overridable for tests.
   pickFn?: typeof pickCandidate;
+  // Provider list passed through to sourcePhotosForEquipment. When
+  // omitted, sourcePhotosForEquipment falls back to [braveProvider]
+  // without budget wrapping — fine for tests, not for prod routes.
+  providers?: Provider[];
 }
 
 export interface BulkSourceResult {
@@ -118,7 +123,9 @@ export async function bulkSourcePhotos(
 
     let result: SourcingResult;
     try {
-      result = await sourceFn(supabase, bucket, env, row.slug);
+      result = await sourceFn(supabase, bucket, env, row.slug, {
+        providers: options.providers,
+      });
     } catch (err) {
       errors.push({
         slug: row.slug,
