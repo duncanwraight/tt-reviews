@@ -65,6 +65,20 @@ const optionLoaders: Record<
       orderBy: "display_order",
     },
   },
+  equipment_edit: {
+    category: {
+      table: "categories",
+      columns: "id, name, value",
+      filters: { type: "equipment_category", is_active: true },
+      orderBy: "name",
+    },
+    subcategory: {
+      table: "categories",
+      columns: "id, name, value",
+      filters: { type: "equipment_subcategory", is_active: true },
+      orderBy: "display_order",
+    },
+  },
   player: {
     birth_country: {
       table: "categories",
@@ -363,6 +377,29 @@ interface PreSelectionHandler {
 const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
   equipment: [],
   player: [],
+  // TT-74: pre-fill equipment_id from the URL when arriving from
+  // /equipment/:slug → "Suggest an edit". The form-level loader
+  // (TT-103) is responsible for fetching the equipment row and
+  // populating the rest of the editable fields.
+  equipment_edit: [
+    {
+      paramName: "equipment_id",
+      fieldName: "equipment_id",
+      handler: async (equipmentId, _fieldOptions, sbClient) => {
+        const { data: equipment } = await sbClient
+          .from("equipment")
+          .select("id, name, manufacturer")
+          .eq("id", equipmentId)
+          .single();
+        return equipment
+          ? {
+              equipment_id: equipment.id,
+              equipment_display: `${equipment.name} (${equipment.manufacturer})`,
+            }
+          : {};
+      },
+    },
+  ],
   player_edit: [
     {
       paramName: "player_id",

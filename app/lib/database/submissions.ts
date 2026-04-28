@@ -13,7 +13,7 @@ import { withLogging } from "./logging";
 // removing one of these four from the tuple surfaces as a compile error.
 export type CoreSubmissionType = Extract<
   SubmissionType,
-  "equipment" | "player" | "player_edit" | "video"
+  "equipment" | "player" | "player_edit" | "video" | "equipment_edit"
 >;
 
 export function getSubmissionTableName(
@@ -28,6 +28,8 @@ export function getSubmissionTableName(
       return "player_edits";
     case "video":
       return "video_submissions";
+    case "equipment_edit":
+      return "equipment_edits";
     default:
       throw new Error(`Unknown submission type: ${submissionType}`);
   }

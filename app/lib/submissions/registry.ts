@@ -572,6 +572,50 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     }),
   },
 
+  // TT-74: equipment_edit submission flow. Form fields are stub here
+  // — TT-103 builds the pre-filled, category-aware form route. Discord
+  // card uses a basic shape; TT-106 may refine it with diff rendering.
+  equipment_edit: {
+    type: "equipment_edit",
+    tableName: "equipment_edits",
+    displayName: "Equipment Edit",
+    adminPath: "/admin/equipment-edits",
+    form: {
+      title: "Suggest Equipment Changes",
+      description:
+        "Suggest updates to existing equipment in our database. Your changes will be reviewed before going live.",
+      submitButtonText: "Submit Changes",
+      successTitle: "Changes Submitted!",
+      successMessage:
+        "Your suggested changes have been submitted and will be reviewed by our team.",
+      redirectPath: "/profile",
+      fields: [],
+    },
+    discord: {
+      color: DISCORD_COLORS.ORANGE,
+      emoji: "✏️",
+      titlePrefix: "Equipment Edit",
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    formatForDiscord: (data: any): DiscordNotificationData => ({
+      id: data.id,
+      submissionType: "equipment_edit",
+      title: "✏️ Equipment Edit Submitted",
+      description:
+        "An equipment update has been submitted and needs moderation.",
+      color: DISCORD_COLORS.ORANGE,
+      adminUrl: createAdminUrl("equipment_edit", data.id),
+      submitterEmail: data.submitter_email,
+      fields: [
+        createDiscordField(
+          "Equipment",
+          data.equipment_name || "Unknown Equipment"
+        ),
+        createSubmitterField(data.submitter_email),
+      ],
+    }),
+  },
+
   player_equipment_setup: {
     type: "player_equipment_setup",
     tableName: "player_equipment_setup_submissions",

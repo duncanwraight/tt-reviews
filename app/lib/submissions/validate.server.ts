@@ -121,6 +121,23 @@ const SUBMISSION_CONSTRAINTS: Record<
       spec: { kind: "url", requireHttps: true, maxLength: 2048 },
     },
   },
+
+  // TT-74 equipment_edit submission flow. Per-spec inputs (`spec_*`)
+  // and image are validated downstream by parseEquipmentSpecs and the
+  // submit handler — not enumerable here because the field set depends
+  // on the proposed (category, subcategory).
+  equipment_edit: {
+    equipment_id: { required: true, spec: { kind: "uuid" } },
+    name: { spec: { kind: "text", maxLength: 200 } },
+    category: { spec: { kind: "text", maxLength: 50 } },
+    subcategory: { spec: { kind: "text", maxLength: 50 } },
+    description: { spec: { kind: "text", maxLength: 2000 } },
+    edit_reason: { required: true, spec: { kind: "text", maxLength: 2000 } },
+    image_action: {
+      required: true,
+      spec: { kind: "enum", values: ["keep", "replace"] },
+    },
+  },
 };
 
 export interface ValidationResult {

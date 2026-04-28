@@ -16,6 +16,7 @@ const ENTITY_LABEL: Record<ActivitySubmissionType, string> = {
   review: "equipment review",
   video: "video submission",
   player_equipment_setup: "equipment setup",
+  equipment_edit: "equipment edit",
 };
 
 export function AdminActivityWidget({ entries }: AdminActivityWidgetProps) {

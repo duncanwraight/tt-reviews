@@ -23,6 +23,7 @@ describe("submissions.getSubmissionTableName", () => {
     ["player", "player_submissions"],
     ["player_edit", "player_edits"],
     ["video", "video_submissions"],
+    ["equipment_edit", "equipment_edits"],
   ] as const)("maps %s → %s", (input, expected) => {
     expect(submissions.getSubmissionTableName(input)).toBe(expected);
   });

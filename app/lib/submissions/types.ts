@@ -17,6 +17,7 @@ export const SUBMISSION_TYPE_VALUES = [
   "video",
   "review",
   "player_equipment_setup",
+  "equipment_edit",
 ] as const;
 
 export type SubmissionType = (typeof SUBMISSION_TYPE_VALUES)[number];

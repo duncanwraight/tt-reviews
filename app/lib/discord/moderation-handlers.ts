@@ -124,6 +124,45 @@ export const MODERATION_HANDLERS: Record<SubmissionType, HandlerConfig> = {
     },
   },
 
+  // TT-74 equipment_edit: clones player_edit's shape — same approve/
+  // reject lifecycle, same tracked-message + cloudflareEnv R2 wiring.
+  // TT-106 may layer richer diff rendering into the embed body.
+  equipment_edit: {
+    responseKind: "visible",
+    hasTrackedMessage: true,
+    r2Source: "cloudflareEnv",
+    approval: {
+      buildSuccess: ({ id, username, newStatus }) => {
+        let message = "Your approval has been recorded.";
+        if (newStatus === "approved") {
+          message =
+            "Equipment edit has been fully approved and changes will be applied.";
+        } else if (newStatus === "awaiting_second_approval") {
+          message =
+            "Equipment edit needs one more approval before changes are applied.";
+        }
+        return `✅ **Equipment Edit Approved by ${username}**\nEquipment edit ${id}: ${message}`;
+      },
+      buildFallback: err =>
+        `❌ **Error**: ${err || "Failed to process approval"}`,
+      logMessage: "Error handling approve equipment edit",
+      buildCatchMessage: () =>
+        `❌ **Error**: Failed to process equipment edit approval`,
+      includeSubmissionIdInLog: false,
+    },
+    rejection: {
+      reason: username => `Rejected via Discord by ${username}`,
+      buildSuccess: ({ id, username }) =>
+        `❌ **Equipment Edit Rejected by ${username}**\nEquipment edit ${id} has been rejected and changes will not be applied.`,
+      buildFallback: err =>
+        `❌ **Error**: ${err || "Failed to reject equipment edit"}`,
+      logMessage: "Error handling reject equipment edit",
+      buildCatchMessage: () =>
+        `❌ **Error**: Failed to process equipment edit rejection`,
+      includeSubmissionIdInLog: false,
+    },
+  },
+
   equipment: {
     responseKind: "visible",
     hasTrackedMessage: true,
