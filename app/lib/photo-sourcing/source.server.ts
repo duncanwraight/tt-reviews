@@ -9,11 +9,10 @@
 // image store. See docs/IMAGES.md for the render path.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  resolveBraveCandidates,
-  type EquipmentSeed,
-  type ResolvedCandidate,
-} from "./brave.server";
+import { type ResolvedCandidate } from "./brave.server";
+import { braveProvider } from "./providers/brave";
+import type { Provider } from "./providers/types";
+import { Logger, createLogContext } from "../logger.server";
 
 const DEFAULT_LIMIT = 6;
 const DOWNLOAD_TIMEOUT_MS = 8000;
@@ -63,12 +62,6 @@ export interface R2PutBucket {
 export interface SourcingDeps {
   // Default `fetch` works in Workers + node; injected so tests can stub.
   fetchImpl?: typeof fetch;
-  // Defaults to the lib's resolver; overridable for tests.
-  resolve?: (
-    item: EquipmentSeed,
-    apiKey: string,
-    options: { limit?: number; fetchImpl?: typeof fetch }
-  ) => Promise<ResolvedCandidate[]>;
   // Defaults to a UUID; overridable for tests so candidate keys are
   // deterministic.
   randomId?: () => string;
@@ -141,12 +134,16 @@ export async function sourcePhotosForEquipment(
   bucket: R2PutBucket,
   env: SourcingEnv,
   slug: string,
-  options: { limit?: number; deps?: SourcingDeps } = {}
+  options: {
+    limit?: number;
+    deps?: SourcingDeps;
+    providers?: Provider[];
+  } = {}
 ): Promise<SourcingResult> {
   const deps = options.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
-  const resolve = deps.resolve ?? resolveBraveCandidates;
   const randomId = deps.randomId ?? defaultRandomId;
+  const providers = options.providers ?? [braveProvider];
 
   const { data: equipment, error: equipmentError } = await supabase
     .from("equipment")
@@ -178,16 +175,77 @@ export async function sourcePhotosForEquipment(
   }
 
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const resolved = await resolve(
-    {
-      slug: row.slug,
-      name: row.name,
-      manufacturer: row.manufacturer,
-      category: row.category,
-    },
-    env.BRAVE_SEARCH_API_KEY,
-    { limit, fetchImpl }
+  const seed = {
+    slug: row.slug,
+    name: row.name,
+    manufacturer: row.manufacturer,
+    category: row.category,
+  };
+
+  // Run all providers in parallel; merge their candidate lists. Each
+  // provider's status is logged but the overall pipeline still runs
+  // as long as at least one returned 'ok' with candidates. TT-90 will
+  // wire 'rate_limited'/'out_of_budget' into queue retry semantics
+  // (re-queue with delay rather than swallow).
+  const providerOutcomes = await Promise.all(
+    providers.map(async p => {
+      try {
+        const result = await p.resolveCandidates(seed, env, {
+          limit,
+          fetchImpl,
+        });
+        return { name: p.name, ...result };
+      } catch (err) {
+        Logger.error(
+          "provider resolve failed",
+          createLogContext("photo-sourcing-provider", {
+            provider: p.name,
+            slug: row.slug,
+          }),
+          err instanceof Error ? err : undefined
+        );
+        return {
+          name: p.name,
+          status: "ok" as const,
+          candidates: [] as ResolvedCandidate[],
+        };
+      }
+    })
   );
+
+  // Merge + dedupe by image URL (different providers may return the
+  // same image). Trailing-match wins over loose; tier ascending wins
+  // ties — same rule rankCandidates would apply, but applied here at
+  // dedupe time so we keep the better classification when both hit.
+  const byImageUrl = new Map<string, ResolvedCandidate>();
+  for (const outcome of providerOutcomes) {
+    for (const candidate of outcome.candidates) {
+      const key = candidate.imageUrl;
+      if (!key) continue;
+      const existing = byImageUrl.get(key);
+      if (!existing) {
+        byImageUrl.set(key, candidate);
+        continue;
+      }
+      const existingScore =
+        (existing.match === "trailing" ? 0 : 1000) + existing.tier;
+      const candidateScore =
+        (candidate.match === "trailing" ? 0 : 1000) + candidate.tier;
+      if (candidateScore < existingScore) {
+        byImageUrl.set(key, candidate);
+      }
+    }
+  }
+
+  // Re-rank: trailing-first, then tier ascending. Stable.
+  const merged = [...byImageUrl.values()].sort((a, b) => {
+    const aTrail = a.match === "trailing" ? 0 : 1;
+    const bTrail = b.match === "trailing" ? 0 : 1;
+    if (aTrail !== bTrail) return aTrail - bTrail;
+    return a.tier - b.tier;
+  });
+
+  const resolved = merged.slice(0, limit);
 
   if (resolved.length === 0) {
     await supabase

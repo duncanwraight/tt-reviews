@@ -2,6 +2,20 @@ import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sourcePhotosForEquipment, type R2PutBucket } from "../source.server";
 import type { ResolvedCandidate } from "../brave.server";
+import type { Provider, ProviderResult } from "../providers/types";
+
+// Build a one-shot mock Provider that returns a fixed candidate list
+// (or status). The test asserts on the spy's resolveCandidates calls.
+function mockProvider(
+  candidates: ResolvedCandidate[],
+  overrides: Partial<ProviderResult> & { name?: string } = {}
+): Provider & { resolveCandidates: ReturnType<typeof vi.fn> } {
+  const fn = vi.fn().mockResolvedValue({
+    status: overrides.status ?? "ok",
+    candidates: overrides.candidates ?? candidates,
+  } satisfies ProviderResult);
+  return { name: overrides.name ?? "mock", resolveCandidates: fn };
+}
 
 const ENV = {
   BRAVE_SEARCH_API_KEY: "brave-key",
@@ -222,16 +236,19 @@ describe("sourcePhotosForEquipment", () => {
       equipment: [{ ...STIGA_ROW, image_key: "equipment/x/y.webp" }],
     });
     const { bucket, puts } = makeBucket();
-    const resolve = vi.fn();
+    const provider = mockProvider([]);
     const result = await sourcePhotosForEquipment(
       supabase,
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl: fakeFetch() } }
+      {
+        providers: [provider],
+        deps: { fetchImpl: fakeFetch() },
+      }
     );
     expect(result.status).toBe("already-imaged");
-    expect(resolve).not.toHaveBeenCalled();
+    expect(provider.resolveCandidates).not.toHaveBeenCalled();
     expect(puts).toHaveLength(0);
   });
 
@@ -242,7 +259,7 @@ describe("sourcePhotosForEquipment", () => {
     const { bucket, puts } = makeBucket();
     const randomId = deterministicIds("uuid");
 
-    const resolve = vi.fn().mockResolvedValue([
+    const provider = mockProvider([
       fakeResolved({
         imageUrl: "https://www.revspin.net/img/stiga-airoc-m.jpg",
         pageUrl: "https://www.revspin.net/stiga-airoc-m",
@@ -262,7 +279,10 @@ describe("sourcePhotosForEquipment", () => {
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl: fakeFetch(), randomId } }
+      {
+        providers: [provider],
+        deps: { fetchImpl: fakeFetch(), randomId },
+      }
     );
 
     expect(result.status).toBe("sourced");
@@ -301,7 +321,7 @@ describe("sourcePhotosForEquipment", () => {
     const { bucket, puts } = makeBucket();
     const randomId = deterministicIds("uuid");
 
-    const resolve = vi.fn().mockResolvedValue([
+    const provider = mockProvider([
       // Should be skipped — same pageUrl as existing.
       fakeResolved({
         imageUrl: "https://www.revspin.net/img/stiga-airoc-m.jpg",
@@ -321,7 +341,10 @@ describe("sourcePhotosForEquipment", () => {
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl: fakeFetch(), randomId } }
+      {
+        providers: [provider],
+        deps: { fetchImpl: fakeFetch(), randomId },
+      }
     );
 
     expect(result.insertedCount).toBe(1);
@@ -336,14 +359,17 @@ describe("sourcePhotosForEquipment", () => {
   it("returns no-candidates and stamps attempted_at when resolver finds nothing", async () => {
     const { supabase, equipment } = makeSupabase({ equipment: [STIGA_ROW] });
     const { bucket, puts } = makeBucket();
-    const resolve = vi.fn().mockResolvedValue([]);
+    const provider = mockProvider([]);
 
     const result = await sourcePhotosForEquipment(
       supabase,
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl: fakeFetch() } }
+      {
+        providers: [provider],
+        deps: { fetchImpl: fakeFetch() },
+      }
     );
 
     expect(result.status).toBe("no-candidates");
@@ -357,7 +383,7 @@ describe("sourcePhotosForEquipment", () => {
     const { bucket, puts } = makeBucket();
     const randomId = deterministicIds("uuid");
 
-    const resolve = vi.fn().mockResolvedValue([
+    const provider = mockProvider([
       fakeResolved({
         imageUrl: "https://broken.example/x.jpg",
         pageUrl: "https://broken.example/x",
@@ -383,7 +409,10 @@ describe("sourcePhotosForEquipment", () => {
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl, randomId } }
+      {
+        providers: [provider],
+        deps: { fetchImpl, randomId },
+      }
     );
 
     expect(result.insertedCount).toBe(1);
@@ -398,7 +427,7 @@ describe("sourcePhotosForEquipment", () => {
     const { bucket } = makeBucket();
     const randomId = deterministicIds("uuid");
 
-    const resolve = vi.fn().mockResolvedValue([
+    const provider = mockProvider([
       fakeResolved({
         imageUrl: "https://r.example/a.png",
         pageUrl: "https://r.example/a",
@@ -433,7 +462,10 @@ describe("sourcePhotosForEquipment", () => {
       bucket,
       ENV,
       "stiga-airoc-m",
-      { deps: { resolve, fetchImpl, randomId } }
+      {
+        providers: [provider],
+        deps: { fetchImpl, randomId },
+      }
     );
 
     expect(result.insertedCount).toBe(3);
@@ -446,8 +478,125 @@ describe("sourcePhotosForEquipment", () => {
     const { bucket } = makeBucket();
     await expect(
       sourcePhotosForEquipment(supabase, bucket, ENV, "nope", {
-        deps: { resolve: vi.fn(), fetchImpl: fakeFetch() },
+        providers: [mockProvider([])],
+        deps: { fetchImpl: fakeFetch() },
       })
     ).rejects.toThrow(/equipment not found: nope/);
+  });
+
+  it("merges candidates from multiple providers, dedupes by image URL", async () => {
+    const { supabase, candidates } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket, puts } = makeBucket();
+    const randomId = deterministicIds("uuid");
+
+    const sharedImage = "https://shared.example/img/stiga-airoc-m.jpg";
+    const providerA = mockProvider(
+      [
+        fakeResolved({
+          imageUrl: sharedImage,
+          pageUrl: "https://retailer-a.example/p",
+          host: "retailer-a.example",
+          tier: 2,
+          tierLabel: "a",
+          match: "loose",
+        }),
+      ],
+      { name: "a" }
+    );
+    const providerB = mockProvider(
+      [
+        // Same image URL but stronger classification (trailing, tier 1)
+        // — should win the dedupe.
+        fakeResolved({
+          imageUrl: sharedImage,
+          pageUrl: "https://retailer-b.example/p",
+          host: "retailer-b.example",
+          tier: 1,
+          tierLabel: "b",
+          match: "trailing",
+        }),
+        fakeResolved({
+          imageUrl: "https://retailer-b.example/img/other.jpg",
+          pageUrl: "https://retailer-b.example/other",
+          host: "retailer-b.example",
+        }),
+      ],
+      { name: "b" }
+    );
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [providerA, providerB],
+        deps: { fetchImpl: fakeFetch(), randomId },
+      }
+    );
+
+    expect(result.insertedCount).toBe(2);
+    expect(puts).toHaveLength(2);
+    // Shared-image candidate should have provider B's stronger
+    // classification (trailing, tier 1, host retailer-b).
+    const shared = candidates.find(
+      c => c.source_url === "https://retailer-b.example/p"
+    );
+    expect(shared).toBeDefined();
+    expect(shared?.match_kind).toBe("trailing");
+    expect(shared?.tier).toBe(1);
+    expect(providerA.resolveCandidates).toHaveBeenCalledOnce();
+    expect(providerB.resolveCandidates).toHaveBeenCalledOnce();
+  });
+
+  it("continues when a provider throws", async () => {
+    const { supabase } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket } = makeBucket();
+    const randomId = deterministicIds("uuid");
+
+    const broken: Provider = {
+      name: "broken",
+      resolveCandidates: vi.fn().mockRejectedValue(new Error("boom")),
+    };
+    const working = mockProvider([
+      fakeResolved({
+        imageUrl: "https://r.example/x.png",
+        pageUrl: "https://r.example/x",
+      }),
+    ]);
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [broken, working],
+        deps: { fetchImpl: fakeFetch(), randomId },
+      }
+    );
+
+    expect(result.insertedCount).toBe(1);
+  });
+
+  it("treats rate_limited / out_of_budget providers as empty", async () => {
+    const { supabase, equipment } = makeSupabase({ equipment: [STIGA_ROW] });
+    const { bucket } = makeBucket();
+    const rateLimited = mockProvider([], { status: "rate_limited" });
+    const outOfBudget = mockProvider([], { status: "out_of_budget" });
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [rateLimited, outOfBudget],
+        deps: { fetchImpl: fakeFetch() },
+      }
+    );
+
+    expect(result.status).toBe("no-candidates");
+    expect(equipment[0].image_sourcing_attempted_at).toBeTruthy();
   });
 });
