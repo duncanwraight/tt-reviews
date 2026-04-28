@@ -92,8 +92,8 @@ done
 # latest non-zero step exit code (so a `continue-on-error: true` step
 # that exited non-zero lies green-as-red), per CLAUDE.md. Read
 # `conclusion` from the API directly instead.
-gh run view "$run_id" --json status,conclusion,displayTitle,url --jq \
-  '"\(.displayTitle)\n  status:     \(.status)\n  conclusion: \(.conclusion)\n  url:        \(.url)"'
+gh run view "$run_id" --json status,conclusion,displayTitle,url,headSha --jq \
+  '"\(.displayTitle) (\(.headSha[:7]))\n  status:     \(.status)\n  conclusion: \(.conclusion)\n  url:        \(.url)"'
 
 conclusion=$(gh run view "$run_id" --json conclusion --jq '.conclusion')
 
