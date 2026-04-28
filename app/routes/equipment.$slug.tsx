@@ -15,7 +15,6 @@ import { getUserWithRole } from "~/lib/auth.server";
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { AdminTrimToggle } from "~/components/equipment/AdminTrimToggle";
-import { AdminPhotoUpload } from "~/components/equipment/AdminPhotoUpload";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
@@ -278,13 +277,6 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
           <AdminTrimToggle
             slug={equipment.slug}
             trimKind={equipment.image_trim_kind ?? null}
-            csrfToken={adminCsrfToken}
-          />
-        )}
-        {isAdmin && adminCsrfToken && (
-          <AdminPhotoUpload
-            slug={equipment.slug}
-            hasImage={Boolean(equipment.image_key)}
             csrfToken={adminCsrfToken}
           />
         )}
