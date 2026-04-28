@@ -15,15 +15,31 @@ import { test, expect, type Page } from "@playwright/test";
 // clearing deterministic.
 test.describe.configure({ mode: "serial" });
 
-const INVERTED_A = "dhs-neo-hurricane-3";
-const INVERTED_B = "yasaka-mark-v";
-const INVERTED_C = "yasaka-rakza-7";
-const INVERTED_D = "butterfly-tenergy-05-fx";
-const LONG_PIPS_SLUG = "tsp-curl-p1r";
+// Slugs used everywhere except the SpecsTable sort tests. Picked from
+// page 1 of /equipment?subcategory=inverted (and ?subcategory=long_pips)
+// under the deterministic created_at-DESC, slug-ASC sort introduced for
+// TT-86 — the Andro Rasanter cluster sits at positions 4-7 of inverted
+// page 1, alphabetical ordering keeps them clustered across any seed
+// shuffle, and they render the EquipmentCard with `comparison-toggle`
+// enabled by default.
+const LIST_A = "andro-rasanter-c45";
+const LIST_B = "andro-rasanter-c48";
+const LIST_C = "andro-rasanter-c53";
+const LIST_D = "andro-rasanter-r53";
+const LONG_PIPS_SLUG = "andro-rasant-chaos";
 
-const CANONICAL_PAIR = `/equipment/compare/${INVERTED_A}-vs-${INVERTED_B}`;
-const REVERSED_PAIR = `/equipment/compare/${INVERTED_B}-vs-${INVERTED_A}`;
-const SORTED_TRIPLE = [INVERTED_A, INVERTED_B, INVERTED_C].sort();
+// SpecsTable sort tests need a pair with seeded numeric/range spec
+// values — DHS NEO Hurricane 3 (speed 8.5, hardness {40,40}) vs Yasaka
+// Mark V (speed 8.0, hardness {40,42}). These tests navigate directly
+// to the compare URL and don't touch the listing, so visibility on
+// page 1 doesn't matter.
+const SORT_PAIR_A = "dhs-neo-hurricane-3";
+const SORT_PAIR_B = "yasaka-mark-v";
+const SORT_PAIR_URL = `/equipment/compare/${SORT_PAIR_A}-vs-${SORT_PAIR_B}`;
+
+const CANONICAL_PAIR = `/equipment/compare/${LIST_A}-vs-${LIST_B}`;
+const REVERSED_PAIR = `/equipment/compare/${LIST_B}-vs-${LIST_A}`;
+const SORTED_TRIPLE = [LIST_A, LIST_B, LIST_C].sort();
 const TRIPLE_QUERY_URL = `/equipment/compare?ids=${SORTED_TRIPLE.join(",")}`;
 
 const VIEWPORTS = [
@@ -66,10 +82,10 @@ test.describe("Equipment comparison — 2-item flow (TT-29)", () => {
     await page.goto("/equipment?subcategory=inverted");
 
     const cardA = page.locator(
-      `[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`
+      `[data-testid="equipment-card"][data-slug="${LIST_A}"]`
     );
     const cardB = page.locator(
-      `[data-testid="equipment-card"][data-slug="${INVERTED_B}"]`
+      `[data-testid="equipment-card"][data-slug="${LIST_B}"]`
     );
 
     await cardA.getByTestId("comparison-toggle").click();
@@ -92,7 +108,7 @@ test.describe("Equipment comparison — 2-item flow (TT-29)", () => {
   test("mismatched-subcategory URL redirects to /equipment", async ({
     page,
   }) => {
-    await page.goto(`/equipment/compare/${INVERTED_A}-vs-${LONG_PIPS_SLUG}`);
+    await page.goto(`/equipment/compare/${LIST_A}-vs-${LONG_PIPS_SLUG}`);
     await expect(page).toHaveURL(/\/equipment\/?($|\?)/);
   });
 
@@ -101,7 +117,7 @@ test.describe("Equipment comparison — 2-item flow (TT-29)", () => {
   }) => {
     await page.goto("/equipment?subcategory=inverted");
     await page
-      .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`)
+      .locator(`[data-testid="equipment-card"][data-slug="${LIST_A}"]`)
       .getByTestId("comparison-toggle")
       .click();
 
@@ -121,7 +137,7 @@ test.describe("Equipment comparison — 2-item flow (TT-29)", () => {
     await page.goto("/equipment?subcategory=inverted");
 
     const card = page.locator(
-      `[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`
+      `[data-testid="equipment-card"][data-slug="${LIST_A}"]`
     );
     await card.getByTestId("comparison-toggle").click();
     await expect(page.getByTestId("comparison-tray")).toBeVisible();
@@ -131,7 +147,7 @@ test.describe("Equipment comparison — 2-item flow (TT-29)", () => {
     await expect(page.getByTestId("comparison-tray")).toBeVisible();
     await expect(
       page
-        .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`)
+        .locator(`[data-testid="equipment-card"][data-slug="${LIST_A}"]`)
         .getByTestId("comparison-toggle")
     ).toHaveAttribute("data-selected", "true");
   });
@@ -143,7 +159,7 @@ test.describe("Equipment comparison — 3-item flow (TT-30)", () => {
   }) => {
     await page.goto("/equipment?subcategory=inverted");
 
-    for (const slug of [INVERTED_A, INVERTED_B, INVERTED_C]) {
+    for (const slug of [LIST_A, LIST_B, LIST_C]) {
       await page
         .locator(`[data-testid="equipment-card"][data-slug="${slug}"]`)
         .getByTestId("comparison-toggle")
@@ -170,7 +186,7 @@ test.describe("Equipment comparison — 3-item flow (TT-30)", () => {
   test("ticking a 4th item replaces the oldest selection", async ({ page }) => {
     await page.goto("/equipment?subcategory=inverted");
 
-    for (const slug of [INVERTED_A, INVERTED_B, INVERTED_C]) {
+    for (const slug of [LIST_A, LIST_B, LIST_C]) {
       await page
         .locator(`[data-testid="equipment-card"][data-slug="${slug}"]`)
         .getByTestId("comparison-toggle")
@@ -182,19 +198,19 @@ test.describe("Equipment comparison — 3-item flow (TT-30)", () => {
 
     // Adding D should drop A (oldest) and keep B, C, D.
     await page
-      .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_D}"]`)
+      .locator(`[data-testid="equipment-card"][data-slug="${LIST_D}"]`)
       .getByTestId("comparison-toggle")
       .click();
 
     await expect(tray).toContainText("3 of 3");
     await expect(
       page
-        .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`)
+        .locator(`[data-testid="equipment-card"][data-slug="${LIST_A}"]`)
         .getByTestId("comparison-toggle")
     ).toHaveAttribute("data-selected", "false");
     await expect(
       page
-        .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_D}"]`)
+        .locator(`[data-testid="equipment-card"][data-slug="${LIST_D}"]`)
         .getByTestId("comparison-toggle")
     ).toHaveAttribute("data-selected", "true");
   });
@@ -202,7 +218,7 @@ test.describe("Equipment comparison — 3-item flow (TT-30)", () => {
   test("?ids=a,b (2 ids) redirects to the canonical slug-pair route", async ({
     page,
   }) => {
-    const [a, b] = [INVERTED_A, INVERTED_B].sort();
+    const [a, b] = [LIST_A, LIST_B].sort();
     await page.goto(`/equipment/compare?ids=${a},${b}`);
     await expect(page).toHaveURL(`/equipment/compare/${a}-vs-${b}`);
   });
@@ -211,7 +227,7 @@ test.describe("Equipment comparison — 3-item flow (TT-30)", () => {
     page,
   }) => {
     await page.goto(
-      `/equipment/compare?ids=${INVERTED_A},${INVERTED_B},${LONG_PIPS_SLUG}`
+      `/equipment/compare?ids=${LIST_A},${LIST_B},${LONG_PIPS_SLUG}`
     );
     await expect(page).toHaveURL(/\/equipment\/?($|\?)/);
   });
@@ -277,11 +293,11 @@ test.describe("Equipment comparison — layout (TT-29)", () => {
     await page.goto("/equipment?subcategory=inverted");
 
     await page
-      .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_A}"]`)
+      .locator(`[data-testid="equipment-card"][data-slug="${LIST_A}"]`)
       .getByTestId("comparison-toggle")
       .click();
     await page
-      .locator(`[data-testid="equipment-card"][data-slug="${INVERTED_B}"]`)
+      .locator(`[data-testid="equipment-card"][data-slug="${LIST_B}"]`)
       .getByTestId("comparison-toggle")
       .click();
 
@@ -312,7 +328,7 @@ test.describe("Equipment comparison — SpecsTable sortable columns (TT-77)", ()
   test("clicking a numeric spec header sorts ascending, then descending", async ({
     page,
   }) => {
-    await page.goto(CANONICAL_PAIR);
+    await page.goto(SORT_PAIR_URL);
     await expect(page.getByTestId("specs-table")).toBeVisible();
 
     expect(await equipmentNameOrder(page)).toEqual([
@@ -342,14 +358,14 @@ test.describe("Equipment comparison — SpecsTable sortable columns (TT-77)", ()
   });
 
   test("text spec rows have no sort affordance", async ({ page }) => {
-    await page.goto(CANONICAL_PAIR);
+    await page.goto(SORT_PAIR_URL);
     await expect(page.getByTestId("specs-table")).toBeVisible();
     await expect(page.getByTestId("specs-table-sort-topsheet")).toHaveCount(0);
     await expect(page.getByTestId("specs-table-sort-sponge")).toHaveCount(0);
   });
 
   test("range spec sorts by min with max as tiebreaker", async ({ page }) => {
-    await page.goto(CANONICAL_PAIR);
+    await page.goto(SORT_PAIR_URL);
     await expect(page.getByTestId("specs-table")).toBeVisible();
 
     // Hardness — DHS {40,40}, Yasaka {40,42}. Tie on min, max tiebreak puts

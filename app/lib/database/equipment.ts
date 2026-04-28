@@ -91,7 +91,13 @@ export async function getAllEquipment(
 
       const sortBy = options?.sortBy || "created_at";
       const sortOrder = options?.sortOrder || "desc";
-      query = query.order(sortBy, { ascending: sortOrder === "asc" });
+      query = query
+        .order(sortBy, { ascending: sortOrder === "asc" })
+        // Slug is UNIQUE — use it as a deterministic tiebreaker so listings
+        // are stable when many rows share the same primary sort value
+        // (especially common for created_at after a bulk seed). Without
+        // this, page-1 contents drift between fresh and long-running DBs.
+        .order("slug", { ascending: true });
 
       if (options?.limit) {
         query = query.limit(options.limit);
@@ -372,7 +378,15 @@ export async function getAllEquipmentWithStats(
         break;
     }
 
-    return sortOrder === "desc" ? -comparison : comparison;
+    if (comparison !== 0) {
+      return sortOrder === "desc" ? -comparison : comparison;
+    }
+
+    // Slug is UNIQUE — deterministic ascending tiebreaker so listings are
+    // stable when many rows share the same primary sort value (common for
+    // created_at after a bulk seed). Tiebreaker direction is intentionally
+    // independent of sortOrder so the secondary order is predictable.
+    return a.slug.localeCompare(b.slug);
   });
 
   const start = options?.offset || 0;
