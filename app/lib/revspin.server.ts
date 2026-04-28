@@ -32,7 +32,12 @@ export interface RevspinProduct {
   name: string;
   manufacturer: string;
   category: "blade" | "rubber";
-  subcategory?: "inverted" | "long_pips" | "short_pips" | "anti";
+  subcategory?:
+    | "inverted"
+    | "short_pips"
+    | "medium_pips"
+    | "long_pips"
+    | "anti";
   slug: string;
   sourceUrl: string;
   specifications: Record<string, unknown>;
@@ -518,7 +523,13 @@ export function listItemToProduct(
   category: RevspinCategory
 ): RevspinProduct | null {
   let dbCategory: "blade" | "rubber" = "blade";
-  let subcategory: "inverted" | "long_pips" | "short_pips" | "anti" | undefined;
+  let subcategory:
+    | "inverted"
+    | "short_pips"
+    | "medium_pips"
+    | "long_pips"
+    | "anti"
+    | undefined;
 
   if (category === "blade") {
     dbCategory = "blade";

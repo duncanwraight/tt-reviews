@@ -62,7 +62,12 @@ export interface EquipmentSubmission {
   name: string;
   manufacturer: string;
   category: "blade" | "rubber" | "ball";
-  subcategory?: "inverted" | "long_pips" | "anti" | "short_pips";
+  subcategory?:
+    | "inverted"
+    | "short_pips"
+    | "medium_pips"
+    | "long_pips"
+    | "anti";
   specifications: Record<string, unknown>;
   status: ReviewStatus;
   moderator_id?: string;

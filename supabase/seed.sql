@@ -7,11 +7,13 @@ INSERT INTO categories (type, name, value, display_order, flag_emoji, is_active)
 ('equipment_category', 'Rubbers', 'rubber', 2, NULL, true),
 ('equipment_category', 'Balls', 'ball', 3, NULL, true),
 
--- Equipment subcategories (rubber types)
+-- Equipment subcategories (rubber types). Display order runs
+-- short → medium → long pips, with anti-spin trailing.
 ('equipment_subcategory', 'Inverted', 'inverted', 1, NULL, true),
-('equipment_subcategory', 'Long Pips', 'long_pips', 2, NULL, true),
-('equipment_subcategory', 'Anti-Spin', 'anti', 3, NULL, true),
-('equipment_subcategory', 'Short Pips', 'short_pips', 4, NULL, true),
+('equipment_subcategory', 'Short Pips', 'short_pips', 2, NULL, true),
+('equipment_subcategory', 'Medium Pips', 'medium_pips', 3, NULL, true),
+('equipment_subcategory', 'Long Pips', 'long_pips', 4, NULL, true),
+('equipment_subcategory', 'Anti-Spin', 'anti', 5, NULL, true),
 
 -- Playing styles (accurate table tennis categories)
 ('playing_style', 'Shakehand Attacker', 'shakehand_attacker', 1, NULL, true),
@@ -339,6 +341,27 @@ FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pi
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
 SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'short_pips';
+
+-- Medium pips rubber spec fields
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Sponge', 'sponge', 'Sponge material or description', 1, c.id, true, 'text'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Topsheet', 'topsheet', 'Topsheet material or type', 2, c.id, true, 'text'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Speed', 'speed', 'Manufacturer speed rating', 3, c.id, true, 'float', 0, 10
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Spin', 'spin', 'Manufacturer spin rating', 4, c.id, true, 'float', 0, 10
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, scale_min, scale_max)
+SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
 
 -- Ball spec fields: intentionally none seeded. No ball specs exist in data yet;
 -- admin can add them later via the configurable categories UI.

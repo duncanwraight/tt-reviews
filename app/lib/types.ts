@@ -90,7 +90,12 @@ export interface Equipment {
   name: string;
   slug: string;
   category: "blade" | "rubber" | "ball";
-  subcategory?: "inverted" | "long_pips" | "anti" | "short_pips";
+  subcategory?:
+    | "inverted"
+    | "short_pips"
+    | "medium_pips"
+    | "long_pips"
+    | "anti";
   manufacturer: string;
   specifications: Record<string, unknown>;
   description?: string;
