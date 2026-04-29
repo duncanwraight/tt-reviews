@@ -11,7 +11,7 @@ Two distinct kinds of equipment data live in this app; don't conflate them when 
 - **Manufacturer data** (`equipment.specifications` JSONB): values as the manufacturer publishes them — weight, thickness, hardness, plus marketing-style speed/spin/control ratings. Not necessarily reliable, and scales aren't comparable across brands — DHS "speed 12" and Butterfly "speed 12" don't mean the same thing. Typed schema is locked in `archive/EQUIPMENT-SPECS.md`.
 - **Review data** (`equipment_reviews.category_ratings`, `equipment_reviews.overall_rating`): community-moderated "out of 10" ratings from players who've actually used the equipment. The trustworthy comparable signal.
 
-Public equipment submissions capture manufacturer data only — if a user wants to share their playing experience, they go through the review flow separately. Editing existing manufacturer data is admin-only (tracked in TT-74); there is no public edit form for equipment today.
+Public equipment submissions capture manufacturer data only — if a user wants to share their playing experience, they go through the review flow separately. Editing existing manufacturer data goes through the public `equipment_edit` submission flow (TT-74): any signed-in user can suggest edits to name/category/subcategory/description/specs/image via the "Suggest an edit" link on `/equipment/:slug`, and the change lands on the equipment row when an admin approves via `/admin/equipment-edits` (or two Discord moderators click Approve on the bot's mod card). The trim toggle stays admin-only inline (`AdminTrimToggle`) — that's an internal correction, not user-facing data.
 
 ## Environment variables — runtime gate + smoke fallback
 
