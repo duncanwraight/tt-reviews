@@ -18,6 +18,7 @@ import {
   loadApprovalsForSubmissions,
   loadPendingQueue,
 } from "~/lib/admin/queue.server";
+import { applyPlayerSubmission } from "~/lib/admin/player-submission-applier.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -114,50 +115,28 @@ export async function action({ request, context }: Route.ActionArgs) {
         moderatorNotes
       );
 
-      // If this approval results in full approval, create the player record
+      // If this approval results in full approval, create the player
+      // record. Same helper is invoked from the Discord engine on a 2×
+      // moderator approval flip — see app/lib/discord/moderation-appliers.ts.
       if (result.success && result.newStatus === "approved") {
-        const { data: submission } = await supabase
-          .from("player_submissions")
-          .select("*")
-          .eq("id", submissionId)
-          .single();
-
-        if (submission) {
-          const slug = submission.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-
-          const { error: insertError } = await supabase.from("players").insert({
-            name: submission.name,
-            slug: slug,
-            highest_rating: submission.highest_rating,
-            active_years: submission.active_years,
-            playing_style: submission.playing_style,
-            birth_country: submission.birth_country,
-            represents: submission.represents,
-            active: true,
-            image_key: submission.image_key,
-          });
-
-          if (insertError) {
-            Logger.error(
-              "Failed to create player record",
-              createLogContext("admin-player-submissions", {
-                route: "/admin/player-submissions",
-                method: request.method,
-                userId: user.id,
-                submissionId,
-              }),
-              insertError instanceof Error ? insertError : undefined
-            );
-            return data(
-              {
-                error: `Approved but failed to create player: ${insertError.message}`,
-              },
-              { status: 500, headers: sbServerClient.headers }
-            );
-          }
+        const applyResult = await applyPlayerSubmission(supabase, submissionId);
+        if (!applyResult.success) {
+          Logger.error(
+            "Failed to create player record",
+            createLogContext("admin-player-submissions", {
+              route: "/admin/player-submissions",
+              method: request.method,
+              userId: user.id,
+              submissionId,
+            }),
+            new Error(applyResult.error || "unknown")
+          );
+          return data(
+            {
+              error: `Approved but failed to create player: ${applyResult.error || "unknown error"}`,
+            },
+            { status: 500, headers: sbServerClient.headers }
+          );
         }
       }
     } else if (actionType === "rejected") {

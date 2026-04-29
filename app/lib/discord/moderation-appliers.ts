@@ -39,12 +39,12 @@ export type ApplyHandler = (
  *   No data movement happens at apply time; the entry is `null` by
  *   design and stays that way.
  *
- * - `null` for `player`, `video`, `player_equipment_setup`:
- *   staging→canonical pattern with a known gap (TT-111 umbrella). These
- *   will each be filled in as their sibling tickets land. Until then,
- *   two Discord approvals flip the status but the canonical row is not
- *   written. Admin UI paths are the only way these reach the canonical
- *   table today.
+ * - `null` for `video`, `player_equipment_setup`: staging→canonical
+ *   pattern with a known gap (TT-111 umbrella). These will each be
+ *   filled in as their sibling tickets land. Until then, two Discord
+ *   approvals flip the status but the canonical row is not written.
+ *   Admin UI paths are the only way these reach the canonical table
+ *   today.
  *
  * Adding a new SubmissionType forces a decision here — TypeScript
  * `Record<SubmissionType, …>` requires an entry for every union member.
@@ -69,8 +69,12 @@ export const APPLY_HANDLERS: Record<SubmissionType, ApplyHandler | null> = {
       await import("../admin/equipment-submission-applier.server");
     return applyEquipmentSubmission(ctx.supabaseAdmin, submissionId);
   },
+  player: async (ctx, submissionId) => {
+    const { applyPlayerSubmission } =
+      await import("../admin/player-submission-applier.server");
+    return applyPlayerSubmission(ctx.supabaseAdmin, submissionId);
+  },
   review: null,
-  player: null,
   video: null,
   player_equipment_setup: null,
 };

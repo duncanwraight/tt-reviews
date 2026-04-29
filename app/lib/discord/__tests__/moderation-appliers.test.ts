@@ -23,6 +23,9 @@ vi.mock("../../admin/player-edit-applier.server", () => ({
 vi.mock("../../admin/equipment-submission-applier.server", () => ({
   applyEquipmentSubmission: vi.fn().mockResolvedValue({ success: true }),
 }));
+vi.mock("../../admin/player-submission-applier.server", () => ({
+  applyPlayerSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 const ALL_TYPES: SubmissionType[] = [
   "review",
@@ -103,11 +106,31 @@ describe("APPLY_HANDLERS dispatch table", () => {
     );
   });
 
+  it("player entry is a callable handler that delegates to applyPlayerSubmission", async () => {
+    const handler = APPLY_HANDLERS.player;
+    expect(typeof handler).toBe("function");
+
+    const ctx = {
+      supabaseAdmin: { stub: true },
+      env: {},
+    } as unknown as DiscordContext;
+
+    const result = await handler!(ctx, "ps-id");
+    expect(result).toEqual({ success: true });
+
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
+    expect(applyPlayerSubmission).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "ps-id"
+    );
+  });
+
   // The entries below are null TODAY. As each sibling TT-111 ticket lands
-  // (TT-115..117), flip the corresponding test to expect a function and
+  // (TT-116..117), flip the corresponding test to expect a function and
   // assert it routes to the right applier — the dispatch wire-up is the
   // half of the work that's easy to forget if the test doesn't enforce it.
-  it.each<SubmissionType>(["player", "video", "player_equipment_setup"])(
+  it.each<SubmissionType>(["video", "player_equipment_setup"])(
     "entry for %s is currently null (TT-111 sibling will fill)",
     type => {
       expect(APPLY_HANDLERS[type]).toBeNull();

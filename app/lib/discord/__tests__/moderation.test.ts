@@ -250,9 +250,12 @@ describe("moderation approve/reject smoke tests", () => {
       await import("../../admin/player-edit-applier.server");
     const { applyEquipmentSubmission } =
       await import("../../admin/equipment-submission-applier.server");
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
     (applyEquipmentEdit as any).mockResolvedValue({ success: true });
     (applyPlayerEdit as any).mockResolvedValue({ success: true });
     (applyEquipmentSubmission as any).mockResolvedValue({ success: true });
+    (applyPlayerSubmission as any).mockResolvedValue({ success: true });
   });
 
   const cases: Array<{
@@ -444,6 +447,9 @@ vi.mock("../../admin/player-edit-applier.server", () => ({
 }));
 vi.mock("../../admin/equipment-submission-applier.server", () => ({
   applyEquipmentSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
+vi.mock("../../admin/player-submission-applier.server", () => ({
+  applyPlayerSubmission: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 describe("approveEquipmentEdit — Discord apply hook", () => {
@@ -657,5 +663,79 @@ describe("approveEquipmentSubmission — Discord apply hook", () => {
     } as any);
     await moderation.approvePlayerSubmission(ctx, "ps-1", user);
     expect(applyEquipmentSubmission).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// TT-115: parity hook for player (new submission). Same shape
+// as the sibling apply-hook suites — second Discord approval flips
+// status to "approved" and the dispatch table runs
+// applyPlayerSubmission so the canonical players row gets created.
+// ============================================================
+
+describe("approvePlayerSubmission — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyPlayerSubmission when status flips to approved", async () => {
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerSubmission(ctx, "ps-1", user);
+    expect(applyPlayerSubmission).toHaveBeenCalledTimes(1);
+    expect(applyPlayerSubmission).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "ps-1"
+    );
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approvePlayerSubmission(ctx, "ps-2", user);
+    expect(applyPlayerSubmission).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
+    (applyPlayerSubmission as any).mockResolvedValueOnce({
+      success: false,
+      error: "FK violation",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approvePlayerSubmission(ctx, "ps-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("FK violation");
+  });
+
+  it("does NOT call applyPlayerSubmission on equipment approval", async () => {
+    const { applyPlayerSubmission } =
+      await import("../../admin/player-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveEquipmentSubmission(ctx, "es-1", user);
+    expect(applyPlayerSubmission).not.toHaveBeenCalled();
   });
 });
