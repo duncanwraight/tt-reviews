@@ -2,6 +2,7 @@ import type { SubmissionType } from "../submissions/registry";
 import { Logger, createLogContext } from "../logger.server";
 import * as messages from "./messages";
 import { MODERATION_HANDLERS, type ResponseKind } from "./moderation-handlers";
+import { APPLY_HANDLERS } from "./moderation-appliers";
 import type {
   DiscordContext,
   DiscordMember,
@@ -72,28 +73,27 @@ async function applyApproval(
     }
 
     if (result.success) {
-      // Type-specific apply hook — when the trigger flips the status
-      // to "approved", run the type's apply step so two Discord
-      // approvals reach the same end state as one admin-UI click.
-      // Currently only equipment_edit needs this; player_edit is a
-      // pre-existing gap (filed separately).
-      if (type === "equipment_edit" && result.newStatus === "approved") {
-        const { applyEquipmentEdit } =
-          await import("../admin/equipment-edit-applier.server");
-        const applyResult = await applyEquipmentEdit(
-          ctx.supabaseAdmin,
-          ctx.env.IMAGE_BUCKET,
-          submissionId
-        );
-        if (!applyResult.success) {
-          Logger.error(
-            "Equipment edit applied failed via Discord approval",
-            logContextFor(true, submissionId, user.id),
-            new Error(applyResult.error || "unknown")
-          );
-          return ephemeralJson(
-            `⚠️ **Approved but apply failed**: ${applyResult.error || "unknown error"} — please retry from the admin UI.`
-          );
+      // Type-specific apply hook — when the trigger flips status to
+      // "approved", invoke the type's registered handler so two Discord
+      // approvals reach the same end state as one admin-UI click. The
+      // dispatch table (moderation-appliers.ts) maps every
+      // SubmissionType to its handler or `null` (review = no apply by
+      // design; staging-pattern types are filled in by their TT-111
+      // sibling tickets).
+      if (result.newStatus === "approved") {
+        const applyHandler = APPLY_HANDLERS[type];
+        if (applyHandler) {
+          const applyResult = await applyHandler(ctx, submissionId);
+          if (!applyResult.success) {
+            Logger.error(
+              `${type} apply failed via Discord approval`,
+              logContextFor(true, submissionId, user.id),
+              new Error(applyResult.error || "unknown")
+            );
+            return ephemeralJson(
+              `⚠️ **Approved but apply failed**: ${applyResult.error || "unknown error"} — please retry from the admin UI.`
+            );
+          }
         }
       }
 
