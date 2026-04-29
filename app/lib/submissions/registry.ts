@@ -639,7 +639,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           name: "image",
           label: "New Product Image",
           type: "image",
-          required: false,
+          required: true,
           placeholder: "Upload the manufacturer's official product photo",
           layout: { colSpan: 2 },
           dependencies: { field: "image_action", showWhen: "replace" },

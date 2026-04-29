@@ -58,6 +58,28 @@ export function UnifiedSubmissionForm({
     }
   };
 
+  // Mirrors FormField's shouldShow logic so validation can skip fields
+  // that aren't currently rendered (e.g., the image upload that's only
+  // shown when image_action="replace"). Without this, a hidden required
+  // field would block submission even though the user can't see it.
+  const isFieldVisible = (field: FormFieldConfig): boolean => {
+    if (!field.dependencies) return true;
+    const dependentValue = formValues[field.dependencies.field];
+    if (field.dependencies.showWhen) {
+      const showWhen = Array.isArray(field.dependencies.showWhen)
+        ? field.dependencies.showWhen
+        : [field.dependencies.showWhen];
+      return showWhen.includes(String(dependentValue));
+    }
+    if (field.dependencies.hideWhen) {
+      const hideWhen = Array.isArray(field.dependencies.hideWhen)
+        ? field.dependencies.hideWhen
+        : [field.dependencies.hideWhen];
+      return !hideWhen.includes(String(dependentValue));
+    }
+    return true;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -66,6 +88,11 @@ export function UnifiedSubmissionForm({
       // is the source of truth (numeric checks, range min<=max, plies-pair
       // shape). Skip the client-side required check entirely.
       if (field.type === "equipment_specs") {
+        return;
+      }
+
+      // Skip hidden fields entirely — required-when-shown semantics.
+      if (!isFieldVisible(field)) {
         return;
       }
 

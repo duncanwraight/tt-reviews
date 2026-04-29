@@ -212,6 +212,12 @@ export function FormField({
 
       case "select":
         const selectOptions = field.options || options;
+        // Suppress the empty placeholder option once a required select
+        // has a value — re-rendering "Select X" alongside the real
+        // options is confusing for pre-filled required fields (e.g.,
+        // image_action on the equipment_edit form). Optional selects
+        // keep the placeholder so users can clear a selection.
+        const showPlaceholder = !field.required || !value;
         return (
           <select
             id={field.name}
@@ -222,9 +228,11 @@ export function FormField({
             disabled={disabled}
             className={fieldClasses}
           >
-            <option value="">
-              {field.placeholder || `Select ${field.label.toLowerCase()}`}
-            </option>
+            {showPlaceholder && (
+              <option value="">
+                {field.placeholder || `Select ${field.label.toLowerCase()}`}
+              </option>
+            )}
             {selectOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
