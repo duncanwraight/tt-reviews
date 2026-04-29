@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Form, useNavigate } from "react-router";
 import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { CSRFToken } from "~/components/ui/CSRFToken";
@@ -62,9 +62,14 @@ export function UnifiedSubmissionForm({
   // that aren't currently rendered (e.g., the image upload that's only
   // shown when image_action="replace"). Without this, a hidden required
   // field would block submission even though the user can't see it.
-  const isFieldVisible = (field: FormFieldConfig): boolean => {
+  // Note: pure helper, doesn't capture formValues — pass them in.
+  const checkVisibility = (
+    field: FormFieldConfig,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    values: Record<string, any>
+  ): boolean => {
     if (!field.dependencies) return true;
-    const dependentValue = formValues[field.dependencies.field];
+    const dependentValue = values[field.dependencies.field];
     if (field.dependencies.showWhen) {
       const showWhen = Array.isArray(field.dependencies.showWhen)
         ? field.dependencies.showWhen
@@ -79,6 +84,35 @@ export function UnifiedSubmissionForm({
     }
     return true;
   };
+
+  const isFieldVisible = (field: FormFieldConfig): boolean =>
+    checkVisibility(field, formValues);
+
+  // When a field becomes hidden by its `dependencies`, clear its value
+  // from formValues. Otherwise stale values leak into derived UI — most
+  // visibly: changing category from rubber → blade hides the
+  // subcategory dropdown but leaves the previous "long_pips" value, so
+  // EquipmentSpecsField (which keys on `subcategory || category`) keeps
+  // rendering the pip-rubber field set under a blade.
+  // preserveWhenHidden opts out — those fields keep their value to
+  // bridge it to the server (e.g., image_action when no current image).
+  useEffect(() => {
+    setFormValues(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const field of config.form.fields) {
+        if (field.preserveWhenHidden) continue;
+        if (checkVisibility(field, prev)) continue;
+        if (next[field.name] !== undefined && next[field.name] !== "") {
+          next[field.name] = "";
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // checkVisibility is a stable function over (field, values).
+    // We intentionally re-run only when formValues changes.
+  }, [formValues, config.form.fields]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
