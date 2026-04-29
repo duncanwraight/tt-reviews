@@ -71,6 +71,92 @@ test("Discord approval button POST flips review status", async ({
   }
 });
 
+// Regression guard: TT-101 created equipment_edits without the
+// discord_message_id column that every other tracked-message table
+// carries. The moderation handler clones player_edit's shape
+// (hasTrackedMessage: true), so each Discord approval invoked
+// updateDiscordMessageAfterModeration → getDiscordMessageId, whose
+// SELECT id, discord_message_id FROM equipment_edits 500'd. The
+// approval response still came back ✅ (the failure was swallowed
+// inside withLogging) but Logger.error fired twice per approval and
+// spammed the alerts channel. The mocked-Supabase unit tests for
+// approveEquipmentEdit didn't see this because they never hit the
+// real schema. This e2e drives the same HTTP path with the real DB
+// and additionally selects the column off the row to fail loudly if
+// the migration is ever reverted.
+test("Discord approval button POST advances equipment_edit + reads discord_message_id", async ({
+  request,
+}) => {
+  const submitterEmail = generateTestEmail("ee-disc");
+  const { userId: submitterId } = await createUser(submitterEmail);
+  const equipment = await getFirstEquipment();
+
+  const editRes = await fetch(`${SUPABASE_URL}/rest/v1/equipment_edits`, {
+    method: "POST",
+    headers: { ...adminHeaders(), Prefer: "return=representation" },
+    body: JSON.stringify({
+      equipment_id: equipment.id,
+      user_id: submitterId,
+      edit_data: { description: `e2e disc marker ${Date.now()}` },
+      status: "pending",
+    }),
+  });
+  if (!editRes.ok) {
+    throw new Error(
+      `equipment_edit insert failed (${editRes.status}): ${await editRes.text()}`
+    );
+  }
+  const [edit] = (await editRes.json()) as Array<{ id: string }>;
+
+  try {
+    const response = await postInteraction(
+      request,
+      buildButtonInteraction({ customId: `approve_equipment_edit_${edit.id}` })
+    );
+
+    expect(response.status()).toBe(200);
+    const json = (await response.json()) as {
+      type: number;
+      data?: { content?: string };
+    };
+    expect(json.type).toBe(4);
+    expect(json.data?.content ?? "").toMatch(/Equipment Edit Approved/i);
+
+    // First Discord click → awaiting_second_approval (two Discord
+    // approvals needed; one admin_ui click is enough — see
+    // update_submission_status trigger).
+    await expect
+      .poll(
+        async () => {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/equipment_edits?id=eq.${edit.id}&select=status`,
+            { headers: adminHeaders() }
+          );
+          const rows = (await res.json()) as Array<{ status: string }>;
+          return rows[0]?.status;
+        },
+        { timeout: 10000 }
+      )
+      .toBe("awaiting_second_approval");
+
+    // Direct schema check: the production SELECT in getDiscordMessageId
+    // selects id + discord_message_id from this table. Mirror that
+    // shape — without the column, PostgREST returns 4xx with
+    // "column equipment_edits.discord_message_id does not exist".
+    const colRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/equipment_edits?id=eq.${edit.id}&select=id,discord_message_id`,
+      { headers: adminHeaders() }
+    );
+    expect(colRes.status).toBe(200);
+  } finally {
+    await fetch(`${SUPABASE_URL}/rest/v1/equipment_edits?id=eq.${edit.id}`, {
+      method: "DELETE",
+      headers: adminHeaders(),
+    });
+    await deleteUser(submitterId);
+  }
+});
+
 // Guards the fix from archive/DISCORD-HARDENING.md Sub-problem A (TT-4):
 // a Discord button click whose submission_id does not exist in the target
 // environment must return an ephemeral "Submission not found" error and
