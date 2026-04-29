@@ -18,6 +18,7 @@ import {
   loadApprovalsForSubmissions,
   loadPendingQueue,
 } from "~/lib/admin/queue.server";
+import { applyPlayerEdit } from "~/lib/admin/player-edit-applier.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -116,53 +117,28 @@ export async function action({ request, context }: Route.ActionArgs) {
       moderatorNotes
     );
 
-    // If fully approved, apply the edits to the player record
+    // If fully approved, apply the edits to the player record. Same
+    // helper is invoked from the Discord engine on a 2× moderator
+    // approval flip — see app/lib/discord/moderation-appliers.ts.
     if (result.success && result.newStatus === "approved") {
-      const { data: edit } = await supabase
-        .from("player_edits")
-        .select("*")
-        .eq("id", editId)
-        .single();
-
-      if (edit && edit.player_id) {
-        // Build update object from edit_data, excluding edit_reason
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: Record<string, any> = {};
-        if (edit.edit_data) {
-          const { edit_reason, ...editableFields } = edit.edit_data;
-          Object.assign(updateData, editableFields);
-        }
-
-        // Include image_key if present
-        if (edit.image_key) {
-          updateData.image_key = edit.image_key;
-        }
-
-        if (Object.keys(updateData).length > 0) {
-          const { error: updateError } = await supabase
-            .from("players")
-            .update(updateData)
-            .eq("id", edit.player_id);
-
-          if (updateError) {
-            Logger.error(
-              "Failed to apply player edit",
-              createLogContext("admin-player-edits", {
-                route: "/admin/player-edits",
-                method: request.method,
-                userId: user.id,
-                editId,
-              }),
-              updateError instanceof Error ? updateError : undefined
-            );
-            return data(
-              {
-                error: `Approved but failed to apply changes: ${updateError.message}`,
-              },
-              { status: 500, headers: sbServerClient.headers }
-            );
-          }
-        }
+      const applyResult = await applyPlayerEdit(supabase, editId);
+      if (!applyResult.success) {
+        Logger.error(
+          "Failed to apply player edit",
+          createLogContext("admin-player-edits", {
+            route: "/admin/player-edits",
+            method: request.method,
+            userId: user.id,
+            editId,
+          }),
+          new Error(applyResult.error || "unknown")
+        );
+        return data(
+          {
+            error: `Approved but failed to apply changes: ${applyResult.error || "unknown error"}`,
+          },
+          { status: 500, headers: sbServerClient.headers }
+        );
       }
     }
   } else if (actionType === "rejected") {

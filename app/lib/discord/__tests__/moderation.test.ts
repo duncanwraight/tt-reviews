@@ -232,13 +232,24 @@ describe("moderation.rejectReview", () => {
 // Smoke tests — every other approve/reject pair
 // ============================================================
 describe("moderation approve/reject smoke tests", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     // Spy on messages.updateDiscordMessageAfterModeration so handlers
     // that call it don't try to hit Discord.
     vi.spyOn(messages, "updateDiscordMessageAfterModeration").mockResolvedValue(
       undefined
     );
+    // restoreAllMocks() resets the module-level vi.mock() return values
+    // back to whatever the underlying vi.fn() returns (undefined). Re-pin
+    // every dispatch-table applier to a successful result so the smoke
+    // tests that drive approval flows past the apply hook still hit the
+    // message-refresh path.
+    const { applyEquipmentEdit } =
+      await import("../../admin/equipment-edit-applier.server");
+    const { applyPlayerEdit } =
+      await import("../../admin/player-edit-applier.server");
+    (applyEquipmentEdit as any).mockResolvedValue({ success: true });
+    (applyPlayerEdit as any).mockResolvedValue({ success: true });
   });
 
   const cases: Array<{
@@ -425,6 +436,9 @@ describe("moderation handlers — service returns notFound", () => {
 vi.mock("../../admin/equipment-edit-applier.server", () => ({
   applyEquipmentEdit: vi.fn().mockResolvedValue({ success: true }),
 }));
+vi.mock("../../admin/player-edit-applier.server", () => ({
+  applyPlayerEdit: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 describe("approveEquipmentEdit — Discord apply hook", () => {
   beforeEach(() => {
@@ -491,5 +505,76 @@ describe("approveEquipmentEdit — Discord apply hook", () => {
     } as any);
     await moderation.approvePlayerEdit(ctx, "pe-1", user);
     expect(applyEquipmentEdit).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// TT-113: parity hook for player_edit. Same shape as the
+// equipment_edit suite above — when the second Discord approval
+// flips status to "approved", the dispatch table must run
+// applyPlayerEdit so the players row receives the diff.
+// ============================================================
+
+describe("approvePlayerEdit — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyPlayerEdit when status flips to approved", async () => {
+    const { applyPlayerEdit } =
+      await import("../../admin/player-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerEdit(ctx, "pe-1", user);
+    expect(applyPlayerEdit).toHaveBeenCalledTimes(1);
+    expect(applyPlayerEdit).toHaveBeenCalledWith(ctx.supabaseAdmin, "pe-1");
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyPlayerEdit } =
+      await import("../../admin/player-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approvePlayerEdit(ctx, "pe-2", user);
+    expect(applyPlayerEdit).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyPlayerEdit } =
+      await import("../../admin/player-edit-applier.server");
+    (applyPlayerEdit as any).mockResolvedValueOnce({
+      success: false,
+      error: "RLS denied",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approvePlayerEdit(ctx, "pe-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("RLS denied");
+  });
+
+  it("does NOT call applyPlayerEdit on equipment_edit approval", async () => {
+    const { applyPlayerEdit } =
+      await import("../../admin/player-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveEquipmentEdit(ctx, "ee-1", user);
+    expect(applyPlayerEdit).not.toHaveBeenCalled();
   });
 });
