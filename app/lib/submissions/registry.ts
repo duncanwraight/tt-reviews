@@ -687,23 +687,98 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       titlePrefix: "Equipment Edit",
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    formatForDiscord: (data: any): DiscordNotificationData => ({
-      id: data.id,
-      submissionType: "equipment_edit",
-      title: "✏️ Equipment Edit Submitted",
-      description:
-        "An equipment update has been submitted and needs moderation.",
-      color: DISCORD_COLORS.ORANGE,
-      adminUrl: createAdminUrl("equipment_edit", data.id),
-      submitterEmail: data.submitter_email,
-      fields: [
-        createDiscordField(
-          "Equipment",
-          data.equipment_name || "Unknown Equipment"
-        ),
+    formatForDiscord: (data: any): DiscordNotificationData => {
+      const editData = (data.edit_data || {}) as Record<string, unknown>;
+      const current = (data.equipment_current || {}) as Record<string, unknown>;
+
+      const renderValue = (v: unknown): string => {
+        if (v === null || v === undefined || v === "") return "(empty)";
+        if (typeof v === "object" && "min" in v && "max" in v) {
+          const r = v as { min: unknown; max: unknown };
+          return r.min === r.max ? String(r.min) : `${r.min}–${r.max}`;
+        }
+        return String(v);
+      };
+
+      const diffLines: string[] = [];
+      for (const field of [
+        "name",
+        "category",
+        "subcategory",
+        "description",
+      ] as const) {
+        if (field in editData) {
+          const newValue = editData[field];
+          const oldValue = current[field];
+          diffLines.push(
+            `**${field}**: ${renderValue(oldValue)} → ${renderValue(newValue)}`
+          );
+        }
+      }
+
+      const editSpecs = (editData.specifications || {}) as Record<
+        string,
+        unknown
+      >;
+      const currentSpecs = (current.specifications || {}) as Record<
+        string,
+        unknown
+      >;
+      for (const [key, newValue] of Object.entries(editSpecs)) {
+        const oldValue = currentSpecs[key];
+        const newRendered =
+          newValue === null ? "(removed)" : renderValue(newValue);
+        diffLines.push(`**${key}**: ${renderValue(oldValue)} → ${newRendered}`);
+      }
+
+      if (editData.image_action === "replace") {
+        diffLines.push("**image**: replace with new upload");
+      }
+
+      const equipmentSlug = current.slug as string | undefined;
+      const equipmentLabel = data.equipment_name || "Unknown Equipment";
+
+      // Don't embed an absolute public URL here — formatForDiscord is
+      // env-agnostic, and the admin embed surface (messages.ts) already
+      // composes the SITE_URL-anchored View link from adminUrl. Putting
+      // the slug in a field keeps Discord-only moderators oriented.
+      const fields = [
+        createDiscordField("Equipment", equipmentLabel),
+        ...(equipmentSlug
+          ? [createDiscordField("Slug", equipmentSlug, false)]
+          : []),
         createSubmitterField(data.submitter_email),
-      ],
-    }),
+      ];
+
+      if (diffLines.length > 0) {
+        // Discord field values cap at 1024 chars; truncate gracefully
+        // if a wall of spec edits ever exceeds it.
+        const joined = diffLines.join("\n");
+        const value =
+          joined.length <= 1024 ? joined : joined.slice(0, 1020) + "\n…";
+        fields.push({ name: "Changes", value, inline: false });
+      }
+
+      if (editData.edit_reason) {
+        const reason = String(editData.edit_reason);
+        fields.push({
+          name: "Reason",
+          value: reason.length <= 1024 ? reason : reason.slice(0, 1020) + "…",
+          inline: false,
+        });
+      }
+
+      return {
+        id: data.id,
+        submissionType: "equipment_edit",
+        title: "✏️ Equipment Edit Submitted",
+        description: `Edit suggested for ${equipmentLabel}. Review the proposed changes below before approving.`,
+        color: DISCORD_COLORS.ORANGE,
+        adminUrl: createAdminUrl("equipment_edit", data.id),
+        submitterEmail: data.submitter_email,
+        fields,
+      };
+    },
   },
 
   player_equipment_setup: {

@@ -656,21 +656,32 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       const discordService = new DiscordService(context);
 
       // For reviews and equipment_edit, fetch equipment name for the
-      // Discord notification card (otherwise it falls back to "Unknown
-      // Equipment", TT-105 fix).
+      // Discord notification card. equipment_edit additionally pulls the
+      // full current row so the Discord embed can render a "current →
+      // proposed" diff for each changed field — Discord-only moderators
+      // need that detail since they may not have admin-UI access.
       let notificationData = { ...submission, submitter_email: user.email };
       if (
         (submissionType === "review" || submissionType === "equipment_edit") &&
         submission.equipment_id
       ) {
-        const { data: equipment } = await adminClient
+        const cols =
+          submissionType === "equipment_edit"
+            ? "name, slug, category, subcategory, description, specifications, image_key"
+            : "name";
+        // Supabase's type inference can't follow the dynamic select
+        // string; opt out of the strict result typing here.
+        const { data: equipment } = (await adminClient
           .from("equipment")
-          .select("name")
+          .select(cols)
           .eq("id", submission.equipment_id)
-          .single();
+          .single()) as { data: Record<string, unknown> | null };
 
         if (equipment) {
-          notificationData.equipment_name = equipment.name;
+          notificationData.equipment_name = equipment.name as string;
+          if (submissionType === "equipment_edit") {
+            notificationData.equipment_current = equipment;
+          }
         }
       }
 
