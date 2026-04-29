@@ -302,6 +302,11 @@ export function FormField({
             maxSize={10}
             preview={true}
             externalError={error}
+            // Plumb the picked file into formValues so validateForm's
+            // required-when-shown check can detect a missing upload —
+            // otherwise formValues[field.name] stays undefined and
+            // every submit treats the field as empty.
+            onFileChange={file => onChange(field.name, file)}
           />
         );
 
@@ -415,7 +420,11 @@ export function FormField({
 
       {renderField()}
 
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {/* image fields render their own error inside ImageUpload via
+          externalError; rendering it again here would duplicate it. */}
+      {error && field.type !== "image" && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
 
       {field.type === "dynamic_select" && loadingDynamicOptions && (
         <p className="mt-1 text-xs text-gray-500">Loading options...</p>

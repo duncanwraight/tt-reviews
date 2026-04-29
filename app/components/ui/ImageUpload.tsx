@@ -167,7 +167,14 @@ export function ImageUpload({
       {helpText && <p className="text-sm text-gray-500">{helpText}</p>}
 
       <div className="flex flex-col space-y-3">
-        {/* File Input (Hidden) */}
+        {/* File Input (Hidden). The HTML `required` attribute is
+            deliberately NOT set — display:none inputs get
+            inconsistent native-validation treatment across browsers
+            (Chromium blocks submit silently with no UI; Firefox can
+            fire native popups that double up with React-rendered
+            errors). UnifiedSubmissionForm.validateForm + the
+            externalError prop below own the required-when-shown
+            check via JS instead. */}
         <input
           ref={fileInputRef}
           type="file"
@@ -175,7 +182,6 @@ export function ImageUpload({
           accept={accept}
           onChange={handleFileChange}
           disabled={disabled}
-          required={required}
           className="hidden"
         />
 

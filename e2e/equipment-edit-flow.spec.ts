@@ -193,6 +193,100 @@ test("equipment_edit: submit → admin approves → equipment row reflects chang
   }
 });
 
+// Smallest legal PNG: 1x1 transparent. setInputFiles takes a Buffer
+// so we don't need a real file on disk.
+const TINY_PNG = Buffer.from(
+  "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6300010000000500010d0a2db40000000049454e44ae426082",
+  "hex"
+);
+
+test("equipment_edit: image replace shows single error when file missing, then submits + applies on approval", async ({
+  page,
+}) => {
+  const submitterEmail = generateTestEmail("ee-img-sub");
+  const adminEmail = generateTestEmail("ee-img-adm");
+  const { userId: submitterId } = await createUser(submitterEmail);
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+  await setUserRole(submitterId, "admin");
+
+  const uniqueName = `e2e Image Rubber ${Date.now()}`;
+  const equipment = await createTestEquipment(uniqueName, "E2E Co");
+
+  try {
+    await login(page, submitterEmail);
+    await page.goto(
+      `/submissions/equipment_edit/submit?equipment_id=${equipment.id}`
+    );
+
+    // 1. Switch to "Replace with a new upload" but don't pick a file.
+    //    Use name attribute — the visible label "Image*" makes label
+    //    matching brittle against the required-marker span.
+    await page.locator('select[name="image_action"]').selectOption("replace");
+    await page.getByLabel(/^Reason for Changes/i).fill("swap image");
+    await page.getByRole("button", { name: /Submit Changes/i }).click();
+
+    // Expect EXACTLY one "is required" error for the image field — the
+    // earlier double-render was caused by both ImageUpload and the
+    // FormField wrapper showing the same error.
+    const requiredErrors = page.getByText(/New Product Image is required/i);
+    await expect(requiredErrors).toHaveCount(1);
+    // Form should still be on the same URL — submission was blocked.
+    expect(page.url()).toContain("/submissions/equipment_edit/submit");
+
+    // 2. Provide a file. Submission goes through.
+    await page.locator('input[type="file"][name="image"]').setInputFiles({
+      name: "tiny.png",
+      mimeType: "image/png",
+      buffer: TINY_PNG,
+    });
+    await page.getByRole("button", { name: /Submit Changes/i }).click();
+    await page.waitForURL("/profile", { timeout: 20000 });
+
+    // 3. Admin approves.
+    await page
+      .getByRole("button", { name: /Logout/i })
+      .first()
+      .click();
+    await login(page, adminEmail);
+    await page.goto("/admin/equipment-edits");
+
+    const card = page.locator("li").filter({ hasText: uniqueName }).first();
+    await card.getByRole("button", { name: /^Approve$/ }).click();
+
+    // 4. Equipment row's image_key was promoted from the staged path
+    //    onto a canonical equipment/<slug>/<ts>.png location.
+    await expect
+      .poll(
+        async () => {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipment.id}&select=image_key`,
+            { headers: adminHeaders() }
+          );
+          const rows = (await res.json()) as Array<{
+            image_key: string | null;
+          }>;
+          return rows[0]?.image_key;
+        },
+        { timeout: 15000 }
+      )
+      .toMatch(/^equipment\/[a-z0-9-]+\/\d+\.png$/);
+
+    // It must NOT still be the old fake key — the applier should have
+    // replaced it with the new canonical key.
+    const finalRow = await fetch(
+      `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipment.id}&select=image_key`,
+      { headers: adminHeaders() }
+    );
+    const rows = (await finalRow.json()) as Array<{ image_key: string }>;
+    expect(rows[0].image_key).not.toBe("equipment/test/fake.png");
+  } finally {
+    await deleteTestEquipment(equipment.id);
+    await deleteUser(submitterId);
+    await deleteUser(adminId);
+  }
+});
+
 test("equipment_edit: submit → admin rejects → equipment row unchanged", async ({
   page,
 }) => {
