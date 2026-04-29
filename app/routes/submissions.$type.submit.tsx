@@ -397,7 +397,27 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         }
       }
 
-      // Spec diffs — JSON-stringify-compare typed values.
+      // Spec diffs — order-independent compare. Postgres JSONB
+      // normalises keys alphabetically on store, so a range value
+      // returned from the DB looks like {max,min} while the parser
+      // produces {min,max}. JSON.stringify on these gives different
+      // strings even though the values are equal — false-positive
+      // diffs (TT-105 follow-up). canonicaliseSpec handles range
+      // objects explicitly and falls back to string compare for
+      // primitives.
+      const canonicaliseSpec = (value: unknown): string => {
+        if (
+          value &&
+          typeof value === "object" &&
+          "min" in value &&
+          "max" in value
+        ) {
+          const r = value as { min: unknown; max: unknown };
+          return JSON.stringify({ min: r.min, max: r.max });
+        }
+        return JSON.stringify(value);
+      };
+
       const submittedSpecs = (parsedSpecs?.specifications || {}) as Record<
         string,
         unknown
@@ -408,7 +428,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       >;
       const changedSpecs: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(submittedSpecs)) {
-        if (JSON.stringify(value) !== JSON.stringify(currentSpecs[key])) {
+        if (canonicaliseSpec(value) !== canonicaliseSpec(currentSpecs[key])) {
           changedSpecs[key] = value;
         }
       }
@@ -635,9 +655,14 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     try {
       const discordService = new DiscordService(context);
 
-      // For reviews, fetch equipment name for Discord notification
+      // For reviews and equipment_edit, fetch equipment name for the
+      // Discord notification card (otherwise it falls back to "Unknown
+      // Equipment", TT-105 fix).
       let notificationData = { ...submission, submitter_email: user.email };
-      if (submissionType === "review" && submission.equipment_id) {
+      if (
+        (submissionType === "review" || submissionType === "equipment_edit") &&
+        submission.equipment_id
+      ) {
         const { data: equipment } = await adminClient
           .from("equipment")
           .select("name")

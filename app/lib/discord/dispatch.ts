@@ -126,6 +126,7 @@ export async function handleMessageComponent(
 
   // Prefix-match routing. Order matters — player_equipment_setup_ must
   // be matched before player_ to avoid the shorter prefix swallowing it.
+  // Same for equipment_edit_ vs equipment_ (TT-74).
   if (customId.startsWith("approve_player_edit_")) {
     return moderation.approvePlayerEdit(
       ctx,
@@ -138,6 +139,22 @@ export async function handleMessageComponent(
     return moderation.rejectPlayerEdit(
       ctx,
       customId.replace("reject_player_edit_", ""),
+      user
+    );
+  }
+
+  if (customId.startsWith("approve_equipment_edit_")) {
+    return moderation.approveEquipmentEdit(
+      ctx,
+      customId.replace("approve_equipment_edit_", ""),
+      user
+    );
+  }
+
+  if (customId.startsWith("reject_equipment_edit_")) {
+    return moderation.rejectEquipmentEdit(
+      ctx,
+      customId.replace("reject_equipment_edit_", ""),
       user
     );
   }

@@ -218,6 +218,18 @@ export const rejectPlayerEdit = (
   user: DiscordUser
 ) => applyRejection(ctx, "player_edit", editId, user);
 
+export const approveEquipmentEdit = (
+  ctx: DiscordContext,
+  editId: string,
+  user: DiscordUser
+) => applyApproval(ctx, "equipment_edit", editId, user);
+
+export const rejectEquipmentEdit = (
+  ctx: DiscordContext,
+  editId: string,
+  user: DiscordUser
+) => applyRejection(ctx, "equipment_edit", editId, user);
+
 export const approveEquipmentSubmission = (
   ctx: DiscordContext,
   submissionId: string,
