@@ -39,7 +39,7 @@ export type ApplyHandler = (
  *   No data movement happens at apply time; the entry is `null` by
  *   design and stays that way.
  *
- * - `null` for `equipment`, `player`, `video`, `player_equipment_setup`:
+ * - `null` for `player`, `video`, `player_equipment_setup`:
  *   staging→canonical pattern with a known gap (TT-111 umbrella). These
  *   will each be filled in as their sibling tickets land. Until then,
  *   two Discord approvals flip the status but the canonical row is not
@@ -64,8 +64,12 @@ export const APPLY_HANDLERS: Record<SubmissionType, ApplyHandler | null> = {
       await import("../admin/player-edit-applier.server");
     return applyPlayerEdit(ctx.supabaseAdmin, submissionId);
   },
+  equipment: async (ctx, submissionId) => {
+    const { applyEquipmentSubmission } =
+      await import("../admin/equipment-submission-applier.server");
+    return applyEquipmentSubmission(ctx.supabaseAdmin, submissionId);
+  },
   review: null,
-  equipment: null,
   player: null,
   video: null,
   player_equipment_setup: null,

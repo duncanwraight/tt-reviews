@@ -20,6 +20,9 @@ vi.mock("../../admin/equipment-edit-applier.server", () => ({
 vi.mock("../../admin/player-edit-applier.server", () => ({
   applyPlayerEdit: vi.fn().mockResolvedValue({ success: true }),
 }));
+vi.mock("../../admin/equipment-submission-applier.server", () => ({
+  applyEquipmentSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 const ALL_TYPES: SubmissionType[] = [
   "review",
@@ -80,16 +83,34 @@ describe("APPLY_HANDLERS dispatch table", () => {
     expect(applyPlayerEdit).toHaveBeenCalledWith(ctx.supabaseAdmin, "pe-id");
   });
 
+  it("equipment entry is a callable handler that delegates to applyEquipmentSubmission", async () => {
+    const handler = APPLY_HANDLERS.equipment;
+    expect(typeof handler).toBe("function");
+
+    const ctx = {
+      supabaseAdmin: { stub: true },
+      env: {},
+    } as unknown as DiscordContext;
+
+    const result = await handler!(ctx, "es-id");
+    expect(result).toEqual({ success: true });
+
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
+    expect(applyEquipmentSubmission).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "es-id"
+    );
+  });
+
   // The entries below are null TODAY. As each sibling TT-111 ticket lands
-  // (TT-114..117), flip the corresponding test to expect a function and
+  // (TT-115..117), flip the corresponding test to expect a function and
   // assert it routes to the right applier — the dispatch wire-up is the
   // half of the work that's easy to forget if the test doesn't enforce it.
-  it.each<SubmissionType>([
-    "equipment",
-    "player",
-    "video",
-    "player_equipment_setup",
-  ])("entry for %s is currently null (TT-111 sibling will fill)", type => {
-    expect(APPLY_HANDLERS[type]).toBeNull();
-  });
+  it.each<SubmissionType>(["player", "video", "player_equipment_setup"])(
+    "entry for %s is currently null (TT-111 sibling will fill)",
+    type => {
+      expect(APPLY_HANDLERS[type]).toBeNull();
+    }
+  );
 });

@@ -248,8 +248,11 @@ describe("moderation approve/reject smoke tests", () => {
       await import("../../admin/equipment-edit-applier.server");
     const { applyPlayerEdit } =
       await import("../../admin/player-edit-applier.server");
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
     (applyEquipmentEdit as any).mockResolvedValue({ success: true });
     (applyPlayerEdit as any).mockResolvedValue({ success: true });
+    (applyEquipmentSubmission as any).mockResolvedValue({ success: true });
   });
 
   const cases: Array<{
@@ -439,6 +442,9 @@ vi.mock("../../admin/equipment-edit-applier.server", () => ({
 vi.mock("../../admin/player-edit-applier.server", () => ({
   applyPlayerEdit: vi.fn().mockResolvedValue({ success: true }),
 }));
+vi.mock("../../admin/equipment-submission-applier.server", () => ({
+  applyEquipmentSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 describe("approveEquipmentEdit — Discord apply hook", () => {
   beforeEach(() => {
@@ -576,5 +582,80 @@ describe("approvePlayerEdit — Discord apply hook", () => {
     } as any);
     await moderation.approveEquipmentEdit(ctx, "ee-1", user);
     expect(applyPlayerEdit).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// TT-114: parity hook for equipment (new submission). Same shape
+// as the equipment_edit + player_edit suites — the second Discord
+// approval flips status to "approved" and the dispatch table runs
+// applyEquipmentSubmission so the canonical equipment row gets
+// created.
+// ============================================================
+
+describe("approveEquipmentSubmission — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyEquipmentSubmission when status flips to approved", async () => {
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveEquipmentSubmission(ctx, "es-1", user);
+    expect(applyEquipmentSubmission).toHaveBeenCalledTimes(1);
+    expect(applyEquipmentSubmission).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "es-1"
+    );
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approveEquipmentSubmission(ctx, "es-2", user);
+    expect(applyEquipmentSubmission).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
+    (applyEquipmentSubmission as any).mockResolvedValueOnce({
+      success: false,
+      error: "duplicate slug",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approveEquipmentSubmission(ctx, "es-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("duplicate slug");
+  });
+
+  it("does NOT call applyEquipmentSubmission on player approval", async () => {
+    const { applyEquipmentSubmission } =
+      await import("../../admin/equipment-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerSubmission(ctx, "ps-1", user);
+    expect(applyEquipmentSubmission).not.toHaveBeenCalled();
   });
 });

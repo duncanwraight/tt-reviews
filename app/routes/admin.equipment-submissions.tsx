@@ -18,6 +18,7 @@ import {
   loadApprovalsForSubmissions,
   loadPendingQueue,
 } from "~/lib/admin/queue.server";
+import { applyEquipmentSubmission } from "~/lib/admin/equipment-submission-applier.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -120,30 +121,32 @@ export async function action({ request, context }: Route.ActionArgs) {
         moderatorNotes
       );
 
-      // If this approval results in full approval, create the equipment record
+      // If this approval results in full approval, create the
+      // equipment record. Same helper is invoked from the Discord
+      // engine on a 2× moderator approval flip — see
+      // app/lib/discord/moderation-appliers.ts.
       if (result.success && result.newStatus === "approved") {
-        const { data: submission } = await supabase
-          .from("equipment_submissions")
-          .select("*")
-          .eq("id", submissionId)
-          .single();
-
-        if (submission) {
-          const slug = submission.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-
-          await supabase.from("equipment").insert({
-            name: submission.name,
-            slug: slug,
-            manufacturer: submission.manufacturer,
-            category: submission.category,
-            subcategory: submission.subcategory,
-            specifications: submission.specifications,
-            description: submission.description,
-            image_key: submission.image_key,
-          });
+        const applyResult = await applyEquipmentSubmission(
+          supabase,
+          submissionId
+        );
+        if (!applyResult.success) {
+          Logger.error(
+            "Failed to apply equipment submission",
+            createLogContext("admin-equipment-submissions", {
+              route: "/admin/equipment-submissions",
+              method: request.method,
+              userId: user.id,
+              submissionId,
+            }),
+            new Error(applyResult.error || "unknown")
+          );
+          return data(
+            {
+              error: `Approved but failed to create equipment: ${applyResult.error || "unknown error"}`,
+            },
+            { status: 500, headers: sbServerClient.headers }
+          );
         }
       }
     } else if (actionType === "rejected") {
