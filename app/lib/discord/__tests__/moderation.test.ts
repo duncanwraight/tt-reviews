@@ -252,10 +252,13 @@ describe("moderation approve/reject smoke tests", () => {
       await import("../../admin/equipment-submission-applier.server");
     const { applyPlayerSubmission } =
       await import("../../admin/player-submission-applier.server");
+    const { applyVideoSubmission } =
+      await import("../../admin/video-submission-applier.server");
     (applyEquipmentEdit as any).mockResolvedValue({ success: true });
     (applyPlayerEdit as any).mockResolvedValue({ success: true });
     (applyEquipmentSubmission as any).mockResolvedValue({ success: true });
     (applyPlayerSubmission as any).mockResolvedValue({ success: true });
+    (applyVideoSubmission as any).mockResolvedValue({ success: true });
   });
 
   const cases: Array<{
@@ -450,6 +453,9 @@ vi.mock("../../admin/equipment-submission-applier.server", () => ({
 }));
 vi.mock("../../admin/player-submission-applier.server", () => ({
   applyPlayerSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
+vi.mock("../../admin/video-submission-applier.server", () => ({
+  applyVideoSubmission: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 describe("approveEquipmentEdit — Discord apply hook", () => {
@@ -737,5 +743,78 @@ describe("approvePlayerSubmission — Discord apply hook", () => {
     } as any);
     await moderation.approveEquipmentSubmission(ctx, "es-1", user);
     expect(applyPlayerSubmission).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// TT-116: parity hook for video submissions. Highest-impact gap in
+// the umbrella — both admin and Discord paths previously dropped the
+// data. Same shape as sibling apply-hook suites.
+// ============================================================
+
+describe("approveVideoSubmission — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyVideoSubmission when status flips to approved", async () => {
+    const { applyVideoSubmission } =
+      await import("../../admin/video-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveVideoSubmission(ctx, "vs-1", user);
+    expect(applyVideoSubmission).toHaveBeenCalledTimes(1);
+    expect(applyVideoSubmission).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "vs-1"
+    );
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyVideoSubmission } =
+      await import("../../admin/video-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approveVideoSubmission(ctx, "vs-2", user);
+    expect(applyVideoSubmission).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyVideoSubmission } =
+      await import("../../admin/video-submission-applier.server");
+    (applyVideoSubmission as any).mockResolvedValueOnce({
+      success: false,
+      error: "FK violation on player_id",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approveVideoSubmission(ctx, "vs-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("FK violation");
+  });
+
+  it("does NOT call applyVideoSubmission on player approval", async () => {
+    const { applyVideoSubmission } =
+      await import("../../admin/video-submission-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerSubmission(ctx, "ps-1", user);
+    expect(applyVideoSubmission).not.toHaveBeenCalled();
   });
 });

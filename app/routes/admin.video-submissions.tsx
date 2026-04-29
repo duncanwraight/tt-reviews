@@ -22,6 +22,7 @@ import {
   ensureAdminAction,
   ensureAdminLoader,
 } from "~/lib/admin/middleware.server";
+import { applyVideoSubmission } from "~/lib/admin/video-submission-applier.server";
 import {
   loadApprovalsForSubmissions,
   loadPendingQueue,
@@ -125,6 +126,34 @@ export async function action({ request, context }: Route.ActionArgs) {
         "admin_ui",
         moderatorNotes
       );
+
+      // If this approval results in full approval, create the
+      // player_footage rows. TT-116: this apply step never existed in
+      // the route before — admin-approved video submissions were
+      // silently dropped along with Discord-approved ones. Same helper
+      // is invoked from the Discord engine on a 2× moderator approval
+      // flip — see app/lib/discord/moderation-appliers.ts.
+      if (result.success && result.newStatus === "approved") {
+        const applyResult = await applyVideoSubmission(supabase, submissionId);
+        if (!applyResult.success) {
+          Logger.error(
+            "Failed to apply video submission",
+            createLogContext("admin-video-submissions", {
+              route: "/admin/video-submissions",
+              method: request.method,
+              userId: user.id,
+              submissionId,
+            }),
+            new Error(applyResult.error || "unknown")
+          );
+          return data(
+            {
+              error: `Approved but failed to publish videos: ${applyResult.error || "unknown error"}`,
+            },
+            { status: 500, headers: sbServerClient.headers }
+          );
+        }
+      }
     } else if (actionType === "rejected") {
       if (!rejectionCategory || !rejectionReason) {
         return data(
