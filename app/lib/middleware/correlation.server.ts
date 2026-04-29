@@ -76,12 +76,21 @@ function withCorrelation<T extends (...args: any[]) => any>(
 
       return result;
     } catch (error) {
-      // Log error with correlation context
-      const duration = Date.now() - startTime;
-      Logger.error(`${operationType} failed`, logContext, error as Error, {
-        duration,
-        operationType,
-      });
+      // React Router's idiomatic 404 / redirect / 4xx pattern is
+      // `throw new Response(..., { status })`. These are control flow,
+      // not bugs — logging them as errors fires the Discord alerter
+      // (TT-109). Status ≥ 500 stays loud since those signal genuine
+      // server problems; non-Response throws are real exceptions and
+      // always log.
+      const isClientErrorResponse =
+        error instanceof Response && error.status < 500;
+      if (!isClientErrorResponse) {
+        const duration = Date.now() - startTime;
+        Logger.error(`${operationType} failed`, logContext, error as Error, {
+          duration,
+          operationType,
+        });
+      }
 
       throw error;
     }
