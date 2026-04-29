@@ -8,11 +8,12 @@ import {
 } from "./utils/auth";
 
 // TT-67: the per-queue stat cards on /admin were replaced with a
-// single table. Asserts the table renders all six queues and that
-// the first column links to each queue's admin page.
+// single table. Asserts the table renders every queue and that the
+// first column links to each queue's admin page.
 
 const EXPECTED_QUEUES: Array<{ title: string; href: string }> = [
   { title: "Equipment Submissions", href: "/admin/equipment-submissions" },
+  { title: "Equipment Edits", href: "/admin/equipment-edits" },
   { title: "Player Submissions", href: "/admin/player-submissions" },
   { title: "Player Edits", href: "/admin/player-edits" },
   { title: "Equipment Setups", href: "/admin/player-equipment-setups" },
