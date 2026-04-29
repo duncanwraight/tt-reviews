@@ -21,9 +21,9 @@ interface StubState {
 
 interface CapturedUpdate {
   table: string;
-   
+
   updates: Record<string, any>;
-   
+
   filter: { col: string; value: any };
 }
 
@@ -49,10 +49,8 @@ function makeStub(state: StubState) {
     }
     if (table === "players") {
       return {
-         
         update(payload: Record<string, any>) {
           return {
-             
             eq(col: string, value: any) {
               updates.push({ table, updates: payload, filter: { col, value } });
               return Promise.resolve(
