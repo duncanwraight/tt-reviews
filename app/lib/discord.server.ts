@@ -30,6 +30,7 @@ export class DiscordService {
     this.ctx = {
       env,
       context,
+      supabaseAdmin: supabase,
       dbService: new DatabaseService(context, supabase),
       moderationService: createModerationService(supabase),
       unifiedNotifier: createUnifiedDiscordNotifier(context),

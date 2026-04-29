@@ -25,6 +25,7 @@ function makeCtx(
     } as any,
 
     dbService: {} as any,
+    supabaseAdmin: {} as any,
     moderationService: {
       getOrCreateDiscordModerator: vi.fn().mockResolvedValue("mod-row-id"),
       recordApproval: vi
@@ -411,5 +412,84 @@ describe("moderation handlers — service returns notFound", () => {
     expect(body.data.flags).toBe(64);
     expect(body.data.content).toContain("Submission not found");
     expect(body.data.content).not.toContain("Review rejected");
+  });
+});
+
+// ============================================================
+// TT-106: Discord-driven approval applies the equipment_edit when
+// the second approval flips status to "approved". Without this hook
+// the trigger would mark the row approved but the equipment table
+// would never receive the diff.
+// ============================================================
+
+vi.mock("../../admin/equipment-edit-applier.server", () => ({
+  applyEquipmentEdit: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+describe("approveEquipmentEdit — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyEquipmentEdit when status flips to approved", async () => {
+    const { applyEquipmentEdit } =
+      await import("../../admin/equipment-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveEquipmentEdit(ctx, "edit-1", user);
+    expect(applyEquipmentEdit).toHaveBeenCalledTimes(1);
+    expect(applyEquipmentEdit).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      ctx.env.IMAGE_BUCKET,
+      "edit-1"
+    );
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyEquipmentEdit } =
+      await import("../../admin/equipment-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approveEquipmentEdit(ctx, "edit-2", user);
+    expect(applyEquipmentEdit).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyEquipmentEdit } =
+      await import("../../admin/equipment-edit-applier.server");
+    (applyEquipmentEdit as any).mockResolvedValueOnce({
+      success: false,
+      error: "Staged image not found",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approveEquipmentEdit(ctx, "edit-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("Staged image not found");
+  });
+
+  it("does NOT call applyEquipmentEdit on player_edit approval", async () => {
+    const { applyEquipmentEdit } =
+      await import("../../admin/equipment-edit-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerEdit(ctx, "pe-1", user);
+    expect(applyEquipmentEdit).not.toHaveBeenCalled();
   });
 });

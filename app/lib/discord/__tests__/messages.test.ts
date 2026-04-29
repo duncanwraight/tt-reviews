@@ -44,6 +44,7 @@ function makeCtx(envOverrides: Record<string, any> = {}): DiscordContext {
     } as any,
 
     context: {} as any,
+    supabaseAdmin: {} as any,
     dbService: {
       getDiscordMessageId: vi.fn(),
     } as any,

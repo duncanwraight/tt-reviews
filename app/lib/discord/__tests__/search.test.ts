@@ -20,6 +20,7 @@ function makeCtx(
     } as any,
 
     context: {} as any,
+    supabaseAdmin: {} as any,
     dbService: {
       searchEquipment: vi.fn().mockResolvedValue([]),
       searchPlayers: vi.fn().mockResolvedValue([]),

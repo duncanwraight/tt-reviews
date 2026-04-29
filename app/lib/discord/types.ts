@@ -1,4 +1,5 @@
 import type { AppLoadContext } from "react-router";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DatabaseService } from "../database.server";
 import type { ModerationService } from "../moderation.server";
 import type { SubmissionType } from "../submissions/registry";
@@ -13,6 +14,11 @@ import type { UnifiedDiscordNotifier } from "./unified-notifier.server";
 export interface DiscordContext {
   env: Cloudflare.Env;
   context: AppLoadContext;
+  // Service-role client for type-specific apply steps that the
+  // generic moderationService.recordApproval can't run on its own
+  // (e.g. equipment_edit must call applyEquipmentEdit on a
+  // status="approved" flip — see moderation.ts applyApproval).
+  supabaseAdmin: SupabaseClient;
   dbService: DatabaseService;
   moderationService: ModerationService;
   unifiedNotifier: UnifiedDiscordNotifier;

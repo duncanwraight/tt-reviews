@@ -24,6 +24,7 @@ function makeCtx(): DiscordContext {
     context: {} as any,
 
     dbService: {} as any,
+    supabaseAdmin: {} as any,
 
     moderationService: {} as any,
 

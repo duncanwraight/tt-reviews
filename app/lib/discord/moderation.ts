@@ -72,6 +72,31 @@ async function applyApproval(
     }
 
     if (result.success) {
+      // Type-specific apply hook — when the trigger flips the status
+      // to "approved", run the type's apply step so two Discord
+      // approvals reach the same end state as one admin-UI click.
+      // Currently only equipment_edit needs this; player_edit is a
+      // pre-existing gap (filed separately).
+      if (type === "equipment_edit" && result.newStatus === "approved") {
+        const { applyEquipmentEdit } =
+          await import("../admin/equipment-edit-applier.server");
+        const applyResult = await applyEquipmentEdit(
+          ctx.supabaseAdmin,
+          ctx.env.IMAGE_BUCKET,
+          submissionId
+        );
+        if (!applyResult.success) {
+          Logger.error(
+            "Equipment edit applied failed via Discord approval",
+            logContextFor(true, submissionId, user.id),
+            new Error(applyResult.error || "unknown")
+          );
+          return ephemeralJson(
+            `⚠️ **Approved but apply failed**: ${applyResult.error || "unknown error"} — please retry from the admin UI.`
+          );
+        }
+      }
+
       if (cfg.hasTrackedMessage) {
         // ModeratableSubmissionType excludes "review" and
         // "player_equipment_setup" — exactly the types whose handler
