@@ -598,6 +598,15 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           type: "hidden",
           required: true,
         },
+        // Set by the equipment_edit preSelectionHandler — gates whether
+        // the user sees the keep/replace dropdown. When the equipment
+        // has no current image there's nothing to "keep", so the
+        // dropdown is hidden and image_action is forced to "replace".
+        {
+          name: "has_current_image",
+          label: "",
+          type: "hidden",
+        },
         {
           name: "equipment_display",
           label: "Editing",
@@ -634,6 +643,14 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
             { value: "keep", label: "Keep the current image" },
             { value: "replace", label: "Replace with a new upload" },
           ],
+          // Hide the dropdown when there's no image to keep — the
+          // hidden bridge below preserves the pre-set "replace" value
+          // so the server still receives it.
+          dependencies: {
+            field: "has_current_image",
+            showWhen: "true",
+          },
+          preserveWhenHidden: true,
         },
         {
           name: "image",

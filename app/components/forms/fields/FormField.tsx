@@ -142,6 +142,16 @@ export function FormField({
   };
 
   if (!shouldShow()) {
+    if (field.preserveWhenHidden) {
+      return (
+        <input
+          type="hidden"
+          id={field.name}
+          name={field.name}
+          value={String(value ?? "")}
+        />
+      );
+    }
     return null;
   }
 
@@ -291,6 +301,7 @@ export function FormField({
             required={field.required}
             maxSize={10}
             preview={true}
+            externalError={error}
           />
         );
 

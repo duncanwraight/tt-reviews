@@ -60,6 +60,13 @@ export interface FormField {
     showWhen?: string | string[];
     hideWhen?: string | string[];
   };
+  // When `dependencies` hides this field, opt in to keeping the value
+  // in the submitted form data via a `<input type="hidden">` bridge.
+  // Useful for fields whose UI is conditional but whose value still
+  // needs to reach the server (e.g., image_action when the equipment
+  // has no current image — the dropdown is hidden but the implicit
+  // "replace" value still has to submit).
+  preserveWhenHidden?: boolean;
   // For dynamic selects like subcategories
   dynamicOptions?: {
     dependsOn: string;

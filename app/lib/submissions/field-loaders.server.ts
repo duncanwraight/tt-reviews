@@ -416,6 +416,7 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
           }
         }
 
+        const hasCurrentImage = Boolean(equipment.image_key);
         return {
           equipment_id: equipment.id,
           equipment_display: `${equipment.name} (${equipment.manufacturer})`,
@@ -423,12 +424,13 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
           category: equipment.category,
           subcategory: equipment.subcategory ?? "",
           description: equipment.description ?? "",
-          // Default to "keep" when an image already exists; force "replace"
-          // when there's no image yet (the form still lets the submitter
-          // change it but the server-side validation in TT-104 enforces
-          // upload-required-when-no-current-image).
-          image_action: equipment.image_key ? "keep" : "replace",
-          equipment_current_image_key: equipment.image_key ?? null,
+          // String "true"/"false" for the dependencies-aware dropdown
+          // gate (FormField compares via String(dependentValue)).
+          has_current_image: hasCurrentImage ? "true" : "false",
+          // Default to "keep" when an image already exists; force
+          // "replace" when there's no image yet — the dropdown is then
+          // hidden (preserveWhenHidden bridges the value to the server).
+          image_action: hasCurrentImage ? "keep" : "replace",
           ...specPrefill,
         };
       },

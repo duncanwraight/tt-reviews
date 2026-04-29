@@ -13,6 +13,10 @@ interface ImageUploadProps {
   preview?: boolean;
   existingImageUrl?: string;
   onFileChange?: (file: File | null) => void;
+  // Form-level error (e.g., "required field is empty"). Falls back
+  // to internal validation errors (type/size) when not set so callers
+  // never see both at once.
+  externalError?: string;
 }
 
 export function ImageUpload({
@@ -27,6 +31,7 @@ export function ImageUpload({
   preview = true,
   existingImageUrl,
   onFileChange,
+  externalError,
 }: ImageUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
@@ -294,10 +299,11 @@ export function ImageUpload({
           </div>
         )}
 
-        {/* Error Message */}
-        {error && (
+        {/* Error Message — externalError (form-level) wins over the
+            internal type/size validation error so we never stack two. */}
+        {(externalError || error) && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-            {error}
+            {externalError || error}
           </div>
         )}
       </div>
