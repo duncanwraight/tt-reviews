@@ -588,6 +588,9 @@ export default function AdminEquipmentEdits({
         submissionType="equipment_edit"
         submissionName={rejectionModal.submissionName}
         csrfToken={csrfToken}
+        // Action reads `editId`; modal default `submissionId` would
+        // 400 the request. Match the field naming inline.
+        fieldName="editId"
       />
     </div>
   );

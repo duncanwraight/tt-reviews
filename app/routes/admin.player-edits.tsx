@@ -590,6 +590,9 @@ export default function AdminPlayerEdits({ loaderData }: Route.ComponentProps) {
         submissionType="player_edit"
         submissionName={rejectionModal.submissionName}
         csrfToken={csrfToken}
+        // Action reads `editId`; modal default `submissionId` would
+        // 400 the request.
+        fieldName="editId"
       />
     </div>
   );
