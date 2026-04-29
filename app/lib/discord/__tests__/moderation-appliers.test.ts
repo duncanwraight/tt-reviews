@@ -29,6 +29,9 @@ vi.mock("../../admin/player-submission-applier.server", () => ({
 vi.mock("../../admin/video-submission-applier.server", () => ({
   applyVideoSubmission: vi.fn().mockResolvedValue({ success: true }),
 }));
+vi.mock("../../admin/player-equipment-setup-applier.server", () => ({
+  applyPlayerEquipmentSetup: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 const ALL_TYPES: SubmissionType[] = [
   "review",
@@ -149,14 +152,23 @@ describe("APPLY_HANDLERS dispatch table", () => {
     );
   });
 
-  // The entries below are null TODAY. As each sibling TT-111 ticket lands
-  // (TT-117), flip the corresponding test to expect a function and assert
-  // it routes to the right applier — the dispatch wire-up is the half of
-  // the work that's easy to forget if the test doesn't enforce it.
-  it.each<SubmissionType>(["player_equipment_setup"])(
-    "entry for %s is currently null (TT-111 sibling will fill)",
-    type => {
-      expect(APPLY_HANDLERS[type]).toBeNull();
-    }
-  );
+  it("player_equipment_setup entry is a callable handler that delegates to applyPlayerEquipmentSetup", async () => {
+    const handler = APPLY_HANDLERS.player_equipment_setup;
+    expect(typeof handler).toBe("function");
+
+    const ctx = {
+      supabaseAdmin: { stub: true },
+      env: {},
+    } as unknown as DiscordContext;
+
+    const result = await handler!(ctx, "ses-id");
+    expect(result).toEqual({ success: true });
+
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
+    expect(applyPlayerEquipmentSetup).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "ses-id"
+    );
+  });
 });

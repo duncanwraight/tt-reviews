@@ -254,11 +254,14 @@ describe("moderation approve/reject smoke tests", () => {
       await import("../../admin/player-submission-applier.server");
     const { applyVideoSubmission } =
       await import("../../admin/video-submission-applier.server");
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
     (applyEquipmentEdit as any).mockResolvedValue({ success: true });
     (applyPlayerEdit as any).mockResolvedValue({ success: true });
     (applyEquipmentSubmission as any).mockResolvedValue({ success: true });
     (applyPlayerSubmission as any).mockResolvedValue({ success: true });
     (applyVideoSubmission as any).mockResolvedValue({ success: true });
+    (applyPlayerEquipmentSetup as any).mockResolvedValue({ success: true });
   });
 
   const cases: Array<{
@@ -456,6 +459,9 @@ vi.mock("../../admin/player-submission-applier.server", () => ({
 }));
 vi.mock("../../admin/video-submission-applier.server", () => ({
   applyVideoSubmission: vi.fn().mockResolvedValue({ success: true }),
+}));
+vi.mock("../../admin/player-equipment-setup-applier.server", () => ({
+  applyPlayerEquipmentSetup: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 describe("approveEquipmentEdit — Discord apply hook", () => {
@@ -816,5 +822,80 @@ describe("approveVideoSubmission — Discord apply hook", () => {
     } as any);
     await moderation.approvePlayerSubmission(ctx, "ps-1", user);
     expect(applyVideoSubmission).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// TT-117: parity hook for player_equipment_setup. Closes the last
+// staging→canonical gap in the umbrella. The admin route used to
+// bypass recordApproval entirely; sibling commits normalise it to
+// recordApproval-then-apply, which uses the same handler the
+// dispatch table calls on a 2× Discord click.
+// ============================================================
+
+describe("approvePlayerEquipmentSetup — Discord apply hook", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls applyPlayerEquipmentSetup when status flips to approved", async () => {
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approvePlayerEquipmentSetup(ctx, "ses-1", user);
+    expect(applyPlayerEquipmentSetup).toHaveBeenCalledTimes(1);
+    expect(applyPlayerEquipmentSetup).toHaveBeenCalledWith(
+      ctx.supabaseAdmin,
+      "ses-1"
+    );
+  });
+
+  it("skips applier on awaiting_second_approval (one Discord click of two)", async () => {
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi.fn().mockResolvedValue({
+        success: true,
+        newStatus: "awaiting_second_approval",
+      }),
+    } as any);
+    await moderation.approvePlayerEquipmentSetup(ctx, "ses-2", user);
+    expect(applyPlayerEquipmentSetup).not.toHaveBeenCalled();
+  });
+
+  it("returns warning ephemeral when the applier fails", async () => {
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
+    (applyPlayerEquipmentSetup as any).mockResolvedValueOnce({
+      success: false,
+      error: "FK violation on blade_id",
+    });
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    const body = await asJson(
+      await moderation.approvePlayerEquipmentSetup(ctx, "ses-3", user)
+    );
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("apply failed");
+    expect(body.data.content).toContain("FK violation");
+  });
+
+  it("does NOT call applyPlayerEquipmentSetup on video approval", async () => {
+    const { applyPlayerEquipmentSetup } =
+      await import("../../admin/player-equipment-setup-applier.server");
+    const ctx = makeCtx({}, {
+      recordApproval: vi
+        .fn()
+        .mockResolvedValue({ success: true, newStatus: "approved" }),
+    } as any);
+    await moderation.approveVideoSubmission(ctx, "vs-1", user);
+    expect(applyPlayerEquipmentSetup).not.toHaveBeenCalled();
   });
 });

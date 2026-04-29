@@ -4,12 +4,14 @@ import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
+import { createModerationService } from "~/lib/moderation.server";
 import { RejectionModal } from "~/components/ui/RejectionModal";
 import { useState } from "react";
 import type { RejectionCategory } from "~/lib/types";
 import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import { applyPlayerEquipmentSetup } from "~/lib/admin/player-equipment-setup-applier.server";
 import {
   CheckCircle2,
   XCircle,
@@ -131,82 +133,23 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const supabase = createSupabaseAdminClient(context);
+  const moderationService = createModerationService(supabase);
 
   if (actionType === "approved") {
-    // First, fetch the submission data
-    const { data: submission, error: fetchError } = await supabase
-      .from("player_equipment_setup_submissions")
-      .select("*")
-      .eq("id", setupId)
-      .single();
+    // TT-117: this route used to bypass moderationService.recordApproval
+    // entirely and do its own UPDATE on the submission status. That
+    // meant single-click admin approval, no moderator_approvals audit
+    // trail, and a Discord-vs-admin asymmetry. Normalised here to
+    // match every other admin route + the Discord engine — both call
+    // recordApproval, then run the shared applier on a status flip.
+    const result = await moderationService.recordApproval(
+      "player_equipment_setup",
+      setupId,
+      user.id,
+      "admin_ui"
+    );
 
-    if (fetchError || !submission) {
-      Logger.error(
-        "Error fetching equipment setup",
-        createLogContext("admin-player-equipment-setups", {
-          route: "/admin/player-equipment-setups",
-          method: request.method,
-          userId: user?.id,
-          setupId,
-        }),
-        fetchError instanceof Error ? fetchError : undefined
-      );
-      return data(
-        { error: "Failed to fetch equipment setup" },
-        { status: 500, headers: sbServerClient.headers }
-      );
-    }
-
-    // Map forehand_side/backhand_side to colors
-    // In the form: "forehand" radio = red, "backhand" radio = black
-    const mapSideToColor = (side: string | null): "red" | "black" | null => {
-      if (side === "forehand") return "red";
-      if (side === "backhand") return "black";
-      return null;
-    };
-
-    // Create the actual player equipment setup record
-    const { error: insertError } = await supabase
-      .from("player_equipment_setups")
-      .insert({
-        player_id: submission.player_id,
-        year: submission.year,
-        blade_id: submission.blade_id,
-        forehand_rubber_id: submission.forehand_rubber_id,
-        forehand_thickness: submission.forehand_thickness,
-        forehand_color: mapSideToColor(submission.forehand_side),
-        backhand_rubber_id: submission.backhand_rubber_id,
-        backhand_thickness: submission.backhand_thickness,
-        backhand_color: mapSideToColor(submission.backhand_side),
-        source_url: submission.source_url,
-        source_type: submission.source_type,
-        verified: true,
-      });
-
-    if (insertError) {
-      Logger.error(
-        "Error creating equipment setup",
-        createLogContext("admin-player-equipment-setups", {
-          route: "/admin/player-equipment-setups",
-          method: request.method,
-          userId: user?.id,
-          setupId,
-        }),
-        insertError instanceof Error ? insertError : undefined
-      );
-      return data(
-        { error: "Failed to create equipment setup record" },
-        { status: 500, headers: sbServerClient.headers }
-      );
-    }
-
-    // Update the submission status to approved
-    const { error: updateError } = await supabase
-      .from("player_equipment_setup_submissions")
-      .update({ status: "approved", moderator_id: user.id })
-      .eq("id", setupId);
-
-    if (updateError) {
+    if (!result.success) {
       Logger.error(
         "Error approving equipment setup",
         createLogContext("admin-player-equipment-setups", {
@@ -215,15 +158,37 @@ export async function action({ request, context }: Route.ActionArgs) {
           userId: user?.id,
           setupId,
         }),
-        updateError instanceof Error ? updateError : undefined
+        undefined,
+        { error: result.error }
       );
       return data(
-        { error: "Failed to approve equipment setup" },
+        { error: result.error || "Failed to approve equipment setup" },
         { status: 500, headers: sbServerClient.headers }
       );
     }
 
-    // Redirect to refresh the page
+    if (result.newStatus === "approved") {
+      const applyResult = await applyPlayerEquipmentSetup(supabase, setupId);
+      if (!applyResult.success) {
+        Logger.error(
+          "Error creating equipment setup",
+          createLogContext("admin-player-equipment-setups", {
+            route: "/admin/player-equipment-setups",
+            method: request.method,
+            userId: user?.id,
+            setupId,
+          }),
+          new Error(applyResult.error || "unknown")
+        );
+        return data(
+          {
+            error: `Approved but failed to create setup: ${applyResult.error || "unknown error"}`,
+          },
+          { status: 500, headers: sbServerClient.headers }
+        );
+      }
+    }
+
     return redirect("/admin/player-equipment-setups", {
       headers: sbServerClient.headers,
     });
@@ -235,18 +200,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
     }
 
-    // Reject the equipment setup submission - update status with rejection details
-    const { error } = await supabase
-      .from("player_equipment_setup_submissions")
-      .update({
-        status: "rejected",
-        moderator_id: user.id,
-        rejection_category: rejectionCategory,
-        rejection_reason: rejectionReason,
-      })
-      .eq("id", setupId);
+    const result = await moderationService.recordRejection(
+      "player_equipment_setup",
+      setupId,
+      user.id,
+      "admin_ui",
+      { category: rejectionCategory, reason: rejectionReason },
+      context.cloudflare?.env?.R2_BUCKET
+    );
 
-    if (error) {
+    if (!result.success) {
       Logger.error(
         "Error rejecting equipment setup",
         createLogContext("admin-player-equipment-setups", {
@@ -255,15 +218,15 @@ export async function action({ request, context }: Route.ActionArgs) {
           userId: user?.id,
           setupId,
         }),
-        error instanceof Error ? error : undefined
+        undefined,
+        { error: result.error }
       );
       return data(
-        { error: "Failed to reject equipment setup" },
+        { error: result.error || "Failed to reject equipment setup" },
         { status: 500, headers: sbServerClient.headers }
       );
     }
 
-    // Redirect to refresh the page
     return redirect("/admin/player-equipment-setups", {
       headers: sbServerClient.headers,
     });
