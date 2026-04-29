@@ -10,6 +10,7 @@ export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
 const SUBMISSION_TABLES = [
   "equipment_submissions",
+  "equipment_edits",
   "player_submissions",
   "player_edits",
   "equipment_reviews",
@@ -22,6 +23,7 @@ type SubmissionKey = keyof AdminDashboardCounts["byStatus"];
 
 const TABLE_KEY: Record<SubmissionTable, SubmissionKey> = {
   equipment_submissions: "equipmentSubmissions",
+  equipment_edits: "equipmentEdits",
   player_submissions: "playerSubmissions",
   player_edits: "playerEdits",
   equipment_reviews: "equipmentReviews",
@@ -34,6 +36,7 @@ export type StatusCounts = Record<SubmissionStatus, number>;
 export interface AdminDashboardCounts {
   totals: {
     equipmentSubmissions: number;
+    equipmentEdits: number;
     playerSubmissions: number;
     playerEdits: number;
     equipmentReviews: number;
@@ -44,6 +47,7 @@ export interface AdminDashboardCounts {
   };
   byStatus: {
     equipmentSubmissions: StatusCounts;
+    equipmentEdits: StatusCounts;
     playerSubmissions: StatusCounts;
     playerEdits: StatusCounts;
     equipmentReviews: StatusCounts;
@@ -56,6 +60,7 @@ export function emptyDashboardCounts(): AdminDashboardCounts {
   return {
     totals: {
       equipmentSubmissions: 0,
+      equipmentEdits: 0,
       playerSubmissions: 0,
       playerEdits: 0,
       equipmentReviews: 0,
@@ -66,6 +71,7 @@ export function emptyDashboardCounts(): AdminDashboardCounts {
     },
     byStatus: {
       equipmentSubmissions: emptyStatusCounts(),
+      equipmentEdits: emptyStatusCounts(),
       playerSubmissions: emptyStatusCounts(),
       playerEdits: emptyStatusCounts(),
       equipmentReviews: emptyStatusCounts(),

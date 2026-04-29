@@ -58,6 +58,7 @@ describe("getAdminDashboardCounts", () => {
     const stub = makeCountStub(
       {
         equipment_submissions: 10,
+        equipment_edits: 0,
         player_submissions: 0,
         player_edits: 0,
         equipment_reviews: 0,
@@ -79,10 +80,10 @@ describe("getAdminDashboardCounts", () => {
     const counts = await getAdminDashboardCounts(stub.client);
     const inspect = stub.inspect();
 
-    // 6 submission tables × 4 statuses = 24 status queries.
-    expect(inspect.statusQueries).toBe(24);
-    // 6 submission totals + equipment + players = 8 totals.
-    expect(inspect.totalQueries).toBe(8);
+    // 7 submission tables × 4 statuses = 28 status queries.
+    expect(inspect.statusQueries).toBe(28);
+    // 7 submission totals + equipment + players = 9 totals.
+    expect(inspect.totalQueries).toBe(9);
 
     expect(counts.totals.equipmentSubmissions).toBe(10);
     expect(counts.totals.equipment).toBe(100);
@@ -101,6 +102,7 @@ describe("getAdminDashboardCounts", () => {
 
     for (const key of [
       "equipmentSubmissions",
+      "equipmentEdits",
       "playerSubmissions",
       "playerEdits",
       "equipmentReviews",

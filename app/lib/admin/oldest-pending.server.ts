@@ -12,6 +12,7 @@ export interface OldestPendingTarget {
 
 const QUEUE_ROUTES: Record<string, string> = {
   equipment_submissions: "/admin/equipment-submissions",
+  equipment_edits: "/admin/equipment-edits",
   player_submissions: "/admin/player-submissions",
   player_edits: "/admin/player-edits",
   equipment_reviews: "/admin/equipment-reviews",

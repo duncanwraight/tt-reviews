@@ -342,15 +342,23 @@ export class ModerationService {
   ): Promise<void> {
     try {
       const tableName = this.getTableName(submissionType);
-      const { data: submission } = await this.supabase
+      // edit_data is needed for equipment_edit (image_pending_key);
+      // tableName is dynamic so the select is opaque to the supabase
+      // type inference — cast through Record<string, any> to read the
+      // per-type column shape.
+      const { data: submissionRaw } = await this.supabase
         .from(tableName)
-        .select("specifications, image_key")
+        .select("specifications, image_key, edit_data")
         .eq("id", submissionId)
         .single();
 
-      if (!submission) return;
+      if (!submissionRaw) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const submission = submissionRaw as Record<string, any>;
 
-      // Get image key from submission data
+      // Get image key from submission data. equipment_edit stores
+      // the staged R2 key inside edit_data (no top-level image_key
+      // column on equipment_edits).
       let imageKey: string | null = null;
 
       if (
@@ -358,6 +366,11 @@ export class ModerationService {
         submission.specifications?.image_key
       ) {
         imageKey = submission.specifications.image_key;
+      } else if (
+        submissionType === "equipment_edit" &&
+        submission.edit_data?.image_pending_key
+      ) {
+        imageKey = submission.edit_data.image_pending_key;
       } else if (submission.image_key) {
         imageKey = submission.image_key;
       }
@@ -407,6 +420,8 @@ export class ModerationService {
         return "video_submissions";
       case "player_equipment_setup":
         return "player_equipment_setup_submissions";
+      case "equipment_edit":
+        return "equipment_edits";
       default:
         throw new Error(`Unknown submission type: ${submissionType}`);
     }

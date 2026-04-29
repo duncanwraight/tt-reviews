@@ -114,6 +114,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     photoCoverage,
     stats: {
       equipmentSubmissions: totals.equipmentSubmissions,
+      equipmentEdits: totals.equipmentEdits,
       playerSubmissions: totals.playerSubmissions,
       playerEdits: totals.playerEdits,
       equipmentReviews: totals.equipmentReviews,
@@ -125,6 +126,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       equipmentPending: pendingTotal(byStatus.equipmentSubmissions),
       equipmentApproved: byStatus.equipmentSubmissions.approved,
       equipmentRejected: byStatus.equipmentSubmissions.rejected,
+      equipmentEditsPending: pendingTotal(byStatus.equipmentEdits),
+      equipmentEditsApproved: byStatus.equipmentEdits.approved,
+      equipmentEditsRejected: byStatus.equipmentEdits.rejected,
       playerSubmissionsPending: pendingTotal(byStatus.playerSubmissions),
       playerSubmissionsApproved: byStatus.playerSubmissions.approved,
       playerSubmissionsRejected: byStatus.playerSubmissions.rejected,
@@ -164,6 +168,14 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       approved: stats.equipmentApproved,
       rejected: stats.equipmentRejected,
       link: "/admin/equipment-submissions",
+    },
+    {
+      title: "Equipment Edits",
+      total: stats.equipmentEdits,
+      pending: stats.equipmentEditsPending,
+      approved: stats.equipmentEditsApproved,
+      rejected: stats.equipmentEditsRejected,
+      link: "/admin/equipment-edits",
     },
     {
       title: "Player Submissions",
@@ -236,6 +248,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Pending Items Alert */}
         {stats.equipmentPending +
+          stats.equipmentEditsPending +
           stats.playerSubmissionsPending +
           stats.playerEditsPending +
           stats.playerEquipmentSetupsPending +
@@ -253,6 +266,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                 <div className="mt-2 text-sm text-yellow-700">
                   You have{" "}
                   {stats.equipmentPending +
+                    stats.equipmentEditsPending +
                     stats.playerSubmissionsPending +
                     stats.playerEditsPending +
                     stats.playerEquipmentSetupsPending +
