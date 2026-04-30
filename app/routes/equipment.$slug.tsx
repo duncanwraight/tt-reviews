@@ -305,27 +305,28 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
               averageRating={averageRating}
               reviewCount={reviewCount}
               usedByPlayers={usedByPlayers}
+              actions={
+                <>
+                  {user && (
+                    <a
+                      href={`/submissions/equipment_edit/submit?equipment_id=${equipment.id}`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      Suggest an edit
+                    </a>
+                  )}
+                  {isAdmin && adminCsrfToken && equipment.image_key && (
+                    <AdminTrimToggle
+                      slug={equipment.slug}
+                      trimKind={equipment.image_trim_kind ?? null}
+                      csrfToken={adminCsrfToken}
+                    />
+                  )}
+                </>
+              }
             />
           </div>
         </div>
-        {isAdmin && adminCsrfToken && equipment.image_key && (
-          <AdminTrimToggle
-            slug={equipment.slug}
-            trimKind={equipment.image_trim_kind ?? null}
-            csrfToken={adminCsrfToken}
-          />
-        )}
-        {user && (
-          <p className="mt-4 text-sm text-gray-500">
-            Spotted an error?{" "}
-            <a
-              href={`/submissions/equipment_edit/submit?equipment_id=${equipment.id}`}
-              className="text-purple-700 hover:text-purple-900 underline"
-            >
-              Suggest an edit
-            </a>
-          </p>
-        )}
 
         <section aria-labelledby="specs-heading" className="mt-8">
           <h2

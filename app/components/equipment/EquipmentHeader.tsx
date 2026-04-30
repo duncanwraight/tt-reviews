@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
 
@@ -23,6 +24,7 @@ interface EquipmentHeaderProps {
   averageRating?: number;
   reviewCount?: number;
   usedByPlayers?: Player[];
+  actions?: ReactNode;
 }
 
 export function EquipmentHeader({
@@ -30,6 +32,7 @@ export function EquipmentHeader({
   averageRating = 0,
   reviewCount = 0,
   usedByPlayers = [],
+  actions,
 }: EquipmentHeaderProps) {
   const getCategoryName = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1);
@@ -52,15 +55,20 @@ export function EquipmentHeader({
 
   return (
     <header>
-      <div className="flex items-center gap-3 mb-3">
-        <span className="inline-block px-3 py-1 text-sm font-semibold text-purple-800 bg-purple-100 rounded-full">
-          {getCategoryName(equipment.category)}
-        </span>
-        {equipment.subcategory && (
-          <span className="inline-block px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
-            {getSubcategoryName(equipment.subcategory)}
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="inline-block px-3 py-1 text-sm font-semibold text-purple-800 bg-purple-100 rounded-full">
+            {getCategoryName(equipment.category)}
           </span>
-        )}
+          {equipment.subcategory && (
+            <span className="inline-block px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
+              {getSubcategoryName(equipment.subcategory)}
+            </span>
+          )}
+        </div>
+        {actions ? (
+          <div className="flex items-center gap-2 flex-wrap">{actions}</div>
+        ) : null}
       </div>
 
       <h1 className="text-3xl font-bold text-gray-900">{equipment.name}</h1>
