@@ -148,10 +148,14 @@ export default function EquipmentCompareThree({
             <section aria-labelledby="specs-heading">
               <h2
                 id="specs-heading"
-                className="mb-3 text-xl font-semibold text-gray-900"
+                className="text-xl font-semibold text-gray-900"
               >
                 Manufacturer specifications
               </h2>
+              <p className="mt-1 mb-3 text-sm text-gray-500">
+                Manufacturer-published values for marketing — speed/spin/control
+                ratings aren't directly comparable across brands.
+              </p>
               <SpecsTable items={items} specFields={specFields} />
             </section>
 
