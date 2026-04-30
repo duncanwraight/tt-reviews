@@ -387,6 +387,35 @@ jobs:
             --message "CI promote ${{ github.sha }}" \
             --yes
 
+      # `wrangler versions upload` does not apply the [triggers] block
+      # (cron schedules + routes / custom domains) from wrangler.toml.
+      # `wrangler triggers deploy` is the documented complement and is
+      # idempotent — re-applies the desired state every run.
+      - name: Deploy triggers (routes + cron schedules)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler triggers deploy
+
+      # `wrangler versions upload` also doesn't apply [[queues.consumers]]
+      # from wrangler.toml. The `add` command errors if a consumer is
+      # already attached, so we check first. If batch-size / retries /
+      # concurrency / DLQ in wrangler.toml ever change, run `wrangler
+      # queues consumer worker remove equipment-photo-source app` once
+      # before the next deploy so this step re-adds with new settings.
+      - name: Ensure queue consumer is attached
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if npx wrangler queues info equipment-photo-source 2>&1 | grep -qE "(Number of )?Consumers: *1"; then
+            echo "Queue consumer already attached — skipping add"
+          else
+            npx wrangler queues consumer worker add equipment-photo-source app \
+              --batch-size 1 --message-retries 5 --batch-timeout 5 \
+              --max-concurrency 1 --dead-letter-queue equipment-photo-source-dlq
+          fi
+
       - name: Smoke test prod
         id: smoke_prod
         continue-on-error: true
