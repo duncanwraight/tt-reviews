@@ -62,7 +62,10 @@ export const PlayerCard = memo(function PlayerCard({
   );
 
   return (
-    <div className="player-card bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+    <Link
+      to={`/players/${player.slug}`}
+      className="player-card group block bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-teal-400"
+    >
       <div className="p-6">
         <div className="flex items-start gap-4 mb-4">
           {/* Player Photo */}
@@ -93,13 +96,8 @@ export const PlayerCard = memo(function PlayerCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
-                <Link
-                  to={`/players/${player.slug}`}
-                  className="hover:text-purple-600"
-                >
-                  {player.name}
-                </Link>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate group-hover:text-teal-700 transition-colors">
+                {player.name}
               </h3>
               {statusBadge && (
                 <span className={`ml-2 flex-shrink-0 ${statusBadge.className}`}>
@@ -130,18 +128,10 @@ export const PlayerCard = memo(function PlayerCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <Link
-            to={`/players/${player.slug}`}
-            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-          >
-            View Profile →
-          </Link>
-          {formattedDate && (
-            <div className="text-xs text-gray-500">Added {formattedDate}</div>
-          )}
-        </div>
+        {formattedDate && (
+          <div className="text-xs text-gray-500">Added {formattedDate}</div>
+        )}
       </div>
-    </div>
+    </Link>
   );
 });

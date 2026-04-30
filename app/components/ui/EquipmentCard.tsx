@@ -44,7 +44,7 @@ function PlainCard({ equipment }: { equipment: Equipment }) {
   return (
     <Link
       to={`/equipment/${equipment.slug}`}
-      className="group block bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md hover:border-gray-300 p-4"
+      className="group block bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md hover:border-purple-400 p-4"
     >
       <CardBody equipment={equipment} />
     </Link>
@@ -93,7 +93,7 @@ function CompareCard({ equipment }: { equipment: Equipment }) {
       className={`bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
         isSelected
           ? "border-purple-500 bg-purple-50"
-          : "border-gray-200 hover:border-gray-300"
+          : "border-gray-200 hover:border-purple-400"
       }`}
     >
       <Link to={`/equipment/${equipment.slug}`} className="block p-4 pb-3">

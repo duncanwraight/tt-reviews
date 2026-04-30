@@ -29,7 +29,7 @@ export function ResultCard({ item, type }: ResultCardProps) {
     return (
       <Link
         to={href}
-        className="result-card bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200 block"
+        className="result-card bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md hover:border-teal-400 transition-all duration-200 block"
       >
         <div className="flex items-center gap-4">
           {/* Player Image/Icon */}
