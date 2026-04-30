@@ -15,15 +15,16 @@ interface ApprovalRow {
 
 function makeStub({
   approvals,
-  profiles = [],
+  users = [],
   discordMods = [],
 }: {
   approvals: ApprovalRow[];
-  profiles?: { id: string; email: string | null }[];
+  users?: { id: string; email: string | null }[];
   discordMods?: { id: string; discord_username: string | null }[];
 }) {
   let limitCapture = 0;
   let orderCapture: { col: string; ascending: boolean } | null = null;
+  let rpcCapture: { fn: string; args: unknown } | null = null;
 
   function from(table: string) {
     if (table === "moderator_approvals") {
@@ -46,20 +47,6 @@ function makeStub({
         },
       };
     }
-    if (table === "profiles") {
-      return {
-        select() {
-          return {
-            in(_col: string, ids: string[]) {
-              return Promise.resolve({
-                data: profiles.filter(p => ids.includes(p.id)),
-                error: null,
-              });
-            },
-          };
-        },
-      };
-    }
     if (table === "discord_moderators") {
       return {
         select() {
@@ -77,9 +64,20 @@ function makeStub({
     throw new Error(`unexpected table ${table}`);
   }
 
+  function rpc(fn: string, args: { p_ids: string[] }) {
+    rpcCapture = { fn, args };
+    if (fn === "get_user_emails_by_ids") {
+      return Promise.resolve({
+        data: users.filter(u => args.p_ids.includes(u.id)),
+        error: null,
+      });
+    }
+    throw new Error(`unexpected rpc ${fn}`);
+  }
+
   return {
-    client: { from } as unknown as SupabaseClient,
-    inspect: () => ({ limitCapture, orderCapture }),
+    client: { from, rpc } as unknown as SupabaseClient,
+    inspect: () => ({ limitCapture, orderCapture, rpcCapture }),
   };
 }
 
@@ -92,6 +90,7 @@ describe("getRecentAdminActivity", () => {
     expect(stub.inspect()).toEqual({
       limitCapture: 10,
       orderCapture: { col: "created_at", ascending: false },
+      rpcCapture: null,
     });
   });
 
@@ -101,7 +100,7 @@ describe("getRecentAdminActivity", () => {
     expect(stub.inspect().limitCapture).toBe(5);
   });
 
-  it("resolves admin-UI moderator email from profiles", async () => {
+  it("resolves admin-UI moderator email via the auth.users RPC", async () => {
     const stub = makeStub({
       approvals: [
         {
@@ -115,7 +114,7 @@ describe("getRecentAdminActivity", () => {
           created_at: "2026-04-26T12:00:00Z",
         },
       ],
-      profiles: [{ id: "u1", email: "alice@example.com" }],
+      users: [{ id: "u1", email: "alice@example.com" }],
     });
 
     const entries = await getRecentAdminActivity(stub.client);
@@ -125,6 +124,10 @@ describe("getRecentAdminActivity", () => {
       submissionType: "equipment",
       actor: "alice@example.com",
       source: "admin_ui",
+    });
+    expect(stub.inspect().rpcCapture).toEqual({
+      fn: "get_user_emails_by_ids",
+      args: { p_ids: ["u1"] },
     });
   });
 

@@ -36,7 +36,7 @@ interface ApprovalRow {
   created_at: string;
 }
 
-interface ProfileRow {
+interface UserEmailRow {
   id: string;
   email: string | null;
 }
@@ -49,8 +49,14 @@ interface DiscordModeratorRow {
 /**
  * Pull the last `limit` admin actions (approve/reject) from
  * `moderator_approvals`, joined with the actor's display label from either
- * `profiles` (admin-UI) or `discord_moderators` (Discord) depending on which
- * id is set on the row.
+ * `auth.users` (admin-UI) or `discord_moderators` (Discord) depending on
+ * which id is set on the row.
+ *
+ * The admin-UI side reads from `auth.users` via the
+ * `get_user_emails_by_ids` SECURITY DEFINER RPC rather than `profiles.email`
+ * — `profiles.email` is populated by the `handle_new_user` trigger only on
+ * INSERT, so any pre-trigger user or post-signup email change leaves it
+ * stale or null and the widget falls back to the literal "Admin" string.
  *
  * Caller passes an admin/service-role client — this helper does not gate.
  */
@@ -77,14 +83,12 @@ export async function getRecentAdminActivity(
     rows.map(r => r.discord_moderator_id).filter((v): v is string => v !== null)
   );
 
-  const [profiles, discordMods] = await Promise.all([
+  const [users, discordMods] = await Promise.all([
     moderatorIds.length > 0
       ? supabase
-          .from("profiles")
-          .select("id, email")
-          .in("id", moderatorIds)
-          .then(({ data: rows }) => (rows ?? []) as ProfileRow[])
-      : Promise.resolve([] as ProfileRow[]),
+          .rpc("get_user_emails_by_ids", { p_ids: moderatorIds })
+          .then(({ data: rows }) => (rows ?? []) as UserEmailRow[])
+      : Promise.resolve([] as UserEmailRow[]),
     discordIds.length > 0
       ? supabase
           .from("discord_moderators")
@@ -94,7 +98,7 @@ export async function getRecentAdminActivity(
       : Promise.resolve([] as DiscordModeratorRow[]),
   ]);
 
-  const emailById = new Map(profiles.map(p => [p.id, p.email]));
+  const emailById = new Map(users.map(u => [u.id, u.email]));
   const discordNameById = new Map(
     discordMods.map(d => [d.id, d.discord_username])
   );
