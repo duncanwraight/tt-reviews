@@ -265,19 +265,22 @@ test("admin can toggle image trim on the public equipment page", async ({
     const toggle = page.getByTestId("admin-trim-toggle");
     await expect(toggle).toBeVisible();
 
-    const status = page.getByTestId("admin-trim-status");
-    await expect(status).toHaveAttribute("data-trim-kind", "null");
+    // TT-124 collapsed the trim panel into a single header button; the
+    // trim-kind data attribute now lives on the button itself rather
+    // than a separate status element.
+    const button = page.getByTestId("admin-trim-button");
+    await expect(button).toHaveAttribute("data-trim-kind", "null");
 
-    await page.getByTestId("admin-trim-button").click();
+    await button.click();
     // Action redirects back to the public page; loader revalidates.
-    await expect(status).toHaveAttribute("data-trim-kind", "border");
+    await expect(button).toHaveAttribute("data-trim-kind", "border");
 
     let after = await snapshotEquipmentImage(equipment.id);
     expect(after.image_trim_kind).toBe("border");
 
     // Toggle off.
-    await page.getByTestId("admin-trim-button").click();
-    await expect(status).toHaveAttribute("data-trim-kind", "null");
+    await button.click();
+    await expect(button).toHaveAttribute("data-trim-kind", "null");
     after = await snapshotEquipmentImage(equipment.id);
     expect(after.image_trim_kind).toBeNull();
   } finally {
