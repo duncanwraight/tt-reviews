@@ -94,12 +94,12 @@ When editing `.github/workflows/`, use the latest major of any third-party actio
 
 `gh run watch --exit-status <id>` is unreliable as a green/red signal — it propagates the latest non-zero step exit code, so a `continue-on-error: true` step that exited non-zero will make `watch` return 1 even when the run conclusion is `success`. Use `gh run view <id> --json status,conclusion` instead — `conclusion` is authoritative.
 
-**Use `./scripts/ci-wait.sh`.** It polls a single run id (or the latest run on the current branch if none given), prints the conclusion, dumps `gh run view --log-failed` on red, and exits 0 / 1 based on the authoritative conclusion. One stable command form means a single `Bash(./scripts/ci-wait.sh:*)` allowlist entry covers every invocation — Claude Code shouldn't have to ask permission per id.
+**Use `./scripts/ci-wait.sh`.** Default mode is sha-precise: it resolves `git rev-parse HEAD` and waits for the run matching that exact sha on the current branch (polling for it to register if needed). This avoids the "latest on branch" race where, immediately after `git push`, the script would otherwise grab the previous commit's already-completed run and lie green about the new push. It prints the conclusion, dumps `gh run view --log-failed` on red, and exits 0 / 1 based on the authoritative conclusion. One stable command form means a single `Bash(./scripts/ci-wait.sh:*)` allowlist entry covers every invocation.
 
 ```sh
-./scripts/ci-wait.sh                     # latest run on the current branch
+./scripts/ci-wait.sh                     # run for HEAD's sha on current branch
 ./scripts/ci-wait.sh 25072290590         # specific run id
-./scripts/ci-wait.sh --branch main       # latest run on main
+./scripts/ci-wait.sh --branch main       # latest run on main (sha-agnostic)
 CI_WAIT_INTERVAL=15 ./scripts/ci-wait.sh # tighter poll for short jobs
 ```
 

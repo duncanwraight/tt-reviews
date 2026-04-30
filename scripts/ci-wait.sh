@@ -6,9 +6,19 @@
 # variant needing manual approval).
 #
 # Usage:
-#   ./scripts/ci-wait.sh                 # latest run on current branch
+#   ./scripts/ci-wait.sh                 # run for HEAD's sha on current branch
 #   ./scripts/ci-wait.sh <run-id>        # specific run id
 #   ./scripts/ci-wait.sh --branch main   # latest run on branch `main`
+#                                        # (sha-agnostic — old behaviour)
+#
+# Default mode is sha-precise: it resolves `git rev-parse HEAD` and
+# polls until a run appears for that exact sha on the current branch.
+# This avoids the race where, immediately after `git push`, the script
+# would otherwise grab the previous commit's already-completed run
+# (because GitHub hasn't registered the new workflow run yet) and lie
+# green about the new push. Use `--branch` for the old "latest on
+# branch regardless of sha" behaviour when that's what you actually
+# want (e.g. checking what's currently running on main).
 #
 # Exits 0 when conclusion is `success`. Any other terminal conclusion
 # (failure, cancelled, timed_out, action_required, neutral, skipped)
@@ -16,34 +26,47 @@
 # steps are visible without a second command.
 #
 # Polling interval defaults to 30s, overridable via CI_WAIT_INTERVAL.
+# Time spent waiting for the run to *appear* (sha-precise mode only)
+# defaults to 5 min, overridable via CI_WAIT_REGISTER_TIMEOUT.
 
 set -euo pipefail
 
 POLL_INTERVAL="${CI_WAIT_INTERVAL:-30}"
+REGISTER_TIMEOUT="${CI_WAIT_REGISTER_TIMEOUT:-300}"
 
 usage() {
   cat >&2 <<EOF
 Usage: $0 [<run-id>] [--branch <branch>]
 
-  <run-id>          GitHub Actions run id. If omitted, picks the latest
-                    run on the current branch (or --branch if given).
-  --branch <name>   Branch to look up the latest run on. Defaults to
-                    the currently checked-out branch.
+  <run-id>          GitHub Actions run id. Skips sha lookup entirely.
+  --branch <name>   Sha-agnostic mode: pick the latest run on the named
+                    branch by createdAt. Use when you want "whatever's
+                    currently running on main" rather than the run for
+                    your local HEAD.
+
+  (no args)         Sha-precise mode: resolve git HEAD and wait for a
+                    run matching that sha on the current branch. Polls
+                    until the run is registered (up to 5 min) so a
+                    fresh-push doesn't race the workflow registration.
 
 Env:
-  CI_WAIT_INTERVAL  Polling interval in seconds (default 30).
+  CI_WAIT_INTERVAL          Polling interval in seconds (default 30).
+  CI_WAIT_REGISTER_TIMEOUT  Max seconds to wait for the sha's run to
+                            appear (default 300).
 EOF
   exit 2
 }
 
 run_id=""
 branch=""
+branch_explicit=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --branch)
       branch="${2:-}"
       [[ -z "$branch" ]] && usage
+      branch_explicit=1
       shift 2
       ;;
     -h|--help)
@@ -68,12 +91,48 @@ if [[ -z "$run_id" ]]; then
     echo "ci-wait: no run id given and current branch is undetectable" >&2
     exit 2
   fi
-  run_id=$(gh run list --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-  if [[ -z "$run_id" ]]; then
-    echo "ci-wait: no runs found for branch $branch" >&2
-    exit 2
+
+  if [[ -n "$branch_explicit" ]]; then
+    # Sha-agnostic: latest run on the named branch.
+    run_id=$(gh run list --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+    if [[ -z "$run_id" ]]; then
+      echo "ci-wait: no runs found for branch $branch" >&2
+      exit 2
+    fi
+    echo "ci-wait: latest run on $branch is $run_id (sha-agnostic --branch mode)"
+  else
+    # Sha-precise: wait for the run matching HEAD to appear, then track it.
+    head_sha=$(git rev-parse HEAD 2>/dev/null || true)
+    if [[ -z "$head_sha" ]]; then
+      echo "ci-wait: cannot resolve HEAD sha — pass <run-id> or --branch <name>" >&2
+      exit 2
+    fi
+
+    deadline=$(( $(date +%s) + REGISTER_TIMEOUT ))
+    notified=""
+    while :; do
+      # Pull a small window of recent runs and filter to matching sha.
+      # `last` after sort_by(.createdAt) picks the most recent re-run if
+      # the same sha has been re-run.
+      run_id=$(gh run list --branch "$branch" --limit 10 \
+        --json databaseId,headSha,createdAt \
+        --jq "map(select(.headSha == \"$head_sha\")) | sort_by(.createdAt) | last | .databaseId // empty")
+      if [[ -n "$run_id" ]]; then
+        break
+      fi
+      if (( $(date +%s) > deadline )); then
+        echo "ci-wait: no run for HEAD ${head_sha:0:7} on $branch appeared within ${REGISTER_TIMEOUT}s" >&2
+        echo "ci-wait: was the commit pushed? Or pass <run-id> / --branch $branch to override." >&2
+        exit 2
+      fi
+      if [[ -z "$notified" ]]; then
+        echo "ci-wait: waiting for a run on ${head_sha:0:7} ($branch) to be registered..."
+        notified=1
+      fi
+      sleep 5
+    done
+    echo "ci-wait: run $run_id matches HEAD ${head_sha:0:7} on $branch"
   fi
-  echo "ci-wait: latest run on $branch is $run_id"
 fi
 
 echo "ci-wait: polling run $run_id every ${POLL_INTERVAL}s..."

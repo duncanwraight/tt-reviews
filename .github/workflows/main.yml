@@ -269,7 +269,22 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -o pipefail
+          # Run wrangler and capture combined stdout+stderr. Don't use
+          # `OUTPUT=$(... | tee)` alone — that swallows the output from
+          # the step log on failure, leaving "exit code 1" with no
+          # context. Echo $OUTPUT explicitly so the stderr is visible in
+          # the run UI without having to download the artifact.
+          set +e
           OUTPUT=$(npx wrangler versions upload 2>&1 | tee /tmp/wrangler-upload.log)
+          WRANGLER_RC=$?
+          set -e
+          echo "----- wrangler output -----"
+          echo "$OUTPUT"
+          echo "----- end wrangler output (rc=$WRANGLER_RC) -----"
+          if [ "$WRANGLER_RC" -ne 0 ]; then
+            echo "::error::wrangler versions upload failed (exit $WRANGLER_RC) — see output above and the wrangler-upload-log artifact"
+            exit "$WRANGLER_RC"
+          fi
           VERSION_ID=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
           PREVIEW_URL=$(echo "$OUTPUT" | grep -oE 'https://[a-zA-Z0-9._-]+\.workers\.dev' | head -1)
           if [ -z "$VERSION_ID" ] || [ -z "$PREVIEW_URL" ]; then
@@ -279,6 +294,14 @@ jobs:
           echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Uploaded version $VERSION_ID → $PREVIEW_URL"
+
+      - name: Upload wrangler log on failure
+        if: always() && steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: wrangler-upload-log
+          path: /tmp/wrangler-upload.log
+          retention-days: 7
 
       - name: Migration plan summary
         run: |
