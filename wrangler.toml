@@ -3,6 +3,17 @@ main = "workers/app.ts"
 compatibility_date = "2025-04-04"
 compatibility_flags = ["nodejs_compat_v2"]
 
+# Per-version preview subdomain (`<version>-app.tt-reviews.workers.dev`).
+# The CI gradual-deploy flow uses this URL for the `Smoke test preview`
+# step that runs before promoting a version to 100% traffic. Cloudflare
+# disables preview URLs by default when `workers_dev` is off and this
+# flag is unset, so the upload succeeds but no preview URL is emitted —
+# which broke the workflow's parse step from the TT-121 deploy onward.
+# `workers_dev = true` is intentionally NOT set: production traffic is
+# bound to the custom domain below, and we don't want a shadow copy
+# serving live requests at `app.tt-reviews.workers.dev`.
+preview_urls = true
+
 routes = [
   { pattern = "tabletennis.reviews", custom_domain = true }
 ]
