@@ -81,7 +81,9 @@ function ReviewsSectionHeader({
       <h2 className="text-2xl font-bold text-gray-900">
         Reviews ({reviewCount})
       </h2>
-      <WriteReviewButton user={user} equipmentSlug={equipmentSlug} />
+      {reviewCount > 0 && (
+        <WriteReviewButton user={user} equipmentSlug={equipmentSlug} />
+      )}
     </div>
   );
 }

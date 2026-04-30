@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { memo, useMemo } from "react";
+import { Check, Plus } from "lucide-react";
 import { LazyImage } from "./LazyImage";
 import { ImagePlaceholder } from "./ImagePlaceholder";
 import { MAX_SELECTION, useComparison } from "~/contexts/ComparisonContext";
@@ -43,7 +44,7 @@ function PlainCard({ equipment }: { equipment: Equipment }) {
   return (
     <Link
       to={`/equipment/${equipment.slug}`}
-      className="group block bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md hover:border-gray-300 p-6"
+      className="group block bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md hover:border-gray-300 p-4"
     >
       <CardBody equipment={equipment} />
     </Link>
@@ -89,16 +90,16 @@ function CompareCard({ equipment }: { equipment: Equipment }) {
     <div
       data-testid="equipment-card"
       data-slug={equipment.slug}
-      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
+      className={`bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
         isSelected
           ? "border-purple-500 bg-purple-50"
           : "border-gray-200 hover:border-gray-300"
       }`}
     >
-      {/* Toggle is anchored under the image (image is 16×16 in p-6 padding,
-          so its bottom is 24+64=88px from the card top). Centered with the
-          image column at left 40px (24 padding + (64-32)/2). */}
-      <div className="absolute top-[6rem] left-[2.5rem] z-10">
+      <Link to={`/equipment/${equipment.slug}`} className="block p-4 pb-3">
+        <CardBody equipment={equipment} />
+      </Link>
+      <div className="border-t border-gray-100 px-4 py-2">
         <button
           type="button"
           onClick={handleCompareClick}
@@ -112,38 +113,27 @@ function CompareCard({ equipment }: { equipment: Equipment }) {
           title={disabledReason ?? undefined}
           data-testid="comparison-toggle"
           data-selected={isSelected ? "true" : "false"}
-          className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+          className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${
             isSelected
-              ? "border-purple-500 bg-purple-500 text-white"
+              ? "text-purple-700 hover:text-purple-800"
               : compatible
-                ? atCap
-                  ? "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50 ring-1 ring-purple-200"
-                  : "border-gray-300 bg-white hover:border-purple-500 hover:bg-purple-50"
-                : "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                ? "text-gray-600 hover:text-purple-700"
+                : "text-gray-400 cursor-not-allowed"
           }`}
         >
           {isSelected ? (
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <>
+              <Check className="size-4" aria-hidden />
+              Added to comparison
+            </>
           ) : (
-            <div className="w-3 h-3 rounded-full border border-current"></div>
+            <>
+              <Plus className="size-4" aria-hidden />
+              Compare
+            </>
           )}
         </button>
       </div>
-
-      {/* min-h ensures very short content (blade with no rating) still
-          extends past the toggle's bottom edge. */}
-      <Link
-        to={`/equipment/${equipment.slug}`}
-        className="block p-6 min-h-[9.5rem]"
-      >
-        <CardBody equipment={equipment} />
-      </Link>
     </div>
   );
 }
@@ -168,7 +158,7 @@ function CardBody({ equipment }: { equipment: Equipment }) {
     : null;
 
   return (
-    <div className="flex items-start space-x-4">
+    <div className="flex items-start space-x-3">
       <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
         {imageUrl ? (
           <LazyImage
@@ -191,9 +181,9 @@ function CardBody({ equipment }: { equipment: Equipment }) {
           {equipment.name}
         </h3>
 
-        <div className="flex items-center gap-1.5 mb-3 text-xs">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-3 text-xs">
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-medium capitalize ${getCategoryPillClasses(equipment.category)}`}
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-medium capitalize whitespace-nowrap ${getCategoryPillClasses(equipment.category)}`}
           >
             {categoryLabel}
           </span>
@@ -203,7 +193,7 @@ function CardBody({ equipment }: { equipment: Equipment }) {
                 •
               </span>
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-medium ${getSubcategoryPillClasses()}`}
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap ${getSubcategoryPillClasses()}`}
               >
                 {subcategoryLabel}
               </span>
