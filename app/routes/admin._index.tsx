@@ -83,7 +83,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         );
         return null as OldestPendingTarget | null;
       }),
-      getRecentAdminActivity(supabase).catch(error => {
+      getRecentAdminActivity(supabase, 5).catch(error => {
         Logger.error(
           "Error fetching recent admin activity",
           createLogContext("admin-index"),
@@ -289,79 +289,83 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           </div>
         )}
 
-        {/* Moderation Stats */}
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow mb-8">
-          <table
-            className="min-w-full divide-y divide-gray-200 text-sm"
-            data-testid="admin-stats-table"
-          >
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left font-medium text-gray-700"
-                >
-                  Queue
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-right font-medium text-gray-700"
-                >
-                  Pending
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-right font-medium text-gray-700"
-                >
-                  Approved
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-right font-medium text-gray-700"
-                >
-                  Rejected
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-right font-medium text-gray-700"
-                >
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {queueRows.map(row => (
-                <tr key={row.link}>
+        {/* Moderation Stats + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow">
+            <table
+              className="min-w-full divide-y divide-gray-200 text-sm"
+              data-testid="admin-stats-table"
+            >
+              <thead className="bg-gray-50">
+                <tr>
                   <th
-                    scope="row"
-                    className="whitespace-nowrap px-4 py-3 text-left font-medium"
+                    scope="col"
+                    className="px-4 py-3 text-left font-medium text-gray-700"
                   >
-                    <Link
-                      to={row.link}
-                      className="text-purple-700 hover:text-purple-900"
-                    >
-                      {row.title}
-                    </Link>
+                    Queue
                   </th>
-                  <td className="px-4 py-3 text-right font-medium text-yellow-700 tabular-nums">
-                    {row.pending}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-green-700 tabular-nums">
-                    {row.approved}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-red-700 tabular-nums">
-                    {row.rejected}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900 tabular-nums">
-                    {row.total}
-                  </td>
+                  <th
+                    scope="col"
+                    className="w-24 px-4 py-3 text-center font-medium text-gray-700"
+                  >
+                    Pending
+                  </th>
+                  <th
+                    scope="col"
+                    className="w-24 px-4 py-3 text-center font-medium text-gray-700"
+                  >
+                    Approved
+                  </th>
+                  <th
+                    scope="col"
+                    className="w-24 px-4 py-3 text-center font-medium text-gray-700"
+                  >
+                    Rejected
+                  </th>
+                  <th
+                    scope="col"
+                    className="w-24 px-4 py-3 text-center font-medium text-gray-700"
+                  >
+                    Total
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {queueRows.map(row => (
+                  <tr key={row.link}>
+                    <th
+                      scope="row"
+                      className="whitespace-nowrap px-4 py-3 text-left font-medium"
+                    >
+                      <Link
+                        to={row.link}
+                        className="text-purple-700 hover:text-purple-900"
+                      >
+                        {row.title}
+                      </Link>
+                    </th>
+                    <td className="px-4 py-3 text-center font-medium text-yellow-700 tabular-nums">
+                      {row.pending}
+                    </td>
+                    <td className="px-4 py-3 text-center font-medium text-green-700 tabular-nums">
+                      {row.approved}
+                    </td>
+                    <td className="px-4 py-3 text-center font-medium text-red-700 tabular-nums">
+                      {row.rejected}
+                    </td>
+                    <td className="px-4 py-3 text-center font-semibold text-gray-900 tabular-nums">
+                      {row.total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <AdminActivityWidget entries={recentActivity} />
         </div>
 
-        {/* Content Stats + Photo Coverage + Recent Activity */}
+        {/* Content Stats + Photo Coverage + Recompute Similar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -388,13 +392,11 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
             <EquipmentPhotoCoverageCard counts={photoCoverage} />
           )}
 
-          <AdminActivityWidget entries={recentActivity} />
+          <RecomputeSimilarSection
+            csrfToken={csrfToken}
+            initialStatus={similarStatus}
+          />
         </div>
-
-        <RecomputeSimilarSection
-          csrfToken={csrfToken}
-          initialStatus={similarStatus}
-        />
       </div>
     </div>
   );
@@ -430,7 +432,7 @@ function RecomputeSimilarSection({
       : initialStatus;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mt-6">
+    <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-2">
         Similar equipment recompute
       </h3>

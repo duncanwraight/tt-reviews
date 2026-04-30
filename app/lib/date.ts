@@ -14,6 +14,15 @@ const SHORT = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+const SHORT_DATETIME = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 const LONG = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -28,6 +37,11 @@ export function formatDate(input: string | Date): string {
 /** "1 January 2026". */
 export function formatDateLong(input: string | Date): string {
   return LONG.format(toDate(input));
+}
+
+/** DD/MM/YYYY, HH:mm in 24-hour, e.g. "01/01/2026, 14:30". */
+export function formatDateTime(input: string | Date): string {
+  return SHORT_DATETIME.format(toDate(input));
 }
 
 function toDate(input: string | Date): Date {

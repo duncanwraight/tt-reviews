@@ -24,7 +24,7 @@ describe("AdminActivityWidget", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders one row per entry with actor, action, type, and timestamp", () => {
+  it("renders one row per entry with action label, actor, source, and timestamp", () => {
     render(
       <AdminActivityWidget
         entries={[
@@ -33,11 +33,12 @@ describe("AdminActivityWidget", () => {
             actor: "alice@example.com",
             action: "approved",
             submissionType: "equipment",
+            source: "admin_ui",
             createdAt: "2026-04-26T12:00:00Z",
           }),
           entry({
             id: "a2",
-            actor: "bob (Discord)",
+            actor: "bob",
             action: "rejected",
             submissionType: "video",
             source: "discord",
@@ -50,16 +51,24 @@ describe("AdminActivityWidget", () => {
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(2);
 
-    expect(screen.getByText(/alice@example\.com/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/approved a equipment submission/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/bob \(Discord\)/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/rejected a video submission/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText("26/04/2026")).toBeInTheDocument();
-    expect(screen.getByText("25/04/2026")).toBeInTheDocument();
+    // Line 1: coloured-bold entity + bold action verb.
+    // Line 2: "by" + bold moderator + "(source)" + light-grey timestamp.
+    expect(items[0].textContent).toContain("Equipment submission approved");
+    expect(items[0].textContent).toContain("by alice@example.com (Admin UI)");
+    expect(items[1].textContent).toContain("Video submission rejected");
+    expect(items[1].textContent).toContain("by bob (Discord)");
+
+    // Entity label has the per-type colour class.
+    expect(screen.getByText("Equipment submission")).toHaveClass(
+      "text-orange-700"
+    );
+    expect(screen.getByText("Video submission")).toHaveClass("text-rose-700");
+
+    // Timestamps include time, in DD/MM/YYYY, HH:mm form. The exact hour
+    // depends on the runner's local timezone (Intl renders in local time)
+    // — match the pattern, not a fixed value, so the test is portable.
+    expect(screen.getByText(/^26\/04\/2026, \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(screen.getByText(/^25\/04\/2026, \d{2}:\d{2}$/)).toBeInTheDocument();
   });
 
   it("uses distinct icons for approved vs rejected actions", () => {

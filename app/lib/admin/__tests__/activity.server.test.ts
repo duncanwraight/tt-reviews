@@ -148,7 +148,9 @@ describe("getRecentAdminActivity", () => {
     const entries = await getRecentAdminActivity(stub.client);
     expect(entries[0]).toMatchObject({
       action: "rejected",
-      actor: "bob (Discord)",
+      // actor is the raw username; the widget pairs this with `source` for
+      // the "(Discord)" suffix so the source signal isn't duplicated here.
+      actor: "bob",
       source: "discord",
     });
   });

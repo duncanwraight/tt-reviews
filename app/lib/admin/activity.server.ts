@@ -14,7 +14,9 @@ export interface AdminActivityEntry {
   submissionType: ActivitySubmissionType;
   submissionId: string;
   /** Display label for the actor — email for admin-UI mods, Discord username
-   * for Discord mods, or a short fallback when neither is resolvable. */
+   * for Discord mods, or a short fallback when neither is resolvable. The
+   * widget pairs this with `source` for the "(Admin UI)" / "(Discord)"
+   * suffix; this string itself does not include that. */
   actor: string;
   /** Where the action originated — admin-UI vs Discord. */
   source: "admin_ui" | "discord" | "unknown";
@@ -134,8 +136,7 @@ function pickActor(
     return emailById.get(row.moderator_id) ?? "Admin";
   }
   if (row.discord_moderator_id) {
-    const name = discordNameById.get(row.discord_moderator_id);
-    return name ? `${name} (Discord)` : "Discord moderator";
+    return discordNameById.get(row.discord_moderator_id) ?? "Discord moderator";
   }
   return "Unknown";
 }
