@@ -20,6 +20,9 @@ import { ReviewsSection } from "~/components/equipment/ReviewsSection";
 import { RelatedEquipmentSection } from "~/components/equipment/RelatedEquipmentSection";
 import { SimilarEquipmentSection } from "~/components/equipment/SimilarEquipmentSection";
 import { SpecsTable } from "~/components/equipment/SpecsTable";
+import { LazyImage } from "~/components/ui/LazyImage";
+import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
+import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
 
@@ -267,12 +270,44 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
       </PageSection>
 
       <PageSection background="white" padding="medium">
-        <EquipmentHeader
-          equipment={equipment}
-          averageRating={averageRating}
-          reviewCount={reviewCount}
-          usedByPlayers={usedByPlayers}
-        />
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="w-48 h-48 flex-shrink-0 overflow-hidden rounded-lg">
+            <LazyImage
+              src={
+                equipment.image_key
+                  ? buildEquipmentImageUrl(
+                      equipment.image_key,
+                      "card",
+                      equipment.image_trim_kind as
+                        | "auto"
+                        | "border"
+                        | null
+                        | undefined
+                    )
+                  : ""
+              }
+              alt={`${equipment.name} by ${equipment.manufacturer}`}
+              className="w-full h-full"
+              objectFit="contain"
+              placeholder="skeleton"
+              fallbackIcon={
+                <ImagePlaceholder
+                  kind="equipment"
+                  className="w-full h-full"
+                  iconClassName="size-16"
+                />
+              }
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <EquipmentHeader
+              equipment={equipment}
+              averageRating={averageRating}
+              reviewCount={reviewCount}
+              usedByPlayers={usedByPlayers}
+            />
+          </div>
+        </div>
         {isAdmin && adminCsrfToken && equipment.image_key && (
           <AdminTrimToggle
             slug={equipment.slug}
@@ -291,35 +326,29 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
             </a>
           </p>
         )}
-      </PageSection>
 
-      {equipment.description && (
-        <PageSection background="white" padding="medium">
-          <section aria-labelledby="description-heading">
-            <h2
-              id="description-heading"
-              className="mb-3 text-xl font-semibold text-gray-900"
-            >
-              Manufacturer description
-            </h2>
-            <SafeHtml
-              content={equipment.description}
-              profile="review"
-              className="text-gray-700 leading-relaxed whitespace-pre-wrap"
-            />
-          </section>
-        </PageSection>
-      )}
-
-      <PageSection background="white" padding="medium">
-        <section aria-labelledby="specs-heading">
+        <section aria-labelledby="specs-heading" className="mt-8">
           <h2
             id="specs-heading"
             className="mb-3 text-xl font-semibold text-gray-900"
           >
             Manufacturer specifications
           </h2>
-          <SpecsTable items={specsItems} specFields={specFields} />
+          <div className="rounded-lg border border-gray-200">
+            <SpecsTable items={specsItems} specFields={specFields} />
+            {equipment.description && (
+              <div className="border-t border-gray-200 p-5 text-sm leading-relaxed text-gray-700">
+                <span className="font-semibold text-gray-900">
+                  Description:
+                </span>{" "}
+                <SafeHtml
+                  content={equipment.description}
+                  profile="review"
+                  className="inline whitespace-pre-wrap"
+                />
+              </div>
+            )}
+          </div>
         </section>
       </PageSection>
 

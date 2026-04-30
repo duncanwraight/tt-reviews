@@ -24,12 +24,15 @@ test.describe("Equipment detail — manufacturer specifications (TT-34)", () => 
     const specsTable = page.getByTestId("specs-table");
     await expect(specsTable).toBeVisible();
 
-    // Seed: speed=8.5, spin=9.9 for dhs-neo-hurricane-3. Confirm at least one
-    // manufacturer-supplied number is rendered against its spec label.
-    const speedRow = specsTable.locator("tr", { hasText: "Speed" });
+    // Single-item detail page renders as <dl> with a <dt>label</dt><dd>value</dd>
+    // pair per row; comparison page uses a <table> with <tr> rows. Locate the
+    // label's parent row so the value assertion stays scoped to that pair.
+    const speedRow = specsTable
+      .locator("dt", { hasText: "Speed" })
+      .locator("..");
     await expect(speedRow).toContainText("8.5");
 
-    const spinRow = specsTable.locator("tr", { hasText: "Spin" });
+    const spinRow = specsTable.locator("dt", { hasText: "Spin" }).locator("..");
     await expect(spinRow).toContainText("9.9");
   });
 

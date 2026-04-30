@@ -1,8 +1,5 @@
 import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
-import { LazyImage } from "../ui/LazyImage";
-import { ImagePlaceholder } from "../ui/ImagePlaceholder";
-import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 
 interface Equipment {
   id: string;
@@ -53,90 +50,54 @@ export function EquipmentHeader({
     }
   };
 
-  // Equipment R2 images go through Cloudflare Image Resizing for the
-  // header variant (1024px). Legacy specifications.image_url is an
-  // external URL — render directly.
-  const imageUrl = equipment.image_key
-    ? buildEquipmentImageUrl(
-        equipment.image_key,
-        "full",
-        equipment.image_trim_kind as "auto" | "border" | null | undefined
-      )
-    : (equipment.specifications?.image_url as string);
-
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="h-64 overflow-hidden rounded-lg">
-          <LazyImage
-            src={imageUrl || ""}
-            alt={`${equipment.name} by ${equipment.manufacturer}`}
-            className="w-full h-full"
-            objectFit="contain"
-            placeholder="skeleton"
-            fallbackIcon={
-              <ImagePlaceholder
-                kind="equipment"
-                className="w-full h-full"
-                iconClassName="size-16"
-              />
-            }
+    <header>
+      <div className="flex items-center gap-3 mb-3">
+        <span className="inline-block px-3 py-1 text-sm font-semibold text-purple-800 bg-purple-100 rounded-full">
+          {getCategoryName(equipment.category)}
+        </span>
+        {equipment.subcategory && (
+          <span className="inline-block px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
+            {getSubcategoryName(equipment.subcategory)}
+          </span>
+        )}
+      </div>
+
+      <h1 className="text-3xl font-bold text-gray-900">{equipment.name}</h1>
+
+      {reviewCount > 0 && (
+        <div className="mt-3">
+          <RatingStars
+            rating={averageRating}
+            count={reviewCount}
+            size="large"
           />
         </div>
+      )}
 
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="inline-block px-3 py-1 text-sm font-semibold text-purple-800 bg-purple-100 rounded-full">
-              {getCategoryName(equipment.category)}
-            </span>
-            {equipment.subcategory && (
-              <span className="inline-block px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
-                {getSubcategoryName(equipment.subcategory)}
-              </span>
-            )}
+      {usedByPlayers.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            Used by Professional Players
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {usedByPlayers.map(player => (
+              <Link
+                key={player.slug}
+                to={`/players/${player.slug}`}
+                className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 text-white font-bold text-sm rounded-full hover:from-teal-600 hover:to-teal-700 transition-all duration-200 transform hover:scale-110"
+                title={player.name}
+              >
+                {player.name
+                  .split(" ")
+                  .map(n => n[0])
+                  .join("")
+                  .substring(0, 2)}
+              </Link>
+            ))}
           </div>
-
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {equipment.name}
-          </h1>
-
-          <p className="text-xl text-gray-600 mb-4">{equipment.manufacturer}</p>
-
-          {reviewCount > 0 && (
-            <div className="mb-6">
-              <RatingStars
-                rating={averageRating}
-                count={reviewCount}
-                size="large"
-              />
-            </div>
-          )}
-
-          {usedByPlayers.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                Used by Professional Players
-              </h3>
-              <div className="flex flex-wrap gap-3">
-                {usedByPlayers.map(player => (
-                  <Link
-                    key={player.slug}
-                    to={`/players/${player.slug}`}
-                    className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 text-white font-bold text-sm rounded-full hover:from-teal-600 hover:to-teal-700 transition-all duration-200 transform hover:scale-110"
-                    title={player.name}
-                  >
-                    {player.name
-                      .split(" ")
-                      .map(n => n[0])
-                      .join("")
-                      .substring(0, 2)}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-      </div>
-    </div>
+      )}
+    </header>
   );
 }

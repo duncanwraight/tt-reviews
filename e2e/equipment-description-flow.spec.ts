@@ -13,9 +13,9 @@ import { SUPABASE_URL, adminHeaders } from "./utils/supabase";
  *
  * Covers the column end-to-end: public submission writes description to
  * equipment_submissions, admin approval copies it onto the live equipment
- * row, and the public detail page surfaces it under "Manufacturer
- * description". Validator + DB CHECK length cap is unit-tested separately
- * in app/lib/submissions/__tests__/validate.server.test.ts.
+ * row, and the public detail page surfaces it as the "Description:" row
+ * inside the manufacturer specs card. Validator + DB CHECK length cap is
+ * unit-tested separately in app/lib/submissions/__tests__/validate.server.test.ts.
  */
 test("equipment submission with description persists through approval to public detail", async ({
   page,
@@ -99,15 +99,13 @@ test("equipment submission with description persists through approval to public 
       )
       .toBe(description);
 
-    // 4. Public detail page renders the description under the
-    //    "Manufacturer description" heading.
+    // 4. Public detail page renders the description as the "Description:"
+    //    row attached to the bottom of the manufacturer specs card.
     const anonContext = await browser.newContext();
     const anonPage = await anonContext.newPage();
     try {
       await anonPage.goto(`/equipment/${liveRow!.slug}`);
-      await expect(
-        anonPage.getByRole("heading", { name: /Manufacturer description/i })
-      ).toBeVisible();
+      await expect(anonPage.getByText("Description:")).toBeVisible();
       await expect(anonPage.getByText(description)).toBeVisible();
     } finally {
       await anonContext.close();

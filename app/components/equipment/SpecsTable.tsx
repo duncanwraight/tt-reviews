@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { CategoryOption } from "~/lib/categories.server";
 import type { ComparisonItem } from "./comparison-types";
 
@@ -201,6 +201,32 @@ export function SpecsTable({ items, specFields }: SpecsTableProps) {
       <p className="rounded-md border border-dashed border-gray-200 p-4 text-sm text-gray-500">
         No specifications available for these items.
       </p>
+    );
+  }
+
+  // Single-item view (equipment detail page) renders as a dense
+  // key/value grid — the wide 2-column table wastes horizontal space
+  // when the value column is just one short string per row. Using a
+  // single grid template (auto/1fr repeated) keeps all labels in the
+  // same column so they share a width and values sit tight beside them.
+  if (items.length === 1) {
+    const specs = items[0].equipment.specifications;
+    return (
+      <dl
+        className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto_1fr] lg:grid-cols-[auto_1fr_auto_1fr_auto_1fr] gap-x-6 gap-y-2 p-5 text-sm"
+        data-testid="specs-table"
+      >
+        {visibleRows.map(field => (
+          <Fragment key={field.id}>
+            <dt className="text-gray-700 font-medium">{field.name}</dt>
+            <dd className="text-gray-900 font-semibold break-words">
+              {field.value === PLIES_WOOD_KEY
+                ? renderPliesPair(specs)
+                : renderCell(field, specs[field.value])}
+            </dd>
+          </Fragment>
+        ))}
+      </dl>
     );
   }
 
