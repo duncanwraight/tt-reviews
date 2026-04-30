@@ -67,9 +67,12 @@ export const PlayerCard = memo(function PlayerCard({
       className="player-card group block bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-teal-400"
     >
       <div className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 group-hover:text-teal-700 transition-colors">
+          {player.name}
+        </h3>
         <div className="flex items-start gap-4 mb-4">
-          {/* Player Photo */}
-          <div className="flex-shrink-0">
+          {/* Player Photo + status badge */}
+          <div className="flex-shrink-0 flex flex-col items-center gap-2">
             {imageUrl ? (
               <LazyImage
                 src={imageUrl}
@@ -92,19 +95,12 @@ export const PlayerCard = memo(function PlayerCard({
                 iconClassName="size-7"
               />
             )}
+            {statusBadge && (
+              <span className={statusBadge.className}>{statusBadge.label}</span>
+            )}
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate group-hover:text-teal-700 transition-colors">
-                {player.name}
-              </h3>
-              {statusBadge && (
-                <span className={`ml-2 flex-shrink-0 ${statusBadge.className}`}>
-                  {statusBadge.label}
-                </span>
-              )}
-            </div>
             {player.highest_rating && (
               <p className="text-sm text-gray-600 mb-2">
                 Peak Rating: {player.highest_rating}
