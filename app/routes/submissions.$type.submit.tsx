@@ -446,19 +446,24 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editData: Record<string, any> = {};
 
-      // Scalar diffs — only include fields that differ from current.
+      // Scalar diffs — read from formData directly rather than the
+      // generic submissionData bag, because that bag drops empty
+      // strings before this branch runs. Empty strings are exactly the
+      // signal we need for "user cleared this pre-filled field"
+      // (TT-132). `name` / `category` are required: true on the form
+      // so submitting them empty is rejected upstream by validateSubmission;
+      // `subcategory` / `description` are nullable on the row and
+      // accept clears.
       for (const fieldName of [
         "name",
         "category",
         "subcategory",
         "description",
       ] as const) {
-        const submitted = submissionData[fieldName];
-        if (submitted === undefined) continue;
-        const submittedValue =
-          typeof submitted === "string" && submitted.trim() === ""
-            ? null
-            : submitted;
+        const raw = formData.get(fieldName);
+        if (typeof raw !== "string") continue;
+        const trimmed = raw.trim();
+        const submittedValue = trimmed === "" ? null : trimmed;
         const currentValue =
           (current as Record<string, unknown>)[fieldName] ?? null;
         if (submittedValue !== currentValue) {

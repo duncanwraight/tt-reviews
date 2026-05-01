@@ -130,8 +130,11 @@ const SUBMISSION_CONSTRAINTS: Record<
   // on the proposed (category, subcategory).
   equipment_edit: {
     equipment_id: { required: true, spec: { kind: "uuid" } },
-    name: { spec: { kind: "text", maxLength: 200 } },
-    category: { spec: { kind: "text", maxLength: 50 } },
+    // `name` and `category` mirror the equipment table's NOT NULL
+    // constraints — pre-fill + required-on-the-form (TT-132) means
+    // submitters can't clear them.
+    name: { required: true, spec: { kind: "text", maxLength: 200 } },
+    category: { required: true, spec: { kind: "text", maxLength: 50 } },
     subcategory: { spec: { kind: "text", maxLength: 50 } },
     description: { spec: { kind: "text", maxLength: 2000 } },
     edit_reason: { required: true, spec: { kind: "text", maxLength: 2000 } },

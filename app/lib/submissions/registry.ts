@@ -733,15 +733,19 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           layout: { colSpan: 2 },
           placeholder: "Loading equipment...",
         },
+        // Pre-filled from the equipment row (TT-74) and required
+        // (TT-132) so the submitter can't clear the underlying
+        // NOT NULL `equipment.name` / `equipment.category` columns
+        // and trigger a constraint error at apply time.
         {
           name: "name",
           label: "Equipment Name",
           type: "text",
-          required: false,
+          required: true,
           placeholder: "e.g., Hurricane 3",
           layout: { colSpan: 2 },
         },
-        createSelectField("category", "Category", 1, false),
+        createSelectField("category", "Category", 1, true),
         {
           name: "subcategory",
           label: "Subcategory",

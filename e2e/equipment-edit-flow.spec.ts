@@ -287,6 +287,87 @@ test("equipment_edit: image replace shows single error when file missing, then s
   }
 });
 
+test("equipment_edit: clearing a pre-filled optional field nulls the column on approval", async ({
+  page,
+}) => {
+  // TT-132: equipment_edit was documented to treat empty after pre-fill
+  // as an explicit clear, but the diff loop read from the generic
+  // submissionData bag (which drops empty strings) so a cleared field
+  // was silently ignored. The fix mirrors the TT-129 player_edit
+  // refactor — read formData directly so empty captures as null.
+  // Locks in the fixed behavior end-to-end.
+  const submitterEmail = generateTestEmail("ee-clear-sub");
+  const adminEmail = generateTestEmail("ee-clear-adm");
+  const { userId: submitterId } = await createUser(submitterEmail);
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+  await setUserRole(submitterId, "admin");
+
+  const uniqueName = `e2e Clear Rubber ${Date.now()}`;
+  const equipment = await createTestEquipment(uniqueName, "E2E Co");
+
+  try {
+    await login(page, submitterEmail);
+    await page.goto(
+      `/submissions/equipment_edit/submit?equipment_id=${equipment.id}`
+    );
+
+    // Pre-fill should populate Description with "Original description"
+    // — clear it explicitly. Use Control+a + Delete rather than fill("")
+    // since Playwright treats fill("") as a no-op on a controlled
+    // textarea that already carries text.
+    const desc = page.getByLabel(/^Description/i);
+    await expect(desc).toHaveValue("Original description");
+    await desc.click();
+    await desc.press("Control+a");
+    await desc.press("Delete");
+    await expect(desc).toHaveValue("");
+
+    await page.getByLabel(/^Reason for Changes/i).fill("e2e clear edit");
+    await page.getByRole("button", { name: /Submit Changes/i }).click();
+    await page.waitForURL("/profile", { timeout: 20000 });
+
+    // edit_data carries an explicit `description: null` (the diff
+    // signal for "user cleared this field").
+    const editsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/equipment_edits?user_id=eq.${submitterId}&select=id,edit_data`,
+      { headers: adminHeaders() }
+    );
+    const edits = (await editsRes.json()) as Array<{
+      id: string;
+      edit_data: Record<string, unknown>;
+    }>;
+    expect(edits).toHaveLength(1);
+    expect(edits[0].edit_data).toHaveProperty("description", null);
+
+    // Admin approves; the equipment row's description ends up null.
+    await page
+      .getByRole("button", { name: /Logout/i })
+      .first()
+      .click();
+    await login(page, adminEmail);
+    await page.goto("/admin/equipment-edits");
+
+    const card = page.locator("li").filter({ hasText: uniqueName }).first();
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: /^Approve$/ }).click();
+
+    await expect
+      .poll(
+        async () => {
+          const row = await fetchEquipment(equipment.id);
+          return row.description;
+        },
+        { timeout: 15000 }
+      )
+      .toBeNull();
+  } finally {
+    await deleteTestEquipment(equipment.id);
+    await deleteUser(submitterId);
+    await deleteUser(adminId);
+  }
+});
+
 test("equipment_edit: submit → admin rejects → equipment row unchanged", async ({
   page,
 }) => {
