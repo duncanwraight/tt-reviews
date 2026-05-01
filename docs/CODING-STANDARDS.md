@@ -91,6 +91,31 @@ Logger.error("loader.equipment.failed", { ...ctx, slug }, err);
 
 Edit-style submissions (`equipment_edit`, `player_edit`) reject empty edits server-side in `app/routes/submissions.$type.submit.tsx` — return 400 with `{ error: "No changes detected. Edit at least one field before submitting." }`. The server is the source of truth; don't gate at the client.
 
+## Discord moderation cards
+
+Every submission type's Discord card must carry enough context for a Discord-only moderator to decide on the submission without admin-UI access. Per-type formatters live in `app/lib/submissions/registry.ts` (`formatForDiscord`) and use the helpers in `app/lib/submissions/discord-format.ts`. Card shape canonicalised by tests in `app/lib/submissions/__tests__/registry.test.ts`.
+
+### Canonical field order
+
+1. **Subject identifier** — what's being submitted/changed. `Equipment` (name + manufacturer), `Player` (name), `Reviewer`, etc. Always first so the moderator's eye lands on the subject.
+2. **Slug** — when the submission row has one, or it can be derived from a related row (e.g. the equipment being edited). Lets a Discord-only moderator construct the public URL without opening the admin queue. Use `createOptionalDiscordField` for absent slugs.
+3. **Submitted by** — via `createSubmitterField`. Email or "Anonymous". Always present.
+4. **Values OR diff** — pick the right shape for the type:
+   - **New submissions** (equipment, player, video, review, player_equipment_setup): enumerated key/value fields for the submission's attributes, plus compound fields where appropriate (`createSpecificationsField` for equipment specs, per-rubber/blade fields for setups, top-3 video titles + "and N more" for video lists).
+   - **Edit submissions** (equipment_edit, player_edit): a single `Changes` field listing `**field**: old → new` lines, computed by diffing `edit_data` against the current row. Order changes the way the registry orders the editable fields. If the diff would exceed 1024 chars, truncate to 1020 + `…`.
+5. **Reason** — when the form captures one (`edit_reason` on edit forms). Surfaced as a separate field, not folded into the description, since moderators read it independently of the change set. Truncate to 1024 chars.
+
+### Truncation rules
+
+Discord's per-field value cap is 1024 chars. Use the helpers — don't hand-truncate:
+
+- `createTruncatedTextField(name, text, maxLength = 200)` — defaults to 200 chars for short text fields (description, review body). Pass a higher `maxLength` for content that's expected to be longer (e.g. specs at 800).
+- For edit-diff field values that aggregate multiple lines, hard-cap at 1020 + `…` so a wall of spec edits doesn't get rejected by Discord's API.
+
+### Submit-handler enrichment
+
+`formatForDiscord` is env-agnostic and pure — it can't fetch rows. Anything the formatter needs that isn't on the submission row (the player's name for a video submission, the country's flag emoji for a player submission, the current player row for a player_edit diff) gets fetched **once** in `app/lib/submissions/enrichment.server.ts` and merged into the notification payload before `discordService.notifySubmission` runs. New submission types that need extra context add an entry to that helper, not a new ad-hoc branch in `submissions.$type.submit.tsx`.
+
 ## Imports
 
 Use the `~/` alias (configured in `tsconfig.cloudflare.json`):
