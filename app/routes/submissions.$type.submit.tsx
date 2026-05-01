@@ -535,6 +535,25 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         delete submissionData.edit_reason;
       }
 
+      // Reject empty edits — edit_reason alone doesn't count as a
+      // change, but any actual field edit or a new photo upload does.
+      // Mirrors the equipment_edit gate so both edit-style submissions
+      // refuse silent no-ops with the same error copy.
+      const imageFile = formData.get("image") as File | null;
+      const hasImage = Boolean(imageFile && imageFile.size > 0);
+      const hasFieldChange = Object.keys(editData).some(
+        k => k !== "edit_reason"
+      );
+      if (!hasFieldChange && !hasImage) {
+        return data(
+          {
+            error:
+              "No changes detected. Edit at least one field before submitting.",
+          },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
       submissionData.edit_data = editData;
     }
 
