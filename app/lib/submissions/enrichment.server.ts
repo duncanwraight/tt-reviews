@@ -140,6 +140,20 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     return extras;
   },
 
+  player_edit: async (submission, adminClient) => {
+    if (!submission.player_id) return {};
+    const { data: player } = (await adminClient
+      .from("players")
+      .select("name, slug, highest_rating, active_years, playing_style, active")
+      .eq("id", submission.player_id as string)
+      .single()) as { data: Record<string, unknown> | null };
+    if (!player) return {};
+    return {
+      player_name: player.name as string,
+      player_current: player,
+    };
+  },
+
   equipment_edit: async (submission, adminClient) => {
     if (!submission.equipment_id) return {};
     // The full current row enables the formatter's before→after diff

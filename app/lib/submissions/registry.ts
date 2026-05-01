@@ -389,45 +389,76 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formatForDiscord: (data: any): DiscordNotificationData => {
-      // Create a summary of the changes
-      const changes = [];
-      if (data.edit_data?.name) changes.push("Name: " + data.edit_data.name);
-      if (data.edit_data?.highest_rating)
-        changes.push("Rating: " + data.edit_data.highest_rating);
-      if (data.edit_data?.active_years)
-        changes.push("Active: " + data.edit_data.active_years);
-      if (data.edit_data?.active !== undefined)
-        changes.push(
-          "Status: " + (data.edit_data.active ? "Active" : "Inactive")
-        );
+      // Mirrors equipment_edit's diff rendering — a Discord-only
+      // moderator should see "**field**: old → new" lines just like
+      // they do for equipment edits, not just a list of new values
+      // with no baseline to compare against.
+      const editData = (data.edit_data || {}) as Record<string, unknown>;
+      const current = (data.player_current || {}) as Record<string, unknown>;
+
+      const renderValue = (v: unknown): string => {
+        if (v === null || v === undefined || v === "") return "(empty)";
+        if (typeof v === "boolean") return v ? "Active" : "Inactive";
+        return String(v);
+      };
+
+      // Field order mirrors the editable fields the form exposes;
+      // keeps the diff visually consistent across submissions of the
+      // same type.
+      const diffLines: string[] = [];
+      for (const field of [
+        "name",
+        "highest_rating",
+        "active_years",
+        "playing_style",
+        "active",
+      ] as const) {
+        if (field in editData) {
+          const newValue = editData[field];
+          const oldValue = current[field];
+          diffLines.push(
+            `**${field}**: ${renderValue(oldValue)} → ${renderValue(newValue)}`
+          );
+        }
+      }
+
+      const playerSlug = current.slug as string | undefined;
+      const playerLabel = data.player_name || "Unknown Player";
+
+      const fields = [
+        createDiscordField("Player", playerLabel),
+        ...(playerSlug ? [createDiscordField("Slug", playerSlug, false)] : []),
+        createSubmitterField(data.submitter_email),
+      ];
+
+      if (diffLines.length > 0) {
+        // Discord field values cap at 1024 chars; truncate gracefully.
+        // A player has fewer editable fields than equipment so the cap
+        // is unlikely to bite, but the helper keeps the gate uniform.
+        const joined = diffLines.join("\n");
+        const value =
+          joined.length <= 1024 ? joined : joined.slice(0, 1020) + "\n…";
+        fields.push({ name: "Changes", value, inline: false });
+      }
+
+      if (editData.edit_reason) {
+        const reason = String(editData.edit_reason);
+        fields.push({
+          name: "Reason",
+          value: reason.length <= 1024 ? reason : reason.slice(0, 1020) + "…",
+          inline: false,
+        });
+      }
 
       return {
         id: data.id,
         submissionType: "player_edit",
         title: "✏️ Player Edit Submitted",
-        description:
-          "A player information update has been submitted and needs moderation.",
+        description: `Edit suggested for ${playerLabel}. Review the proposed changes below before approving.`,
         color: DISCORD_COLORS.ORANGE,
         adminUrl: createAdminUrl("player_edit", data.id),
         submitterEmail: data.submitter_email,
-        fields: [
-          {
-            name: "Player",
-            value: data.player_name || "Unknown Player",
-            inline: true,
-          },
-          {
-            name: "Submitted by",
-            value: data.submitter_email || "Anonymous",
-            inline: true,
-          },
-          {
-            name: "Changes",
-            value:
-              changes.length > 0 ? changes.join("\n") : "No changes specified",
-            inline: false,
-          },
-        ],
+        fields,
       };
     },
   },
