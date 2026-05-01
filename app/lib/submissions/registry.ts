@@ -350,12 +350,16 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       redirectPath: "/profile",
       fields: [
         createSelectField("player_id", "Player", 2, true),
+        // Pre-filled from the player row (TT-129) — required so the
+        // submitter can't clear the underlying NOT NULL `players.name`
+        // column and trigger a constraint error at apply time. Other
+        // fields are nullable on the row, so clearing them is a valid
+        // "remove this value" submission.
         {
           name: "name",
           label: "Player Name",
           type: "text",
-          required: false,
-          placeholder: "Leave blank to keep current name",
+          required: true,
           layout: { colSpan: 2 },
         },
         {
@@ -363,7 +367,6 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           label: "Highest Rating",
           type: "text",
           required: false,
-          placeholder: "Leave blank to keep current rating",
           layout: { colSpan: 1 },
         },
         {
@@ -371,7 +374,6 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           label: "Active Years",
           type: "text",
           required: false,
-          placeholder: "Leave blank to keep current years",
           layout: { colSpan: 1 },
         },
         createSelectField("playing_style", "Playing Style"),

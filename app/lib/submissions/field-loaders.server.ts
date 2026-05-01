@@ -436,16 +436,32 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       },
     },
   ],
+  // TT-129: pre-fill the form from the player row when arriving from
+  // /players/:slug → "Suggest an edit" — same paradigm as equipment_edit
+  // (TT-74). The submit action diffs submitted-vs-current, so empty
+  // after pre-fill = explicit clear. `active` is a boolean on the row
+  // but a string-valued select on the form, so cast on the way in.
   player_edit: [
     {
       paramName: "player_id",
       fieldName: "player_id",
-      handler: async (playerId, fieldOptions) => {
-        const selectedPlayer = fieldOptions.player_id?.find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.value === playerId
-        );
-        return selectedPlayer ? { player_id: playerId } : {};
+      handler: async (playerId, _fieldOptions, sbClient) => {
+        const { data: player } = await sbClient
+          .from("players")
+          .select(
+            "id, name, highest_rating, active_years, playing_style, active"
+          )
+          .eq("id", playerId)
+          .single();
+        if (!player) return {};
+        return {
+          player_id: player.id,
+          name: player.name ?? "",
+          highest_rating: player.highest_rating ?? "",
+          active_years: player.active_years ?? "",
+          playing_style: player.playing_style ?? "",
+          active: player.active === false ? "false" : "true",
+        };
       },
     },
   ],

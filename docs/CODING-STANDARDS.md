@@ -72,10 +72,8 @@ Logger.error("loader.equipment.failed", { ...ctx, slug }, err);
 
 - **Required**: red asterisk after the label, rendered automatically when `field.required: true`. Don't add "(Required)" to the label.
 - **Optional**: no marker. Don't add "(Optional)" to the label — the absence of the asterisk already conveys it.
-- **Edit forms**: two paradigms exist today (tracked for unification in TT-129). Match whichever paradigm the form already uses:
-  - `equipment_edit` pre-fills text fields from the current equipment row (`preSelectionHandler` in `field-loaders.server.ts`); the submit action diffs against current and treats an empty submission as an explicit clear. No "Leave blank to keep current X" placeholder — pre-fill makes one unnecessary, and the copy would lie when the user manually clears a field.
-  - `player_edit` does not pre-fill text fields; the submit action treats empty as "no change for this field". These fields use `placeholder: "Leave blank to keep current X"` so the empty-as-no-change semantic is visible to the user.
-  - For required selects in either paradigm, `FormField.tsx` suppresses the default `Select X` placeholder once a value is set so pre-filled selects don't show a vestigial "Select category" entry above the real options.
+- **Edit forms** (`equipment_edit`, `player_edit`): pre-fill all editable fields from the current row via a `preSelectionHandler` in `field-loaders.server.ts`; the submit action diffs submitted-vs-current and only writes changed fields into `edit_data`. Empty after pre-fill = explicit clear (encoded as `null`) on nullable columns. For columns that are `NOT NULL` on the underlying row (e.g. `players.name`, `equipment.name`), mark the form field `required: true` so the form-level validation prevents a clear from reaching the applier as a constraint violation. Don't use "Leave blank to keep current X" placeholders — pre-fill makes them unnecessary, and the copy would lie once a user manually clears a field.
+  - For required selects, `FormField.tsx` suppresses the default `Select X` placeholder once a value is set so pre-filled selects don't show a vestigial "Select category" entry above the real options.
 
 ### Errors
 

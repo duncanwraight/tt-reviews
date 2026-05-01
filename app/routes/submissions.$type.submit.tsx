@@ -571,37 +571,70 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       submissionData.edit_data = editData;
     }
 
-    // Handle player_edit - transform fields into edit_data JSONB
+    // TT-129: player_edit unifies on the equipment_edit paradigm —
+    // form pre-fills from the current row, and the action diffs
+    // submitted-vs-current to derive edit_data. Empty after pre-fill
+    // = explicit clear (encoded as null on nullable columns); the
+    // form keeps `name` required so the NOT NULL column can't be
+    // cleared. Read straight from formData rather than the generic
+    // submissionData bag because that bag drops empty strings (which
+    // is exactly the signal we need for "user cleared this field").
     if (submissionType === "player_edit") {
+      const playerId = submissionData.player_id;
+      if (!playerId) {
+        return data(
+          { error: "Missing player_id." },
+          { status: 400, headers: sbServerClient.headers }
+        );
+      }
+
+      const { data: current } = await sbServerClient.client
+        .from("players")
+        .select("name, highest_rating, active_years, playing_style, active")
+        .eq("id", playerId)
+        .single();
+
+      if (!current) {
+        return data(
+          { error: "Player not found." },
+          { status: 404, headers: sbServerClient.headers }
+        );
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editData: Record<string, any> = {};
-      const editableFields = [
+
+      for (const fieldName of [
         "name",
         "highest_rating",
         "active_years",
         "playing_style",
-        "active",
-      ];
-
-      for (const fieldName of editableFields) {
-        if (
-          submissionData[fieldName] !== undefined &&
-          submissionData[fieldName] !== ""
-        ) {
-          // Convert "true"/"false" strings to booleans for active field
-          if (fieldName === "active") {
-            editData[fieldName] = submissionData[fieldName] === "true";
-          } else {
-            editData[fieldName] = submissionData[fieldName];
-          }
-          delete submissionData[fieldName];
+      ] as const) {
+        const raw = formData.get(fieldName);
+        if (typeof raw !== "string") continue;
+        const trimmed = raw.trim();
+        const submittedValue = trimmed === "" ? null : trimmed;
+        const currentValue =
+          (current as Record<string, unknown>)[fieldName] ?? null;
+        if (submittedValue !== currentValue) {
+          editData[fieldName] = submittedValue;
         }
       }
 
-      // Store edit_reason in edit_data as well
-      if (submissionData.edit_reason) {
-        editData.edit_reason = submissionData.edit_reason;
-        delete submissionData.edit_reason;
+      // active is a string-valued select on the form ("true"/"false")
+      // and a boolean on the row — compare as boolean so a no-op submit
+      // doesn't get flagged as a diff.
+      const activeRaw = formData.get("active");
+      if (typeof activeRaw === "string" && activeRaw !== "") {
+        const submittedActive = activeRaw === "true";
+        if (submittedActive !== Boolean(current.active)) {
+          editData.active = submittedActive;
+        }
+      }
+
+      const editReason = formData.get("edit_reason");
+      if (typeof editReason === "string" && editReason.trim() !== "") {
+        editData.edit_reason = editReason;
       }
 
       // Reject empty edits — edit_reason alone doesn't count as a
@@ -623,6 +656,17 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         );
       }
 
+      // Reshape submissionData to the player_edits row schema. The
+      // generic field loop above wrote scalar columns onto submissionData
+      // that don't exist on player_edits (name, highest_rating, …);
+      // strip them so the INSERT sees only player_id + edit_data
+      // (image_key is added by the image-upload block below if present).
+      Object.keys(submissionData).forEach(key => {
+        if (key !== "user_id" && key !== "status") {
+          delete submissionData[key];
+        }
+      });
+      submissionData.player_id = playerId;
       submissionData.edit_data = editData;
     }
 

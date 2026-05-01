@@ -63,7 +63,9 @@ const SUBMISSION_CONSTRAINTS: Record<
 
   player_edit: {
     player_id: { required: true, spec: { kind: "uuid" } },
-    name: { spec: { kind: "text", maxLength: 200 } },
+    // `name` mirrors the players.name NOT NULL constraint — pre-fill +
+    // required-on-the-form (TT-129) means submitters can't clear it.
+    name: { required: true, spec: { kind: "text", maxLength: 200 } },
     highest_rating: { spec: { kind: "text", maxLength: 50 } },
     active_years: { spec: { kind: "text", maxLength: 50 } },
     playing_style: { spec: { kind: "text", maxLength: 50 } },
