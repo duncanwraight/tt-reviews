@@ -19,6 +19,7 @@ import {
   handlePreSelections,
   loadAllEquipmentSpecFields,
 } from "~/lib/submissions/field-loaders.server";
+import { enrichSubmissionForNotification } from "~/lib/submissions/enrichment.server";
 import {
   validateSubmission,
   parseEquipmentSpecs,
@@ -674,35 +675,18 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     try {
       const discordService = new DiscordService(context);
 
-      // For reviews and equipment_edit, fetch equipment name for the
-      // Discord notification card. equipment_edit additionally pulls the
-      // full current row so the Discord embed can render a "current →
-      // proposed" diff for each changed field — Discord-only moderators
-      // need that detail since they may not have admin-UI access.
-      let notificationData = { ...submission, submitter_email: user.email };
-      if (
-        (submissionType === "review" || submissionType === "equipment_edit") &&
-        submission.equipment_id
-      ) {
-        const cols =
-          submissionType === "equipment_edit"
-            ? "name, slug, category, subcategory, description, specifications, image_key"
-            : "name";
-        // Supabase's type inference can't follow the dynamic select
-        // string; opt out of the strict result typing here.
-        const { data: equipment } = (await adminClient
-          .from("equipment")
-          .select(cols)
-          .eq("id", submission.equipment_id)
-          .single()) as { data: Record<string, unknown> | null };
-
-        if (equipment) {
-          notificationData.equipment_name = equipment.name as string;
-          if (submissionType === "equipment_edit") {
-            notificationData.equipment_current = equipment;
-          }
+      // Per-type enrichment lives in enrichment.server.ts so new
+      // submission types extend a single helper instead of threading a
+      // new ad-hoc branch into this action — the pattern that produced
+      // the TT-105 follow-up bug.
+      const notificationData = await enrichSubmissionForNotification(
+        submissionType,
+        {
+          submission,
+          submitterEmail: user.email,
+          adminClient,
         }
-      }
+      );
 
       const result = await discordService.notifySubmission(
         submissionType,
