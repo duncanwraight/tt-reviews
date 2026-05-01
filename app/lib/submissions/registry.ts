@@ -25,6 +25,25 @@ export type {
 } from "./types";
 export { formatSubmissionForDiscord } from "./discord-format";
 
+// Static label maps used by review's formatForDiscord. Mirror the
+// form's select options so the Discord card matches what the
+// submitter saw — keep these in sync with the review field configs
+// below.
+const PLAYING_LEVEL_LABELS: Record<string, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+  professional: "Professional",
+};
+
+const EXPERIENCE_DURATION_LABELS: Record<string, string> = {
+  less_than_month: "Less than a month",
+  "1_to_3_months": "1-3 months",
+  "3_to_6_months": "3-6 months",
+  "6_months_to_year": "6 months to 1 year",
+  over_year: "Over a year",
+};
+
 // Discord color constants
 const DISCORD_COLORS = {
   BLUE: 0x3498db,
@@ -549,16 +568,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       titlePrefix: "Equipment Review",
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    formatForDiscord: (data: any): DiscordNotificationData => ({
-      id: data.id,
-      submissionType: "review",
-      title: "⭐ Equipment Review",
-      description:
-        "A new equipment review has been submitted and needs moderation.",
-      color: DISCORD_COLORS.BLUE,
-      adminUrl: createAdminUrl("review", data.id),
-      submitterEmail: data.submitter_email,
-      fields: [
+    formatForDiscord: (data: any): DiscordNotificationData => {
+      const fields = [
         createDiscordField(
           "Equipment",
           data.equipment_name || "Unknown Equipment"
@@ -568,9 +579,63 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           data.overall_rating ? data.overall_rating + "/10" : "No rating"
         ),
         createDiscordField("Reviewer", data.submitter_email || "Anonymous"),
-        ...createTruncatedTextField("Review", data.review_text),
-      ],
-    }),
+      ];
+
+      // Per-category ratings — moderators rely on these to gauge
+      // whether the review is balanced or skewed. Keys are spec
+      // slugs (speed/control/spin/...); render as-is. Discord caps
+      // field values at 1024 chars; the helper truncates safely.
+      const categoryRatings = (data.category_ratings || {}) as Record<
+        string,
+        number
+      >;
+      const ratingLines = Object.entries(categoryRatings)
+        .filter(([, v]) => typeof v === "number")
+        .map(([k, v]) => `${k}: ${v}/10`)
+        .join("\n");
+      if (ratingLines.length > 0) {
+        fields.push(
+          ...createTruncatedTextField("Category ratings", ratingLines, 800)
+        );
+      }
+
+      // Reviewer context — playing level + experience window help
+      // judge whether the review applies to the moderator's audience.
+      // Static label maps mirror the form's select options so the
+      // card matches what the submitter saw.
+      const ctx = (data.reviewer_context || {}) as Record<string, string>;
+      const ctxParts: string[] = [];
+      if (ctx.playing_level) {
+        const levelLabel =
+          PLAYING_LEVEL_LABELS[ctx.playing_level] ?? ctx.playing_level;
+        ctxParts.push(`Level: ${levelLabel}`);
+      }
+      if (ctx.experience_duration) {
+        const durLabel =
+          EXPERIENCE_DURATION_LABELS[ctx.experience_duration] ??
+          ctx.experience_duration;
+        ctxParts.push(`Experience: ${durLabel}`);
+      }
+      if (ctxParts.length > 0) {
+        fields.push(
+          createDiscordField("Reviewer context", ctxParts.join(" • "), false)
+        );
+      }
+
+      fields.push(...createTruncatedTextField("Review", data.review_text));
+
+      return {
+        id: data.id,
+        submissionType: "review",
+        title: "⭐ Equipment Review",
+        description:
+          "A new equipment review has been submitted and needs moderation.",
+        color: DISCORD_COLORS.BLUE,
+        adminUrl: createAdminUrl("review", data.id),
+        submitterEmail: data.submitter_email,
+        fields,
+      };
+    },
   },
 
   // TT-74: equipment_edit submission flow. Form pre-fills from the
