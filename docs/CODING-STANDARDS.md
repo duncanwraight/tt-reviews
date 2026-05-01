@@ -72,7 +72,10 @@ Logger.error("loader.equipment.failed", { ...ctx, slug }, err);
 
 - **Required**: red asterisk after the label, rendered automatically when `field.required: true`. Don't add "(Required)" to the label.
 - **Optional**: no marker. Don't add "(Optional)" to the label — the absence of the asterisk already conveys it.
-- **Edit forms** (`player_edit`, `equipment_edit`) where the user is editing pre-filled data: text/textarea fields use `placeholder: "Leave blank to keep current X"` so empty unambiguously means "keep current value". Selects don't need this — `FormField.tsx` suppresses the default `Select X` placeholder once a required select has a pre-filled value.
+- **Edit forms**: two paradigms exist today (tracked for unification in TT-129). Match whichever paradigm the form already uses:
+  - `equipment_edit` pre-fills text fields from the current equipment row (`preSelectionHandler` in `field-loaders.server.ts`); the submit action diffs against current and treats an empty submission as an explicit clear. No "Leave blank to keep current X" placeholder — pre-fill makes one unnecessary, and the copy would lie when the user manually clears a field.
+  - `player_edit` does not pre-fill text fields; the submit action treats empty as "no change for this field". These fields use `placeholder: "Leave blank to keep current X"` so the empty-as-no-change semantic is visible to the user.
+  - For required selects in either paradigm, `FormField.tsx` suppresses the default `Select X` placeholder once a value is set so pre-filled selects don't show a vestigial "Select category" entry above the real options.
 
 ### Errors
 
