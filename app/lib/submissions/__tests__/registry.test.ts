@@ -69,3 +69,48 @@ describe("submission type — single source of truth", () => {
     expect(tupleValues).toEqual(dbValues);
   });
 });
+
+/**
+ * Form-UX consistency lints. The rules these enforce are documented in
+ * `docs/CODING-STANDARDS.md` → "Submission forms"; the tests are here so
+ * regressions fail in CI rather than in a moderator's UI eyeball pass.
+ */
+describe("form-UX consistency", () => {
+  it("no field label carries an '(Optional)' suffix", () => {
+    // Required fields render a red asterisk via FormField; optional
+    // fields render nothing. Mixing in an "(Optional)" suffix on
+    // some optional labels (and not others) was inconsistent and
+    // visually noisy — the absence of the asterisk is the marker.
+    const offenders: string[] = [];
+    for (const [type, config] of Object.entries(SUBMISSION_REGISTRY)) {
+      for (const field of config.form.fields) {
+        if (/\(Optional\)/i.test(field.label)) {
+          offenders.push(`${type}.${field.name}: "${field.label}"`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("player_edit text fields use the 'Leave blank to keep current X' placeholder", () => {
+    // player_edit doesn't pre-fill text fields — empty submission is
+    // interpreted as "no change to that field" by the action. The
+    // placeholder makes that semantic visible. (equipment_edit uses
+    // the opposite paradigm — pre-fill + diff — and intentionally
+    // doesn't share this placeholder; tracked in TT-129.)
+    const offenders: string[] = [];
+    for (const field of SUBMISSION_REGISTRY.player_edit.form.fields) {
+      if (
+        (field.type !== "text" && field.type !== "textarea") ||
+        field.required
+      ) {
+        continue;
+      }
+      const placeholder = field.placeholder || "";
+      if (!placeholder.startsWith("Leave blank to keep current")) {
+        offenders.push(`player_edit.${field.name}: "${placeholder}"`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
