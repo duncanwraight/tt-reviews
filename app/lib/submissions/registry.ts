@@ -284,7 +284,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/player-edits",
     form: {
       title: "Edit Player Information",
-      description: "Suggest updates to player information in our database.",
+      description:
+        "Suggest updates to player information in our database. Your changes will be reviewed before going live.",
       submitButtonText: "Submit Changes",
       successTitle: "Changes Submitted!",
       successMessage:

@@ -193,7 +193,7 @@ export function PlayerEquipmentSetup({
           htmlFor="include_equipment"
           className="text-lg font-semibold text-gray-900"
         >
-          Include Equipment Setup (Optional)
+          Include Equipment Setup
         </label>
       </div>
 

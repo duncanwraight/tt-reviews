@@ -82,7 +82,8 @@ export function RejectionModal({
                 htmlFor="category"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Rejection Category *
+                Rejection Category
+                <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 id="category"
@@ -105,7 +106,8 @@ export function RejectionModal({
                 htmlFor="reason"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Detailed Reason *
+                Detailed Reason
+                <span className="text-red-500 ml-1">*</span>
               </label>
               <textarea
                 id="reason"

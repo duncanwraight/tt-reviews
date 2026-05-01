@@ -92,7 +92,7 @@ export function VideoSubmissionSection({
       {showTitle && (
         <div className="mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Video Information (Optional)
+            Video Information
           </h3>
           <p className="text-sm text-gray-600">
             Add training videos, match footage, or other relevant video content.
