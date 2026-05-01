@@ -117,7 +117,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         },
         {
           name: "image",
-          label: "Product Image (Optional)",
+          label: "Product Image",
           type: "image",
           required: false,
           placeholder: "Upload the manufacturer's official product photo",
@@ -132,7 +132,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         },
         createTextAreaField(
           "description",
-          "Description (Optional)",
+          "Description",
           "Marketing-style description from the manufacturer (e.g., 'crisp, fast blade with excellent control...')"
         ),
       ],
@@ -201,7 +201,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createSelectField("represents", "Represents"),
         {
           name: "image",
-          label: "Player Photo (Optional)",
+          label: "Player Photo",
           type: "image",
           required: false,
           placeholder: "Upload an upper-body photo of the player",
@@ -330,7 +330,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         },
         {
           name: "image",
-          label: "Update Player Photo (Optional)",
+          label: "Update Player Photo",
           type: "image",
           required: false,
           placeholder: "Upload a new upper-body photo of the player",
