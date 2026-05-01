@@ -1,5 +1,11 @@
 import type { Route } from "./+types/admin.equipment-edits";
-import { data, redirect, Form, useSearchParams } from "react-router";
+import {
+  data,
+  redirect,
+  Form,
+  useSearchParams,
+  useNavigation,
+} from "react-router";
 import { sortPendingByFocus } from "~/lib/admin/queue-focus";
 import { createModerationService } from "~/lib/moderation.server";
 import { applyEquipmentEdit } from "~/lib/admin/equipment-edit-applier.server";
@@ -194,6 +200,8 @@ export default function AdminEquipmentEdits({
   }>({ isOpen: false, submissionId: "", submissionName: "" });
 
   const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state !== "idle";
   const pendingEdits = sortPendingByFocus(
     equipmentEdits.filter(
       e => e.status === "pending" || e.status === "awaiting_second_approval"
@@ -436,7 +444,8 @@ export default function AdminEquipmentEdits({
                   <input type="hidden" name="action" value="approved" />
                   <button
                     type="submit"
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Approve
                   </button>
@@ -452,7 +461,8 @@ export default function AdminEquipmentEdits({
                       submissionName: `Edit for ${equipmentLabel}`,
                     })
                   }
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reject
                 </button>
