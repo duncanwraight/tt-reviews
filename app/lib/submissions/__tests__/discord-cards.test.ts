@@ -76,17 +76,54 @@ describe("formatForDiscord — player", () => {
     expect(findField(card.fields, "Birth Country")?.value).toBe("XYZ");
   });
 
-  it("omits dead Equipment Info / Videos hint fields", () => {
-    // TT-131 tracks restoring the cascade. Until then the formatter
-    // must NOT emit "Includes equipment setup data" / "X video(s)
-    // included" fields off of permanently-falsy data.
+  it("omits equipment + videos summary when the submission carries neither", () => {
     const card = SUBMISSION_REGISTRY.player.formatForDiscord!({
       id: "sub-1",
       name: "Ma Long",
       submitter_email: "u@example.com",
     });
-    expect(findField(card.fields, "Equipment Info")).toBeUndefined();
-    expect(findField(card.fields, "Videos")).toBeUndefined();
+    expect(findField(card.fields, "Blade")).toBeUndefined();
+    expect(findField(card.fields, "Year")).toBeUndefined();
+    expect(findField(card.fields, "Video Count")).toBeUndefined();
+  });
+
+  it("surfaces blade/rubber names + top-3 videos when the cascade data is present", () => {
+    // TT-131: the player submission can now carry an equipment_setup
+    // JSONB and a videos array. The enricher resolves blade/rubber
+    // names off setup.{blade_id,...}; the formatter renders them.
+    const card = SUBMISSION_REGISTRY.player.formatForDiscord!({
+      id: "sub-1",
+      name: "Ma Long",
+      submitter_email: "u@example.com",
+      equipment_setup: { year: 2024 },
+      blade_name: "Viscaria",
+      forehand_rubber_name: "Hurricane 3",
+      forehand_thickness: "2.1mm",
+      backhand_rubber_name: "Tenergy 05",
+      backhand_thickness: "2.0mm",
+      videos: [
+        { title: "Final 2024", platform: "youtube" },
+        { title: "Practice", platform: "youtube" },
+        { title: "Interview", platform: "other" },
+        { title: "Old clip", platform: "other" },
+      ],
+    });
+    expect(findField(card.fields, "Year")?.value).toBe("2024");
+    expect(findField(card.fields, "Blade")?.value).toBe("Viscaria");
+    expect(findField(card.fields, "Forehand Rubber")?.value).toBe(
+      "Hurricane 3 (2.1mm)"
+    );
+    expect(findField(card.fields, "Backhand Rubber")?.value).toBe(
+      "Tenergy 05 (2.0mm)"
+    );
+    expect(findField(card.fields, "Video Count")?.value).toBe("4");
+    expect(findField(card.fields, "Video 1")?.value).toBe(
+      "Final 2024 (youtube)"
+    );
+    expect(findField(card.fields, "Video 3")?.value).toBe("Interview (other)");
+    expect(findField(card.fields, "Additional Videos")?.value).toBe(
+      "... and 1 more video(s)"
+    );
   });
 });
 

@@ -2,10 +2,12 @@ import type { DiscordNotificationData } from "~/lib/types";
 import {
   createAdminUrl,
   createDiscordField,
+  createEquipmentSetupFields,
   createOptionalDiscordField,
   createSpecificationsField,
   createSubmitterField,
   createTruncatedTextField,
+  createVideoSummaryFields,
 } from "./discord-format";
 import type {
   FormConfig,
@@ -232,6 +234,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           type: "checkbox",
           required: false,
           layout: { colSpan: 2 },
+          // UI-only toggle — drives whether equipment_setup fields are
+          // shown but is never stored on player_submissions. The
+          // submit action skips transient fields generically (TT-131).
+          transient: true,
         },
         {
           name: "equipment_setup",
@@ -275,11 +281,23 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         return rawCode;
       };
 
-      // Equipment-setup + videos summary deliberately omitted: TT-131
-      // tracks plumbing those compounds through the player action and
-      // applier. Until then there's nothing to surface — the previous
-      // "Includes equipment setup data" hint was checking a field
-      // that was never populated.
+      // Equipment-setup + videos summaries are populated only when the
+      // player submission carried that data through the action (TT-131).
+      // The enricher pulls blade/rubber names off the equipment_setup
+      // JSONB so the card shows real names rather than UUIDs.
+      const setup = (data.equipment_setup || {}) as {
+        year?: number | string | null;
+      };
+      const equipmentFields = createEquipmentSetupFields({
+        year: setup.year,
+        blade_name: data.blade_name,
+        forehand_rubber_name: data.forehand_rubber_name,
+        forehand_thickness: data.forehand_thickness,
+        backhand_rubber_name: data.backhand_rubber_name,
+        backhand_thickness: data.backhand_thickness,
+      });
+      const videoFields = createVideoSummaryFields(data.videos);
+
       return {
         id: data.id,
         submissionType: "player",
@@ -309,6 +327,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
             )
           ),
           createSubmitterField(data.submitter_email),
+          ...equipmentFields,
+          ...videoFields,
         ],
       };
     },
@@ -504,28 +524,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       submitterEmail: data.submitter_email,
       fields: [
         createDiscordField("Player", data.player_name || "Unknown Player"),
-        createDiscordField(
-          "Video Count",
-          (data.videos?.length || 0).toString()
-        ),
         createSubmitterField(data.submitter_email),
-        ...(data.videos && data.videos.length > 0
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data.videos.slice(0, 3).map((video: any, index: number) => ({
-              name: "Video " + (index + 1),
-              value: video.title + " (" + (video.platform || "Unknown") + ")",
-              inline: false,
-            }))
-          : []),
-        ...(data.videos && data.videos.length > 3
-          ? [
-              {
-                name: "Additional Videos",
-                value: "... and " + (data.videos.length - 3) + " more video(s)",
-                inline: false,
-              },
-            ]
-          : []),
+        ...createVideoSummaryFields(data.videos),
       ],
     }),
   },
@@ -937,31 +937,15 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       submitterEmail: data.submitter_email,
       fields: [
         createDiscordField("Player", data.player_name || "Unknown Player"),
-        createDiscordField("Year", (data.year || "Unknown").toString()),
         createSubmitterField(data.submitter_email),
-        ...createOptionalDiscordField("Blade", data.blade_name),
-        ...(data.forehand_rubber_name
-          ? [
-              createDiscordField(
-                "Forehand Rubber",
-                data.forehand_rubber_name +
-                  (data.forehand_thickness
-                    ? " (" + data.forehand_thickness + ")"
-                    : "")
-              ),
-            ]
-          : []),
-        ...(data.backhand_rubber_name
-          ? [
-              createDiscordField(
-                "Backhand Rubber",
-                data.backhand_rubber_name +
-                  (data.backhand_thickness
-                    ? " (" + data.backhand_thickness + ")"
-                    : "")
-              ),
-            ]
-          : []),
+        ...createEquipmentSetupFields({
+          year: data.year,
+          blade_name: data.blade_name,
+          forehand_rubber_name: data.forehand_rubber_name,
+          forehand_thickness: data.forehand_thickness,
+          backhand_rubber_name: data.backhand_rubber_name,
+          backhand_thickness: data.backhand_thickness,
+        }),
         ...(data.source_url
           ? [
               createDiscordField(

@@ -24,6 +24,7 @@ import {
   validateSubmission,
   parseEquipmentSpecs,
 } from "~/lib/submissions/validate.server";
+import { parseBracketedVideos } from "~/lib/submissions/parse-videos";
 import type { SubmissionType } from "~/lib/types";
 import { PageLayout } from "~/components/layout/PageLayout";
 import { Logger, createLogContext } from "~/lib/logger.server";
@@ -232,6 +233,21 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       if (field.type === "equipment_specs") {
         continue;
       }
+      // Transient fields (e.g. include_equipment toggle on the player
+      // form) drive UI but never land on the submission row — including
+      // them in the INSERT was the PGRST204 500 trigger fixed in
+      // TT-131.
+      if (field.transient) {
+        continue;
+      }
+      // Compound field types render their own inputs (often with
+      // bracketed or bespoke names) and are extracted in dedicated
+      // blocks below. The single-value formData.get() never resolves
+      // for these so a stray match here was always a no-op, but
+      // explicit > implicit.
+      if (field.type === "video_list" || field.type === "equipment_setup") {
+        continue;
+      }
       const value = formData.get(field.name);
       if (value !== null && value !== "") {
         // Skip image fields - handled separately below with R2 upload
@@ -292,6 +308,58 @@ export async function action({ request, context, params }: Route.ActionArgs) {
             submissionData[fieldName] = value;
           }
         }
+      }
+    }
+
+    // TT-131: player submissions can carry an optional equipment_setup
+    // (rendered by PlayerEquipmentSetup) and an optional videos list
+    // (rendered by VideoSubmissionSection). Both compounds use bespoke
+    // input names that the generic field loop above can't pick up;
+    // pack them onto the JSONB columns here. The applier promotes
+    // them to player_equipment_setups + player_footage on approval.
+    if (submissionType === "player") {
+      const setupFieldNames = [
+        "year",
+        "blade_id",
+        "forehand_rubber_id",
+        "forehand_thickness",
+        "forehand_side",
+        "backhand_rubber_id",
+        "backhand_thickness",
+        "backhand_side",
+        "source_type",
+        "source_url",
+      ] as const;
+      const setup: Record<string, unknown> = {};
+      for (const fieldName of setupFieldNames) {
+        const value = formData.get(fieldName);
+        if (value === null || value === "") continue;
+        if (fieldName === "year") {
+          setup[fieldName] = parseInt(value as string, 10);
+        } else {
+          setup[fieldName] = value;
+        }
+      }
+      // Only land a non-empty setup; the column default `{}` is the
+      // unambiguous "no setup" signal the applier checks.
+      if (Object.keys(setup).length > 0) {
+        submissionData.equipment_setup = setup;
+      }
+
+      const videos = parseBracketedVideos(formData);
+      if (videos.length > 0) {
+        submissionData.videos = videos;
+      }
+    }
+
+    // TT-131: standalone video submissions had the same silent-drop
+    // bug — VideoSubmissionSection emitted `videos[N][...]` inputs
+    // but nothing parsed them, so video_submissions.videos always
+    // landed at the column default `[]`. Use the same parser.
+    if (submissionType === "video") {
+      const videos = parseBracketedVideos(formData);
+      if (videos.length > 0) {
+        submissionData.videos = videos;
       }
     }
 

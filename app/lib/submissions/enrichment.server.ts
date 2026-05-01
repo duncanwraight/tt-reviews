@@ -51,35 +51,76 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
       submission.birth_country,
       submission.represents,
     ].filter((v): v is string => typeof v === "string" && v.length > 0);
-    if (countryValues.length === 0) return extras;
 
-    const { data: rows } = (await adminClient
-      .from("categories")
-      .select("value, flag_emoji, name")
-      .eq("type", "country")
-      .in("value", countryValues)) as {
-      data: Array<{
-        value: string;
-        flag_emoji: string | null;
-        name: string;
-      }> | null;
-    };
-    const byValue = new Map((rows ?? []).map(r => [r.value, r]));
+    if (countryValues.length > 0) {
+      const { data: rows } = (await adminClient
+        .from("categories")
+        .select("value, flag_emoji, name")
+        .eq("type", "country")
+        .in("value", countryValues)) as {
+        data: Array<{
+          value: string;
+          flag_emoji: string | null;
+          name: string;
+        }> | null;
+      };
+      const byValue = new Map((rows ?? []).map(r => [r.value, r]));
 
-    if (submission.birth_country) {
-      const c = byValue.get(submission.birth_country as string);
-      if (c) {
-        if (c.flag_emoji) extras.birth_country_flag = c.flag_emoji;
-        extras.birth_country_name = c.name;
+      if (submission.birth_country) {
+        const c = byValue.get(submission.birth_country as string);
+        if (c) {
+          if (c.flag_emoji) extras.birth_country_flag = c.flag_emoji;
+          extras.birth_country_name = c.name;
+        }
+      }
+      if (submission.represents) {
+        const c = byValue.get(submission.represents as string);
+        if (c) {
+          if (c.flag_emoji) extras.represents_flag = c.flag_emoji;
+          extras.represents_name = c.name;
+        }
       }
     }
-    if (submission.represents) {
-      const c = byValue.get(submission.represents as string);
-      if (c) {
-        if (c.flag_emoji) extras.represents_flag = c.flag_emoji;
-        extras.represents_name = c.name;
+
+    // TT-131: when the submission carries a nested equipment_setup,
+    // batch-fetch blade/rubber names so the Discord card shows
+    // friendly names rather than UUIDs. Mirrors the
+    // player_equipment_setup enricher's `in (...)` shape.
+    const setup = (submission.equipment_setup ?? {}) as Record<string, unknown>;
+    const equipmentIds = [
+      setup.blade_id,
+      setup.forehand_rubber_id,
+      setup.backhand_rubber_id,
+    ].filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    if (equipmentIds.length > 0) {
+      const { data: rows } = (await adminClient
+        .from("equipment")
+        .select("id, name")
+        .in("id", equipmentIds)) as {
+        data: Array<{ id: string; name: string }> | null;
+      };
+      const nameById = new Map((rows ?? []).map(r => [r.id, r.name]));
+      if (typeof setup.blade_id === "string") {
+        extras.blade_name = nameById.get(setup.blade_id);
+      }
+      if (typeof setup.forehand_rubber_id === "string") {
+        extras.forehand_rubber_name = nameById.get(setup.forehand_rubber_id);
+      }
+      if (typeof setup.backhand_rubber_id === "string") {
+        extras.backhand_rubber_name = nameById.get(setup.backhand_rubber_id);
+      }
+      // Thicknesses live on the JSONB and pass through unchanged so
+      // the formatter can render "Hurricane 3 (2.1mm)" without a
+      // separate column lookup.
+      if (typeof setup.forehand_thickness === "string") {
+        extras.forehand_thickness = setup.forehand_thickness;
+      }
+      if (typeof setup.backhand_thickness === "string") {
+        extras.backhand_thickness = setup.backhand_thickness;
       }
     }
+
     return extras;
   },
 

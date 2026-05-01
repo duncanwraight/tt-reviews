@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mapSideToColor } from "./equipment-setup-mapping";
 
 /**
  * TT-117: apply an approved player_equipment_setup_submissions row by
@@ -31,12 +32,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface ApplyResult {
   success: boolean;
   error?: string;
-}
-
-function mapSideToColor(side: unknown): "red" | "black" | null {
-  if (side === "forehand") return "red";
-  if (side === "backhand") return "black";
-  return null;
 }
 
 export async function applyPlayerEquipmentSetup(

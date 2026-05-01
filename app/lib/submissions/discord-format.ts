@@ -78,6 +78,79 @@ export const createSpecificationsField = (
   return createTruncatedTextField("Specifications", lines, 800);
 };
 
+// Equipment-setup summary used by both `player_equipment_setup` and
+// `player` (when the player submission carries a nested setup).
+// Reads enriched name fields populated by the per-type enricher in
+// enrichment.server.ts; falls back gracefully when names didn't
+// resolve so a missing rubber doesn't blank out the whole card.
+export const createEquipmentSetupFields = (data: {
+  year?: number | string | null;
+  blade_name?: string | null;
+  forehand_rubber_name?: string | null;
+  forehand_thickness?: string | null;
+  backhand_rubber_name?: string | null;
+  backhand_thickness?: string | null;
+}) => {
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [];
+  if (data.year !== null && data.year !== undefined && data.year !== "") {
+    fields.push(createDiscordField("Year", String(data.year)));
+  }
+  if (data.blade_name) {
+    fields.push(createDiscordField("Blade", data.blade_name));
+  }
+  if (data.forehand_rubber_name) {
+    fields.push(
+      createDiscordField(
+        "Forehand Rubber",
+        data.forehand_rubber_name +
+          (data.forehand_thickness ? ` (${data.forehand_thickness})` : "")
+      )
+    );
+  }
+  if (data.backhand_rubber_name) {
+    fields.push(
+      createDiscordField(
+        "Backhand Rubber",
+        data.backhand_rubber_name +
+          (data.backhand_thickness ? ` (${data.backhand_thickness})` : "")
+      )
+    );
+  }
+  return fields;
+};
+
+// Top-3 video summary used by both `video` and `player` (when the
+// player submission carries nested videos). The full list lives on
+// the row; the card surfaces titles + platform with an overflow
+// hint.
+export const createVideoSummaryFields = (
+  videos: Array<{ title?: string; platform?: string }> | null | undefined
+) => {
+  if (!Array.isArray(videos) || videos.length === 0) return [];
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [
+    createDiscordField("Video Count", videos.length.toString()),
+  ];
+  videos.slice(0, 3).forEach((video, index) => {
+    fields.push({
+      name: "Video " + (index + 1),
+      value:
+        (video.title || "Untitled") +
+        " (" +
+        (video.platform || "Unknown") +
+        ")",
+      inline: false,
+    });
+  });
+  if (videos.length > 3) {
+    fields.push({
+      name: "Additional Videos",
+      value: "... and " + (videos.length - 3) + " more video(s)",
+      inline: false,
+    });
+  }
+  return fields;
+};
+
 export function formatSubmissionForDiscord(
   type: SubmissionType,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

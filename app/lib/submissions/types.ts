@@ -67,6 +67,12 @@ export interface FormField {
   // has no current image — the dropdown is hidden but the implicit
   // "replace" value still has to submit).
   preserveWhenHidden?: boolean;
+  // UI-only field — its value drives form behaviour (a toggle that
+  // shows another field) but never lands on the submission row. The
+  // submit action's field-extraction loop skips these. Avoids the
+  // PGRST204 "column not found" 500s that hit when a name like
+  // `include_equipment` reached the INSERT (TT-131).
+  transient?: boolean;
   // For dynamic selects like subcategories
   dynamicOptions?: {
     dependsOn: string;
