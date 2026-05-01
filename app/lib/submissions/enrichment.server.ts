@@ -52,6 +52,53 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     return player ? { player_name: player.name } : {};
   },
 
+  player_equipment_setup: async (submission, adminClient) => {
+    const extras: Extras = {};
+
+    if (submission.player_id) {
+      const { data: player } = (await adminClient
+        .from("players")
+        .select("name")
+        .eq("id", submission.player_id as string)
+        .single()) as { data: { name: string } | null };
+      if (player) extras.player_name = player.name;
+    }
+
+    // Batch the three equipment lookups (blade + forehand + backhand)
+    // into one `in (...)` query so we don't fan out a round-trip per
+    // rubber. The ids may be missing — only filter to the ones set.
+    const equipmentIds = [
+      submission.blade_id,
+      submission.forehand_rubber_id,
+      submission.backhand_rubber_id,
+    ].filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    if (equipmentIds.length > 0) {
+      const { data: rows } = (await adminClient
+        .from("equipment")
+        .select("id, name")
+        .in("id", equipmentIds)) as {
+        data: Array<{ id: string; name: string }> | null;
+      };
+      const nameById = new Map((rows ?? []).map(r => [r.id, r.name]));
+      if (submission.blade_id) {
+        extras.blade_name = nameById.get(submission.blade_id as string);
+      }
+      if (submission.forehand_rubber_id) {
+        extras.forehand_rubber_name = nameById.get(
+          submission.forehand_rubber_id as string
+        );
+      }
+      if (submission.backhand_rubber_id) {
+        extras.backhand_rubber_name = nameById.get(
+          submission.backhand_rubber_id as string
+        );
+      }
+    }
+
+    return extras;
+  },
+
   equipment_edit: async (submission, adminClient) => {
     if (!submission.equipment_id) return {};
     // The full current row enables the formatter's before→after diff
