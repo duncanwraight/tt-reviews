@@ -13,6 +13,7 @@ Each rule below has a matching enforcer that runs in `.github/workflows/main.yml
 | No raw `console.*` / `Record<string, any[]>` generic-any casts                   | `scripts/quality-sweep.sh`                                                |
 | Single source of truth for `SUBMISSION_TYPE_VALUES` (registry keys + DB `CHECK`) | `app/lib/submissions/__tests__/registry.test.ts`                          |
 | No hard-coded compound submission-type literals in new files                     | `scripts/quality-sweep.sh` (allow-listed files in the script)             |
+| Form-UX copy rules: no "(Optional)" in labels, edit-form placeholder shape       | `app/lib/submissions/__tests__/registry.test.ts`                          |
 | Dead exports / unused deps                                                       | `npm run deadcode` (knip) — non-blocking CI warning                       |
 | File length > 400 LOC under `app/lib/`, `app/routes/`                            | `scripts/quality-sweep.sh` — non-fatal report, prompt to split            |
 
@@ -62,6 +63,30 @@ Logger.error("loader.equipment.failed", { ...ctx, slug }, err);
 - One component per file. PascalCase filename matches the export.
 - Shared UI in `app/components/ui/`. Feature-specific in `app/components/<feature>/`.
 - Compose from `PageLayout` (top-level) and `PageSection` (sections inside a route). Don't write inline JSX walls in route files — break into focused sub-components, single responsibility per component.
+
+## Submission forms
+
+`app/components/forms/UnifiedSubmissionForm.tsx` drives every `/submissions/<type>/submit` route. Per-type field configs live in `app/lib/submissions/registry.ts`. Keep the rules below consistent across types — registry-level tests in `app/lib/submissions/__tests__/registry.test.ts` enforce the copy ones; design rules are on you.
+
+### Required vs optional
+
+- **Required**: red asterisk after the label, rendered automatically when `field.required: true`. Don't add "(Required)" to the label.
+- **Optional**: no marker. Don't add "(Optional)" to the label — the absence of the asterisk already conveys it.
+- **Edit forms** (`player_edit`, `equipment_edit`) where the user is editing pre-filled data: text/textarea fields use `placeholder: "Leave blank to keep current X"` so empty unambiguously means "keep current value". Selects don't need this — `FormField.tsx` suppresses the default `Select X` placeholder once a required select has a pre-filled value.
+
+### Errors
+
+- Field-level form errors render below the field in `FormField.tsx`. Image fields are the exception — they render their error inline via the `externalError` prop on `ImageUpload` so the form-level message doesn't stack against the file picker's own type/size error.
+- Hidden-by-`dependencies` fields are skipped during `validateForm`. When a hidden field becomes visible and is `required: true`, the error surfaces inline next to it on the next submit attempt.
+
+### Submit-button state
+
+- **Public forms** (via `UnifiedSubmissionForm`): the submit button disables and the label switches to "Submitting…" while `RouterFormModalWrapper.isLoading` is true.
+- **Admin moderation forms**: use `useNavigation()` from `react-router` and disable approve/reject buttons while `state !== "idle"`. Prevents a fast double-click from double-submitting.
+
+### "No change" detection on edit forms
+
+Edit-style submissions (`equipment_edit`, `player_edit`) reject empty edits server-side in `app/routes/submissions.$type.submit.tsx` — return 400 with `{ error: "No changes detected. Edit at least one field before submitting." }`. The server is the source of truth; don't gate at the client.
 
 ## Imports
 
