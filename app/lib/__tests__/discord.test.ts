@@ -278,10 +278,21 @@ describe("Discord Integration Tests", () => {
     it.skipIf(!hasSupabaseEnv())(
       "should generate valid Discord embed structure for player edit",
       async () => {
+        // TT-110: player_edit cards now mirror equipment_edit's diff
+        // shape — provide both edit_data (the new values) and the
+        // player_current row (the baseline) so the formatter can
+        // render "**field**: old → new" lines.
         const mockEditData = {
           id: "test-edit-123",
           player_name: "Test Player",
           player_id: "player-123",
+          player_current: {
+            name: "Test Player",
+            slug: "test-player",
+            highest_rating: "2900",
+            playing_style: "defender",
+            active: true,
+          },
           edit_data: {
             name: "Updated Player Name",
             highest_rating: "3000+",
@@ -319,13 +330,19 @@ describe("Discord Integration Tests", () => {
           expect(embed.title).toContain("Player Edit Submitted");
           expect(embed).toHaveProperty("color", 0xe67e22); // Orange color
 
-          // Validate changes field
+          // Validate changes field — TT-110 reshape: diff lines now
+          // carry "**field**: old → new" so a Discord-only moderator
+          // can see the baseline they're approving the change off of.
           const changesField = embed.fields.find(
             (field: any) => field.name === "Changes"
           );
           expect(changesField).toBeDefined();
-          expect(changesField.value).toContain("Name: Updated Player Name");
-          expect(changesField.value).toContain("Rating: 3000+");
+          expect(changesField.value).toContain(
+            "**name**: Test Player → Updated Player Name"
+          );
+          expect(changesField.value).toContain(
+            "**highest_rating**: 2900 → 3000+"
+          );
 
           // Validate action buttons with correct custom_id format
           const actionRow = capturedPayload.components[0];
