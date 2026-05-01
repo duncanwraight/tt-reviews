@@ -259,41 +259,59 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       titlePrefix: "Player Submission",
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    formatForDiscord: (data: any): DiscordNotificationData => ({
-      id: data.id,
-      submissionType: "player",
-      title: "👤 Player Submission",
-      description: "A new player has been submitted and needs moderation.",
-      color: DISCORD_COLORS.GREEN,
-      adminUrl: createAdminUrl("player", data.id),
-      submitterEmail: data.submitter_email,
-      fields: [
-        createDiscordField("Player", data.name || "Unknown Player"),
-        ...createOptionalDiscordField("Highest Rating", data.highest_rating),
-        ...createOptionalDiscordField("Playing Style", data.playing_style),
-        ...createOptionalDiscordField("Birth Country", data.birth_country),
-        ...createOptionalDiscordField("Represents", data.represents),
-        createSubmitterField(data.submitter_email),
-        ...(data.equipment_data
-          ? [
-              createDiscordField(
-                "Equipment Info",
-                "Includes equipment setup data",
-                false
-              ),
-            ]
-          : []),
-        ...(data.videos && data.videos.length > 0
-          ? [
-              createDiscordField(
-                "Videos",
-                data.videos.length + " video(s) included",
-                false
-              ),
-            ]
-          : []),
-      ],
-    }),
+    formatForDiscord: (data: any): DiscordNotificationData => {
+      // Country fields show "🇨🇳 China" when the enrichment landed,
+      // falling back to the raw 3-letter code if the categories
+      // lookup didn't resolve. Two render paths so a missing flag
+      // emoji on a real country still shows the friendly name.
+      const renderCountry = (
+        flag: string | undefined,
+        name: string | undefined,
+        rawCode: string | undefined
+      ): string | undefined => {
+        if (!rawCode) return undefined;
+        if (flag && name) return `${flag} ${name}`;
+        if (name) return name;
+        return rawCode;
+      };
+
+      // Equipment-setup + videos summary deliberately omitted: TT-131
+      // tracks plumbing those compounds through the player action and
+      // applier. Until then there's nothing to surface — the previous
+      // "Includes equipment setup data" hint was checking a field
+      // that was never populated.
+      return {
+        id: data.id,
+        submissionType: "player",
+        title: "👤 Player Submission",
+        description: "A new player has been submitted and needs moderation.",
+        color: DISCORD_COLORS.GREEN,
+        adminUrl: createAdminUrl("player", data.id),
+        submitterEmail: data.submitter_email,
+        fields: [
+          createDiscordField("Player", data.name || "Unknown Player"),
+          ...createOptionalDiscordField("Highest Rating", data.highest_rating),
+          ...createOptionalDiscordField("Playing Style", data.playing_style),
+          ...createOptionalDiscordField(
+            "Birth Country",
+            renderCountry(
+              data.birth_country_flag,
+              data.birth_country_name,
+              data.birth_country
+            )
+          ),
+          ...createOptionalDiscordField(
+            "Represents",
+            renderCountry(
+              data.represents_flag,
+              data.represents_name,
+              data.represents
+            )
+          ),
+          createSubmitterField(data.submitter_email),
+        ],
+      };
+    },
   },
 
   player_edit: {

@@ -42,6 +42,47 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     return equipment ? { equipment_name: equipment.name } : {};
   },
 
+  player: async (submission, adminClient) => {
+    const extras: Extras = {};
+    // Categories.value for type="country" stores the same 3-letter
+    // code that player_submissions.{birth_country,represents} carry,
+    // so we can join them in one in() query.
+    const countryValues = [
+      submission.birth_country,
+      submission.represents,
+    ].filter((v): v is string => typeof v === "string" && v.length > 0);
+    if (countryValues.length === 0) return extras;
+
+    const { data: rows } = (await adminClient
+      .from("categories")
+      .select("value, flag_emoji, name")
+      .eq("type", "country")
+      .in("value", countryValues)) as {
+      data: Array<{
+        value: string;
+        flag_emoji: string | null;
+        name: string;
+      }> | null;
+    };
+    const byValue = new Map((rows ?? []).map(r => [r.value, r]));
+
+    if (submission.birth_country) {
+      const c = byValue.get(submission.birth_country as string);
+      if (c) {
+        if (c.flag_emoji) extras.birth_country_flag = c.flag_emoji;
+        extras.birth_country_name = c.name;
+      }
+    }
+    if (submission.represents) {
+      const c = byValue.get(submission.represents as string);
+      if (c) {
+        if (c.flag_emoji) extras.represents_flag = c.flag_emoji;
+        extras.represents_name = c.name;
+      }
+    }
+    return extras;
+  },
+
   video: async (submission, adminClient) => {
     if (!submission.player_id) return {};
     const { data: player } = (await adminClient
