@@ -67,7 +67,7 @@ describe("equipment.searchEquipment", () => {
     const b = supabase._builders.get("equipment")!;
     expect(b.calls).toContainEqual({
       method: "textSearch",
-      args: ["name", "butterfly"],
+      args: ["name", "butterfly", { type: "websearch" }],
     });
     expect(b.calls).toContainEqual({ method: "limit", args: [10] });
   });

@@ -39,7 +39,7 @@ export async function searchEquipment(
       ctx.supabase
         .from("equipment")
         .select("*")
-        .textSearch("name", query)
+        .textSearch("name", query, { type: "websearch" })
         .limit(10),
     { query, limit: 10 }
   ).catch((): Equipment[] => []);

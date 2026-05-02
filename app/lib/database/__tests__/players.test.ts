@@ -158,7 +158,7 @@ describe("players.searchPlayers", () => {
     const b = supabase._builders.get("players")!;
     expect(b.calls).toContainEqual({
       method: "textSearch",
-      args: ["name", "ma"],
+      args: ["name", "ma", { type: "websearch" }],
     });
     expect(b.calls).toContainEqual({ method: "limit", args: [10] });
   });

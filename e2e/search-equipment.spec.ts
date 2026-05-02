@@ -54,4 +54,24 @@ test.describe("Search results — unified EquipmentCard (TT-44)", () => {
     await page.waitForURL(/\/equipment\/[^/]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
+
+  // TT-144 regression: multi-word user input was being passed straight to
+  // PostgREST `fts.`, which expects tsquery syntax (`butterfly & tenergy`).
+  // Raw whitespace returned 42601 and was swallowed by `.catch(() => [])`,
+  // so every multi-term query rendered NoResults in production. Now using
+  // `{ type: "websearch" }` so user input is parsed via websearch_to_tsquery.
+  test("multi-word query returns equipment hits (TT-144)", async ({ page }) => {
+    await page.goto(`/search?q=${encodeURIComponent("Butterfly Tenergy")}`);
+
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Equipment" })
+    ).toBeVisible();
+
+    const firstResult = page
+      .locator(
+        'a[href^="/equipment/"]:not([href*="/compare/"]):not([href*="/submit"])'
+      )
+      .first();
+    await expect(firstResult).toBeVisible();
+  });
 });

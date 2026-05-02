@@ -29,7 +29,7 @@ export interface MockBuilder {
   order: (col: string, opts?: unknown) => MockBuilder;
   limit: (n: number) => MockBuilder;
   range: (start: number, end: number) => MockBuilder;
-  textSearch: (col: string, query: string) => MockBuilder;
+  textSearch: (col: string, query: string, options?: unknown) => MockBuilder;
   insert: (row: unknown) => MockBuilder;
   update: (row: unknown) => MockBuilder;
   maybeSingle: () => Promise<{ data: unknown; error: unknown }>;

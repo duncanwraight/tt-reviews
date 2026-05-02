@@ -174,7 +174,7 @@ export async function searchPlayers(
       ctx.supabase
         .from("players")
         .select("*")
-        .textSearch("name", query)
+        .textSearch("name", query, { type: "websearch" })
         .limit(10),
     { query, limit: 10 }
   ).catch((): Player[] => []);

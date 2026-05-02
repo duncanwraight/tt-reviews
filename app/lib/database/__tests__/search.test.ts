@@ -41,11 +41,11 @@ describe("search.search", () => {
     const pl = supabase._builders.get("players")!;
     expect(eq.calls).toContainEqual({
       method: "textSearch",
-      args: ["name", "vis"],
+      args: ["name", "vis", { type: "websearch" }],
     });
     expect(pl.calls).toContainEqual({
       method: "textSearch",
-      args: ["name", "vis"],
+      args: ["name", "vis", { type: "websearch" }],
     });
   });
 });
