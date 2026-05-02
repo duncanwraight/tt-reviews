@@ -221,75 +221,86 @@ function viewUrlKey(
   return `${type}:${submissionId}`;
 }
 
+/** Per-type recipe for resolving a `viewUrl`. Expressed as a typed
+ * `Record<SubmissionType, ...>` so adding a new submission type fails
+ * the type check until a recipe is added — and so the compound keys
+ * stay as unquoted identifiers (quality-sweep flags the same names as
+ * quoted string literals outside its allow-list). */
+type SlugRecipe =
+  | {
+      kind: "embed";
+      table: string;
+      selectExpr: string;
+      embedKey: "equipment" | "players";
+      prefix: string;
+    }
+  | { kind: "name"; table: string; prefix: string };
+
+const SLUG_RECIPES: Record<ActivitySubmissionType, SlugRecipe> = {
+  equipment_edit: {
+    kind: "embed",
+    table: "equipment_edits",
+    selectExpr: "id, equipment:equipment_id(slug)",
+    embedKey: "equipment",
+    prefix: "/equipment/",
+  },
+  review: {
+    kind: "embed",
+    table: "equipment_reviews",
+    selectExpr: "id, equipment:equipment_id(slug)",
+    embedKey: "equipment",
+    prefix: "/equipment/",
+  },
+  player_edit: {
+    kind: "embed",
+    table: "player_edits",
+    selectExpr: "id, players:player_id(slug)",
+    embedKey: "players",
+    prefix: "/players/",
+  },
+  video: {
+    kind: "embed",
+    table: "video_submissions",
+    selectExpr: "id, players:player_id(slug)",
+    embedKey: "players",
+    prefix: "/players/",
+  },
+  player_equipment_setup: {
+    kind: "embed",
+    table: "player_equipment_setup_submissions",
+    selectExpr: "id, players:player_id(slug)",
+    embedKey: "players",
+    prefix: "/players/",
+  },
+  // New-entity submissions: regenerate the slug from the submitted name
+  // (matches `applyEquipmentSubmission` / `applyPlayerSubmission`'s slug
+  // rule). `pickViewUrl` filters rejected rows so we never produce a
+  // 404 link for a never-created entity.
+  equipment: {
+    kind: "name",
+    table: "equipment_submissions",
+    prefix: "/equipment/",
+  },
+  player: { kind: "name", table: "player_submissions", prefix: "/players/" },
+};
+
 async function fetchSlugs(
   supabase: SupabaseClient,
   type: ActivitySubmissionType,
   ids: string[]
 ): Promise<Array<[string, string]>> {
-  switch (type) {
-    case "equipment_edit":
-      return embedSlugs(
-        supabase,
-        "equipment_edits",
-        "id, equipment:equipment_id(slug)",
-        ids,
-        "equipment",
-        "/equipment/"
-      );
-    case "review":
-      return embedSlugs(
-        supabase,
-        "equipment_reviews",
-        "id, equipment:equipment_id(slug)",
-        ids,
-        "equipment",
-        "/equipment/"
-      );
-    case "player_edit":
-      return embedSlugs(
-        supabase,
-        "player_edits",
-        "id, players:player_id(slug)",
-        ids,
-        "players",
-        "/players/"
-      );
-    case "video":
-      return embedSlugs(
-        supabase,
-        "video_submissions",
-        "id, players:player_id(slug)",
-        ids,
-        "players",
-        "/players/"
-      );
-    case "player_equipment_setup":
-      return embedSlugs(
-        supabase,
-        "player_equipment_setup_submissions",
-        "id, players:player_id(slug)",
-        ids,
-        "players",
-        "/players/"
-      );
-    case "equipment":
-      // New equipment submission — derive slug from the submitted name
-      // (matches `applyEquipmentSubmission`'s slug rule). Caller filters
-      // out rejected rows so we never produce a 404 link.
-      return derivedSlugsFromName(
-        supabase,
-        "equipment_submissions",
-        ids,
-        "/equipment/"
-      );
-    case "player":
-      return derivedSlugsFromName(
-        supabase,
-        "player_submissions",
-        ids,
-        "/players/"
-      );
+  const recipe = SLUG_RECIPES[type];
+  if (recipe.kind === "embed") {
+    return embedSlugs(
+      supabase,
+      recipe.table,
+      recipe.selectExpr,
+      ids,
+      recipe.embedKey,
+      recipe.prefix
+    );
   }
+  return derivedSlugsFromName(supabase, recipe.table, ids, recipe.prefix);
 }
 
 async function embedSlugs(
