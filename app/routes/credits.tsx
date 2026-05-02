@@ -6,6 +6,7 @@ import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { buildImageUrl, buildEquipmentImageUrl } from "~/lib/imageUrl";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
 interface CreditRow {
   slug: string;
@@ -24,17 +25,24 @@ interface EquipmentCreditRow extends CreditRow {
   category: string;
 }
 
-export function meta() {
+export function meta({ matches, location }: Route.MetaArgs) {
   const title = "Image Credits | TT Reviews";
   const description =
     "Photo credits for player and equipment images on TT Reviews. " +
     "Includes creator attribution, license information, and links to sources.";
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    ""
+  );
   return [
     { title },
     { name: "description", content: description },
     { name: "robots", content: "index, follow" },
+    { tagName: "link", rel: "canonical", href: canonical },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
+    { property: "og:url", content: canonical },
   ];
 }
 

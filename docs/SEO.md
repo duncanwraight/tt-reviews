@@ -38,9 +38,17 @@ These are the actual route patterns shipped today (`app/routes/`). The old SEO d
 
 ### Filters, sort, pagination
 
-- Filter state lives in the **querystring** (`?category=…`), never in the path.
-- Listing pages are self-canonical when filters narrow the list to a meaningful subset (e.g. `category=rubber`); thin filter combinations (`?manufacturer=...&subcategory=...&sort=...`) canonical back to the base listing. Document the chosen rule per filter combination in the route comment so it stays auditable.
-- Pagination uses `?page=N`. Page 1 omits the param. `rel="prev"`/`rel="next"` are no longer used by Google — don't add them; rely on the canonical strategy above.
+The canonical rule for listing pages is **the same on every listing**, no per-route exceptions:
+
+- Canonical is `${siteUrl}${pathname}` plus an allow-listed, deterministically-ordered subset of the querystring. Anything not on the allow-list (utm tags, fbclid, gclid, ad-network junk, mistyped params) is dropped from the canonical URL. Two equivalent listings — same filters in different orders, with or without tracking params — produce a byte-identical canonical.
+- Use `buildCanonicalUrl(siteUrl, pathname, search, ALLOWLIST)` from `app/lib/seo.ts`. The allow-list is declared as a `const` array at the top of the route file so it's discoverable. Keys appear in canonical URLs in allow-list order, not user-input order.
+- Per-listing allow-lists currently in effect:
+  - `/equipment`: `["category", "subcategory", "manufacturer", "sort", "page"]`
+  - `/players`: `["country", "style", "gender", "active", "sort", "order", "page"]`
+  - `/search`: `["q"]`
+- Detail pages pass an empty allow-list — they self-canonical to `${siteUrl}${pathname}`, no querystring.
+- Pagination uses `?page=N`. Page 1 omits the param (which then naturally drops out of the canonical). `rel="prev"`/`rel="next"` are no longer used by Google — don't add them; rely on the canonical strategy above.
+- Adding a new filter to a listing means adding it to the allow-list. Adding a tracking-style param to a listing means **not** adding it — the param works for analytics but never reaches a canonical URL.
 
 ---
 

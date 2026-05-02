@@ -11,9 +11,26 @@ import { PlayersPagination } from "~/components/players/PlayersPagination";
 import { createCategoryService } from "~/lib/categories.server";
 import { useContent } from "~/hooks/useContent";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
-export function meta({ data }: Route.MetaArgs) {
+const PLAYERS_LISTING_PARAMS = [
+  "country",
+  "style",
+  "gender",
+  "active",
+  "sort",
+  "order",
+  "page",
+] as const;
+
+export function meta({ matches, location }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    location.search,
+    PLAYERS_LISTING_PARAMS
+  );
 
   // Enhanced SEO title pattern based on research
   const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
@@ -39,9 +56,11 @@ export function meta({ data }: Route.MetaArgs) {
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
+    { tagName: "link", rel: "canonical", href: canonical },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

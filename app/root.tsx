@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -39,8 +40,15 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // TODO: Get siteUrl from context when available in Layout component
-  const siteUrl = "https://tabletennis.reviews"; // Will be made dynamic via context
+  // siteUrl flows from the root loader (env.SITE_URL, see env.server.ts)
+  // so canonical/og:url track preview hosts, not just prod. The
+  // hardcoded fallback only fires when the root loader itself errored
+  // — in that case validateEnv would already have 503'd the request,
+  // so the fallback only matters for genuinely degraded edge cases.
+  const rootData = useRouteLoaderData("root") as
+    | { siteUrl?: string }
+    | undefined;
+  const siteUrl = rootData?.siteUrl ?? "https://tabletennis.reviews";
 
   // Global schemas are inlined here rather than going through schema.ts
   // so the Layout component stays free of shared module state. The

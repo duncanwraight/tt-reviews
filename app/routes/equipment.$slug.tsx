@@ -25,8 +25,9 @@ import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, matches, location }: Route.MetaArgs) {
   if (!data?.equipment) {
     return [
       { title: "Equipment Not Found | TT Reviews" },
@@ -58,6 +59,12 @@ export function meta({ data }: Route.MetaArgs) {
 
   const description = `${equipment.name} by ${equipment.manufacturer} - ${reviewCount} ${ratingText}.${playerUsage} Complete specs and community ratings.`;
 
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    ""
+  );
+
   // Enhanced keywords targeting high-value search terms
   const keywords = [
     equipment.name,
@@ -78,12 +85,14 @@ export function meta({ data }: Route.MetaArgs) {
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
+    { tagName: "link", rel: "canonical", href: canonical },
     {
       property: "og:title",
       content: `${equipment.name} by ${equipment.manufacturer}`,
     },
     { property: "og:description", content: description },
     { property: "og:type", content: "product" },
+    { property: "og:url", content: canonical },
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

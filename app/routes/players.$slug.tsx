@@ -7,8 +7,9 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
-export function meta({ params, data }: Route.MetaArgs) {
+export function meta({ params, data, matches, location }: Route.MetaArgs) {
   const player = data?.player;
   if (!player) {
     return [
@@ -16,6 +17,12 @@ export function meta({ params, data }: Route.MetaArgs) {
       { name: "description", content: "Player not found" },
     ];
   }
+
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    ""
+  );
 
   // Enhanced SEO title pattern based on research
   const titleSuffix =
@@ -48,9 +55,11 @@ export function meta({ params, data }: Route.MetaArgs) {
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
+    { tagName: "link", rel: "canonical", href: canonical },
     { property: "og:title", content: `${player.name} Equipment & Setup` },
     { property: "og:description", content: description },
     { property: "og:type", content: "profile" },
+    { property: "og:url", content: canonical },
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

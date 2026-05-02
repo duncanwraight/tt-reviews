@@ -7,9 +7,18 @@ import { SearchHeader } from "~/components/search/SearchHeader";
 import { SearchResults } from "~/components/search/SearchResults";
 import { NoResults } from "~/components/search/NoResults";
 import { SearchLanding } from "~/components/search/SearchLanding";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
-export function meta({ data }: Route.MetaArgs) {
+const SEARCH_LISTING_PARAMS = ["q"] as const;
+
+export function meta({ data, matches, location }: Route.MetaArgs) {
   const query = data?.query;
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    location.search,
+    SEARCH_LISTING_PARAMS
+  );
 
   if (query) {
     return [
@@ -22,6 +31,8 @@ export function meta({ data }: Route.MetaArgs) {
         name: "keywords",
         content: `${query}, table tennis equipment, player search, equipment reviews`,
       },
+      { tagName: "link", rel: "canonical", href: canonical },
+      { property: "og:url", content: canonical },
     ];
   }
 
@@ -37,6 +48,8 @@ export function meta({ data }: Route.MetaArgs) {
       content:
         "table tennis search, equipment search, player search, ping pong gear",
     },
+    { tagName: "link", rel: "canonical", href: canonical },
+    { property: "og:url", content: canonical },
   ];
 }
 

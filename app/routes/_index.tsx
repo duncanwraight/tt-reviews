@@ -9,6 +9,8 @@ import {
   logUserAction,
 } from "~/lib/middleware/correlation.server";
 
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+
 import { Navigation } from "~/components/ui/Navigation";
 import { HeroSection } from "~/components/sections/HeroSection";
 import { FeaturedEquipmentSection } from "~/components/sections/FeaturedEquipmentSection";
@@ -36,7 +38,12 @@ interface PlayerDisplay {
   currentSetup?: string;
 }
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ matches, location }: Route.MetaArgs) {
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    ""
+  );
   return [
     { title: "TT Reviews - Table Tennis Equipment Reviews & Player Database" },
     {
@@ -49,6 +56,7 @@ export function meta({}: Route.MetaArgs) {
       content:
         "table tennis, ping pong, equipment reviews, professional players, rubber, blade, ball, tournament equipment",
     },
+    { tagName: "link", rel: "canonical", href: canonical },
     {
       property: "og:title",
       content: "TT Reviews - Table Tennis Equipment Reviews & Player Database",
@@ -59,6 +67,7 @@ export function meta({}: Route.MetaArgs) {
         "Discover the best table tennis equipment through professional reviews and explore detailed player setups.",
     },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

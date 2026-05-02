@@ -12,6 +12,7 @@ import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { RatingsTable } from "~/components/equipment/RatingsTable";
 import { ProUsageSidebar } from "~/components/equipment/ProUsageSidebar";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
 function parseSlugs(raw: string | undefined): [string, string] | null {
   if (!raw) return null;
@@ -32,7 +33,7 @@ function isSameSubcategory(
   return e1.category === e2.category;
 }
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, matches, location }: Route.MetaArgs) {
   if (!data?.equipment1 || !data?.equipment2) {
     return [{ title: "Equipment Comparison | TT Reviews" }];
   }
@@ -45,6 +46,11 @@ export function meta({ data }: Route.MetaArgs) {
     reviewCount2,
   } = data;
 
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    ""
+  );
   const title = `${equipment1.name} vs ${equipment2.name} - Detailed Comparison | TT Reviews`;
 
   const ratingFragment = (name: string, avg: number, count: number) =>
@@ -58,12 +64,14 @@ export function meta({ data }: Route.MetaArgs) {
     { title },
     { name: "description", content: description },
     { name: "robots", content: "index, follow" },
+    { tagName: "link", rel: "canonical", href: canonical },
     {
       property: "og:title",
       content: `${equipment1.name} vs ${equipment2.name}`,
     },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
     { property: "og:site_name", content: "TT Reviews" },
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
