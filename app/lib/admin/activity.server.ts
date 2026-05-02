@@ -3,6 +3,7 @@ import {
   SUBMISSION_TYPE_VALUES,
   type SubmissionType,
 } from "~/lib/submissions/types";
+import { SUBMISSION_REGISTRY } from "~/lib/submissions/registry";
 import { generateSlug } from "~/lib/revspin.server";
 
 export type ActivityAction = "approved" | "rejected";
@@ -20,11 +21,12 @@ export interface AdminActivityEntry {
   /** Where the action originated — admin-UI vs Discord. The widget renders
    * a Globe vs Discord icon off this; the suffix text was dropped. */
   source: "admin_ui" | "discord" | "unknown";
-  /** Public view-page URL for the entity that was changed (e.g.
-   * `/equipment/<slug>` or `/players/<slug>`). Null when the target
-   * entity can't be resolved — typically a rejected new-equipment /
-   * new-player submission, where no `equipment` / `players` row was
-   * ever created. */
+  /** Where the entity label links. Approved rows point at the public
+   * view page (e.g. `/equipment/<slug>` or `/players/<slug>`) so the
+   * moderator can see what landed; rejected rows point at the admin
+   * queue page (e.g. `/admin/equipment-edits`) so the moderator can
+   * see the rejection reason. Null only when an approved row's slug
+   * can't be resolved (orphaned submission row, deleted entity). */
   viewUrl: string | null;
   createdAt: string;
 }
@@ -95,8 +97,13 @@ export async function getRecentAdminActivity(
     rows.map(r => r.discord_moderator_id).filter((v): v is string => v !== null)
   );
 
+  // Slug enrichment runs only for approved rows — rejected rows always
+  // route to the admin queue (no entity to link to), so a slug fetch
+  // would be a wasted PostgREST round-trip against the 50-subrequest
+  // cap (CLAUDE.md).
   const idsByType = new Map<ActivitySubmissionType, string[]>();
   for (const row of rows) {
+    if (normaliseAction(row.action) !== "approved") continue;
     const type = normaliseSubmissionType(row.submission_type);
     const list = idsByType.get(type) ?? [];
     list.push(row.submission_id);
@@ -355,10 +362,11 @@ function pickViewUrl(
   action: ActivityAction,
   map: ViewUrlMap
 ): string | null {
-  // Rejected new-entity submissions never produced a real `equipment` /
-  // `players` row, so even a derived slug would 404. Suppress the link.
-  if (action === "rejected" && (type === "equipment" || type === "player")) {
-    return null;
+  // Rejected → admin queue page so the moderator can see the rejection
+  // reason (and any other pending/processed rows of this type). The
+  // queue lists processed items below the pending fold.
+  if (action === "rejected") {
+    return SUBMISSION_REGISTRY[type].adminPath;
   }
   return map.get(viewUrlKey(type, submissionId)) ?? null;
 }

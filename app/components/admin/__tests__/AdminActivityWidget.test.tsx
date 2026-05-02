@@ -110,12 +110,12 @@ describe("AdminActivityWidget", () => {
     expect(screen.getByLabelText("discord")).toBeInTheDocument();
   });
 
-  it("renders entity label as plain text when there is no view URL", () => {
+  it("renders entity label as plain text when viewUrl is null (e.g. approved row with an orphaned source)", () => {
     renderWidget([
       entry({
         id: "a1",
         submissionType: "equipment",
-        action: "rejected",
+        action: "approved",
         viewUrl: null,
       }),
     ]);
@@ -126,5 +126,19 @@ describe("AdminActivityWidget", () => {
     expect(screen.getByText("Equipment submission")).toHaveClass(
       "text-orange-700"
     );
+  });
+
+  it("links rejected rows to the admin queue page", () => {
+    renderWidget([
+      entry({
+        id: "a1",
+        submissionType: "equipment_edit",
+        action: "rejected",
+        viewUrl: "/admin/equipment-edits",
+      }),
+    ]);
+
+    const link = screen.getByRole("link", { name: "Equipment edit" });
+    expect(link).toHaveAttribute("href", "/admin/equipment-edits");
   });
 });

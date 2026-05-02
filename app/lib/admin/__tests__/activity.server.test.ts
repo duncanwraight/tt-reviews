@@ -165,12 +165,12 @@ describe("getRecentAdminActivity", () => {
     });
   });
 
-  it("resolves Discord moderator name and the player view URL for a video submission", async () => {
+  it("resolves Discord moderator name and points an approved video submission at the player view URL", async () => {
     const stub = makeStub({
       approvals: [
         {
           id: "a2",
-          action: "rejected",
+          action: "approved",
           submission_type: "video",
           submission_id: "s2",
           moderator_id: null,
@@ -187,13 +187,45 @@ describe("getRecentAdminActivity", () => {
 
     const entries = await getRecentAdminActivity(stub.client);
     expect(entries[0]).toMatchObject({
-      action: "rejected",
-      // actor is the raw username; the widget pairs this with `source` for
-      // the source-icon switch so the tag isn't duplicated as text.
+      action: "approved",
       actor: "bob",
       source: "discord",
       viewUrl: "/players/ma-long",
     });
+  });
+
+  it("points rejected rows at the admin queue page so the moderator can see the rejection", async () => {
+    const stub = makeStub({
+      approvals: [
+        {
+          id: "a-r1",
+          action: "rejected",
+          submission_type: "equipment_edit",
+          submission_id: "s-r1",
+          moderator_id: "u1",
+          discord_moderator_id: null,
+          source: "admin_ui",
+          created_at: "2026-04-26T12:00:00Z",
+        },
+        {
+          id: "a-r2",
+          action: "rejected",
+          submission_type: "video",
+          submission_id: "s-r2",
+          moderator_id: "u1",
+          discord_moderator_id: null,
+          source: "admin_ui",
+          created_at: "2026-04-26T12:00:00Z",
+        },
+      ],
+      users: [{ id: "u1", email: "alice@example.com" }],
+      // Deliberately empty: rejected rows must not trigger a slug fetch
+      // (the stub's `from` would throw "unexpected table" if they did).
+    });
+
+    const entries = await getRecentAdminActivity(stub.client);
+    expect(entries[0].viewUrl).toBe("/admin/equipment-edits");
+    expect(entries[1].viewUrl).toBe("/admin/video-submissions");
   });
 
   it("derives a slug from the submitted name for an approved new-equipment submission", async () => {
@@ -220,7 +252,7 @@ describe("getRecentAdminActivity", () => {
     expect(entries[0].viewUrl).toBe("/equipment/hurricane-3");
   });
 
-  it("returns viewUrl=null for a rejected new-equipment submission (no entity to link to)", async () => {
+  it("routes a rejected new-equipment submission to the equipment-submissions admin queue", async () => {
     const stub = makeStub({
       approvals: [
         {
@@ -235,13 +267,10 @@ describe("getRecentAdminActivity", () => {
         },
       ],
       users: [{ id: "u1", email: "alice@example.com" }],
-      slugTables: {
-        equipment_submissions: [{ id: "s4", name: "Hurricane 3" }],
-      },
     });
 
     const entries = await getRecentAdminActivity(stub.client);
-    expect(entries[0].viewUrl).toBeNull();
+    expect(entries[0].viewUrl).toBe("/admin/equipment-submissions");
   });
 
   it("falls back to viewUrl=null when the slug can't be resolved", async () => {
