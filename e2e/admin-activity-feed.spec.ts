@@ -11,21 +11,15 @@ import {
   getFirstEquipment,
   insertPendingEquipmentReview,
 } from "./utils/data";
-import { SUPABASE_URL, adminHeaders } from "./utils/supabase";
-
 // TT-127: the Recent Activity widget on /admin reads moderator emails via
-// the `get_user_emails_by_ids` RPC against `auth.users`, not via
-// `profiles.email`. On production `profiles.email` is unreliable — the
-// `handle_new_user` trigger only runs on auth INSERT, so any pre-trigger
-// user or post-signup email change leaves it stale. Before the fix the
-// widget rendered "Admin" (the literal fallback) for those rows.
-//
-// To prove the fix: null out the test admin's `profiles.email` *after*
-// creating the user, then assert the widget still surfaces the real email
-// from `auth.users`. With the old code this would render "Admin (Admin
-// UI)" and fail.
+// the `get_user_emails_by_ids` RPC against `auth.users`. The old path
+// read from `profiles.email`, which was stale or null for any pre-trigger
+// user or post-signup email change — the widget rendered "Admin" (the
+// literal fallback) for those rows. The profiles table itself was
+// dropped in TT-128. This spec asserts the widget surfaces the real
+// auth.users email, locking in the auth.users-backed path.
 
-test("recent activity widget shows admin email even when profiles.email is null", async ({
+test("recent activity widget shows admin email from auth.users", async ({
   page,
 }) => {
   const reviewerEmail = generateTestEmail("activity-r");
@@ -33,23 +27,6 @@ test("recent activity widget shows admin email even when profiles.email is null"
   const { userId: reviewerId } = await createUser(reviewerEmail);
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
-
-  // Simulate the prod failure mode: the auth user has an email, but the
-  // profiles row's email column is null. The new code path doesn't read
-  // profiles at all, so this should not affect the widget output.
-  const nullRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${adminId}`,
-    {
-      method: "PATCH",
-      headers: { ...adminHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ email: null }),
-    }
-  );
-  if (!nullRes.ok) {
-    throw new Error(
-      `Failed to null profiles.email (${nullRes.status}): ${await nullRes.text()}`
-    );
-  }
 
   const equipment = await getFirstEquipment();
   const reviewText = `TT-127 activity widget marker ${Date.now()}`;

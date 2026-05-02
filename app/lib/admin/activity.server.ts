@@ -53,10 +53,11 @@ interface DiscordModeratorRow {
  * which id is set on the row.
  *
  * The admin-UI side reads from `auth.users` via the
- * `get_user_emails_by_ids` SECURITY DEFINER RPC rather than `profiles.email`
- * — `profiles.email` is populated by the `handle_new_user` trigger only on
- * INSERT, so any pre-trigger user or post-signup email change leaves it
- * stale or null and the widget falls back to the literal "Admin" string.
+ * `get_user_emails_by_ids` SECURITY DEFINER RPC. (Historical note:
+ * we used to read from `public.profiles.email`, populated by an
+ * on-signup trigger — but the trigger only fired on INSERT, so any
+ * pre-trigger user or post-signup email change left it stale. The
+ * profiles table was dropped in TT-128.)
  *
  * Caller passes an admin/service-role client — this helper does not gate.
  */
