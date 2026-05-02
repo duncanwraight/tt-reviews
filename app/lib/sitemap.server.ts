@@ -30,7 +30,12 @@ export class SitemapService {
     this.baseUrl = baseUrl || "https://tabletennis.reviews";
   }
 
-  // Generate static pages sitemap entries
+  // Generate static pages sitemap entries.
+  //
+  // /login was removed in TT-139: it's a noindex auth surface and a
+  // sitemap entry would directly contradict the meta tag from TT-136.
+  // /credits added so the credits page is discoverable. /search stays
+  // for now; TT-143 removes it when the route flips to noindex.
   generateStaticPages(): SitemapUrl[] {
     const now = new Date().toISOString();
 
@@ -60,12 +65,24 @@ export class SitemapService {
         priority: "0.7",
       },
       {
-        url: `${this.baseUrl}/login`,
+        url: `${this.baseUrl}/credits`,
         lastmod: now,
         changefreq: "monthly",
-        priority: "0.3",
+        priority: "0.4",
       },
     ];
+  }
+
+  // Pick the most recent ISO timestamp from a list of sitemap URLs.
+  // Used by the sitemap index so each per-type entry's lastmod tracks
+  // its underlying content — `now` would always look stale-newer.
+  // Falls back to `now` for empty inputs (shouldn't happen in prod).
+  computeMaxLastmod(urls: SitemapUrl[]): string {
+    if (urls.length === 0) return new Date().toISOString();
+    return urls.reduce(
+      (max, u) => (u.lastmod > max ? u.lastmod : max),
+      urls[0].lastmod
+    );
   }
 
   // Generate player pages sitemap entries

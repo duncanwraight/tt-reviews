@@ -7,17 +7,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const robotsTxt = `User-agent: *
 Allow: /
 
-# Sitemaps
-Sitemap: ${baseUrl}/sitemap.xml
+# Sitemaps — point to the index only (TT-139). The legacy
+# /sitemap.xml route is kept for back-compat but isn't advertised.
 Sitemap: ${baseUrl}/sitemap-index.xml
 
 # Disallow admin and API routes
 Disallow: /admin/
 Disallow: /api/
 
-# Disallow authentication pages
+# Disallow authentication and authed-only pages
 Disallow: /login
 Disallow: /logout
+Disallow: /reset-password
+Disallow: /auth/
+Disallow: /profile
+Disallow: /submissions/
+Disallow: /e2e-
 
 # Allow all other content
 Allow: /players/

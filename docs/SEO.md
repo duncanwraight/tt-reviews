@@ -173,21 +173,31 @@ We host community reviews of independent manufacturers' equipment. Per Google's 
 
 ## Sitemap
 
-Generated dynamically at `/sitemap.xml` (`app/routes/sitemap[.]xml.tsx`) using `SitemapService` (`app/lib/sitemap.server.ts`). The index lives at `/sitemap-index.xml` (`app/routes/sitemap-index[.]xml.tsx`). Both URLs are listed in `robots.txt`.
+All sitemaps are generated dynamically. `SitemapService` (`app/lib/sitemap.server.ts`) provides the slice generators; per-route loaders compose them.
 
-### What belongs in the sitemap
+### Routes
 
-- `/`, `/equipment`, `/players`, `/search` — static pages. Note: `/search` is currently emitted by `generateStaticPages()`; remove it once TT-143 lands so sitemap and `noindex` agree.
-- All active players — `/players/:slug`.
-- All equipment — `/equipment/:slug`.
-- Category and subcategory listings — `/equipment?category=…[&subcategory=…]`.
-- Manufacturer listings — `/equipment?manufacturer=…` for a curated allow-list (Butterfly, DHS, TIBHAR, Yasaka, STIGA, Xiom, Donic).
-- High-value comparison pages — `/equipment/compare/slug1-vs-slug2`, capped at 50 to avoid bloat.
+- `/sitemap-index.xml` — the index. Lists the three per-type sitemaps with `lastmod = max(updated_at)` of each one's underlying content. **This is the URL to register in Search Console.** robots.txt advertises only this URL.
+- `/sitemap-equipment.xml` — equipment detail pages plus the category / subcategory / manufacturer listing variants and the curated comparison pages.
+- `/sitemap-players.xml` — one URL per active player. Inactive players are filtered out.
+- `/sitemap-static.xml` — `/`, `/players`, `/equipment`, `/search`, `/credits`. (TT-143 will drop `/search` when the route flips to `noindex`.)
+- `/sitemap.xml` — legacy combined sitemap. **Kept for back-compat** in case any crawler has cached the URL. Not referenced from robots.txt. Don't add new content here that isn't also in a per-type sitemap.
 
-### What must never appear in the sitemap
+Each per-type sitemap caps at 50K URLs (the spec hard cap). When any one approaches that, split it further (e.g. `sitemap-equipment-1.xml`, `sitemap-equipment-2.xml`) and update the index — no robots.txt change needed.
+
+### What belongs in each sitemap
+
+- All active players → `sitemap-players.xml`.
+- All equipment → `sitemap-equipment.xml`.
+- Category and subcategory listings → `sitemap-equipment.xml` (`/equipment?category=…[&subcategory=…]`).
+- Manufacturer listings → `sitemap-equipment.xml` (`/equipment?manufacturer=…`, curated allow-list: Butterfly, DHS, TIBHAR, Yasaka, STIGA, Xiom, Donic).
+- High-value comparison pages → `sitemap-equipment.xml`, capped at 50.
+- Static pages → `sitemap-static.xml`.
+
+### What must never appear in any sitemap
 
 - Any URL that returns `noindex`.
-- `/login`, `/logout`, `/reset-password`, `/auth/*`, `/admin/*`, `/profile`, `/submissions/*`, `/api/*`, `/e2e-*`. The current `generateStaticPages()` includes `/login` — that is a bug to remove during TT-136.
+- `/login`, `/logout`, `/reset-password`, `/auth/*`, `/admin/*`, `/profile`, `/submissions/*`, `/api/*`, `/e2e-*`. (TT-139 dropped `/login` from `generateStaticPages()`.)
 - Draft / unpublished content. There is no draft state for equipment or players today; if one is added later, gate sitemap inclusion on the published flag.
 - Slug-redirect _source_ URLs (TT-141) — only the canonical (current) slug appears.
 
@@ -195,16 +205,7 @@ Generated dynamically at `/sitemap.xml` (`app/routes/sitemap[.]xml.tsx`) using `
 
 - Per-row sitemap entries set `lastmod` from `updated_at`. Don't fall back to `now`.
 - Static pages use `now` for `lastmod`. Acceptable — they don't really change.
-
-### Sitemap-index strategy (TT-139)
-
-`/sitemap-index.xml` currently lists a single `/sitemap.xml`. Once total URL count crosses ~10K — the soft alarm point well below the 50K hard cap — split by content type:
-
-- `/sitemap-equipment.xml`
-- `/sitemap-players.xml`
-- `/sitemap-static.xml`
-
-The index is the single URL we register in Search Console; individual sitemaps are referenced from the index. Either ship the split now or remove the `/sitemap-index.xml` reference from `robots.txt` so we don't advertise an empty index — TT-139 picks one path.
+- The sitemap index uses `SitemapService.computeMaxLastmod(urls)` per slice so each entry's `lastmod` reflects its content's actual freshness, not the response time.
 
 ---
 
@@ -218,28 +219,26 @@ Generated at `/robots.txt` (`app/routes/robots[.]txt.tsx`). `SITE_URL`-driven (a
 User-agent: *
 Allow: /
 
-Sitemap: <SITE_URL>/sitemap.xml
 Sitemap: <SITE_URL>/sitemap-index.xml
 
 Disallow: /admin/
 Disallow: /api/
 Disallow: /login
 Disallow: /logout
-
-Crawl-delay: 1
-```
-
-### Required additions (TT-136)
-
-Add `Disallow:` lines for everything in the `noindex` matrix that is reachable by URL pattern. Belt-and-braces — `noindex` does the indexing-blocking; robots.txt cuts the crawl budget waste.
-
-```
 Disallow: /reset-password
 Disallow: /auth/
 Disallow: /profile
 Disallow: /submissions/
 Disallow: /e2e-
+
+Allow: /players/
+Allow: /equipment/
+Allow: /search
+
+Crawl-delay: 1
 ```
+
+The `Disallow:` block mirrors the `noindex` matrix above — robots.txt cuts crawl-budget waste; the per-route `noindex` meta + `X-Robots-Tag` header stop URLs from being indexed even when discovered. Belt-and-braces.
 
 `Crawl-delay` is harmless and ignored by Google; leave it. Don't add per-bot rules unless we have a specific bot causing problems — the `User-agent: *` block applies to all.
 
