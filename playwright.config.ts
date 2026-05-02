@@ -25,7 +25,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: IS_CI,
   retries: IS_CI ? 1 : 0,
-  workers: IS_CI ? 1 : undefined,
+  // 2 workers; rate-limit / localStorage-sensitive specs declare per-file `mode: "serial"`.
+  workers: IS_CI ? 2 : undefined,
   reporter: IS_CI ? ciReporters : "list",
   timeout: 30_000,
   expect: { timeout: 5_000 },

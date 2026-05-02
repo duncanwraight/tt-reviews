@@ -56,6 +56,19 @@ jobs:
           path: .react-router/types
           key: rr-types-${{ runner.os }}-${{ hashFiles('app/routes/**', 'app/routes.ts', 'react-router.config.ts') }}
 
+      # Per-sha key + prefix restore-keys: every run loads the prior
+      # commit's incremental info, tsc -b skips unchanged files, then
+      # writes a fresh entry under this commit's sha.
+      - name: Cache tsc incremental info
+        uses: actions/cache@v5
+        with:
+          path: |
+            tsconfig.cloudflare.tsbuildinfo
+            tsconfig.node.tsbuildinfo
+          key: tsbuildinfo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            tsbuildinfo-${{ runner.os }}-
+
       - name: Typecheck
         run: npm run typecheck
 
