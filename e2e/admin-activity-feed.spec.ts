@@ -64,10 +64,20 @@ test("recent activity widget shows admin email from auth.users", async ({
     await expect(activityCard).toBeVisible();
 
     const topEntry = activityCard.locator("li").first();
-    await expect(topEntry).toContainText("Equipment review approved");
-    await expect(topEntry).toContainText(`by ${adminEmail}`);
-    await expect(topEntry).toContainText("(Admin UI)");
-    await expect(topEntry).not.toContainText(/^by Admin /);
+    // Entity label is now a link to the public view page; the
+    // approved-vs-rejected and admin-vs-discord signals moved to icons,
+    // so the verb and "(Admin UI)" suffix were dropped.
+    const reviewLink = topEntry.getByRole("link", {
+      name: "Equipment review",
+    });
+    await expect(reviewLink).toBeVisible();
+    await expect(reviewLink).toHaveAttribute(
+      "href",
+      `/equipment/${equipment.slug}`
+    );
+    await expect(topEntry).toContainText(adminEmail);
+    await expect(topEntry).not.toContainText("Admin UI");
+    await expect(topEntry).not.toContainText(/Admin\s*$/);
   } finally {
     await deleteUser(reviewerId);
     await deleteUser(adminId);

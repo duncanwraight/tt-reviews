@@ -1,11 +1,18 @@
 interface DiscordIconProps {
   className?: string;
+  "aria-label"?: string;
 }
 
-export function DiscordIcon({ className = "w-5 h-5" }: DiscordIconProps) {
+export function DiscordIcon({
+  className = "w-5 h-5",
+  "aria-label": ariaLabel,
+}: DiscordIconProps) {
   return (
     <svg
       className={className}
+      aria-label={ariaLabel}
+      role={ariaLabel ? "img" : undefined}
+      aria-hidden={ariaLabel ? undefined : true}
       viewBox="0 0 24 24"
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
