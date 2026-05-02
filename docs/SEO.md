@@ -4,7 +4,7 @@ This doc is the contract every user-facing route on this site has to satisfy. If
 
 This is the technical SEO standard. Audience research, content strategy, and keyword targeting are out of scope — they're product calls, not engineering rules.
 
-The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps have one card each (TT-135 → TT-143). Where a section below references behaviour we don't yet ship, the relevant TT-card is named inline so contributors know which child item is closing the gap.
+The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps had one card each (TT-135 → TT-143); 8/9 are shipped, leaving **TT-138 (OG image generation)** as the only outstanding work — flagged inline in the OG image section below. Anywhere else a TT-card is named, it's a historical reference to the change that introduced the rule, not a marker for pending work.
 
 ---
 
@@ -32,7 +32,7 @@ These are the actual route patterns shipped today (`app/routes/`). The old SEO d
 
 ### Slug rules
 
-- Slugs are stable identifiers. Treat a rename as a redirect-source: every old slug we've ever published must keep redirecting to the current canonical URL **(TT-141)**. New slugs get a row in the slug-history table; old paths return `301`.
+- Slugs are stable identifiers. Treat a rename as a redirect-source: every old slug we've ever published keeps 301-forwarding to the current canonical URL via the `slug_redirects` table (see "Slug-rename redirect history" below).
 - Slug shape: lowercase, ASCII, dash-separated, no diacritics, no trailing dashes. The submission flow already enforces this; do not relax it.
 - Two equipment items cannot share a slug. The DB enforces uniqueness; do not bypass it for "synonym" SKUs — file them as separate equipment rows or as variants on the same row.
 
@@ -58,11 +58,29 @@ React Router v7 `meta()` exports are the only source of route-level meta. Do **n
 
 ### Required on every indexable route
 
+Use the helpers in `app/lib/seo.ts` rather than rolling these by hand. `getSiteUrl(matches)` reads the root loader data; `buildCanonicalUrl(siteUrl, pathname, search, allowList)` produces the canonical URL with deterministic param ordering and tracking-junk stripping.
+
 ```ts
+import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+
+// Listings declare their allow-list as a const at module scope so
+// it's discoverable. Detail pages omit the const and pass [] (or
+// empty search) — they self-canonical to the bare path.
+const EQUIPMENT_LISTING_PARAMS = [
+  "category",
+  "subcategory",
+  "manufacturer",
+  "sort",
+  "page",
+] as const;
+
 export function meta({ data, location, matches }: Route.MetaArgs) {
-  // siteUrl comes from root loader data (TT-137).
-  const siteUrl = matches.find(m => m.id === "root")?.data.siteUrl;
-  const canonical = `${siteUrl}${location.pathname}`;
+  const canonical = buildCanonicalUrl(
+    getSiteUrl(matches),
+    location.pathname,
+    location.search,
+    EQUIPMENT_LISTING_PARAMS // detail pages: pass [] (or omit the arg)
+  );
 
   return [
     { title: /* ≤ 60 chars, unique per page */ },
@@ -74,12 +92,13 @@ export function meta({ data, location, matches }: Route.MetaArgs) {
     { property: "og:type", content: /* "website" | "article" | "product" | "profile" */ },
     { property: "og:url", content: canonical },
     { property: "og:site_name", content: "TT Reviews" },
-    { property: "og:image", content: `${siteUrl}/og/<route-key>.png` }, // TT-138
+    // og:image + twitter:image are deferred to TT-138; once that
+    // ships, every indexable route adds them and the checklist below
+    // becomes mandatory.
 
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: /* same as og:title */ },
     { name: "twitter:description", content: /* same as og:description */ },
-    { name: "twitter:image", content: `${siteUrl}/og/<route-key>.png` }, // TT-138
   ];
 }
 ```
@@ -88,26 +107,26 @@ Rules:
 
 - **`title`** ≤ 60 chars. Format: `<page-specific>… | TT Reviews`. Brand on the right; never repeat the brand mid-title.
 - **`description`** ≤ 155 chars. No keyword stuffing. One sentence describing what's on the page.
-- **`canonical`** is **absolute** and **env-driven** (`SITE_URL`). Hardcoding hosts is a regression — `validateEnv` already requires `SITE_URL` (`app/lib/env.server.ts`). The hardcoded fallback at `app/root.tsx:43` is what TT-137 closes.
+- **`canonical`** is **absolute** and **env-driven** (`SITE_URL`). Hardcoding hosts is a regression — `validateEnv` already requires `SITE_URL` (`app/lib/env.server.ts`). `getSiteUrl(matches)` returns the prod fallback only when the root loader itself errored, and validateEnv would have 503'd that case before the loader ran.
 - **`og:url`** matches `canonical`.
-- **`og:image`** must be 1200×630 absolute URL. Every route below "minimal" must declare one; a static fallback at `/og/default.png` covers routes without bespoke art (TT-138).
+- **`og:image`** + **`twitter:image`** — pending **TT-138**. Once shipped: 1200×630 absolute URLs; every indexable route declares one.
 - **`keywords`** is dead — Google ignores it. Existing `meta()` exports keep populating it; they're harmless but new routes don't need it.
 - Meta values must be derived from loader data, never from `document.location` or `window` — `meta()` runs on the server.
 
 ### Indexability — the `noindex` matrix
 
-`noindex` is a `<meta name="robots">` tag, **not** a robots.txt rule. robots.txt stops a crawler fetching the page; it does not stop Google indexing the URL when it's discovered via inbound links. Anything in this table needs the meta tag whether or not robots.txt also blocks it. (TT-136 closes the gaps.)
+`noindex` is a `<meta name="robots">` tag, **not** a robots.txt rule. robots.txt stops a crawler fetching the page; it does not stop Google indexing the URL when it's discovered via inbound links. Anything in this table needs the meta tag whether or not robots.txt also blocks it.
 
-| Route                                                                                                        | `robots` meta                | Why                                                          |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------ |
-| `/`, `/equipment`, `/equipment/:slug`, `/equipment/compare/:slugs`, `/players`, `/players/:slug`, `/credits` | `index, follow`              | Primary content — the reason the site exists.                |
-| `/equipment/compare` (landing without slugs)                                                                 | `noindex, follow`            | Picker UI, no content.                                       |
-| `/search`                                                                                                    | conditional — see below      | Productive multi-term SERPs are indexable; thin ones aren't. |
-| `/admin/*`                                                                                                   | `noindex, nofollow` (TT-136) | Admin tooling — never indexable.                             |
-| `/login`, `/logout`, `/reset-password`, `/auth/*`, `/profile`, `/submissions/*`                              | `noindex, nofollow` (TT-136) | Authed-only or bounce pages.                                 |
-| `/e2e-health`, `/e2e-trigger-error`                                                                          | `noindex, nofollow`          | Test fixtures — would be `404` in prod ideally.              |
-| `/api/*`                                                                                                     | n/a                          | Returns JSON — not HTML. Remains `Disallow:` in robots.txt.  |
-| `/$.tsx` (404 catch-all)                                                                                     | `noindex, follow`            | Don't fingerprint 404s.                                      |
+| Route                                                                                                        | `robots` meta           | Why                                                                            |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------ |
+| `/`, `/equipment`, `/equipment/:slug`, `/equipment/compare/:slugs`, `/players`, `/players/:slug`, `/credits` | `index, follow`         | Primary content — the reason the site exists.                                  |
+| `/equipment/compare` (landing without slugs)                                                                 | `noindex, follow`       | Picker UI, no content.                                                         |
+| `/search`                                                                                                    | conditional — see below | Productive multi-term SERPs are indexable; thin ones aren't.                   |
+| `/admin/*`                                                                                                   | `noindex, nofollow`     | Admin tooling — never indexable. Also gets `X-Robots-Tag` at the Worker entry. |
+| `/login`, `/logout`, `/reset-password`, `/auth/*`, `/profile`, `/submissions/*`                              | `noindex, nofollow`     | Authed-only or bounce pages.                                                   |
+| `/e2e-health`, `/e2e-trigger-error`                                                                          | `noindex, nofollow`     | Test fixtures — would be `404` in prod ideally.                                |
+| `/api/*`                                                                                                     | n/a                     | Returns JSON — not HTML. Remains `Disallow:` in robots.txt.                    |
+| `/$.tsx` (404 catch-all)                                                                                     | `noindex, follow`       | Don't fingerprint 404s.                                                        |
 
 The pattern in code:
 
@@ -141,7 +160,7 @@ JSON-LD is the only structured-data format we ship. RDFa and microdata are expli
 
 - **Schema generation:** `app/lib/schema.ts` (`SchemaService` class + `schemaService` singleton). Extend this file — never inline ad-hoc JSON-LD in a route.
 - **Rendering:** `app/components/seo/StructuredData.tsx`. The component takes a single schema or an array and renders one `<script type="application/ld+json">`.
-- **Global schemas:** `Organization` and `WebSite` are emitted from `app/root.tsx`'s `Layout`. They appear on every page. Don't re-emit them per route. The hardcoded `siteUrl` in that block is what TT-137 will replace with loader data threaded through `useRouteLoaderData("root")`.
+- **Global schemas:** `Organization` and `WebSite` are emitted from `app/root.tsx`'s `Layout`. They appear on every page. Don't re-emit them per route. The Layout reads `siteUrl` via `useRouteLoaderData("root")`; the hardcoded prod-host fallback only fires when the root loader itself errored (validateEnv would have already 503'd that case).
 
 ### JSON-LD escape rule (mandatory)
 
@@ -159,9 +178,9 @@ Anything else is a regression.
 | All pages                                     | `Organization`, `WebSite`                                                                | Emitted from `root.tsx` Layout. Do not duplicate per-route.               |
 | `/equipment/:slug`                            | `Product` (with nested `AggregateRating` + up to five `Review` items) + `BreadcrumbList` | Reviews are first-party-eligible per the third-party-review rule below.   |
 | `/equipment/compare/:slugs`                   | `WebPage` + `ItemList` of two `Product`s                                                 | Use `generateComparisonSchema`.                                           |
-| `/equipment` (listing)                        | `BreadcrumbList` (TT-143)                                                                | No `ItemList` — the listing is too dynamic to keep stable.                |
+| `/equipment` (listing)                        | `BreadcrumbList`                                                                         | No `ItemList` — the listing is too dynamic to keep stable.                |
 | `/players/:slug`                              | `Person` + `BreadcrumbList`                                                              | `Person` only — biographical. **Do not** attach `Review` to player pages. |
-| `/players` (listing)                          | `BreadcrumbList` (TT-143)                                                                |                                                                           |
+| `/players` (listing)                          | `BreadcrumbList`                                                                         |                                                                           |
 | `/`                                           | None beyond global.                                                                      | The home page isn't a single content entity.                              |
 | `/search`, `/admin/*`, auth, `/submissions/*` | None.                                                                                    | Non-indexable.                                                            |
 
@@ -191,7 +210,7 @@ All sitemaps are generated dynamically. `SitemapService` (`app/lib/sitemap.serve
 - `/sitemap-index.xml` — the index. Lists the three per-type sitemaps with `lastmod = max(updated_at)` of each one's underlying content. **This is the URL to register in Search Console.** robots.txt advertises only this URL.
 - `/sitemap-equipment.xml` — equipment detail pages plus the category / subcategory / manufacturer listing variants and the curated comparison pages.
 - `/sitemap-players.xml` — one URL per active player. Inactive players are filtered out.
-- `/sitemap-static.xml` — `/`, `/players`, `/equipment`, `/search`, `/credits`. (TT-143 will drop `/search` when the route flips to `noindex`.)
+- `/sitemap-static.xml` — `/`, `/players`, `/equipment`, `/credits`. (`/search` is excluded — the bare path is always a thin SERP and flips to `noindex` per the rule above.)
 - `/sitemap.xml` — legacy combined sitemap. **Kept for back-compat** in case any crawler has cached the URL. Not referenced from robots.txt. Don't add new content here that isn't also in a per-type sitemap.
 
 Each per-type sitemap caps at 50K URLs (the spec hard cap). When any one approaches that, split it further (e.g. `sitemap-equipment-1.xml`, `sitemap-equipment-2.xml`) and update the index — no robots.txt change needed.
@@ -208,9 +227,9 @@ Each per-type sitemap caps at 50K URLs (the spec hard cap). When any one approac
 ### What must never appear in any sitemap
 
 - Any URL that returns `noindex`.
-- `/login`, `/logout`, `/reset-password`, `/auth/*`, `/admin/*`, `/profile`, `/submissions/*`, `/api/*`, `/e2e-*`. (TT-139 dropped `/login` from `generateStaticPages()`.)
+- `/login`, `/logout`, `/reset-password`, `/auth/*`, `/admin/*`, `/profile`, `/submissions/*`, `/api/*`, `/e2e-*`.
 - Draft / unpublished content. There is no draft state for equipment or players today; if one is added later, gate sitemap inclusion on the published flag.
-- Slug-redirect _source_ URLs (TT-141) — only the canonical (current) slug appears.
+- Slug-redirect _source_ URLs — only the canonical (current) slug appears. See "Slug-rename redirect history" below for the table.
 
 ### `lastmod`
 
@@ -244,7 +263,6 @@ Disallow: /e2e-
 
 Allow: /players/
 Allow: /equipment/
-Allow: /search
 
 Crawl-delay: 1
 ```
@@ -280,11 +298,11 @@ In addition, every hero needs:
 - `alt` text — non-empty, descriptive (equipment name + manufacturer, or player name).
 - No client-side data-fetch in the LCP critical path. Loader data → SSR'd `<img>` is the only acceptable pattern.
 
-### Image transformation pipeline (TT-140)
+### Image transformation pipeline
 
 Both equipment and player images are served by routing the canonical R2-backed URL through Cloudflare Image Resizing — the `/cdn-cgi/image/<options>/<source-path>` URL pattern is intercepted at the edge and resized + format-converted (WebP / AVIF as supported) before the Worker ever sees it.
 
-- **Equipment** images use `buildEquipmentImageUrl(key, variant, trimKind)` (single URL) and `buildEquipmentImageSrcSet(key, trimKind)` (full srcset). Variants are `thumbnail` (256w), `card` (512w), `full` (1024w). `trimKind` adds `,trim=border` so Cloudflare auto-trims the dominant border colour (TT-88). Always emit the trim flag when the equipment row's `image_trim_kind` is non-null.
+- **Equipment** images use `buildEquipmentImageUrl(key, variant, trimKind)` (single URL) and `buildEquipmentImageSrcSet(key, trimKind)` (full srcset). Variants are `thumbnail` (256w), `card` (512w), `full` (1024w). `trimKind` adds `,trim=border` so Cloudflare auto-trims the dominant border colour. Always emit the trim flag when the equipment row's `image_trim_kind` is non-null.
 - **Player** images use `buildPlayerImageUrl(key, etag, width)` and `buildPlayerImageSrcSet(key, etag)`. Player widths are `144 / 288 / 576`, sized for the headshot box. The `etag` query param survives the transform pipeline as a cache-buster — keep passing it.
 
 If the source image is missing (`image_key` is null), fall back to `<ImagePlaceholder>` rather than rendering a broken `<img>`.
@@ -303,31 +321,33 @@ Inter is loaded from Google Fonts in `app/root.tsx` `links`. Keep `preconnect` t
 
 ---
 
-## E-E-A-T surface signals (TT-142)
+## E-E-A-T surface signals
 
 Google rewards visible expertise/authority signals on detail pages. JSON-LD alone isn't enough — the signals must be rendered HTML.
 
-### Required on `/equipment/:slug` per review
+### `/equipment/:slug` per review (`ReviewCard`)
 
-- Reviewer's playing-level / skill-rating (data is in `equipment_reviews` already; surface it next to the rating).
-- Reviewer's display name as a link to their profile (or "Anonymous" without a link).
-- `datePublished`, formatted in the page locale.
+- Reviewer-context badges above the review text — `playing_level`, `style_of_play`, `testing_duration` rendered as small pills (data-testid: `review-eeat-badges`). Pulled from the `reviewer_context` JSONB; the same fields stay in the detailed "Reviewer Context" footer.
+- Review's `datePublished` wrapped in `<time datetime="ISO">{human}</time>` so the structured-data published date and the visible date come from the same source.
+- **Reviewer display name** — currently **not rendered**. `public.profiles` was dropped in TT-128; surfacing reviewer names requires rebuilding a public profile route, which is outside the scope of TT-142. Don't render an unauthenticated user's email as a fallback. Rebuild a public profile surface (separate ticket) and add the reviewer-name + link at that point.
 
-### Required on `/players/:slug`
+### `/players/:slug`
 
-- "Last updated" timestamp on the equipment-history block (we have `updated_at` in `players`; render it).
-- Source links on every equipment-change row — already a column in `player_equipment_setups`; just make sure it renders as an anchor when present.
+- "Last updated" with `<time datetime>` under the player name, driven by `players.updated_at`.
+- Source links on every equipment-change row — `EquipmentTimeline.tsx` renders `setup.source_url` as an anchor when present. Keep it that way; don't strip into plain text.
 
-### Required on `/equipment/:slug` page chrome
+### `/equipment/:slug` page chrome
 
-- "Last updated" timestamp on the page (`equipment.updated_at`).
-- Number of reviews + average rating, both rendered as text (already in place; keep it).
+- "Last updated" with `<time datetime>` under the title, driven by `equipment.updated_at`.
+- Number of reviews + average rating, both rendered as text via `RatingStars`.
 
-These all need to appear as visible text. Don't make them collapse-default or screen-reader-only.
+All of these must be visible text. Don't make them collapse-default or screen-reader-only.
 
 ---
 
-## OG image (TT-138)
+## OG image (TT-138 — pending)
+
+> **Status: not yet shipped.** This is the only outstanding child of TT-134. Until TT-138 lands, no route emits `og:image` or `twitter:image`; social shares (Discord, Twitter, Slack, FB) fall back to a generic favicon. The plan below is the locked-in design for that future change — implement against this section, then drop this `pending` callout.
 
 A static `/og/default.png` (1200×630) goes in `public/og/` as the universal fallback. Bespoke images are generated per-route on demand.
 
@@ -360,8 +380,8 @@ How it's wired:
 
 1. `slug_redirects` table holds `(entity_type, old_slug, new_slug, created_by, created_at)` rows. `(entity_type, old_slug)` is unique; `old_slug <> new_slug` is enforced. RLS: read public, write admin/service-role.
 2. `/equipment/:slug` and `/players/:slug` loaders call `findSlugRedirect(client, type, slug)` from `app/lib/slug-redirects.server.ts` whenever the entity row doesn't resolve. A hit → `throw redirect("/equipment/<new>", { status: 301 })`. A miss falls through to the existing 404 redirect.
-3. The equipment-edit applier (`app/lib/admin/equipment-edit-applier.server.ts`) calls `recordSlugRedirect(client, "equipment", oldSlug, newSlug, moderatorId)` after a successful rename. The applier is invoked from both the admin route and the Discord 2nd-approval moderation path, so both flows record the redirect automatically. Player slug renames aren't currently exposed through any flow but the lookup is wired up — drop a row into `slug_redirects` directly and the 301 kicks in.
-4. `recordSlugRedirect` handles three subtle cases atomically (well, sequentially — see code comment for the failure semantics):
+3. The equipment-edit applier (`app/lib/admin/equipment-edit-applier.server.ts`) calls `recordSlugRedirect(client, "equipment", oldSlug, newSlug, moderatorId)` after a successful rename. The applier is invoked from both the admin route and the Discord 2nd-approval moderation path, so both flows record the redirect automatically. A failure to record the redirect is logged via `Logger.error` inside the applier and does **not** short-circuit the post-update R2 cleanup — the rename UPDATE has landed and is correct; only the back-link is missing. Player slug renames aren't currently exposed through any flow but the lookup is wired up — drop a row into `slug_redirects` directly and the 301 kicks in.
+4. `recordSlugRedirect` handles three subtle cases sequentially (not transactional — see code comment for the failure semantics):
    - Drops any existing redirect whose `old_slug` equals the new slug (the "renamed back to A" case where the entity now resolves at A directly and a stale row would shadow it).
    - Updates every redirect that pointed AT the old slug to point at the new slug, collapsing chains so every old URL forwards in one hop.
    - Upserts the `(oldSlug → newSlug)` row.
@@ -376,15 +396,15 @@ Don't repurpose old slugs for different content — once a slug has been used, t
 
 Run through this on every PR that touches `app/routes/` (or that adds/modifies a route's loader/component output that would change what's in the head):
 
-- [ ] `meta()` exports `title` (≤ 60 chars), `description` (≤ 155 chars), `canonical` (absolute, env-driven).
-- [ ] OG tags present: `og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`, `og:image` (absolute).
-- [ ] Twitter tags present: `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`, `twitter:image`.
-- [ ] `robots` meta is correct per the indexability matrix.
-- [ ] If indexable, route is in `/sitemap.xml`. If not indexable, route is **not** in the sitemap.
-- [ ] If indexable, structured data via `<StructuredData />`, schema generated by `SchemaService`. If route renders user-supplied text inside JSON-LD, the `<` escape is in place.
-- [ ] If the route renders an LCP image: `loading="eager"`, `fetchpriority="high"`, explicit dimensions, `srcset`, descriptive `alt`.
+- [ ] `meta()` exports `title` (≤ 60 chars), `description` (≤ 155 chars), and a `canonical` link descriptor produced by `buildCanonicalUrl(getSiteUrl(matches), pathname, search, allowList)` from `app/lib/seo.ts`.
+- [ ] OG tags present: `og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`. (`og:image` is pending TT-138 — add it to the checklist as mandatory once TT-138 lands.)
+- [ ] Twitter tags present: `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`. (`twitter:image` follows `og:image` — pending TT-138.)
+- [ ] `robots` meta is correct per the indexability matrix. Admin routes also rely on the Worker-entry `X-Robots-Tag` header (no per-route action needed).
+- [ ] If indexable, route is included in the right per-type sitemap (`sitemap-equipment.xml` / `sitemap-players.xml` / `sitemap-static.xml`) — and therefore in `/sitemap-index.xml`. If not indexable, route is **not** in any sitemap.
+- [ ] If indexable, structured data via `<StructuredData />`, schema generated by `SchemaService`. If route renders user-supplied text inside JSON-LD, the `<` escape is in place (`schemaService.toJsonLd` / `generateMultipleSchemas` handle this for you).
+- [ ] If the route renders an LCP image: pass `priority` to `<LazyImage>` (eager + `fetchPriority="high"` + IntersectionObserver bypass), with explicit `width` / `height` / `srcSet` / `sizes` props and a descriptive `alt`.
 - [ ] No client-side fetch on the LCP path.
-- [ ] If the route introduces a new slug shape, `slug_redirects` is updated for renames; the loader returns `301` for old slugs before `404`.
+- [ ] If the route introduces a new slug shape, slug renames flow through `recordSlugRedirect` in the applier and `findSlugRedirect` in the loader; the loader returns `301` for old slugs before `404`.
 - [ ] If a new env var is required for any of the above, register it in `validateEnv` (`app/lib/env.server.ts`) per `CLAUDE.md` — see "Environment variables".
 - [ ] Validated with the Rich Results Test for at least one representative URL per route pattern.
 
@@ -394,11 +414,17 @@ When in doubt, the answer is "match what `/equipment/:slug` does" — that's the
 
 ## Reference files
 
+- `app/lib/seo.ts` — `getSiteUrl(matches)` + `buildCanonicalUrl(siteUrl, pathname, search, allowList)`. Used by every indexable route's `meta()`.
 - `app/lib/schema.ts` — `SchemaService` and `schemaService` singleton.
 - `app/components/seo/StructuredData.tsx` — JSON-LD render component.
-- `app/lib/sitemap.server.ts` — `SitemapService`, baseUrl threaded via `getSitemapService(context)`.
-- `app/routes/sitemap[.]xml.tsx` — the sitemap loader.
-- `app/routes/sitemap-index[.]xml.tsx` — the sitemap-index loader.
+- `app/lib/sitemap.server.ts` — `SitemapService`, `computeMaxLastmod`, baseUrl threaded via `getSitemapService(context)`.
+- `app/routes/sitemap-index[.]xml.tsx` — the sitemap-index loader (canonical discovery URL).
+- `app/routes/sitemap-equipment[.]xml.tsx`, `sitemap-players[.]xml.tsx`, `sitemap-static[.]xml.tsx` — per-type sitemaps.
+- `app/routes/sitemap[.]xml.tsx` — legacy combined sitemap; back-compat only.
 - `app/routes/robots[.]txt.tsx` — robots.txt generator.
+- `app/lib/slug-redirects.server.ts` — `findSlugRedirect` (loader-side) + `recordSlugRedirect` (applier-side).
 - `app/lib/env.server.ts` — `getEnvVar`, `validateEnv`, `SITE_URL` requirement.
-- `app/root.tsx` — global schemas (`Organization`, `WebSite`); root loader exposes `siteUrl`.
+- `app/root.tsx` — global schemas (`Organization`, `WebSite`); root loader exposes `siteUrl`; Layout reads it via `useRouteLoaderData("root")`.
+- `app/components/ui/LazyImage.tsx` — image component with the `priority` opt-in for above-the-fold heroes.
+- `app/lib/imageUrl.ts` — `buildEquipmentImageUrl` / `buildEquipmentImageSrcSet` / `buildPlayerImageUrl` / `buildPlayerImageSrcSet`.
+- `workers/app.ts` — `X-Robots-Tag: noindex, nofollow` injection on `/admin/*` responses.
