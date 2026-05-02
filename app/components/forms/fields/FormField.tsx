@@ -321,10 +321,6 @@ export function FormField({
       case "equipment_setup":
         return (
           <PlayerEquipmentSetup
-            includeEquipment={Boolean(allValues.include_equipment)}
-            onToggleEquipment={include =>
-              onChange("include_equipment", include)
-            }
             isSubmitting={disabled}
             blades={blades}
             rubbers={rubbers}
@@ -334,8 +330,6 @@ export function FormField({
       case "equipment_setup_standalone":
         return (
           <PlayerEquipmentSetup
-            includeEquipment={true}
-            onToggleEquipment={() => {}}
             isSubmitting={disabled}
             standalone={true}
             blades={blades}

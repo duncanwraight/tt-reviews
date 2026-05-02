@@ -6,8 +6,6 @@ import {
 } from "~/components/ui/EquipmentCombobox";
 
 interface PlayerEquipmentSetupProps {
-  includeEquipment: boolean;
-  onToggleEquipment: (include: boolean) => void;
   isSubmitting: boolean;
   standalone?: boolean;
   blades?: EquipmentOption[];
@@ -22,8 +20,6 @@ const SOURCE_TYPES = [
 ];
 
 export function PlayerEquipmentSetup({
-  includeEquipment,
-  onToggleEquipment,
   isSubmitting,
   standalone = false,
   blades = [],
@@ -178,146 +174,130 @@ export function PlayerEquipmentSetup({
     );
   }
 
+  // The registry's include_equipment checkbox controls whether this
+  // component renders at all (via the equipment_setup field's
+  // showWhen dependency on the player form). Standalone mode skips
+  // that wrapper entirely. Either way, when we render we render the
+  // equipment fields directly — there's no internal toggle.
   return (
-    <div className="border-b border-gray-200 pb-6">
-      <div className="flex items-center mb-4">
-        <input
-          type="checkbox"
-          id="include_equipment"
-          checked={includeEquipment}
-          onChange={e => onToggleEquipment(e.target.checked)}
-          disabled={isSubmitting}
-          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-        />
-        <label
-          htmlFor="include_equipment"
-          className="text-lg font-semibold text-gray-900"
-        >
-          Include Equipment Setup
-        </label>
+    <div className="space-y-6">
+      {/* Helper text */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <p className="text-sm text-blue-800">
+          Can't find equipment?{" "}
+          <Link
+            to="/submissions/equipment/submit"
+            className="font-medium underline hover:text-blue-600"
+          >
+            Submit it first
+          </Link>
+        </p>
       </div>
 
-      {includeEquipment && (
-        <div className="space-y-6">
-          {/* Helper text */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
-              Can't find equipment?{" "}
-              <Link
-                to="/submissions/equipment/submit"
-                className="font-medium underline hover:text-blue-600"
-              >
-                Submit it first
-              </Link>
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Year */}
-            <div>
-              <label
-                htmlFor="year"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Year
-              </label>
-              <input
-                type="number"
-                id="year"
-                name="year"
-                min="1970"
-                max={new Date().getFullYear()}
-                defaultValue={new Date().getFullYear()}
-                disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-              />
-            </div>
-
-            {/* Blade */}
-            <div>
-              <label
-                htmlFor="blade_id"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Blade
-              </label>
-              <EquipmentCombobox
-                name="blade_id"
-                options={blades}
-                placeholder="Search for a blade..."
-                disabled={isSubmitting}
-                value={bladeId}
-                onChange={id => setBladeId(id)}
-              />
-            </div>
-          </div>
-
-          {/* Forehand Setup */}
-          <RubberSetup
-            side="forehand"
-            label="Forehand"
-            isSubmitting={isSubmitting}
-            selectedSide={forehandSide}
-            onSideChange={handleForehandSideChange}
-            rubbers={rubbers}
-            rubberId={forehandRubberId}
-            onRubberChange={id => setForehandRubberId(id)}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Year */}
+        <div>
+          <label
+            htmlFor="year"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Year
+          </label>
+          <input
+            type="number"
+            id="year"
+            name="year"
+            min="1970"
+            max={new Date().getFullYear()}
+            defaultValue={new Date().getFullYear()}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
           />
-
-          {/* Backhand Setup */}
-          <RubberSetup
-            side="backhand"
-            label="Backhand"
-            isSubmitting={isSubmitting}
-            selectedSide={backhandSide}
-            onSideChange={handleBackhandSideChange}
-            rubbers={rubbers}
-            rubberId={backhandRubberId}
-            onRubberChange={id => setBackhandRubberId(id)}
-          />
-
-          {/* Source Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label
-                htmlFor="source_type"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Source Type
-              </label>
-              <select
-                id="source_type"
-                name="source_type"
-                disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-              >
-                <option value="">Select source type</option>
-                {SOURCE_TYPES.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="source_url"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Source URL
-              </label>
-              <input
-                type="url"
-                id="source_url"
-                name="source_url"
-                disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="https://..."
-              />
-            </div>
-          </div>
         </div>
-      )}
+
+        {/* Blade */}
+        <div>
+          <label
+            htmlFor="blade_id"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Blade
+          </label>
+          <EquipmentCombobox
+            name="blade_id"
+            options={blades}
+            placeholder="Search for a blade..."
+            disabled={isSubmitting}
+            value={bladeId}
+            onChange={id => setBladeId(id)}
+          />
+        </div>
+      </div>
+
+      {/* Forehand Setup */}
+      <RubberSetup
+        side="forehand"
+        label="Forehand"
+        isSubmitting={isSubmitting}
+        selectedSide={forehandSide}
+        onSideChange={handleForehandSideChange}
+        rubbers={rubbers}
+        rubberId={forehandRubberId}
+        onRubberChange={id => setForehandRubberId(id)}
+      />
+
+      {/* Backhand Setup */}
+      <RubberSetup
+        side="backhand"
+        label="Backhand"
+        isSubmitting={isSubmitting}
+        selectedSide={backhandSide}
+        onSideChange={handleBackhandSideChange}
+        rubbers={rubbers}
+        rubberId={backhandRubberId}
+        onRubberChange={id => setBackhandRubberId(id)}
+      />
+
+      {/* Source Information */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label
+            htmlFor="source_type"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Source Type
+          </label>
+          <select
+            id="source_type"
+            name="source_type"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+          >
+            <option value="">Select source type</option>
+            {SOURCE_TYPES.map(type => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label
+            htmlFor="source_url"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Source URL
+          </label>
+          <input
+            type="url"
+            id="source_url"
+            name="source_url"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+            placeholder="https://..."
+          />
+        </div>
+      </div>
     </div>
   );
 }
