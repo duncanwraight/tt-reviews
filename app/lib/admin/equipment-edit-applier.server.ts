@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateSlug } from "../revspin.server";
 import { createCategoryService } from "../categories.server";
+import { Logger, createLogContext } from "../logger.server";
 import { generateImageKey, deleteImageFromR2Native } from "../r2-native.server";
+import { recordSlugRedirect } from "../slug-redirects.server";
 
 /**
  * TT-105: apply an approved equipment_edit to the equipment row.
@@ -127,7 +129,10 @@ export async function applyEquipmentEdit(
   }
 
   // Slug regeneration on name change. excludeId stops the row's
-  // current slug from showing up as a "collision" with itself.
+  // current slug from showing up as a "collision" with itself. The
+  // (current.slug → updates.slug) redirect row is recorded after the
+  // equipment UPDATE lands so the old URL keeps 301-forwarding to
+  // the new one (TT-141).
   if (
     "name" in updates &&
     typeof updates.name === "string" &&
@@ -193,6 +198,46 @@ export async function applyEquipmentEdit(
 
   if (updateError) {
     return { success: false, error: updateError.message };
+  }
+
+  // TT-141: record the slug rename so the old URL keeps 301-
+  // forwarding. recordSlugRedirect is a no-op when slugs match. The
+  // moderator who approved the edit (or null when applied via the
+  // Discord 2nd-approval pathway and moderator_id wasn't set) becomes
+  // the redirect's audit trail.
+  //
+  // A failure here is non-fatal — the rename UPDATE has already
+  // landed and is correct; only the back-link from the old slug is
+  // missing. We log inside the applier (rather than surfacing a
+  // success+error result) because both callers gate logging on
+  // `!success` — they'd silently drop the warning otherwise. We also
+  // deliberately don't early-return: the R2 cleanup blocks below
+  // must still run regardless, or every redirect-record failure on a
+  // rename+image edit would leak two R2 objects.
+  if (
+    typeof updates.slug === "string" &&
+    updates.slug !== (current.slug as string)
+  ) {
+    const slugResult = await recordSlugRedirect(
+      supabaseAdmin,
+      "equipment",
+      current.slug as string,
+      updates.slug,
+      (edit.moderator_id as string | null) ?? null
+    );
+    if (!slugResult.ok) {
+      Logger.error(
+        "equipment-edit-applier.slug-redirect.failed",
+        createLogContext("equipment-edit-applier", {
+          source: "equipment-edit-applier",
+          editId,
+          equipmentId: edit.equipment_id as string,
+          oldSlug: current.slug as string,
+          newSlug: updates.slug,
+          reason: slugResult.error,
+        })
+      );
+    }
   }
 
   // Best-effort R2 cleanup once the row update has landed. Failures

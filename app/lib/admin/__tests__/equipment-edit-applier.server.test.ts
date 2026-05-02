@@ -2,6 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyEquipmentEdit } from "../equipment-edit-applier.server";
 
+// Mock recordSlugRedirect so the applier's slug-rename branch can be
+// asserted in isolation (TT-141). The hand-rolled supabase stub
+// below doesn't model slug_redirects rows; this swap means the
+// applier's call lands on the spy instead of the stub.
+vi.mock("../../slug-redirects.server", () => ({
+  recordSlugRedirect: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
 /**
  * Hand-rolled minimal supabase stub for the applier's read/update
  * patterns:
@@ -342,5 +350,116 @@ describe("applyEquipmentEdit", () => {
     expect(stub.captured).toHaveLength(0);
     expect(r2.puts).toHaveLength(0);
     expect(r2.deletes).toHaveLength(0);
+  });
+
+  it("records a slug redirect when a name change regenerates the slug (TT-141)", async () => {
+    const { recordSlugRedirect } = await import("../../slug-redirects.server");
+    (recordSlugRedirect as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    const stub = makeStub({
+      edit: {
+        id: "e1",
+        equipment_id: "eq1",
+        edit_data: { name: "Butterfly Viscaria" },
+        moderator_id: "mod-uuid",
+      },
+      equipment: {
+        id: "eq1",
+        slug: "old-viscaria",
+        name: "Old Viscaria",
+        category: "blade",
+        subcategory: null,
+        specifications: {},
+      },
+    });
+
+    const res = await applyEquipmentEdit(stub.client, undefined, "e1");
+
+    expect(res).toEqual({ success: true });
+    expect(recordSlugRedirect).toHaveBeenCalledTimes(1);
+    expect(recordSlugRedirect).toHaveBeenCalledWith(
+      stub.client,
+      "equipment",
+      "old-viscaria",
+      "butterfly-viscaria",
+      "mod-uuid"
+    );
+  });
+
+  it("does not record a redirect when the slug is unchanged (description-only edit)", async () => {
+    const { recordSlugRedirect } = await import("../../slug-redirects.server");
+    (recordSlugRedirect as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    const stub = makeStub({
+      edit: {
+        id: "e1",
+        equipment_id: "eq1",
+        edit_data: { description: "tweaked copy" },
+      },
+      equipment: {
+        id: "eq1",
+        slug: "stays-the-same",
+        name: "Stays The Same",
+        category: "blade",
+        subcategory: null,
+        description: "old copy",
+        specifications: {},
+      },
+    });
+
+    const res = await applyEquipmentEdit(stub.client, undefined, "e1");
+
+    expect(res).toEqual({ success: true });
+    expect(recordSlugRedirect).not.toHaveBeenCalled();
+  });
+
+  it("returns success=true and runs R2 cleanup even if recordSlugRedirect fails", async () => {
+    // Failure to record the redirect is non-fatal — the rename
+    // UPDATE has already landed and the new state is correct. The
+    // applier logs the failure internally; both R2 cleanup blocks
+    // must still run, otherwise a rename + image-replace edit leaks
+    // two R2 objects whenever the redirect insert fails.
+    const { recordSlugRedirect } = await import("../../slug-redirects.server");
+    (
+      recordSlugRedirect as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ ok: false, error: "rls denied" });
+
+    const stub = makeStub({
+      edit: {
+        id: "e1",
+        equipment_id: "eq1",
+        edit_data: {
+          name: "New Name",
+          image_action: "replace",
+          image_pending_key: "equipment/staging/abc.png",
+        },
+        moderator_id: "mod-uuid",
+      },
+      equipment: {
+        id: "eq1",
+        slug: "old-name",
+        name: "Old Name",
+        category: "blade",
+        subcategory: null,
+        specifications: {},
+        image_key: "equipment/old/old.png",
+      },
+    });
+    const r2 = makeBucket({ contentType: "image/png" });
+
+    const res = await applyEquipmentEdit(stub.client, r2.bucket, "e1");
+
+    // Apply still succeeds — slug-redirect failure is logged, not
+    // surfaced as a partial-success. Callers don't need to know.
+    expect(res).toEqual({ success: true });
+
+    // Both R2 cleanup paths must have fired despite the redirect-
+    // record failure: replaced canonical key + staged pending key.
+    expect(r2.deletes).toEqual(
+      expect.arrayContaining([
+        "equipment/old/old.png",
+        "equipment/staging/abc.png",
+      ])
+    );
   });
 });

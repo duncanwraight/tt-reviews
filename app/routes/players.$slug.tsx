@@ -8,6 +8,7 @@ import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
 import { StructuredData } from "~/components/seo/StructuredData";
 import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import { findSlugRedirect } from "~/lib/slug-redirects.server";
 
 export function meta({ params, data, matches, location }: Route.MetaArgs) {
   const player = data?.player;
@@ -78,7 +79,22 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // Get player data
   const player = await db.getPlayer(params.slug);
   if (!player) {
-    throw redirect("/players");
+    // TT-141: slug miss might be a previously-renamed player.
+    // Player slug renames aren't currently exposed through any flow,
+    // but the lookup is wired up so the redirect path works the
+    // moment a row lands in slug_redirects (e.g. via direct DB).
+    const newSlug = await findSlugRedirect(
+      sbServerClient.client,
+      "player",
+      params.slug
+    );
+    if (newSlug) {
+      throw redirect(`/players/${newSlug}`, { status: 301 });
+    }
+    // Status 404 (not 302) — Google treats a bare 302 to /players as
+    // a soft-404 and keeps the missing URL in the index. Mirrors the
+    // equipment route's behaviour (TT-141 review feedback).
+    throw redirect("/players", { status: 404 });
   }
 
   // Get equipment setups with related equipment data

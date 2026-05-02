@@ -29,6 +29,7 @@ import {
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
 import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import { findSlugRedirect } from "~/lib/slug-redirects.server";
 
 export function meta({ data, matches, location }: Route.MetaArgs) {
   if (!data?.equipment) {
@@ -150,6 +151,18 @@ export const loader = withLoaderCorrelation(
     const equipment = await db.getEquipment(slug);
 
     if (!equipment) {
+      // TT-141: a slug miss might be an old slug that's been renamed.
+      // findSlugRedirect uses the anon-key client (RLS allows it via
+      // a public SELECT policy) and returns null when no rename row
+      // exists, falling through to the listing redirect.
+      const newSlug = await findSlugRedirect(
+        sbServerClient.client,
+        "equipment",
+        slug ?? ""
+      );
+      if (newSlug) {
+        throw redirect(`/equipment/${newSlug}`, { status: 301 });
+      }
       throw redirect("/equipment", { status: 404 });
     }
 

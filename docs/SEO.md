@@ -341,16 +341,23 @@ A static `/og/default.png` (1200×630) goes in `public/og/` as the universal fal
 
 ---
 
-## Slug-rename redirect history (TT-141)
+## Slug-rename redirect history
 
-When an equipment or player slug changes — rename, typo fix, manufacturer rebrand:
+When an equipment or player slug changes — rename, typo fix, manufacturer rebrand — the old URL keeps 301-forwarding to the new one. Without this, link equity / Google indexing signal accumulated against the old URL is lost.
 
-1. The old slug goes into a `slug_redirects` table keyed by `(content_type, old_slug)` → `current_slug`.
-2. `/equipment/:slug` and `/players/:slug` loaders check `slug_redirects` on miss; if a redirect exists, return a `301` to the canonical URL with the current slug. Only return `404` when neither table resolves.
-3. The sitemap only emits the **current** slug. Old slugs disappear from the sitemap immediately.
-4. The `301` is permanent and cacheable; don't use `302`.
+How it's wired:
 
-Don't repurpose old slugs for different content — the redirect entry is forever.
+1. `slug_redirects` table holds `(entity_type, old_slug, new_slug, created_by, created_at)` rows. `(entity_type, old_slug)` is unique; `old_slug <> new_slug` is enforced. RLS: read public, write admin/service-role.
+2. `/equipment/:slug` and `/players/:slug` loaders call `findSlugRedirect(client, type, slug)` from `app/lib/slug-redirects.server.ts` whenever the entity row doesn't resolve. A hit → `throw redirect("/equipment/<new>", { status: 301 })`. A miss falls through to the existing 404 redirect.
+3. The equipment-edit applier (`app/lib/admin/equipment-edit-applier.server.ts`) calls `recordSlugRedirect(client, "equipment", oldSlug, newSlug, moderatorId)` after a successful rename. The applier is invoked from both the admin route and the Discord 2nd-approval moderation path, so both flows record the redirect automatically. Player slug renames aren't currently exposed through any flow but the lookup is wired up — drop a row into `slug_redirects` directly and the 301 kicks in.
+4. `recordSlugRedirect` handles three subtle cases atomically (well, sequentially — see code comment for the failure semantics):
+   - Drops any existing redirect whose `old_slug` equals the new slug (the "renamed back to A" case where the entity now resolves at A directly and a stale row would shadow it).
+   - Updates every redirect that pointed AT the old slug to point at the new slug, collapsing chains so every old URL forwards in one hop.
+   - Upserts the `(oldSlug → newSlug)` row.
+5. Sitemap and JSON-LD only emit the **current canonical** slug. Old slugs never appear in the sitemap.
+6. Always 301, never 302. 301 is permanent; Google passes link equity through it. 302 doesn't.
+
+Don't repurpose old slugs for different content — once a slug has been used, the redirect entry is effectively forever. If a manufacturer reuses a model name, give it a `-2` suffix or a year; don't reuse the original slug.
 
 ---
 
