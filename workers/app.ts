@@ -70,9 +70,29 @@ export default {
     installAlerter(env as unknown as Record<string, string>, ctx);
 
     try {
-      return await requestHandler(request, {
+      const response = await requestHandler(request, {
         cloudflare: { env, ctx },
       });
+
+      // Defense in depth for TT-136: every /admin response carries an
+      // X-Robots-Tag noindex header, even on 3xx redirects (which never
+      // render the route's <meta robots>). Many crawlers honor the
+      // header earlier in the pipeline than the in-body meta tag.
+      // Auth/profile/submissions pages rely on their meta() exports;
+      // they're not redirected by Cloudflare-edge logic and bots do
+      // fetch their HTML.
+      const path = new URL(request.url).pathname;
+      if (path === "/admin" || path.startsWith("/admin/")) {
+        const headers = new Headers(response.headers);
+        headers.set("X-Robots-Tag", "noindex, nofollow");
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+
+      return response;
     } catch (err) {
       // Top-level safety net: anything that escapes the router is logged
       // with a stable `source` tag so `wrangler tail --search source:worker-entry`

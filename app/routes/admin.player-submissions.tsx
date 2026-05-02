@@ -30,6 +30,7 @@ export function meta({}: Route.MetaArgs) {
   return [
     { title: "Player Submissions | Admin | TT Reviews" },
     { name: "description", content: "Review and moderate player submissions." },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

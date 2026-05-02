@@ -41,6 +41,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Review and moderate video submissions.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

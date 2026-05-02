@@ -14,6 +14,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Reset your password for TT Reviews account",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

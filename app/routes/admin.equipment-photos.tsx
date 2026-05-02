@@ -29,6 +29,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Pick the right product image for each equipment row.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

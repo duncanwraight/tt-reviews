@@ -14,6 +14,14 @@ import { UserReviews } from "~/components/profile/UserReviews";
 import { UserSubmissions } from "~/components/profile/UserSubmissions";
 import { QuickActions } from "~/components/profile/QuickActions";
 
+export function meta() {
+  return [
+    { title: "Your Profile | TT Reviews" },
+    { name: "description", content: "Your TT Reviews profile." },
+    { name: "robots", content: "noindex, nofollow" },
+  ];
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const userResponse = await sbServerClient.client.auth.getUser();

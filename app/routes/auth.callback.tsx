@@ -14,6 +14,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Handling authentication callback for TT Reviews",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

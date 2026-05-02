@@ -21,6 +21,7 @@ export const meta: MetaFunction = () => {
       name: "description",
       content: "Login to your TT Reviews account",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 };
 

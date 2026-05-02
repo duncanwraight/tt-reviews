@@ -37,6 +37,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Review and moderate equipment reviews.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

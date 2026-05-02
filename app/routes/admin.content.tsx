@@ -13,6 +13,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Manage site content and text snippets",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

@@ -46,6 +46,7 @@ export function meta({ params }: Route.MetaArgs) {
     return [
       { title: "Submission | TT Reviews" },
       { name: "description", content: "Submit content to TT Reviews" },
+      { name: "robots", content: "noindex, nofollow" },
     ];
   }
 }

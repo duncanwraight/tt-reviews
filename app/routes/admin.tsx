@@ -7,6 +7,13 @@ import { data, redirect } from "react-router";
 import { PageLayout } from "~/components/layout/PageLayout";
 import { AdminNav } from "~/components/admin/AdminNav";
 
+// Layout-level backstop. Child admin routes also set this on their own
+// meta() — belt and braces in case React Router's meta merge ever
+// regresses.
+export function meta() {
+  return [{ name: "robots", content: "noindex, nofollow" }];
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const sbServerClient = getServerClient(request, context);
   const user = await getUserWithRole(sbServerClient, context);

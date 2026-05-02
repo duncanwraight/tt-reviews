@@ -22,6 +22,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Import equipment from revspin.net into TT Reviews database.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

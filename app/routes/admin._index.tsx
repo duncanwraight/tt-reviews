@@ -56,6 +56,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Admin dashboard for managing TT Reviews submissions and edits.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

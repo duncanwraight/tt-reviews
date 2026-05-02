@@ -22,6 +22,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Manage categories and dropdown options for TT Reviews.",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 

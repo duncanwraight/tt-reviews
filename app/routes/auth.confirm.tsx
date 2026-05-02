@@ -14,6 +14,7 @@ export function meta({}: Route.MetaArgs) {
       name: "description",
       content: "Email confirmation for TT Reviews account",
     },
+    { name: "robots", content: "noindex, nofollow" },
   ];
 }
 
