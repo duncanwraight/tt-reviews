@@ -27,7 +27,6 @@ Disallow: /e2e-
 # Allow all other content
 Allow: /players/
 Allow: /equipment/
-Allow: /search
 
 # Crawl delay (optional)
 Crawl-delay: 1`;

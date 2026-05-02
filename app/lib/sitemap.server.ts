@@ -32,10 +32,12 @@ export class SitemapService {
 
   // Generate static pages sitemap entries.
   //
-  // /login was removed in TT-139: it's a noindex auth surface and a
-  // sitemap entry would directly contradict the meta tag from TT-136.
-  // /credits added so the credits page is discoverable. /search stays
-  // for now; TT-143 removes it when the route flips to noindex.
+  // /login was removed in TT-139 (noindex auth surface; sitemap entry
+  // would contradict the meta tag from TT-136). /search was removed
+  // in TT-143: thin SERPs (empty / single-token / zero results) are
+  // noindex by default, and the bare /search path always falls into
+  // the empty bucket — it should not appear in the sitemap. /credits
+  // added so the credits page is discoverable.
   generateStaticPages(): SitemapUrl[] {
     const now = new Date().toISOString();
 
@@ -57,12 +59,6 @@ export class SitemapService {
         lastmod: now,
         changefreq: "daily",
         priority: "0.9",
-      },
-      {
-        url: `${this.baseUrl}/search`,
-        lastmod: now,
-        changefreq: "weekly",
-        priority: "0.7",
       },
       {
         url: `${this.baseUrl}/credits`,

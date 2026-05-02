@@ -11,14 +11,38 @@ import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
 
 const SEARCH_LISTING_PARAMS = ["q"] as const;
 
+// TT-143. Thin search SERPs duplicate the underlying listing data
+// without adding indexable value. We let multi-term productive
+// queries stay in the index (those are real long-tail value), and
+// noindex everything else: empty bar, single-token (often a brand
+// or category that has its own canonical landing), and zero-result
+// pages (Google's textbook soft-404 trigger).
+function isThinSerp(query: string, resultCount: number): boolean {
+  const trimmed = query.trim();
+  if (trimmed.length === 0) return true;
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return true;
+  if (resultCount === 0) return true;
+  return false;
+}
+
 export function meta({ data, matches, location }: Route.MetaArgs) {
-  const query = data?.query;
+  const query = data?.query ?? "";
+  const resultCount = data?.resultCount ?? 0;
+  const thin = isThinSerp(query, resultCount);
   const canonical = buildCanonicalUrl(
     getSiteUrl(matches),
     location.pathname,
     location.search,
     SEARCH_LISTING_PARAMS
   );
+
+  // robots only fires on the noindex side — productive SERPs default
+  // to "index, follow" without an explicit tag (browsers treat the
+  // absence as indexable).
+  const robotsMeta = thin
+    ? [{ name: "robots", content: "noindex, follow" }]
+    : [];
 
   if (query) {
     return [
@@ -33,6 +57,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
       },
       { tagName: "link", rel: "canonical", href: canonical },
       { property: "og:url", content: canonical },
+      ...robotsMeta,
     ];
   }
 
@@ -50,6 +75,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     },
     { tagName: "link", rel: "canonical", href: canonical },
     { property: "og:url", content: canonical },
+    ...robotsMeta,
   ];
 }
 
@@ -65,9 +91,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     results = searchResults;
   }
 
+  // resultCount is read by meta() to decide noindex vs indexable on
+  // the SERP — has to come from the loader because meta() doesn't
+  // get the request URL or DB access (TT-143).
+  const resultCount = results
+    ? results.equipment.length + results.players.length
+    : 0;
+
   return data({
     query: query || "",
     results,
+    resultCount,
   });
 }
 

@@ -98,16 +98,16 @@ Rules:
 
 `noindex` is a `<meta name="robots">` tag, **not** a robots.txt rule. robots.txt stops a crawler fetching the page; it does not stop Google indexing the URL when it's discovered via inbound links. Anything in this table needs the meta tag whether or not robots.txt also blocks it. (TT-136 closes the gaps.)
 
-| Route                                                                                                        | `robots` meta                | Why                                                         |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------- |
-| `/`, `/equipment`, `/equipment/:slug`, `/equipment/compare/:slugs`, `/players`, `/players/:slug`, `/credits` | `index, follow`              | Primary content — the reason the site exists.               |
-| `/equipment/compare` (landing without slugs)                                                                 | `noindex, follow`            | Picker UI, no content.                                      |
-| `/search`                                                                                                    | `noindex, follow` (TT-143)   | Thin SERPs duplicate the listing.                           |
-| `/admin/*`                                                                                                   | `noindex, nofollow` (TT-136) | Admin tooling — never indexable.                            |
-| `/login`, `/logout`, `/reset-password`, `/auth/*`, `/profile`, `/submissions/*`                              | `noindex, nofollow` (TT-136) | Authed-only or bounce pages.                                |
-| `/e2e-health`, `/e2e-trigger-error`                                                                          | `noindex, nofollow`          | Test fixtures — would be `404` in prod ideally.             |
-| `/api/*`                                                                                                     | n/a                          | Returns JSON — not HTML. Remains `Disallow:` in robots.txt. |
-| `/$.tsx` (404 catch-all)                                                                                     | `noindex, follow`            | Don't fingerprint 404s.                                     |
+| Route                                                                                                        | `robots` meta                | Why                                                          |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------ |
+| `/`, `/equipment`, `/equipment/:slug`, `/equipment/compare/:slugs`, `/players`, `/players/:slug`, `/credits` | `index, follow`              | Primary content — the reason the site exists.                |
+| `/equipment/compare` (landing without slugs)                                                                 | `noindex, follow`            | Picker UI, no content.                                       |
+| `/search`                                                                                                    | conditional — see below      | Productive multi-term SERPs are indexable; thin ones aren't. |
+| `/admin/*`                                                                                                   | `noindex, nofollow` (TT-136) | Admin tooling — never indexable.                             |
+| `/login`, `/logout`, `/reset-password`, `/auth/*`, `/profile`, `/submissions/*`                              | `noindex, nofollow` (TT-136) | Authed-only or bounce pages.                                 |
+| `/e2e-health`, `/e2e-trigger-error`                                                                          | `noindex, nofollow`          | Test fixtures — would be `404` in prod ideally.              |
+| `/api/*`                                                                                                     | n/a                          | Returns JSON — not HTML. Remains `Disallow:` in robots.txt.  |
+| `/$.tsx` (404 catch-all)                                                                                     | `noindex, follow`            | Don't fingerprint 404s.                                      |
 
 The pattern in code:
 
@@ -119,6 +119,17 @@ return [
 ```
 
 When in doubt: if a logged-out user shouldn't see this page, it's `noindex`.
+
+### `/search` — thin-SERP rule
+
+`/search` is the only route with conditional indexability. The decision lives in `isThinSerp(query, resultCount)` inside `app/routes/search.tsx`:
+
+- **Empty query** (`/search` or `/search?q=`) — `noindex, follow`. No content to index; the bare path is the canonical landing for a logged-in feature, not for SEO.
+- **Single-token query** (`/search?q=tenergy`) — `noindex, follow`. Single tokens are typically a brand or category that already has its own canonical landing; an indexed SERP for them creates duplication.
+- **Zero-result query** — `noindex, follow`. Soft-404 territory.
+- **Multi-term, non-zero results** (`/search?q=butterfly+tenergy+05`) — indexable. These are the long-tail queries that have actual SEO value.
+
+The bare `/search` URL is **not** in the sitemap (only individual long-tail SERPs would be eligible, and we don't pre-enumerate them).
 
 ---
 
