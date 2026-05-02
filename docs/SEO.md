@@ -1,232 +1,365 @@
-# SEO Strategy for TT Reviews
+# SEO — single source of truth
 
-## Overview
+This doc is the contract every user-facing route on this site has to satisfy. If a rule lives here, the route follows it; if a rule belongs here and isn't yet, fix it here first and then in code. CLAUDE.md gates user-facing route work on reading this doc, mirroring the `docs/CODING-STANDARDS.md` gate.
 
-This document outlines the SEO strategy for driving organic traffic to our table tennis equipment review platform. Our primary target searches include player names (e.g., "joo saehyuk"), specific equipment models (e.g., "curl p1-r"), and equipment categories.
+This is the technical SEO standard. Audience research, content strategy, and keyword targeting are out of scope — they're product calls, not engineering rules.
 
-## Primary Search Intent Categories
+The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps have one card each (TT-135 → TT-143). Where a section below references behaviour we don't yet ship, the relevant TT-card is named inline so contributors know which child item is closing the gap.
 
-### 1. Player Equipment Searches
+---
 
-**Target queries**: "joo saehyuk equipment", "ma long blade", "timo boll rubber"
+## URL structure
 
-**Strategy**:
+These are the actual route patterns shipped today (`app/routes/`). The old SEO doc claimed `/equipment/[category]/[model-slug]`; that has never been our URL shape and never will be.
 
-- Create comprehensive player profile pages with clear H1 tags: "Player Name - Equipment Setup & Profile"
-- Include historical equipment changes with specific years and sources
-- Add structured data markup for Person schema
-- Target long-tail keywords: "what equipment does [player] use"
-- Include player rankings, achievements, and career highlights for context
+| Surface                                             | Pattern                                                                   | Notes                                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Home                                                | `/`                                                                       | Single page; not parameterised.                                                                          |
+| Equipment listing                                   | `/equipment`                                                              | Filters live in querystring: `?category=`, `?subcategory=`, `?manufacturer=`. No nested category routes. |
+| Equipment detail                                    | `/equipment/:slug`                                                        | Slug is globally unique within the `equipment` table. Category is **not** in the path.                   |
+| Equipment compare landing                           | `/equipment/compare`                                                      | Already `noindex` — keep it that way; it's a picker, not content.                                        |
+| Equipment compare                                   | `/equipment/compare/:slugs`                                               | `:slugs` shape is `slug1-vs-slug2`. Both slugs must resolve to equipment rows.                           |
+| Players listing                                     | `/players`                                                                | Active players only.                                                                                     |
+| Player detail                                       | `/players/:slug`                                                          | Slug is globally unique within the `players` table.                                                      |
+| Search                                              | `/search?q=...`                                                           | Thin SERPs are problematic — see indexability rules below.                                               |
+| Submissions                                         | `/submissions/:type/submit`                                               | Authed-only entry; never indexable.                                                                      |
+| Auth                                                | `/login`, `/logout`, `/reset-password`, `/auth/callback`, `/auth/confirm` | Never indexable.                                                                                         |
+| Admin                                               | `/admin/*`                                                                | Admin-only. Never indexable.                                                                             |
+| Profile                                             | `/profile`                                                                | Authed-only. Never indexable.                                                                            |
+| Internal                                            | `/e2e-health`, `/e2e-trigger-error`, `/api/*`                             | Never indexable; kept out of sitemap.                                                                    |
+| Static                                              | `/credits`                                                                | Indexable.                                                                                               |
+| `/sitemap.xml`, `/sitemap-index.xml`, `/robots.txt` | Generated routes — not regular content.                                   |
 
-### 2. Specific Equipment Model Searches
+### Slug rules
 
-**Target queries**: "curl p1-r review", "tenergy 64 review", "butterfly diode blade"
+- Slugs are stable identifiers. Treat a rename as a redirect-source: every old slug we've ever published must keep redirecting to the current canonical URL **(TT-141)**. New slugs get a row in the slug-history table; old paths return `301`.
+- Slug shape: lowercase, ASCII, dash-separated, no diacritics, no trailing dashes. The submission flow already enforces this; do not relax it.
+- Two equipment items cannot share a slug. The DB enforces uniqueness; do not bypass it for "synonym" SKUs — file them as separate equipment rows or as variants on the same row.
 
-**Strategy**:
+### Filters, sort, pagination
 
-- Create dedicated pages for each equipment model with URL structure: `/equipment/[category]/[model-name]`
-- Use equipment name as H1: "Equipment Name - Reviews, Specs & Player Usage"
-- Include model specifications, professional player usage, and aggregated review scores
-- Target comparison keywords: "curl p1-r vs curl p3av", "best long pips rubber"
-- Add structured data for Product and Review schemas
+- Filter state lives in the **querystring** (`?category=…`), never in the path.
+- Listing pages are self-canonical when filters narrow the list to a meaningful subset (e.g. `category=rubber`); thin filter combinations (`?manufacturer=...&subcategory=...&sort=...`) canonical back to the base listing. Document the chosen rule per filter combination in the route comment so it stays auditable.
+- Pagination uses `?page=N`. Page 1 omits the param. `rel="prev"`/`rel="next"` are no longer used by Google — don't add them; rely on the canonical strategy above.
 
-### 3. Equipment Category Searches
+---
 
-**Target queries**: "long pips rubber", "carbon blade", "anti spin rubber"
+## Per-route `meta()` checklist
 
-**Strategy**:
+React Router v7 `meta()` exports are the only source of route-level meta. Do **not** introduce `react-helmet` or any other head-management library.
 
-- Create category landing pages with comprehensive equipment lists
-- Target informational queries: "what is long pips rubber", "best anti spin rubber 2025"
-- Include buyer's guides and comparison tables
-- Link to specific equipment and player pages for internal linking strength
+### Required on every indexable route
 
-## Technical SEO Implementation
+```ts
+export function meta({ data, location, matches }: Route.MetaArgs) {
+  // siteUrl comes from root loader data (TT-137).
+  const siteUrl = matches.find(m => m.id === "root")?.data.siteUrl;
+  const canonical = `${siteUrl}${location.pathname}`;
 
-### URL Structure
+  return [
+    { title: /* ≤ 60 chars, unique per page */ },
+    { name: "description", content: /* ≤ 155 chars, unique per page */ },
+    { tagName: "link", rel: "canonical", href: canonical },
+
+    { property: "og:title", content: /* may differ from <title> for social */ },
+    { property: "og:description", content: /* same as description, or shorter */ },
+    { property: "og:type", content: /* "website" | "article" | "product" | "profile" */ },
+    { property: "og:url", content: canonical },
+    { property: "og:site_name", content: "TT Reviews" },
+    { property: "og:image", content: `${siteUrl}/og/<route-key>.png` }, // TT-138
+
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: /* same as og:title */ },
+    { name: "twitter:description", content: /* same as og:description */ },
+    { name: "twitter:image", content: `${siteUrl}/og/<route-key>.png` }, // TT-138
+  ];
+}
+```
+
+Rules:
+
+- **`title`** ≤ 60 chars. Format: `<page-specific>… | TT Reviews`. Brand on the right; never repeat the brand mid-title.
+- **`description`** ≤ 155 chars. No keyword stuffing. One sentence describing what's on the page.
+- **`canonical`** is **absolute** and **env-driven** (`SITE_URL`). Hardcoding hosts is a regression — `validateEnv` already requires `SITE_URL` (`app/lib/env.server.ts`). The hardcoded fallback at `app/root.tsx:43` is what TT-137 closes.
+- **`og:url`** matches `canonical`.
+- **`og:image`** must be 1200×630 absolute URL. Every route below "minimal" must declare one; a static fallback at `/og/default.png` covers routes without bespoke art (TT-138).
+- **`keywords`** is dead — Google ignores it. Existing `meta()` exports keep populating it; they're harmless but new routes don't need it.
+- Meta values must be derived from loader data, never from `document.location` or `window` — `meta()` runs on the server.
+
+### Indexability — the `noindex` matrix
+
+`noindex` is a `<meta name="robots">` tag, **not** a robots.txt rule. robots.txt stops a crawler fetching the page; it does not stop Google indexing the URL when it's discovered via inbound links. Anything in this table needs the meta tag whether or not robots.txt also blocks it. (TT-136 closes the gaps.)
+
+| Route                                                                                                        | `robots` meta                | Why                                                         |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------- |
+| `/`, `/equipment`, `/equipment/:slug`, `/equipment/compare/:slugs`, `/players`, `/players/:slug`, `/credits` | `index, follow`              | Primary content — the reason the site exists.               |
+| `/equipment/compare` (landing without slugs)                                                                 | `noindex, follow`            | Picker UI, no content.                                      |
+| `/search`                                                                                                    | `noindex, follow` (TT-143)   | Thin SERPs duplicate the listing.                           |
+| `/admin/*`                                                                                                   | `noindex, nofollow` (TT-136) | Admin tooling — never indexable.                            |
+| `/login`, `/logout`, `/reset-password`, `/auth/*`, `/profile`, `/submissions/*`                              | `noindex, nofollow` (TT-136) | Authed-only or bounce pages.                                |
+| `/e2e-health`, `/e2e-trigger-error`                                                                          | `noindex, nofollow`          | Test fixtures — would be `404` in prod ideally.             |
+| `/api/*`                                                                                                     | n/a                          | Returns JSON — not HTML. Remains `Disallow:` in robots.txt. |
+| `/$.tsx` (404 catch-all)                                                                                     | `noindex, follow`            | Don't fingerprint 404s.                                     |
+
+The pattern in code:
+
+```ts
+return [
+  // ...title, description, etc...
+  { name: "robots", content: "noindex, nofollow" },
+];
+```
+
+When in doubt: if a logged-out user shouldn't see this page, it's `noindex`.
+
+---
+
+## Structured data (JSON-LD)
+
+JSON-LD is the only structured-data format we ship. RDFa and microdata are explicitly out of scope.
+
+### Where it lives
+
+- **Schema generation:** `app/lib/schema.ts` (`SchemaService` class + `schemaService` singleton). Extend this file — never inline ad-hoc JSON-LD in a route.
+- **Rendering:** `app/components/seo/StructuredData.tsx`. The component takes a single schema or an array and renders one `<script type="application/ld+json">`.
+- **Global schemas:** `Organization` and `WebSite` are emitted from `app/root.tsx`'s `Layout`. They appear on every page. Don't re-emit them per route. The hardcoded `siteUrl` in that block is what TT-137 will replace with loader data threaded through `useRouteLoaderData("root")`.
+
+### JSON-LD escape rule (mandatory)
+
+User-supplied content (review bodies, player bios, equipment descriptions) can contain `</script>` and break out of the JSON-LD block, leading to XSS. `SchemaService.toJsonLd` and `generateMultipleSchemas` both escape `<` → `<`. **Never** render JSON-LD via React Router's `script:ld+json` meta descriptor — at the time of writing it does not perform that escape. The two acceptable paths:
+
+1. `<StructuredData schema={...} />` (which uses `schemaService` under the hood). Preferred — keeps the escape automatic.
+2. Direct `JSON.stringify(...).replace(/</g, "\\u003c")` inside a `dangerouslySetInnerHTML` script tag, only when the schema must be assembled at the layout level (see `root.tsx`).
+
+Anything else is a regression.
+
+### Schema-per-page-type matrix
+
+| Page type                                     | Schemas                                                                                  | Notes                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| All pages                                     | `Organization`, `WebSite`                                                                | Emitted from `root.tsx` Layout. Do not duplicate per-route.               |
+| `/equipment/:slug`                            | `Product` (with nested `AggregateRating` + up to five `Review` items) + `BreadcrumbList` | Reviews are first-party-eligible per the third-party-review rule below.   |
+| `/equipment/compare/:slugs`                   | `WebPage` + `ItemList` of two `Product`s                                                 | Use `generateComparisonSchema`.                                           |
+| `/equipment` (listing)                        | `BreadcrumbList` (TT-143)                                                                | No `ItemList` — the listing is too dynamic to keep stable.                |
+| `/players/:slug`                              | `Person` + `BreadcrumbList`                                                              | `Person` only — biographical. **Do not** attach `Review` to player pages. |
+| `/players` (listing)                          | `BreadcrumbList` (TT-143)                                                                |                                                                           |
+| `/`                                           | None beyond global.                                                                      | The home page isn't a single content entity.                              |
+| `/search`, `/admin/*`, auth, `/submissions/*` | None.                                                                                    | Non-indexable.                                                            |
+
+### Third-party-review eligibility
+
+We host community reviews of independent manufacturers' equipment. Per Google's [first-party vs third-party review rule](https://developers.google.com/search/blog/2025/12/review-snippets-update), aggregator sites are eligible for review snippets when reviews are about independent products. We meet that bar — keep `Review` + `AggregateRating` on `/equipment/:slug`.
+
+### Post-March-2026 Google rule
+
+`Review` schema only fires on pages where reviews are the **primary visible content**. That means: `/equipment/:slug` (reviews are listed below the fold) is OK; an equipment listing page that only shows star averages is not — don't bolt a per-card `Review` onto listings even if the data exists.
+
+### Adding a new schema
+
+1. Add the TypeScript interface to `schema.ts`.
+2. Add a `generate…Schema(input)` method on `SchemaService`.
+3. Render via `<StructuredData schema={schemaService.generateXSchema(...)} />` in the route component (in the head section, typically inside the page wrapper).
+4. Validate with the [Schema.org validator](https://validator.schema.org/) and Google's [Rich Results Test](https://search.google.com/test/rich-results) before merging.
+
+---
+
+## Sitemap
+
+Generated dynamically at `/sitemap.xml` (`app/routes/sitemap[.]xml.tsx`) using `SitemapService` (`app/lib/sitemap.server.ts`). The index lives at `/sitemap-index.xml` (`app/routes/sitemap-index[.]xml.tsx`). Both URLs are listed in `robots.txt`.
+
+### What belongs in the sitemap
+
+- `/`, `/equipment`, `/players`, `/search` — static pages. Note: `/search` is currently emitted by `generateStaticPages()`; remove it once TT-143 lands so sitemap and `noindex` agree.
+- All active players — `/players/:slug`.
+- All equipment — `/equipment/:slug`.
+- Category and subcategory listings — `/equipment?category=…[&subcategory=…]`.
+- Manufacturer listings — `/equipment?manufacturer=…` for a curated allow-list (Butterfly, DHS, TIBHAR, Yasaka, STIGA, Xiom, Donic).
+- High-value comparison pages — `/equipment/compare/slug1-vs-slug2`, capped at 50 to avoid bloat.
+
+### What must never appear in the sitemap
+
+- Any URL that returns `noindex`.
+- `/login`, `/logout`, `/reset-password`, `/auth/*`, `/admin/*`, `/profile`, `/submissions/*`, `/api/*`, `/e2e-*`. The current `generateStaticPages()` includes `/login` — that is a bug to remove during TT-136.
+- Draft / unpublished content. There is no draft state for equipment or players today; if one is added later, gate sitemap inclusion on the published flag.
+- Slug-redirect _source_ URLs (TT-141) — only the canonical (current) slug appears.
+
+### `lastmod`
+
+- Per-row sitemap entries set `lastmod` from `updated_at`. Don't fall back to `now`.
+- Static pages use `now` for `lastmod`. Acceptable — they don't really change.
+
+### Sitemap-index strategy (TT-139)
+
+`/sitemap-index.xml` currently lists a single `/sitemap.xml`. Once total URL count crosses ~10K — the soft alarm point well below the 50K hard cap — split by content type:
+
+- `/sitemap-equipment.xml`
+- `/sitemap-players.xml`
+- `/sitemap-static.xml`
+
+The index is the single URL we register in Search Console; individual sitemaps are referenced from the index. Either ship the split now or remove the `/sitemap-index.xml` reference from `robots.txt` so we don't advertise an empty index — TT-139 picks one path.
+
+---
+
+## robots.txt
+
+Generated at `/robots.txt` (`app/routes/robots[.]txt.tsx`). `SITE_URL`-driven (already env-aware).
+
+### Current rules
 
 ```
-/players/[player-slug]                    # Player profiles
-/equipment/[category]/[model-slug]        # Equipment reviews
-/equipment/[category]/                    # Category pages
-/guides/[topic-slug]                     # Educational content
+User-agent: *
+Allow: /
+
+Sitemap: <SITE_URL>/sitemap.xml
+Sitemap: <SITE_URL>/sitemap-index.xml
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /login
+Disallow: /logout
+
+Crawl-delay: 1
 ```
 
-### Title Tag Patterns
+### Required additions (TT-136)
 
-- Player pages: "Player Name Equipment & Setup | Professional Table Tennis Reviews"
-- Equipment pages: "Equipment Name Review - Specs, Player Usage & Ratings | TT Reviews"
-- Category pages: "Best [Category] 2025 - Professional Reviews & Comparisons"
+Add `Disallow:` lines for everything in the `noindex` matrix that is reachable by URL pattern. Belt-and-braces — `noindex` does the indexing-blocking; robots.txt cuts the crawl budget waste.
 
-### Meta Description Templates
+```
+Disallow: /reset-password
+Disallow: /auth/
+Disallow: /profile
+Disallow: /submissions/
+Disallow: /e2e-
+```
 
-- Player pages: "Complete equipment setup for [Player Name]. See what blade, forehand and backhand rubbers the pro uses, with historical changes and sources."
-- Equipment pages: "[Equipment Name] professional reviews and ratings. Used by [Notable Players]. Complete specs, pricing, and community ratings."
+`Crawl-delay` is harmless and ignored by Google; leave it. Don't add per-bot rules unless we have a specific bot causing problems — the `User-agent: *` block applies to all.
 
-### Structured Data
+---
 
-1. **Organization schema** for the site
-2. **Person schema** for player profiles
-3. **Product schema** for equipment
-4. **Review schema** for user reviews
-5. **BreadcrumbList schema** for navigation
+## Performance — CWV requirements that affect SEO
 
-## Content Strategy
+Core Web Vitals influence rankings. The numbers below are merge-blocking, not aspirational.
 
-### Core Content Pillars
+| Metric                          | Target      | Notes                                                                                            |
+| ------------------------------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| LCP (Largest Contentful Paint)  | ≤ 2.5s p75  | The LCP element on `/equipment/:slug` and `/players/:slug` is a hero image. See LCP rules below. |
+| INP (Interaction to Next Paint) | ≤ 200ms p75 | Avoid heavy JS on first interaction.                                                             |
+| CLS (Cumulative Layout Shift)   | ≤ 0.1 p75   | Always set explicit `width`/`height` (or aspect-ratio CSS) on images so they don't reflow.       |
 
-1. **Equipment Reviews**
-   - In-depth reviews with standardized rating criteria
-   - Professional player usage examples
-   - Comparison matrices between similar products
-   - Historical price tracking and availability
+### LCP image rules (TT-140)
 
-2. **Player Profiles**
-   - Complete equipment evolution over career
-   - Video footage and match analysis
-   - Sponsorship history and equipment contracts
-   - Playing style analysis tied to equipment choices
+For the hero image on detail pages:
 
-3. **Educational Guides**
-   - "How to choose your first rubber"
-   - "Understanding blade construction"
-   - "Equipment progression by skill level"
-   - "Professional player equipment trends"
+- `loading="eager"` (not `lazy` — defeats LCP).
+- `fetchpriority="high"`.
+- Explicit `width` and `height` attributes — fixes CLS, lets the browser reserve space.
+- `srcset` covering the breakpoints we actually use; `sizes` reflects the layout.
+- `alt` text is non-empty and descriptive (equipment name + manufacturer, or player name).
+- Format: WebP with AVIF where supported. We serve via `/api/images/$` — see that route for the resize/format pipeline.
+- No client-side data-fetch should be in the LCP critical path. Loader data → SSR'd `<img>` tag is the only acceptable pattern.
 
-### Keyword Research Priorities
+Lazy-load anything below the fold (`loading="lazy"`).
 
-#### High-Volume Brand + Product Combinations
+### Fonts
 
-- "butterfly tenergy" (5.4K monthly searches)
-- "dhs hurricane" (3.2K monthly searches)
-- "tibhar evolution" (1.8K monthly searches)
+Inter is loaded from Google Fonts in `app/root.tsx` `links`. Keep `preconnect` to `fonts.googleapis.com` and `fonts.gstatic.com` (already in place). The `&display=swap` query param ensures `font-display: swap`, which keeps text visible during font load.
 
-#### Player Name Searches
+### No client-side data fetches on detail pages
 
-- "ma long equipment" (2.1K monthly searches)
-- "fan zhendong blade" (890 monthly searches)
-- "timo boll rubber" (720 monthly searches)
+`/equipment/:slug`, `/players/:slug`, comparison pages — every primary content element must come from the route loader. A `useEffect`-driven fetch on the detail page is a CWV / SEO regression: bots see an empty shell and the LCP element shifts in late.
 
-#### Educational Long-Tail
+---
 
-- "difference between short and long pips" (1.2K monthly searches)
-- "how to choose table tennis rubber" (2.8K monthly searches)
-- "best beginner table tennis blade" (1.5K monthly searches)
+## E-E-A-T surface signals (TT-142)
 
-## Link Building Strategy
+Google rewards visible expertise/authority signals on detail pages. JSON-LD alone isn't enough — the signals must be rendered HTML.
 
-### Internal Linking
+### Required on `/equipment/:slug` per review
 
-- Cross-link player profiles with equipment they've used
-- Link equipment reviews to players who use them
-- Connect category pages to specific equipment and relevant players
-- Create equipment "Used by professionals" sections with player links
+- Reviewer's playing-level / skill-rating (data is in `equipment_reviews` already; surface it next to the rating).
+- Reviewer's display name as a link to their profile (or "Anonymous" without a link).
+- `datePublished`, formatted in the page locale.
 
-### External Link Opportunities
+### Required on `/players/:slug`
 
-1. **Equipment manufacturer partnerships** for official specs and images
-2. **Table tennis forum participation** (PingSkills, TableTennisDaily)
-3. **YouTube collaborations** with table tennis channels
-4. **Tournament coverage** linking to player equipment updates
-5. **Equipment store partnerships** for affiliate relationships
+- "Last updated" timestamp on the equipment-history block (we have `updated_at` in `players`; render it).
+- Source links on every equipment-change row — already a column in `player_equipment_setups`; just make sure it renders as an anchor when present.
 
-## Page Speed & Technical Optimization
+### Required on `/equipment/:slug` page chrome
 
-### Core Web Vitals Targets
+- "Last updated" timestamp on the page (`equipment.updated_at`).
+- Number of reviews + average rating, both rendered as text (already in place; keep it).
 
-- **LCP (Largest Contentful Paint)**: < 2.5 seconds
-- **FID (First Input Delay)**: < 100 milliseconds
-- **CLS (Cumulative Layout Shift)**: < 0.1
+These all need to appear as visible text. Don't make them collapse-default or screen-reader-only.
 
-### Image Optimization
+---
 
-- WebP format for equipment photos with AVIF fallbacks
-- Lazy loading for review images and player photos
-- Responsive images with srcset for different device sizes
-- Alt text with equipment names and player names for accessibility
+## OG image (TT-138)
 
-### Caching Strategy
+A static `/og/default.png` (1200×630) goes in `public/og/` as the universal fallback. Bespoke images are generated per-route on demand.
 
-- Static generation for equipment and player pages
-- CDN distribution for global performance
-- Long cache headers for images and static assets
+### Route → OG image plan
 
-## Local SEO Considerations
+| Route                       | Image                                                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                         | `/og/default.png`                                                                                                                                                       |
+| `/equipment`                | `/og/equipment.png` (static, brandy)                                                                                                                                    |
+| `/equipment/:slug`          | `/og/equipment/<slug>.png` — generated at build or on first request via Cloudflare Workers + the `imageUrl` pipeline. Includes equipment name, manufacturer, hero shot. |
+| `/equipment/compare/:slugs` | `/og/compare/<slug1>-vs-<slug2>.png` — both equipment names side-by-side.                                                                                               |
+| `/players/:slug`            | `/og/players/<slug>.png` — player name + "Equipment & Setup".                                                                                                           |
+| Everything else             | `/og/default.png`.                                                                                                                                                      |
 
-### Geographic Targeting
+### Constraints
 
-- Country-specific equipment availability and pricing
-- Regional tournament coverage and player spotlights
-- Local club partnerships and equipment recommendations
-- Currency and shipping information by region
+- 1200×630 PNG or JPG. Under 8MB but realistically aim for ~150KB.
+- Image URL **must** be absolute (use `SITE_URL`). Relative URLs do not work for `og:image`.
+- Cache headers: long max-age, immutable; bust via slug when the underlying entity changes.
 
-## Content Calendar & Publishing Strategy
+`twitter:image` shares the same URL.
 
-### Weekly Content Goals
+---
 
-- **2-3 new equipment reviews** (target specific product searches)
-- **1 player profile update** (target player name searches)
-- **1 educational guide** (target informational queries)
+## Slug-rename redirect history (TT-141)
 
-### Seasonal Content
+When an equipment or player slug changes — rename, typo fix, manufacturer rebrand:
 
-- **Pre-tournament equipment spotlights** before major events
-- **Year-end equipment roundups** and "best of" lists
-- **New product launches** with first reviews and comparisons
-- **Olympic years** with comprehensive player equipment coverage
+1. The old slug goes into a `slug_redirects` table keyed by `(content_type, old_slug)` → `current_slug`.
+2. `/equipment/:slug` and `/players/:slug` loaders check `slug_redirects` on miss; if a redirect exists, return a `301` to the canonical URL with the current slug. Only return `404` when neither table resolves.
+3. The sitemap only emits the **current** slug. Old slugs disappear from the sitemap immediately.
+4. The `301` is permanent and cacheable; don't use `302`.
 
-## Measurement & KPIs
+Don't repurpose old slugs for different content — the redirect entry is forever.
 
-### Primary Metrics
+---
 
-- Organic traffic growth (target: 25% month-over-month)
-- Equipment page conversions to affiliate links
-- Player profile page engagement (time on page, bounce rate)
-- Search ranking positions for target keywords
+## Checklist — before merging a user-facing route change
 
-### Search Console Monitoring
+Run through this on every PR that touches `app/routes/` (or that adds/modifies a route's loader/component output that would change what's in the head):
 
-- Track impressions and clicks for player name queries
-- Monitor equipment model search performance
-- Identify new keyword opportunities from search queries
-- Track Core Web Vitals performance across device types
+- [ ] `meta()` exports `title` (≤ 60 chars), `description` (≤ 155 chars), `canonical` (absolute, env-driven).
+- [ ] OG tags present: `og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`, `og:image` (absolute).
+- [ ] Twitter tags present: `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`, `twitter:image`.
+- [ ] `robots` meta is correct per the indexability matrix.
+- [ ] If indexable, route is in `/sitemap.xml`. If not indexable, route is **not** in the sitemap.
+- [ ] If indexable, structured data via `<StructuredData />`, schema generated by `SchemaService`. If route renders user-supplied text inside JSON-LD, the `<` escape is in place.
+- [ ] If the route renders an LCP image: `loading="eager"`, `fetchpriority="high"`, explicit dimensions, `srcset`, descriptive `alt`.
+- [ ] No client-side fetch on the LCP path.
+- [ ] If the route introduces a new slug shape, `slug_redirects` is updated for renames; the loader returns `301` for old slugs before `404`.
+- [ ] If a new env var is required for any of the above, register it in `validateEnv` (`app/lib/env.server.ts`) per `CLAUDE.md` — see "Environment variables".
+- [ ] Validated with the Rich Results Test for at least one representative URL per route pattern.
 
-## Competitive Analysis
+When in doubt, the answer is "match what `/equipment/:slug` does" — that's the most-thoroughly-instrumented route and the closest to the standard.
 
-### Key Competitors
+---
 
-1. **TableTennisDB** - Strong on professional player data
-2. **Revspin** - Equipment reviews and news
-3. **TableTennisDaily** - Educational content and equipment guides
+## Reference files
 
-### Differentiation Strategy
-
-- **Community moderation** for review quality assurance
-- **Historical equipment tracking** for professional players
-- **Detailed reviewer context** (skill level, playing style)
-- **Comprehensive cross-referencing** between players and equipment
-
-## Additional SEO Opportunities
-
-### Video Content
-
-- Equipment unboxing and first impressions
-- Player equipment breakdown videos
-- Comparison videos between similar products
-- "Equipment evolution" videos for top players
-
-### User-Generated Content
-
-- Community equipment photos and setups
-- Amateur player reviews with verified purchase
-- Equipment recommendation threads by playing style
-- Before/after equipment change stories
-
-### Schema Markup Opportunities
-
-- **SportsEvent** for tournament equipment spotlights
-- **VideoObject** for embedded review videos
-- **FAQ** for common equipment questions
-- **HowTo** for equipment selection guides
-
-This comprehensive SEO strategy positions TT Reviews to capture high-intent searches from table tennis players looking for equipment information and professional player insights.
+- `app/lib/schema.ts` — `SchemaService` and `schemaService` singleton.
+- `app/components/seo/StructuredData.tsx` — JSON-LD render component.
+- `app/lib/sitemap.server.ts` — `SitemapService`, baseUrl threaded via `getSitemapService(context)`.
+- `app/routes/sitemap[.]xml.tsx` — the sitemap loader.
+- `app/routes/sitemap-index[.]xml.tsx` — the sitemap-index loader.
+- `app/routes/robots[.]txt.tsx` — robots.txt generator.
+- `app/lib/env.server.ts` — `getEnvVar`, `validateEnv`, `SITE_URL` requirement.
+- `app/root.tsx` — global schemas (`Organization`, `WebSite`); root loader exposes `siteUrl`.

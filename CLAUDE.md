@@ -4,6 +4,10 @@
 
 **Before any change to `app/` or `workers/`, read `docs/CODING-STANDARDS.md`.** It is the single source of truth for TypeScript, components, routes, loader/action shape, logging, env access, tests, imports, and comments. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
 
+## SEO
+
+**Before adding or modifying any user-facing route in `app/routes/`, read `docs/SEO.md`.** It is the single source of truth for meta tags, structured data, canonical URLs, indexability, sitemap inclusion, and the performance requirements that affect SEO. New user-facing routes ship with the per-route checklist at the bottom of that doc green. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
+
 ## Data model — manufacturer vs review data
 
 Two distinct kinds of equipment data live in this app; don't conflate them when scoping work.
@@ -38,7 +42,6 @@ Always run `npm run cf-typegen` after editing `wrangler.toml` so `worker-configu
 - Table-tennis terminology: `docs/GLOSSARY.md`
 - Tech-stack & architecture decisions: `docs/DECISIONS.md`
 - UI/UX design: `docs/STYLE-GUIDE.md` + `docs/LAYOUT.md`
-- SEO: `docs/SEO.md` — reference when designing any user-facing surface
 - **Auth & RBAC patterns**: `docs/AUTH.md`
 - **RLS policy patterns**: `docs/RLS.md`
 - **Discord integration + moderation workflow**: `docs/DISCORD.md` — note the bot-token-only rule; we never use webhook URLs
