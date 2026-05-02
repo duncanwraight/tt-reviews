@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { OLDEST_PENDING_PARAM, OLDEST_PENDING_VALUE } from "./queue-focus";
 
-const PENDING_STATUSES = ["pending", "awaiting_second_approval"] as const;
-
 export interface OldestPendingTarget {
   /** /admin/<queue> route to navigate to. */
   route: string;
@@ -20,19 +18,9 @@ const QUEUE_ROUTES: Record<string, string> = {
   player_equipment_setup_submissions: "/admin/player-equipment-setups",
 };
 
-async function oldestPendingRow(
-  supabase: SupabaseClient,
-  table: string
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from(table)
-    .select("created_at")
-    .in("status", PENDING_STATUSES as unknown as string[])
-    .order("created_at", { ascending: true })
-    .limit(1);
-  if (error || !data || data.length === 0) return null;
-  const row = data[0] as { created_at?: string | null };
-  return row.created_at ?? null;
+interface OldestPendingRow {
+  table_name?: string;
+  waiting_since?: string;
 }
 
 /**
@@ -40,31 +28,24 @@ async function oldestPendingRow(
  * pending row (status `pending` or `awaiting_second_approval`). Returns null
  * when there are no pending items anywhere — in which case the dashboard
  * hides the "Open next pending" quick-action.
+ *
+ * Backed by the `get_admin_oldest_pending` RPC — one round-trip across all 7
+ * queue tables instead of one PostgREST probe per table.
  */
 export async function findOldestPendingTarget(
   supabase: SupabaseClient
 ): Promise<OldestPendingTarget | null> {
-  const tables = Object.keys(QUEUE_ROUTES);
-  const oldestPerTable = await Promise.all(
-    tables.map(async table => ({
-      table,
-      waitingSince: await oldestPendingRow(supabase, table),
-    }))
-  );
+  const { data, error } = await supabase.rpc("get_admin_oldest_pending");
+  if (error) throw new Error(error.message);
 
-  let winner: { table: string; waitingSince: string } | null = null;
-  for (const entry of oldestPerTable) {
-    if (entry.waitingSince === null) continue;
-    if (winner === null || entry.waitingSince < winner.waitingSince) {
-      winner = { table: entry.table, waitingSince: entry.waitingSince };
-    }
-  }
+  const rows = (data ?? []) as OldestPendingRow[];
+  const winner = rows[0];
+  if (!winner || !winner.table_name || !winner.waiting_since) return null;
 
-  if (!winner) return null;
-  const route = QUEUE_ROUTES[winner.table];
+  const route = QUEUE_ROUTES[winner.table_name];
   if (!route) return null;
   return {
     route: `${route}?${OLDEST_PENDING_PARAM}=${OLDEST_PENDING_VALUE}`,
-    waitingSince: winner.waitingSince,
+    waitingSince: winner.waiting_since,
   };
 }

@@ -17,6 +17,19 @@ Two distinct kinds of equipment data live in this app; don't conflate them when 
 
 Public equipment submissions capture manufacturer data only — if a user wants to share their playing experience, they go through the review flow separately. Editing existing manufacturer data goes through the public `equipment_edit` submission flow (TT-74): any signed-in user can suggest edits to name/category/subcategory/description/specs/image via the "Suggest an edit" link on `/equipment/:slug`, and the change lands on the equipment row when an admin approves via `/admin/equipment-edits` (or two Discord moderators click Approve on the bot's mod card). The trim toggle stays admin-only inline (`AdminTrimToggle`) — that's an internal correction, not user-facing data.
 
+## Cloudflare Workers — 50-subrequest cap on Free plan
+
+Cloudflare Workers Free enforces **50 subrequests per Worker invocation** (Paid raises this to 1000). A "subrequest" is any outbound HTTP — that includes every PostgREST query the Supabase JS client issues. Loaders that fan out one query per (table × status) hit the cap fast: TT-145 traced the broken `/admin` dashboard back to `getAdminDashboardCounts` alone making 37 PostgREST round-trips, which starved the activity-widget and similar-status calls behind it in the same `Promise.all` and triggered the silent fallback paths. **Local dev does not enforce this cap**, so the regression only surfaces on prod.
+
+The fix pattern: collapse fan-out into a single SECURITY DEFINER RPC that returns a JSONB blob, granted EXECUTE only to `service_role`. See `supabase/migrations/20260502140620_add_admin_dashboard_rpcs.sql` for the canonical example (`get_admin_dashboard_counts`, `get_admin_oldest_pending`, `get_admin_photo_coverage`).
+
+Rules for new admin/server work:
+
+- Never reintroduce a per-(table × status) PostgREST loop in a loader. Use an RPC.
+- Same for any "probe N tables in parallel" pattern (e.g. cross-queue scans).
+- Budget: assume each Supabase JS call is one subrequest. A single `/admin` request must stay well under 50 — count before merging.
+- If you genuinely need >50 subrequests for a single request, that's a sign to redesign, not a sign to upgrade. The Paid plan is fine to assume eventually, but until we explicitly migrate, treat 50 as the hard ceiling.
+
 ## Environment variables — runtime gate + smoke fallback
 
 Any new env var the app actually requires **must** be registered with `validateEnv` in `app/lib/env.server.ts`. Otherwise it'll be silently undefined at runtime and surface as a 500 in whichever loader/action reads it.

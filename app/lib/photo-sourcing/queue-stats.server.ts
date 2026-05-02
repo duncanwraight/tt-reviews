@@ -67,36 +67,22 @@ async function readKVCount(kv: BudgetKV, key: string): Promise<number> {
   return Number.isFinite(n) ? n : 0;
 }
 
-// Run five PostgREST head-counts in parallel. PostgREST doesn't expose
-// FILTER aggregates via .select, but the cost of 5 small head-counts
-// is negligible (each is microseconds at our equipment-row scale).
+// Backed by the `get_admin_photo_coverage` RPC — one round-trip with FILTER
+// aggregates instead of five head-counts. Combined with the dashboard's other
+// RPCs, this keeps the /admin loader well under Cloudflare Workers' 50
+// subrequest-per-invocation cap on the Free plan.
 export async function loadCoverageCounts(
   supabase: SupabaseClient
 ): Promise<CoverageCounts> {
-  const head = (q: ReturnType<SupabaseClient["from"]>) =>
-    q.select("id", { count: "exact", head: true });
-
-  const [picked, unsourced, attemptedNoImage, skipped, total] =
-    await Promise.all([
-      head(supabase.from("equipment")).not("image_key", "is", null),
-      head(supabase.from("equipment"))
-        .is("image_key", null)
-        .is("image_skipped_at", null)
-        .is("image_sourcing_attempted_at", null),
-      head(supabase.from("equipment"))
-        .is("image_key", null)
-        .is("image_skipped_at", null)
-        .not("image_sourcing_attempted_at", "is", null),
-      head(supabase.from("equipment")).not("image_skipped_at", "is", null),
-      head(supabase.from("equipment")),
-    ]);
-
+  const { data, error } = await supabase.rpc("get_admin_photo_coverage");
+  if (error) throw new Error(error.message);
+  const row = (data ?? {}) as Partial<CoverageCounts>;
   return {
-    picked: picked.count ?? 0,
-    unsourced: unsourced.count ?? 0,
-    attemptedNoImage: attemptedNoImage.count ?? 0,
-    skipped: skipped.count ?? 0,
-    total: total.count ?? 0,
+    picked: row.picked ?? 0,
+    unsourced: row.unsourced ?? 0,
+    attemptedNoImage: row.attemptedNoImage ?? 0,
+    skipped: row.skipped ?? 0,
+    total: row.total ?? 0,
   };
 }
 

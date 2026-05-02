@@ -2,88 +2,48 @@ import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminDashboardCounts } from "../dashboard.server";
 
-/**
- * Mock supabase client — every from(table).select(*, {count: 'exact', head: true})[.eq(...)]
- * call resolves to a {count, error} shape based on the (table, status?) seed.
- */
-function makeCountStub(
-  seed: Record<string, number>,
-  statusSeed: Record<string, Record<string, number>> = {}
-) {
-  let totalQueries = 0;
-  let statusQueries = 0;
-
-  function from(table: string) {
-    return {
-      select(_cols: string, opts?: { count?: string; head?: boolean }) {
-        if (!opts?.head) {
-          throw new Error(
-            `expected head:true select, got ${JSON.stringify(opts)}`
-          );
-        }
-        const builder = {
-          eq(col: string, value: string) {
-            if (col !== "status") {
-              throw new Error(`expected eq('status', _), got eq(${col}, _)`);
-            }
-            statusQueries += 1;
-            const tableStatuses = statusSeed[table] ?? {};
-            return Promise.resolve({
-              count: tableStatuses[value] ?? 0,
-              error: null,
-            });
-          },
-          then(onFulfilled: (v: { count: number; error: null }) => unknown) {
-            // bare `await select(...)` (no .eq) — used for total counts.
-            totalQueries += 1;
-            return Promise.resolve({
-              count: seed[table] ?? 0,
-              error: null,
-            }).then(onFulfilled);
-          },
-        };
-        return builder;
-      },
-    };
-  }
-
+function rpcStub(returnValue: {
+  data?: unknown;
+  error?: { message: string } | null;
+}) {
+  const rpc = vi.fn(() => Promise.resolve(returnValue));
   return {
-    client: { from } as unknown as SupabaseClient,
-    inspect: () => ({ totalQueries, statusQueries }),
+    client: { rpc } as unknown as SupabaseClient,
+    rpc,
   };
 }
 
 describe("getAdminDashboardCounts", () => {
-  it("issues only head-only count queries (no row downloads)", async () => {
-    const stub = makeCountStub(
-      {
-        equipment_submissions: 10,
-        equipment_edits: 0,
-        player_submissions: 0,
-        player_edits: 0,
-        equipment_reviews: 0,
-        video_submissions: 0,
-        player_equipment_setup_submissions: 0,
-        equipment: 100,
-        players: 50,
-      },
-      {
-        equipment_submissions: {
-          pending: 3,
-          awaiting_second_approval: 1,
-          approved: 5,
-          rejected: 1,
+  it("calls the get_admin_dashboard_counts RPC exactly once", async () => {
+    const stub = rpcStub({
+      data: {
+        totals: {
+          equipmentSubmissions: 10,
+          equipmentEdits: 0,
+          playerSubmissions: 0,
+          playerEdits: 0,
+          equipmentReviews: 0,
+          videoSubmissions: 0,
+          playerEquipmentSetups: 0,
+          equipment: 100,
+          players: 50,
         },
-      }
-    );
+        byStatus: {
+          equipmentSubmissions: {
+            pending: 3,
+            awaiting_second_approval: 1,
+            approved: 5,
+            rejected: 1,
+          },
+        },
+      },
+      error: null,
+    });
 
     const counts = await getAdminDashboardCounts(stub.client);
-    const inspect = stub.inspect();
 
-    // 7 submission tables × 4 statuses = 28 status queries.
-    expect(inspect.statusQueries).toBe(28);
-    // 7 submission totals + equipment + players = 9 totals.
-    expect(inspect.totalQueries).toBe(9);
+    expect(stub.rpc).toHaveBeenCalledTimes(1);
+    expect(stub.rpc).toHaveBeenCalledWith("get_admin_dashboard_counts");
 
     expect(counts.totals.equipmentSubmissions).toBe(10);
     expect(counts.totals.equipment).toBe(100);
@@ -96,8 +56,15 @@ describe("getAdminDashboardCounts", () => {
     expect(counts.byStatus.equipmentSubmissions.rejected).toBe(1);
   });
 
-  it("falls back to zero for tables with no rows of a given status", async () => {
-    const stub = makeCountStub({}, {});
+  it("falls back to zero for any (queue × status) cell missing from the RPC payload", async () => {
+    const stub = rpcStub({
+      data: {
+        totals: { equipmentSubmissions: 1 },
+        byStatus: {},
+      },
+      error: null,
+    });
+
     const counts = await getAdminDashboardCounts(stub.client);
 
     for (const key of [
@@ -109,7 +76,6 @@ describe("getAdminDashboardCounts", () => {
       "videoSubmissions",
       "playerEquipmentSetups",
     ] as const) {
-      expect(counts.totals[key]).toBe(0);
       expect(counts.byStatus[key]).toEqual({
         pending: 0,
         awaiting_second_approval: 0,
@@ -117,31 +83,33 @@ describe("getAdminDashboardCounts", () => {
         rejected: 0,
       });
     }
+    // totals not in the payload still come through as zero.
+    expect(counts.totals.equipmentEdits).toBe(0);
     expect(counts.totals.equipment).toBe(0);
     expect(counts.totals.players).toBe(0);
+    // present total comes through.
+    expect(counts.totals.equipmentSubmissions).toBe(1);
   });
 
-  it("only filters status queries by status (no other filters)", async () => {
-    const eqSpy = vi.fn((col: string, _v: string) => ({
-      then: (cb: (r: { count: number; error: null }) => unknown) =>
-        Promise.resolve({ count: 0, error: null }).then(cb),
-    }));
-    const selectSpy = vi.fn((_cols: string, opts?: unknown) => ({
-      eq: eqSpy,
-      then: (cb: (r: { count: number; error: null }) => unknown) =>
-        Promise.resolve({ count: 0, error: null }).then(cb),
-    }));
-    const fromSpy = vi.fn(() => ({ select: selectSpy }));
+  it("propagates RPC errors so the loader's outer .catch() can render fallbacks", async () => {
+    const stub = rpcStub({
+      data: null,
+      error: { message: "subrequest cap" },
+    });
+    await expect(getAdminDashboardCounts(stub.client)).rejects.toThrow(
+      "subrequest cap"
+    );
+  });
 
-    await getAdminDashboardCounts({
-      from: fromSpy,
-    } as unknown as SupabaseClient);
-
-    for (const call of eqSpy.mock.calls) {
-      expect(call[0]).toBe("status");
-    }
-    for (const call of selectSpy.mock.calls) {
-      expect(call[1]).toMatchObject({ count: "exact", head: true });
-    }
+  it("returns full empty shape when RPC returns null data", async () => {
+    const stub = rpcStub({ data: null, error: null });
+    const counts = await getAdminDashboardCounts(stub.client);
+    expect(counts.totals.equipment).toBe(0);
+    expect(counts.byStatus.equipmentSubmissions).toEqual({
+      pending: 0,
+      awaiting_second_approval: 0,
+      approved: 0,
+      rejected: 0,
+    });
   });
 });

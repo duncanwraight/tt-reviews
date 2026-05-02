@@ -8,28 +8,17 @@ const SUBMISSION_STATUSES = [
 ] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
-const SUBMISSION_TABLES = [
-  "equipment_submissions",
-  "equipment_edits",
-  "player_submissions",
-  "player_edits",
-  "equipment_reviews",
-  "video_submissions",
-  "player_equipment_setup_submissions",
-] as const;
-export type SubmissionTable = (typeof SUBMISSION_TABLES)[number];
-
 type SubmissionKey = keyof AdminDashboardCounts["byStatus"];
 
-const TABLE_KEY: Record<SubmissionTable, SubmissionKey> = {
-  equipment_submissions: "equipmentSubmissions",
-  equipment_edits: "equipmentEdits",
-  player_submissions: "playerSubmissions",
-  player_edits: "playerEdits",
-  equipment_reviews: "equipmentReviews",
-  video_submissions: "videoSubmissions",
-  player_equipment_setup_submissions: "playerEquipmentSetups",
-};
+const SUBMISSION_KEYS: readonly SubmissionKey[] = [
+  "equipmentSubmissions",
+  "equipmentEdits",
+  "playerSubmissions",
+  "playerEdits",
+  "equipmentReviews",
+  "videoSubmissions",
+  "playerEquipmentSetups",
+];
 
 export type StatusCounts = Record<SubmissionStatus, number>;
 
@@ -90,79 +79,55 @@ function emptyStatusCounts(): StatusCounts {
   };
 }
 
-async function countWhereStatus(
-  supabase: SupabaseClient,
-  table: SubmissionTable,
-  status: SubmissionStatus
-): Promise<number> {
-  const { count } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .eq("status", status);
-  return count ?? 0;
-}
-
-async function countAll(
-  supabase: SupabaseClient,
-  table: string
-): Promise<number> {
-  const { count } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true });
-  return count ?? 0;
+interface RpcShape {
+  totals?: Partial<AdminDashboardCounts["totals"]>;
+  byStatus?: {
+    [K in SubmissionKey]?: Partial<StatusCounts>;
+  };
 }
 
 /**
- * Fetch admin dashboard counts using head-only count queries — no row data is
- * transferred. One query per (submission-table × status) plus one total per
- * submission table and per content table. All run in parallel.
+ * Fetch admin dashboard counts in a single PostgREST round-trip via the
+ * `get_admin_dashboard_counts` SECURITY DEFINER RPC. Replaces the previous
+ * 37-subrequest fan-out (7 tables × 4 statuses + 7 totals + 2 content totals).
  *
- * Caller is responsible for using an admin/service-role client; callers gating
- * on user role then calling this is the documented pattern.
+ * The RPC returns a JSONB blob shaped to match `AdminDashboardCounts` exactly,
+ * with every (key × status) cell padded to zero so the caller can rely on the
+ * shape without merging an empty template. We still merge defensively against
+ * `emptyDashboardCounts()` so a partially-shaped response (e.g. an RPC failure
+ * captured at the loader's `.catch()`) doesn't leak `undefined` into render.
+ *
+ * Caller is responsible for using an admin/service-role client; the RPC is
+ * EXECUTE-granted only to service_role.
  */
 export async function getAdminDashboardCounts(
   supabase: SupabaseClient
 ): Promise<AdminDashboardCounts> {
-  const statusJobs: Array<{
-    table: SubmissionTable;
-    status: SubmissionStatus;
-    promise: Promise<number>;
-  }> = [];
-  for (const table of SUBMISSION_TABLES) {
-    for (const status of SUBMISSION_STATUSES) {
-      statusJobs.push({
-        table,
-        status,
-        promise: countWhereStatus(supabase, table, status),
-      });
+  const { data, error } = await supabase.rpc("get_admin_dashboard_counts");
+  if (error) throw new Error(error.message);
+
+  const merged = emptyDashboardCounts();
+  const payload = (data ?? {}) as RpcShape;
+
+  if (payload.totals) {
+    for (const key of Object.keys(merged.totals) as Array<
+      keyof AdminDashboardCounts["totals"]
+    >) {
+      const v = payload.totals[key];
+      if (typeof v === "number") merged.totals[key] = v;
     }
   }
 
-  const submissionTotalJobs = SUBMISSION_TABLES.map(table => ({
-    table,
-    promise: countAll(supabase, table),
-  }));
+  if (payload.byStatus) {
+    for (const key of SUBMISSION_KEYS) {
+      const cell = payload.byStatus[key];
+      if (!cell) continue;
+      for (const status of SUBMISSION_STATUSES) {
+        const v = cell[status];
+        if (typeof v === "number") merged.byStatus[key][status] = v;
+      }
+    }
+  }
 
-  const equipmentTotalPromise = countAll(supabase, "equipment");
-  const playersTotalPromise = countAll(supabase, "players");
-
-  const [statusResults, submissionTotalResults, equipmentTotal, playersTotal] =
-    await Promise.all([
-      Promise.all(statusJobs.map(j => j.promise)),
-      Promise.all(submissionTotalJobs.map(j => j.promise)),
-      equipmentTotalPromise,
-      playersTotalPromise,
-    ]);
-
-  const counts = emptyDashboardCounts();
-  statusJobs.forEach((job, i) => {
-    counts.byStatus[TABLE_KEY[job.table]][job.status] = statusResults[i];
-  });
-  submissionTotalJobs.forEach((job, i) => {
-    counts.totals[TABLE_KEY[job.table]] = submissionTotalResults[i];
-  });
-  counts.totals.equipment = equipmentTotal;
-  counts.totals.players = playersTotal;
-
-  return counts;
+  return merged;
 }
