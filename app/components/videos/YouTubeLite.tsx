@@ -103,6 +103,12 @@ export function YouTubeLite({ url, title, className = "" }: YouTubeLiteProps) {
         <img
           src={getYouTubeThumbnailUrl(videoId, "maxres")}
           alt={title}
+          // YouTube thumbnails are 1280x720 (maxres) / 480x360
+          // (high). Setting intrinsic dimensions keeps the browser
+          // from reflowing when the thumbnail loads.
+          width={1280}
+          height={720}
+          loading="lazy"
           className="w-full h-full object-cover"
           onError={e => {
             // Fallback to high quality if maxres fails

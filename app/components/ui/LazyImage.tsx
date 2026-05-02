@@ -16,6 +16,22 @@ interface LazyImageProps {
   objectFit?: "cover" | "contain";
   fallbackIcon?: React.ReactNode;
   placeholder?: "blur" | "skeleton";
+  // Above-the-fold hero images — the LCP element on detail pages —
+  // pass `priority` to skip the intersection observer, fetch eagerly,
+  // and request high priority. Setting it on below-the-fold images is
+  // an SEO regression (lazy is the right default everywhere else).
+  priority?: boolean;
+  // Intrinsic dimensions of the source image. Required so the browser
+  // can reserve space and avoid the layout shift that turns into a
+  // CLS hit. The visual rendered size is still controlled by the
+  // wrapper's CSS — these attributes only describe aspect ratio.
+  width?: number;
+  height?: number;
+  // Responsive image variants. `srcSet` is a comma-separated string
+  // of `<url> <Nw>` pairs; `sizes` describes the layout breakpoints.
+  // Use the helpers in app/lib/imageUrl.ts to build these.
+  srcSet?: string;
+  sizes?: string;
   onLoad?: () => void;
   onError?: () => void;
 }
@@ -28,17 +44,27 @@ export const LazyImage = memo(function LazyImage({
   objectFit = "cover",
   fallbackIcon,
   placeholder = "skeleton",
+  priority = false,
+  width,
+  height,
+  srcSet,
+  sizes,
   onLoad,
   onError,
 }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isInView, setIsInView] = useState(false);
+  // Priority images skip the intersection observer entirely — they
+  // need to fetch on first paint, before the observer would otherwise
+  // tick. Initialise `isInView` to true in that case.
+  const [isInView, setIsInView] = useState(priority);
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Intersection Observer for lazy loading
+  // Intersection Observer for lazy loading. Bypassed for priority.
   useEffect(() => {
+    if (priority) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -57,7 +83,7 @@ export const LazyImage = memo(function LazyImage({
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [priority]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -90,6 +116,10 @@ export const LazyImage = memo(function LazyImage({
         <img
           ref={imgRef}
           src={src}
+          srcSet={srcSet}
+          sizes={sizes}
+          width={width}
+          height={height}
           alt={alt}
           className={`
             transition-opacity duration-300 rounded-lg
@@ -99,7 +129,8 @@ export const LazyImage = memo(function LazyImage({
           `}
           onLoad={handleLoad}
           onError={handleError}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
         />
       )}
 

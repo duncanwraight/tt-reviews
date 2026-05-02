@@ -22,7 +22,10 @@ import { SimilarEquipmentSection } from "~/components/equipment/SimilarEquipment
 import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { LazyImage } from "~/components/ui/LazyImage";
 import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
-import { buildEquipmentImageUrl } from "~/lib/imageUrl";
+import {
+  buildEquipmentImageUrl,
+  buildEquipmentImageSrcSet,
+} from "~/lib/imageUrl";
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
 import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
@@ -295,6 +298,28 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
                     )
                   : ""
               }
+              srcSet={
+                equipment.image_key
+                  ? buildEquipmentImageSrcSet(
+                      equipment.image_key,
+                      equipment.image_trim_kind as
+                        | "auto"
+                        | "border"
+                        | null
+                        | undefined
+                    )
+                  : undefined
+              }
+              // The hero box is 192px square at every breakpoint
+              // (Tailwind w-48 h-48). Tell the browser to pick the
+              // closest variant for that physical size.
+              sizes="192px"
+              // Width/height = source variant intrinsic; the visual
+              // size is still controlled by the wrapper. Sets aspect
+              // ratio so the browser reserves space → no CLS.
+              width={512}
+              height={512}
+              priority
               alt={`${equipment.name} by ${equipment.manufacturer}`}
               className="w-full h-full"
               objectFit="contain"

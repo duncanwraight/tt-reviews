@@ -36,6 +36,11 @@ export function Navigation({ user }: NavigationProps) {
             <img
               src="/logo-banner.png"
               alt="tabletennis.reviews"
+              // Intrinsic dimensions match the source PNG so the
+              // browser reserves the right aspect-ratio box. Visual
+              // size is still controlled by Tailwind classes.
+              width={816}
+              height={144}
               className={`h-10 w-auto sm:h-12 ${isHomepage ? "invert" : ""}`}
             />
           </Link>

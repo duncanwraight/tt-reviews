@@ -1,7 +1,7 @@
 import type { Player } from "~/lib/types";
 import { LazyImage } from "../ui/LazyImage";
 import { ImagePlaceholder } from "../ui/ImagePlaceholder";
-import { buildImageUrl } from "~/lib/imageUrl";
+import { buildPlayerImageUrl, buildPlayerImageSrcSet } from "~/lib/imageUrl";
 
 interface PlayerHeaderProps {
   player: Player;
@@ -113,7 +113,20 @@ export function PlayerHeader({
           <div className="player-photo lg:col-span-1">
             {player.image_key ? (
               <LazyImage
-                src={buildImageUrl(player.image_key, player.image_etag) ?? ""}
+                src={buildPlayerImageUrl(
+                  player.image_key,
+                  player.image_etag,
+                  288
+                )}
+                srcSet={buildPlayerImageSrcSet(
+                  player.image_key,
+                  player.image_etag
+                )}
+                // 144px box at every breakpoint (w-36 h-36).
+                sizes="144px"
+                width={288}
+                height={288}
+                priority
                 alt={player.name}
                 className="w-36 h-36 mx-auto lg:mx-0 rounded-lg"
                 imgClassName="object-top"

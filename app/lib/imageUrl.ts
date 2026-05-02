@@ -49,3 +49,46 @@ export function buildEquipmentImageUrl(
   const trimSuffix = trimKind ? ",trim=border" : "";
   return `/cdn-cgi/image/width=${width},format=auto,fit=scale-down${trimSuffix}/api/images/${imageKey}`;
 }
+
+// Responsive srcset for equipment hero images (TT-140). Emits one
+// entry per declared variant width so the browser can pick the
+// smallest one that fills the rendered box. `sizes` is the caller's
+// responsibility — depends on the layout.
+export function buildEquipmentImageSrcSet(
+  imageKey: string,
+  trimKind?: EquipmentImageTrimKind
+): string {
+  return (Object.keys(EQUIPMENT_VARIANT_WIDTHS) as EquipmentImageVariant[])
+    .map(
+      v =>
+        `${buildEquipmentImageUrl(imageKey, v, trimKind)} ${EQUIPMENT_VARIANT_WIDTHS[v]}w`
+    )
+    .join(", ");
+}
+
+// Player headshots don't go through the equipment trim/variant
+// machinery — they're served via /api/images/<key> directly. For
+// responsive images we still want widths-on-demand, so we route
+// through the same `/cdn-cgi/image/...` transform pipeline used by
+// equipment URLs (it works on any source URL on the same zone).
+const PLAYER_VARIANT_WIDTHS = [144, 288, 576] as const;
+
+export function buildPlayerImageUrl(
+  imageKey: string,
+  imageEtag: string | null | undefined,
+  width: number
+): string {
+  const source = imageEtag
+    ? `/api/images/${imageKey}?v=${encodeURIComponent(imageEtag)}`
+    : `/api/images/${imageKey}`;
+  return `/cdn-cgi/image/width=${width},format=auto,fit=cover${source}`;
+}
+
+export function buildPlayerImageSrcSet(
+  imageKey: string,
+  imageEtag: string | null | undefined
+): string {
+  return PLAYER_VARIANT_WIDTHS.map(
+    w => `${buildPlayerImageUrl(imageKey, imageEtag, w)} ${w}w`
+  ).join(", ");
+}

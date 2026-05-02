@@ -219,6 +219,8 @@ function PlayerCreditItem({ row }: { row: CreditRow }) {
       <img
         src={buildImageUrl(row.imageKey, row.imageEtag) ?? ""}
         alt={row.name}
+        width={64}
+        height={64}
         className="w-16 h-16 object-cover object-top rounded flex-shrink-0"
         loading="lazy"
       />
@@ -241,6 +243,8 @@ function EquipmentCreditItem({ row }: { row: EquipmentCreditRow }) {
       <img
         src={buildEquipmentImageUrl(row.imageKey, "thumbnail")}
         alt={row.name}
+        width={64}
+        height={64}
         className="w-16 h-16 object-contain bg-white rounded flex-shrink-0 border border-gray-100"
         loading="lazy"
       />

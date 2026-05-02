@@ -254,19 +254,33 @@ Core Web Vitals influence rankings. The numbers below are merge-blocking, not as
 | INP (Interaction to Next Paint) | ≤ 200ms p75 | Avoid heavy JS on first interaction.                                                             |
 | CLS (Cumulative Layout Shift)   | ≤ 0.1 p75   | Always set explicit `width`/`height` (or aspect-ratio CSS) on images so they don't reflow.       |
 
-### LCP image rules (TT-140)
+### LCP image rules
 
-For the hero image on detail pages:
+For the hero image on detail pages, pass `priority` to `<LazyImage>`. That switches behaviour:
 
 - `loading="eager"` (not `lazy` — defeats LCP).
-- `fetchpriority="high"`.
-- Explicit `width` and `height` attributes — fixes CLS, lets the browser reserve space.
-- `srcset` covering the breakpoints we actually use; `sizes` reflects the layout.
-- `alt` text is non-empty and descriptive (equipment name + manufacturer, or player name).
-- Format: WebP with AVIF where supported. We serve via `/api/images/$` — see that route for the resize/format pipeline.
-- No client-side data-fetch should be in the LCP critical path. Loader data → SSR'd `<img>` tag is the only acceptable pattern.
+- `fetchPriority="high"`.
+- The IntersectionObserver is bypassed, so the fetch starts on first paint.
 
-Lazy-load anything below the fold (`loading="lazy"`).
+In addition, every hero needs:
+
+- Explicit `width` and `height` attributes — fixes CLS, lets the browser reserve space. The values describe the **intrinsic** source image's aspect ratio; visual rendered size is still controlled by Tailwind classes on the wrapper. Pass them as the `width` / `height` props to `LazyImage`.
+- `srcSet` and `sizes` so the browser picks the smallest variant that fills the rendered box.
+- `alt` text — non-empty, descriptive (equipment name + manufacturer, or player name).
+- No client-side data-fetch in the LCP critical path. Loader data → SSR'd `<img>` is the only acceptable pattern.
+
+### Image transformation pipeline (TT-140)
+
+Both equipment and player images are served by routing the canonical R2-backed URL through Cloudflare Image Resizing — the `/cdn-cgi/image/<options>/<source-path>` URL pattern is intercepted at the edge and resized + format-converted (WebP / AVIF as supported) before the Worker ever sees it.
+
+- **Equipment** images use `buildEquipmentImageUrl(key, variant, trimKind)` (single URL) and `buildEquipmentImageSrcSet(key, trimKind)` (full srcset). Variants are `thumbnail` (256w), `card` (512w), `full` (1024w). `trimKind` adds `,trim=border` so Cloudflare auto-trims the dominant border colour (TT-88). Always emit the trim flag when the equipment row's `image_trim_kind` is non-null.
+- **Player** images use `buildPlayerImageUrl(key, etag, width)` and `buildPlayerImageSrcSet(key, etag)`. Player widths are `144 / 288 / 576`, sized for the headshot box. The `etag` query param survives the transform pipeline as a cache-buster — keep passing it.
+
+If the source image is missing (`image_key` is null), fall back to `<ImagePlaceholder>` rather than rendering a broken `<img>`.
+
+Below-the-fold images (review thumbnails, related-equipment grids, credits page tiles) stay on `loading="lazy"` and don't need `srcSet` — they're not on the LCP path. They still need explicit `width`/`height` so they don't reflow when they finally load.
+
+If we ever switch off Cloudflare Image Resizing onto Cloudflare Images proper (with stored variants instead of on-demand transforms), the helpers above are the single place to update; callers don't change.
 
 ### Fonts
 
