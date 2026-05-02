@@ -7,7 +7,12 @@ import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { PlayerHeader } from "~/components/players/PlayerHeader";
 import { PlayerTabs } from "~/components/players/PlayerTabs";
 import { StructuredData } from "~/components/seo/StructuredData";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 import { findSlugRedirect } from "~/lib/slug-redirects.server";
 
 export function meta({ params, data, matches, location }: Route.MetaArgs) {
@@ -19,11 +24,10 @@ export function meta({ params, data, matches, location }: Route.MetaArgs) {
     ];
   }
 
-  const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
-    location.pathname,
-    ""
-  );
+  const siteUrl = getSiteUrl(matches);
+  const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
+  const ogTitle = `${player.name} Equipment & Setup`;
+  const ogImageUrl = buildOgImageUrl(siteUrl, `/og/players/${player.slug}.png`);
 
   // Enhanced SEO title pattern based on research
   const titleSuffix =
@@ -57,10 +61,16 @@ export function meta({ params, data, matches, location }: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "keywords", content: keywords },
     { tagName: "link", rel: "canonical", href: canonical },
-    { property: "og:title", content: `${player.name} Equipment & Setup` },
+    { property: "og:title", content: ogTitle },
     { property: "og:description", content: description },
     { property: "og:type", content: "profile" },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({
+      siteUrl,
+      title: ogTitle,
+      description,
+      imageUrl: ogImageUrl,
+    }),
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

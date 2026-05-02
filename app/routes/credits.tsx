@@ -6,7 +6,12 @@ import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import { buildImageUrl, buildEquipmentImageUrl } from "~/lib/imageUrl";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 interface CreditRow {
   slug: string;
@@ -30,11 +35,9 @@ export function meta({ matches, location }: Route.MetaArgs) {
   const description =
     "Photo credits for player and equipment images on TT Reviews. " +
     "Includes creator attribution, license information, and links to sources.";
-  const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
-    location.pathname,
-    ""
-  );
+  const siteUrl = getSiteUrl(matches);
+  const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
+  const ogImageUrl = buildOgImageUrl(siteUrl, "/og/default.png");
   return [
     { title },
     { name: "description", content: description },
@@ -43,6 +46,7 @@ export function meta({ matches, location }: Route.MetaArgs) {
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl }),
   ];
 }
 

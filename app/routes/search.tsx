@@ -7,7 +7,12 @@ import { SearchHeader } from "~/components/search/SearchHeader";
 import { SearchResults } from "~/components/search/SearchResults";
 import { NoResults } from "~/components/search/NoResults";
 import { SearchLanding } from "~/components/search/SearchLanding";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 const SEARCH_LISTING_PARAMS = ["q"] as const;
 
@@ -30,12 +35,18 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
   const query = data?.query ?? "";
   const resultCount = data?.resultCount ?? 0;
   const thin = isThinSerp(query, resultCount);
+  const siteUrl = getSiteUrl(matches);
   const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
+    siteUrl,
     location.pathname,
     location.search,
     SEARCH_LISTING_PARAMS
   );
+  // OG image: only attach on indexable SERPs. Thin SERPs are noindex and
+  // shouldn't be cluttering social previews either; if a thin SERP gets
+  // shared, the share-target meta-resolver still falls back to the site
+  // default via the absence of og:image.
+  const ogImageUrl = thin ? null : buildOgImageUrl(siteUrl, "/og/default.png");
 
   // robots only fires on the noindex side — productive SERPs default
   // to "index, follow" without an explicit tag (browsers treat the
@@ -45,29 +56,30 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     : [];
 
   if (query) {
+    const title = `Search Results for "${query}" | TT Reviews`;
+    const description = `Find table tennis equipment and players matching "${query}". Browse reviews, specs, and professional setups.`;
     return [
-      { title: `Search Results for "${query}" | TT Reviews` },
-      {
-        name: "description",
-        content: `Find table tennis equipment and players matching "${query}". Browse reviews, specs, and professional setups.`,
-      },
+      { title },
+      { name: "description", content: description },
       {
         name: "keywords",
         content: `${query}, table tennis equipment, player search, equipment reviews`,
       },
       { tagName: "link", rel: "canonical", href: canonical },
       { property: "og:url", content: canonical },
+      ...(ogImageUrl
+        ? ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl })
+        : []),
       ...robotsMeta,
     ];
   }
 
+  const title = "Search Table Tennis Equipment & Players | TT Reviews";
+  const description =
+    "Search our comprehensive database of table tennis equipment reviews and professional player setups.";
   return [
-    { title: "Search Table Tennis Equipment & Players | TT Reviews" },
-    {
-      name: "description",
-      content:
-        "Search our comprehensive database of table tennis equipment reviews and professional player setups.",
-    },
+    { title },
+    { name: "description", content: description },
     {
       name: "keywords",
       content:
@@ -75,6 +87,9 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     },
     { tagName: "link", rel: "canonical", href: canonical },
     { property: "og:url", content: canonical },
+    ...(ogImageUrl
+      ? ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl })
+      : []),
     ...robotsMeta,
   ];
 }

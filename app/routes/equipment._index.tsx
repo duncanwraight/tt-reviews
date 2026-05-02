@@ -12,7 +12,12 @@ import { SafeHtml } from "~/lib/sanitize";
 import { PageSection } from "~/components/layout/PageSection";
 import { StructuredData } from "~/components/seo/StructuredData";
 import { SearchX } from "lucide-react";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 const EQUIPMENT_LISTING_PARAMS = [
   "category",
@@ -40,12 +45,14 @@ interface CategoryInfo {
 
 export function meta({ matches, location }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
+  const siteUrl = getSiteUrl(matches);
   const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
+    siteUrl,
     location.pathname,
     location.search,
     EQUIPMENT_LISTING_PARAMS
   );
+  const ogImageUrl = buildOgImageUrl(siteUrl, "/og/equipment.png");
 
   // Enhanced SEO title pattern based on research
   const title = `Best Table Tennis Equipment ${currentYear} - Professional Reviews & Comparisons | TT Reviews`;
@@ -76,6 +83,7 @@ export function meta({ matches, location }: Route.MetaArgs) {
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl }),
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

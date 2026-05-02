@@ -12,7 +12,12 @@ import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { RatingsTable } from "~/components/equipment/RatingsTable";
 import { ProUsageSidebar } from "~/components/equipment/ProUsageSidebar";
 import { StructuredData } from "~/components/seo/StructuredData";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 function parseSlugs(raw: string | undefined): [string, string] | null {
   if (!raw) return null;
@@ -46,12 +51,17 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     reviewCount2,
   } = data;
 
-  const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
-    location.pathname,
-    ""
-  );
+  const siteUrl = getSiteUrl(matches);
+  const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
   const title = `${equipment1.name} vs ${equipment2.name} - Detailed Comparison | TT Reviews`;
+  const ogTitle = `${equipment1.name} vs ${equipment2.name}`;
+  // Compare slugs are alphabetised at the loader level so the canonical
+  // URL is stable; reuse the same ordering for the OG path so a single
+  // CDN cache key serves both directions.
+  const slugPair = [equipment1.slug, equipment2.slug]
+    .sort((a, b) => a.localeCompare(b))
+    .join("-vs-");
+  const ogImageUrl = buildOgImageUrl(siteUrl, `/og/compare/${slugPair}.png`);
 
   const ratingFragment = (name: string, avg: number, count: number) =>
     count > 0
@@ -65,17 +75,17 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "robots", content: "index, follow" },
     { tagName: "link", rel: "canonical", href: canonical },
-    {
-      property: "og:title",
-      content: `${equipment1.name} vs ${equipment2.name}`,
-    },
+    { property: "og:title", content: ogTitle },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
     { property: "og:site_name", content: "TT Reviews" },
-    { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:title", content: title },
-    { name: "twitter:description", content: description },
+    ...ogImageMeta({
+      siteUrl,
+      title: ogTitle,
+      description,
+      imageUrl: ogImageUrl,
+    }),
   ];
 }
 

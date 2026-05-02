@@ -44,7 +44,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^7.14.2",
-    "sanitize-html": "^2.17.3"
+    "sanitize-html": "^2.17.3",
+    "workers-og": "^0.0.27"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.34.0",

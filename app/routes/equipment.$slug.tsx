@@ -28,7 +28,12 @@ import {
 } from "~/lib/imageUrl";
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 import { findSlugRedirect } from "~/lib/slug-redirects.server";
 
 export function meta({ data, matches, location }: Route.MetaArgs) {
@@ -63,10 +68,12 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
 
   const description = `${equipment.name} by ${equipment.manufacturer} - ${reviewCount} ${ratingText}.${playerUsage} Complete specs and community ratings.`;
 
-  const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
-    location.pathname,
-    ""
+  const siteUrl = getSiteUrl(matches);
+  const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
+  const ogTitle = `${equipment.name} by ${equipment.manufacturer}`;
+  const ogImageUrl = buildOgImageUrl(
+    siteUrl,
+    `/og/equipment/${equipment.slug}.png`
   );
 
   // Enhanced keywords targeting high-value search terms
@@ -90,13 +97,16 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "keywords", content: keywords },
     { tagName: "link", rel: "canonical", href: canonical },
-    {
-      property: "og:title",
-      content: `${equipment.name} by ${equipment.manufacturer}`,
-    },
+    { property: "og:title", content: ogTitle },
     { property: "og:description", content: description },
     { property: "og:type", content: "product" },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({
+      siteUrl,
+      title: ogTitle,
+      description,
+      imageUrl: ogImageUrl,
+    }),
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },

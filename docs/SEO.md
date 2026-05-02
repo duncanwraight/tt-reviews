@@ -4,7 +4,7 @@ This doc is the contract every user-facing route on this site has to satisfy. If
 
 This is the technical SEO standard. Audience research, content strategy, and keyword targeting are out of scope — they're product calls, not engineering rules.
 
-The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps had one card each (TT-135 → TT-143); 8/9 are shipped, leaving **TT-138 (OG image generation)** as the only outstanding work — flagged inline in the OG image section below. Anywhere else a TT-card is named, it's a historical reference to the change that introduced the rule, not a marker for pending work.
+The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps had one card each (TT-135 → TT-143); all are now shipped. Where a TT-card is named below, it's a historical reference to the change that introduced the rule, not a marker for pending work.
 
 ---
 
@@ -92,13 +92,12 @@ export function meta({ data, location, matches }: Route.MetaArgs) {
     { property: "og:type", content: /* "website" | "article" | "product" | "profile" */ },
     { property: "og:url", content: canonical },
     { property: "og:site_name", content: "TT Reviews" },
-    // og:image + twitter:image are deferred to TT-138; once that
-    // ships, every indexable route adds them and the checklist below
-    // becomes mandatory.
 
-    { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:title", content: /* same as og:title */ },
-    { name: "twitter:description", content: /* same as og:description */ },
+    // og:image + twitter:image come from `ogImageMeta(...)` — spread
+    // its return value rather than rolling these by hand. The helper
+    // emits og:image/og:image:width/og:image:height/twitter:card/
+    // twitter:image/twitter:title/twitter:description in one shot.
+    ...ogImageMeta({ siteUrl, title: ogTitle, description, imageUrl }),
   ];
 }
 ```
@@ -109,7 +108,7 @@ Rules:
 - **`description`** ≤ 155 chars. No keyword stuffing. One sentence describing what's on the page.
 - **`canonical`** is **absolute** and **env-driven** (`SITE_URL`). Hardcoding hosts is a regression — `validateEnv` already requires `SITE_URL` (`app/lib/env.server.ts`). `getSiteUrl(matches)` returns the prod fallback only when the root loader itself errored, and validateEnv would have 503'd that case before the loader ran.
 - **`og:url`** matches `canonical`.
-- **`og:image`** + **`twitter:image`** — pending **TT-138**. Once shipped: 1200×630 absolute URLs; every indexable route declares one.
+- **`og:image`** + **`twitter:image`** — 1200×630 absolute URLs; every indexable route declares one via `ogImageMeta(...)` from `app/lib/seo.ts`. Detail pages point at the dynamic generator (`/og/equipment/<slug>.png`, `/og/players/<slug>.png`, `/og/compare/<slugs>.png`); listings and static pages point at the cached fallback (`/og/default.png`, `/og/equipment.png`, `/og/players.png`). See "OG image" below for the rendering pipeline.
 - **`keywords`** is dead — Google ignores it. Existing `meta()` exports keep populating it; they're harmless but new routes don't need it.
 - Meta values must be derived from loader data, never from `document.location` or `window` — `meta()` runs on the server.
 
@@ -345,30 +344,48 @@ All of these must be visible text. Don't make them collapse-default or screen-re
 
 ---
 
-## OG image (TT-138 — pending)
+## OG image (TT-138)
 
-> **Status: not yet shipped.** This is the only outstanding child of TT-134. Until TT-138 lands, no route emits `og:image` or `twitter:image`; social shares (Discord, Twitter, Slack, FB) fall back to a generic favicon. The plan below is the locked-in design for that future change — implement against this section, then drop this `pending` callout.
+Dynamic OG cards (1200×630 PNG) for detail and comparison pages, plus three static fallbacks for everything else. All routes go through the same workers-og pipeline so the visual treatment stays consistent — the only difference is whether the data comes from a slug-keyed loader or a fixed string.
 
-A static `/og/default.png` (1200×630) goes in `public/og/` as the universal fallback. Bespoke images are generated per-route on demand.
+### Tool: workers-og
 
-### Route → OG image plan
+We use [`workers-og`](https://github.com/kvnang/workers-og) (Satori + resvg-wasm via Cloudflare-compatible bundling). `@vercel/og` was rejected: it bundles WASM via Vercel's edge runtime and **doesn't run on standalone Cloudflare Workers** — only on Cloudflare Pages via the official Pages plugin. We're on Workers (`workers/app.ts` + custom domain), so the Pages path doesn't apply.
 
-| Route                       | Image                                                                                                                                                                   |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                         | `/og/default.png`                                                                                                                                                       |
-| `/equipment`                | `/og/equipment.png` (static, brandy)                                                                                                                                    |
-| `/equipment/:slug`          | `/og/equipment/<slug>.png` — generated at build or on first request via Cloudflare Workers + the `imageUrl` pipeline. Includes equipment name, manufacturer, hero shot. |
-| `/equipment/compare/:slugs` | `/og/compare/<slug1>-vs-<slug2>.png` — both equipment names side-by-side.                                                                                               |
-| `/players/:slug`            | `/og/players/<slug>.png` — player name + "Equipment & Setup".                                                                                                           |
-| Everything else             | `/og/default.png`.                                                                                                                                                      |
+The pipeline lives in `app/lib/og/render.server.ts`:
+
+- **Renderer:** `renderOgImage(html, options, ctx)` — accepts a Satori-compatible HTML string, returns a `Response` with `Content-Type: image/png` and our standard cache headers.
+- **Hero images:** Satori's internal fetch fails silently on Workers (one of the [documented pitfalls](https://dev.to/devoresyah/6-pitfalls-of-dynamic-og-image-generation-on-cloudflare-workers-satori-resvg-wasm-1kle)). The route loader pre-fetches the source image (forcing PNG via `/cdn-cgi/image/format=png`) and embeds it as a base64 data URL via `fetchImageAsDataUrl(...)`.
+- **Fonts:** Inter (400 + 700) fetched from Google Fonts on cold start, cached in the Cloudflare Cache API under a versioned key. Every isolate after the first hits the cache.
+- **Bundle cost:** workers-og + WASM modules add ~700KB compressed, putting the prod bundle around 1.1MB / 3MB Free-plan ceiling. Comfortable.
+
+### Route → OG image map
+
+| Route                              | Image URL                            | Source                                           |
+| ---------------------------------- | ------------------------------------ | ------------------------------------------------ |
+| `/`                                | `/og/default.png`                    | static fallback (route file).                    |
+| `/equipment`                       | `/og/equipment.png`                  | static fallback (route file).                    |
+| `/equipment/:slug`                 | `/og/equipment/<slug>.png`           | dynamic — name + manufacturer + rating + hero.   |
+| `/equipment/compare/:slugs`        | `/og/compare/<slug1>-vs-<slug2>.png` | dynamic — names + ratings side-by-side.          |
+| `/players`                         | `/og/players.png`                    | static fallback (route file).                    |
+| `/players/:slug`                   | `/og/players/<slug>.png`             | dynamic — name + nationality + style + headshot. |
+| `/credits`, productive `/search`   | `/og/default.png`                    | static fallback.                                 |
+| Thin `/search`, all noindex routes | none                                 | no `og:image` emitted.                           |
+
+The "static fallbacks" are still served by `workers-og` at request time — they live at `app/routes/og.<kind>[.]png.tsx`, but cache `public, max-age=31536000, immutable` so the CDN serves them as if they were build-time assets. The trade-off is +1 visual-pipeline-to-maintain vs −1 build-step. Net: one rendering pipeline, deploy invalidates everything.
+
+### Caching rules
+
+- **Dynamic routes:** `Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000`. ETag from the underlying entity's `updated_at` (compare uses the max of both rows). Slug rename → fresh URL automatically.
+- **Static fallbacks:** `Cache-Control: public, max-age=31536000, immutable`. Redeploys invalidate the CDN cache.
+- **Font cache:** Cloudflare Cache API, `public, max-age=31536000, immutable`. Versioned key (`og-fonts:inter:v1:<weight>`) lets a font swap force a refetch without cache surgery.
 
 ### Constraints
 
-- 1200×630 PNG or JPG. Under 8MB but realistically aim for ~150KB.
-- Image URL **must** be absolute (use `SITE_URL`). Relative URLs do not work for `og:image`.
-- Cache headers: long max-age, immutable; bust via slug when the underlying entity changes.
-
-`twitter:image` shares the same URL.
+- 1200×630 PNG. Real renders land at ~30–40KB; well under any platform's per-image cap.
+- Image URL **must** be absolute (use `getSiteUrl(matches)` + `buildOgImageUrl(siteUrl, path)`). Relative URLs do not work for `og:image`.
+- HTML passed to `renderOgImage` must be Satori-compatible: every container needs explicit `display: flex`, dimensions are absolute, no CSS shorthand quirks. Font family is `Inter` (only weights we ship).
+- `twitter:image` shares the URL with `og:image`. `ogImageMeta` emits both in one shot.
 
 ---
 
@@ -397,8 +414,9 @@ Don't repurpose old slugs for different content — once a slug has been used, t
 Run through this on every PR that touches `app/routes/` (or that adds/modifies a route's loader/component output that would change what's in the head):
 
 - [ ] `meta()` exports `title` (≤ 60 chars), `description` (≤ 155 chars), and a `canonical` link descriptor produced by `buildCanonicalUrl(getSiteUrl(matches), pathname, search, allowList)` from `app/lib/seo.ts`.
-- [ ] OG tags present: `og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`. (`og:image` is pending TT-138 — add it to the checklist as mandatory once TT-138 lands.)
-- [ ] Twitter tags present: `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`. (`twitter:image` follows `og:image` — pending TT-138.)
+- [ ] OG tags present: `og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`, `og:image`, `og:image:width=1200`, `og:image:height=630`.
+- [ ] Twitter tags present: `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`, `twitter:image`.
+- [ ] og:image / twitter:image emitted via `ogImageMeta(...)` from `app/lib/seo.ts` (don't roll the seven descriptors by hand). Image URL is absolute, built via `buildOgImageUrl(siteUrl, path)`. Detail routes point at the dynamic generator (`/og/<kind>/<slug>.png`); listings and static pages use a fallback (`/og/default.png` / `/og/equipment.png` / `/og/players.png`).
 - [ ] `robots` meta is correct per the indexability matrix. Admin routes also rely on the Worker-entry `X-Robots-Tag` header (no per-route action needed).
 - [ ] If indexable, route is included in the right per-type sitemap (`sitemap-equipment.xml` / `sitemap-players.xml` / `sitemap-static.xml`) — and therefore in `/sitemap-index.xml`. If not indexable, route is **not** in any sitemap.
 - [ ] If indexable, structured data via `<StructuredData />`, schema generated by `SchemaService`. If route renders user-supplied text inside JSON-LD, the `<` escape is in place (`schemaService.toJsonLd` / `generateMultipleSchemas` handle this for you).

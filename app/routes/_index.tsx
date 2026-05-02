@@ -9,7 +9,12 @@ import {
   logUserAction,
 } from "~/lib/middleware/correlation.server";
 
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 import { Navigation } from "~/components/ui/Navigation";
 import { HeroSection } from "~/components/sections/HeroSection";
@@ -39,13 +44,14 @@ interface PlayerDisplay {
 }
 
 export function meta({ matches, location }: Route.MetaArgs) {
-  const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
-    location.pathname,
-    ""
-  );
+  const siteUrl = getSiteUrl(matches);
+  const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
+  const ogImageUrl = buildOgImageUrl(siteUrl, "/og/default.png");
+  const title = "TT Reviews - Table Tennis Equipment Reviews & Player Database";
+  const description =
+    "Discover the best table tennis equipment through professional reviews and explore detailed player setups.";
   return [
-    { title: "TT Reviews - Table Tennis Equipment Reviews & Player Database" },
+    { title },
     {
       name: "description",
       content:
@@ -57,17 +63,11 @@ export function meta({ matches, location }: Route.MetaArgs) {
         "table tennis, ping pong, equipment reviews, professional players, rubber, blade, ball, tournament equipment",
     },
     { tagName: "link", rel: "canonical", href: canonical },
-    {
-      property: "og:title",
-      content: "TT Reviews - Table Tennis Equipment Reviews & Player Database",
-    },
-    {
-      property: "og:description",
-      content:
-        "Discover the best table tennis equipment through professional reviews and explore detailed player setups.",
-    },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl }),
   ];
 }
 

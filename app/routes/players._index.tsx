@@ -11,7 +11,12 @@ import { PlayersPagination } from "~/components/players/PlayersPagination";
 import { createCategoryService } from "~/lib/categories.server";
 import { useContent } from "~/hooks/useContent";
 import { StructuredData } from "~/components/seo/StructuredData";
-import { buildCanonicalUrl, getSiteUrl } from "~/lib/seo";
+import {
+  buildCanonicalUrl,
+  buildOgImageUrl,
+  getSiteUrl,
+  ogImageMeta,
+} from "~/lib/seo";
 
 const PLAYERS_LISTING_PARAMS = [
   "country",
@@ -25,12 +30,14 @@ const PLAYERS_LISTING_PARAMS = [
 
 export function meta({ matches, location }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
+  const siteUrl = getSiteUrl(matches);
   const canonical = buildCanonicalUrl(
-    getSiteUrl(matches),
+    siteUrl,
     location.pathname,
     location.search,
     PLAYERS_LISTING_PARAMS
   );
+  const ogImageUrl = buildOgImageUrl(siteUrl, "/og/players.png");
 
   // Enhanced SEO title pattern based on research
   const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
@@ -61,6 +68,7 @@ export function meta({ matches, location }: Route.MetaArgs) {
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
+    ...ogImageMeta({ siteUrl, title, description, imageUrl: ogImageUrl }),
     // Additional SEO meta tags
     { name: "robots", content: "index, follow" },
     { name: "author", content: "TT Reviews" },
