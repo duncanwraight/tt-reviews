@@ -1,5 +1,6 @@
 import { RatingStars } from "../ui/RatingStars";
 import { SafeHtml } from "~/lib/sanitize";
+import { formatDateLong } from "~/lib/date";
 
 interface EquipmentReview {
   id: string;
@@ -25,13 +26,30 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ review }: ReviewCardProps) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+  // TT-142: badges Google can read as first-hand experience signals.
+  // Pulled from reviewer_context — same data the "Reviewer Context"
+  // footer renders in detail, but exposed prominently up top so the
+  // crawler doesn't have to look past the rating + date for E-E-A-T
+  // surface area.
+  const eeatBadges: Array<{ label: string; value: string }> = [];
+  if (review.reviewer_context.playing_level) {
+    eeatBadges.push({
+      label: "Level",
+      value: review.reviewer_context.playing_level,
     });
-  };
+  }
+  if (review.reviewer_context.style_of_play) {
+    eeatBadges.push({
+      label: "Style",
+      value: review.reviewer_context.style_of_play,
+    });
+  }
+  if (review.reviewer_context.testing_duration) {
+    eeatBadges.push({
+      label: "Testing",
+      value: review.reviewer_context.testing_duration,
+    });
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -65,12 +83,14 @@ export function ReviewCard({ review }: ReviewCardProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <RatingStars rating={review.overall_rating} showCount={false} />
-          <span className="text-sm text-gray-600">
-            {formatDate(review.created_at)}
-          </span>
+          {/* <time> with ISO datetime so crawlers parse the published
+              date without scraping the rendered string (TT-142). */}
+          <time dateTime={review.created_at} className="text-sm text-gray-600">
+            {formatDateLong(review.created_at)}
+          </time>
         </div>
         <span
           className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
@@ -80,6 +100,23 @@ export function ReviewCard({ review }: ReviewCardProps) {
           {review.status.charAt(0).toUpperCase() + review.status.slice(1)}
         </span>
       </div>
+
+      {eeatBadges.length > 0 && (
+        <div
+          className="flex flex-wrap gap-2 mb-4"
+          data-testid="review-eeat-badges"
+        >
+          {eeatBadges.map(b => (
+            <span
+              key={b.label}
+              className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-800 px-2.5 py-0.5 text-xs font-medium"
+            >
+              <span className="text-purple-600 font-semibold">{b.label}:</span>
+              <span>{b.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {review.review_text && (
         <div className="mb-6">

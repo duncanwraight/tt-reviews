@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { RatingStars } from "../ui/RatingStars";
+import { formatRelativeTime } from "~/lib/date";
 
 interface Equipment {
   id: string;
@@ -12,6 +13,7 @@ interface Equipment {
   specifications: Record<string, unknown>;
   image_key?: string;
   image_trim_kind?: string | null;
+  updated_at?: string;
 }
 
 interface Player {
@@ -72,6 +74,15 @@ export function EquipmentHeader({
       </div>
 
       <h1 className="text-3xl font-bold text-gray-900">{equipment.name}</h1>
+
+      {equipment.updated_at && (
+        <p className="mt-1 text-sm text-gray-500">
+          Last updated{" "}
+          <time dateTime={equipment.updated_at}>
+            {formatRelativeTime(equipment.updated_at)}
+          </time>
+        </p>
+      )}
 
       {reviewCount > 0 && (
         <div className="mt-3">
