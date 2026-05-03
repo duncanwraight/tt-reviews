@@ -1,27 +1,47 @@
 import type { Route } from "./+types/sitemap-index[.]xml";
 import { DatabaseService } from "~/lib/database.server";
-import { getSitemapService } from "~/lib/sitemap.server";
+import {
+  getSitemapService,
+  fetchSitemapLastmodMaps,
+} from "~/lib/sitemap.server";
 
 // Sitemap index (TT-139). Splits the single combined sitemap into
 // per-type sitemaps so growth past 50K URLs in any one type doesn't
 // require another migration. /sitemap.xml stays as a back-compat
 // combined feed for legacy crawlers that may have cached the URL —
 // robots.txt now points only here.
+//
+// TT-155: each per-type entry's lastmod is the max across that
+// slice's URL set, including the child-content folds (reviews on
+// equipment, setups + active footage on players). Static-pages
+// lastmod = sitewide max so the index doesn't lie about freshness.
 export async function loader({ context }: Route.LoaderArgs) {
   const db = new DatabaseService(context);
   const sitemapService = getSitemapService(context);
 
-  // Build the same URL slices as each per-type sitemap so we can pick
-  // the max(lastmod) per slice. Cheaper than fetching the per-type
-  // sitemap routes ourselves and parsing them.
-  const [allPlayers, allEquipment] = await Promise.all([
+  const [allPlayers, allEquipment, lastmodMaps] = await Promise.all([
     db.getPlayersWithoutFilters(),
     db.getAllEquipment(),
+    fetchSitemapLastmodMaps(context),
   ]);
+  const { reviewLastmods, activityLastmods } = lastmodMaps;
 
-  const playerUrls = sitemapService.generatePlayerPages(allPlayers);
-  const equipmentUrls = sitemapService.generateEquipmentPages(allEquipment);
-  const staticUrls = sitemapService.generateStaticPages();
+  const siteWideLastmod = sitemapService.computeSiteWideLastmod(
+    allEquipment,
+    allPlayers,
+    reviewLastmods,
+    activityLastmods
+  );
+
+  const playerUrls = sitemapService.generatePlayerPages(
+    allPlayers,
+    activityLastmods
+  );
+  const equipmentUrls = sitemapService.generateEquipmentPages(
+    allEquipment,
+    reviewLastmods
+  );
+  const staticUrls = sitemapService.generateStaticPages(siteWideLastmod);
 
   const sitemaps = [
     {

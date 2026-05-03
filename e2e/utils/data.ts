@@ -45,6 +45,71 @@ async function insertEquipmentReview(params: {
   return { id: rows[0].id };
 }
 
+export async function getFirstActivePlayer(): Promise<{
+  id: string;
+  slug: string;
+}> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/players?active=eq.true&select=id,slug&limit=1`,
+    { headers: { apikey: SUPABASE_ANON_KEY } }
+  );
+  if (!res.ok) {
+    throw new Error(`getFirstActivePlayer failed (${res.status})`);
+  }
+  const rows = (await res.json()) as Array<{ id: string; slug: string }>;
+  if (!rows[0]) throw new Error("No active player seeded");
+  return rows[0];
+}
+
+export async function insertActivePlayerFootage(params: {
+  playerId: string;
+  url: string;
+  title: string;
+}): Promise<{ id: string }> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/player_footage`, {
+    method: "POST",
+    headers: { ...adminHeaders(), Prefer: "return=representation" },
+    body: JSON.stringify({
+      player_id: params.playerId,
+      url: params.url,
+      title: params.title,
+      platform: "youtube",
+      active: true,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `insertActivePlayerFootage failed (${res.status}): ${await res.text()}`
+    );
+  }
+  const rows = (await res.json()) as Array<{ id: string }>;
+  return { id: rows[0].id };
+}
+
+export async function deletePlayerFootage(footageId: string): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/player_footage?id=eq.${footageId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deletePlayerFootage failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
+export async function deleteEquipmentReview(reviewId: string): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_reviews?id=eq.${reviewId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deleteEquipmentReview failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
 export async function getEquipmentReviewStatus(
   reviewId: string
 ): Promise<string> {

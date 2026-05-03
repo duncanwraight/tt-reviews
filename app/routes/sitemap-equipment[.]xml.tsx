@@ -1,48 +1,42 @@
 import type { Route } from "./+types/sitemap-equipment[.]xml";
 import { DatabaseService } from "~/lib/database.server";
-import { getSitemapService } from "~/lib/sitemap.server";
+import {
+  getSitemapService,
+  fetchSitemapLastmodMaps,
+} from "~/lib/sitemap.server";
 
 // Per-type sitemap (TT-139): equipment detail pages plus the
 // category / subcategory / manufacturer listing variants and the
-// curated comparison pages. Mirrors the slices the combined sitemap
-// already emits — just sliced out so the index can hand each off
-// independently when the catalog grows.
+// curated comparison pages.
+//
+// TT-155: lastmod for each entry combines the parent equipment row
+// with the latest approved review for that equipment, so a fresh
+// review correctly bumps the page's lastmod even though equipment
+// row didn't change. Listing/manufacturer/comparison pages aggregate
+// max(updated_at) across the slice — see SitemapService.
 export async function loader({ context }: Route.LoaderArgs) {
   const db = new DatabaseService(context);
   const sitemapService = getSitemapService(context);
 
-  const allEquipment = await db.getAllEquipment();
+  const [allEquipment, lastmodMaps] = await Promise.all([
+    db.getAllEquipment(),
+    fetchSitemapLastmodMaps(context),
+  ]);
+  const { reviewLastmods } = lastmodMaps;
 
-  const equipmentPages = sitemapService.generateEquipmentPages(allEquipment);
-
-  const equipmentCategories = [...new Set(allEquipment.map(e => e.category))];
-  const categoryPages =
-    sitemapService.generateCategoryPages(equipmentCategories);
-
-  const categorySubcategories = allEquipment
-    .filter(e => e.subcategory)
-    .map(e => ({ category: e.category, subcategory: e.subcategory! }))
-    .filter(
-      (item, index, arr) =>
-        arr.findIndex(
-          other =>
-            other.category === item.category &&
-            other.subcategory === item.subcategory
-        ) === index
-    );
-  const subcategoryPages = sitemapService.generateSubcategoryPages(
-    categorySubcategories
+  const equipmentPages = sitemapService.generateEquipmentPages(
+    allEquipment,
+    reviewLastmods
   );
-
-  const equipmentManufacturers = [
-    ...new Set(allEquipment.map(e => e.manufacturer)),
-  ];
-  const manufacturerPages = sitemapService.generateManufacturerPages(
-    equipmentManufacturers
+  const categoryPages = sitemapService.generateCategoryPages(allEquipment);
+  const subcategoryPages =
+    sitemapService.generateSubcategoryPages(allEquipment);
+  const manufacturerPages =
+    sitemapService.generateManufacturerPages(allEquipment);
+  const comparisonPages = sitemapService.generatePopularComparisonPages(
+    allEquipment,
+    reviewLastmods
   );
-
-  const comparisonPages =
-    sitemapService.generatePopularComparisonPages(allEquipment);
 
   const urls = [
     ...equipmentPages,

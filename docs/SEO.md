@@ -232,9 +232,47 @@ Each per-type sitemap caps at 50K URLs (the spec hard cap). When any one approac
 
 ### `lastmod`
 
-- Per-row sitemap entries set `lastmod` from `updated_at`. Don't fall back to `now`.
-- Static pages use `now` for `lastmod`. Acceptable — they don't really change.
-- The sitemap index uses `SitemapService.computeMaxLastmod(urls)` per slice so each entry's `lastmod` reflects its content's actual freshness, not the response time.
+`lastmod` is the only sitemap signal Google still uses (`<priority>` and `<changefreq>` are explicitly ignored — TT-155 dropped both from the XML output). Google's `lastmod` trust system is **binary**: once Google sees consistent inaccuracy on a site (every URL claims "today"), it ignores `lastmod` from this site entirely going forward, across every URL. There is no partial credit. So the rules below are not "polish" — getting them wrong actively burns SEO trust.
+
+Bing's guidance is the same shape: the date "must be set to the date the linked page was last modified, not when the sitemap is generated." Bing also recommends regenerating sitemaps "at least daily"; our 1h cache more than satisfies this without lying about freshness.
+
+#### What counts as "the page changed"
+
+For aggregator pages (almost every indexable route here), the page's content includes child rows that don't bump the parent's `updated_at`. A new approved review on `/equipment/:slug` _is_ a substantive page change even though the equipment row is unchanged. Per Google staff guidance ("if comments are a critical part of your page, then using that date is fine"), reviews / videos / equipment-setups absolutely qualify — they are the reason these pages exist.
+
+#### Per-page `lastmod` rules
+
+| Surface                      | `lastmod` source                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `/equipment/:slug`           | `max(equipment.updated_at, latest approved equipment_review.updated_at for this equipment)`                                 |
+| `/players/:slug`             | `max(player.updated_at, latest player_equipment_setup.updated_at, latest active player_footage.updated_at for this player)` |
+| `/equipment/compare/:slugs`  | `max(updated_at + latest review timestamp)` of both compared equipment items                                                |
+| `/equipment` (listing root)  | sitewide max — see below                                                                                                    |
+| `/players` (listing root)    | sitewide max                                                                                                                |
+| `/`                          | sitewide max                                                                                                                |
+| `/equipment?category=…`      | `max(equipment.updated_at)` across that category's slice                                                                    |
+| `/equipment?…&subcategory=…` | `max(equipment.updated_at)` across that (category, subcategory) pair                                                        |
+| `/equipment?manufacturer=…`  | `max(equipment.updated_at)` across that manufacturer's slice (curated allow-list — see "What belongs in each sitemap")      |
+| `/credits`                   | hardcoded `CREDITS_LASTMOD` constant in `app/lib/sitemap.server.ts`; bump manually when the page copy actually changes      |
+
+"Sitewide max" means the most recent timestamp across `equipment.updated_at`, `players.updated_at`, the equipment-review lastmod map, and the player-activity lastmod map. Computed by `SitemapService.computeSiteWideLastmod`. The home and listing-root pages legitimately reflect site-wide freshness — a new approved equipment row or player row _does_ change what's rendered on `/`, `/equipment`, `/players`.
+
+The sitemap index (`/sitemap-index.xml`) uses `SitemapService.computeMaxLastmod(urls)` per slice so each `<sitemap>` entry's `lastmod` is the max of the URLs that slice contains. With per-row rules above already honest, this aggregation is automatically honest.
+
+#### How the per-row maps are populated
+
+Building the per-row "latest child content" timestamp the naive way (one PostgREST query per equipment row) blows the Cloudflare Workers Free 50-subrequest cap on prod (no enforcement locally — TT-145). Two `SECURITY DEFINER` RPCs collapse the fan-out to a single round-trip each:
+
+- `get_equipment_review_lastmods()` → `{equipment_id: ISO timestamp}` of `MAX(updated_at)` over `equipment_reviews WHERE status = 'approved'`.
+- `get_player_activity_lastmods()` → `{player_id: ISO timestamp}` of `MAX` across `player_equipment_setups.updated_at` and `player_footage.updated_at WHERE active = true`.
+
+Both granted EXECUTE only to `service_role`; loaders call them via `fetchSitemapLastmodMaps(context)` (admin client). See `supabase/migrations/20260503171419_add_sitemap_lastmod_rpcs.sql`. Equipment / players with no child rows are absent from the map; callers fall back to the parent `updated_at` for those.
+
+#### What not to do
+
+- **Never** stamp `new Date().toISOString()` (or any "regenerated at" timestamp) into `<lastmod>`. Even on a single page type, this trains Google to treat all our `lastmod` as untrustworthy.
+- **Never** include `<priority>` or `<changefreq>` in new sitemap output. Google ignores both; they only add bytes.
+- **Don't** add a "updated when reviewed" extra column to dodge the per-row-map pattern. The RPC fan-out is the correct shape; it costs one subrequest per route, well under the 50-cap.
 
 ---
 
