@@ -91,25 +91,33 @@ SELECT cmp_ok(
   'get_spec_sourcing_status counts in-cooldown no_results rows'
 );
 
--- Test 7: anon role cannot execute pick_spec_source_batch.
-SET LOCAL ROLE anon;
-SELECT throws_ok(
-  $$SELECT public.pick_spec_source_batch(5)$$,
-  '42501',
-  NULL,
-  'pick_spec_source_batch denies the anon role'
+-- Test 7: anon role does NOT have EXECUTE on the picker RPC.
+-- Use has_function_privilege directly rather than wrapping a real call
+-- in throws_ok — invoking a SECURITY DEFINER function under SET LOCAL
+-- ROLE has caused pg_prove's psql session to drop in CI (the function
+-- body's table reads can short-circuit oddly when the outer role lacks
+-- privileges and the txn is abort-on-error). Privilege check is the
+-- canonical assertion here anyway.
+SELECT is(
+  has_function_privilege(
+    'anon',
+    'public.pick_spec_source_batch(integer)',
+    'EXECUTE'
+  ),
+  false,
+  'pick_spec_source_batch denies EXECUTE to anon'
 );
-RESET ROLE;
 
--- Test 8: authenticated role cannot execute pick_spec_source_batch.
-SET LOCAL ROLE authenticated;
-SELECT throws_ok(
-  $$SELECT public.pick_spec_source_batch(5)$$,
-  '42501',
-  NULL,
-  'pick_spec_source_batch denies the authenticated role'
+-- Test 8: authenticated role does NOT have EXECUTE either.
+SELECT is(
+  has_function_privilege(
+    'authenticated',
+    'public.pick_spec_source_batch(integer)',
+    'EXECUTE'
+  ),
+  false,
+  'pick_spec_source_batch denies EXECUTE to authenticated'
 );
-RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;
