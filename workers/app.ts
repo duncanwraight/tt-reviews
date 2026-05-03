@@ -11,6 +11,18 @@ import {
 } from "../app/lib/photo-sourcing/queue.server";
 import { buildProvidersFromEnv } from "../app/lib/photo-sourcing/providers/factory";
 import type { SourcingEnv } from "../app/lib/photo-sourcing/source.server";
+import { enqueueSpecSourceBatch } from "../app/lib/spec-sourcing/scheduler.server";
+import {
+  processOneSpecMessage,
+  computeRetryDelaySeconds as computeSpecRetryDelaySeconds,
+} from "../app/lib/spec-sourcing/queue.server";
+import { buildSpecSourcingFromEnv } from "../app/lib/spec-sourcing/factory";
+import type { SpecSourceMessage } from "../app/lib/spec-sourcing/types";
+
+// Union of every queue-message shape the Worker consumes. The
+// queue() handler switches on batch.queue to dispatch to the right
+// processor.
+type WorkerQueueMessage = PhotoSourceMessage | SpecSourceMessage;
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -114,9 +126,10 @@ export default {
     }
   },
 
-  // Cron trigger: recompute equipment_similar nightly. Wrangler exposes this
-  // locally via `curl 'http://tt-reviews.local:8787/__scheduled?cron=0+3+*+*+*'`
-  // while `wrangler dev` runs. Mirrors the fetch path's env gate.
+  // Cron triggers. Wrangler exposes the scheduled handler locally via
+  // `curl 'http://tt-reviews.local:8787/__scheduled?cron=<cron+spec>'`
+  // when running `wrangler dev`. Each cron string in wrangler.toml's
+  // `[triggers].crons` array maps to one branch below.
   async scheduled(controller, env, ctx) {
     const envCheck = getValidatedEnv(
       env as unknown as Record<string, unknown>,
@@ -142,19 +155,45 @@ export default {
       cron: controller.cron,
     });
 
+    // Both vars are guaranteed by validateEnv above; the cast just bypasses
+    // the optional-typing that cf-typegen emits in CI (no .dev.vars there).
+    const envVars = env as unknown as Record<string, string>;
+
     const job = (async () => {
       try {
-        // Both vars are guaranteed by validateEnv above; the cast just bypasses
-        // the optional-typing that cf-typegen emits in CI (no .dev.vars there).
-        const envVars = env as unknown as Record<string, string>;
-        const client = createClient(
-          envVars.SUPABASE_URL,
-          envVars.SUPABASE_SERVICE_ROLE_KEY
-        );
-        await recomputeSimilarEquipment(client, ctxLog);
+        switch (controller.cron) {
+          case "0 3 * * *": {
+            const client = createClient(
+              envVars.SUPABASE_URL,
+              envVars.SUPABASE_SERVICE_ROLE_KEY
+            );
+            await recomputeSimilarEquipment(client, ctxLog);
+            break;
+          }
+          case "0 */6 * * *": {
+            const client = createClient(
+              envVars.SUPABASE_URL,
+              envVars.SUPABASE_SERVICE_ROLE_KEY
+            );
+            const queue = (
+              env as unknown as {
+                SPEC_SOURCE_QUEUE: {
+                  send: (m: SpecSourceMessage) => Promise<unknown>;
+                };
+              }
+            ).SPEC_SOURCE_QUEUE;
+            await enqueueSpecSourceBatch(client, queue, ctxLog);
+            break;
+          }
+          default:
+            Logger.warn(
+              `scheduled.unknown-cron cron=${controller.cron}`,
+              ctxLog
+            );
+        }
       } catch (err) {
         Logger.error(
-          "scheduled.recompute-similar.failed",
+          `scheduled.${controller.cron}.failed`,
           ctxLog,
           err instanceof Error ? err : undefined
         );
@@ -164,12 +203,13 @@ export default {
     ctx.waitUntil(job);
   },
 
-  // Photo-source queue consumer (TT-91). Each message represents one
-  // equipment row to source. max_batch_size=1 keeps retry semantics
-  // simple — ack the whole batch on success, retry the whole batch on
-  // transient. The message's `attempts` counter (distinct from CF's
-  // max_retries which resets on ack) drives our exponential backoff
-  // for out-of-budget retries; CF's max_retries handles thrown errors.
+  // Queue consumer. Two queues land here:
+  //   * equipment-photo-source — TT-91 photo sourcing pipeline.
+  //   * spec-source-queue      — TT-149 spec sourcing pipeline.
+  // Both keep max_batch_size=1 for simple retry semantics; the
+  // `attempts` counter on each message body drives our app-level
+  // exponential backoff (distinct from Cloudflare's max_retries which
+  // resets on every ack and is reserved for thrown errors).
   async queue(batch, env, ctx) {
     const envCheck = getValidatedEnv(
       env as unknown as Record<string, unknown>,
@@ -195,60 +235,132 @@ export default {
       envVars.SUPABASE_URL,
       envVars.SUPABASE_SERVICE_ROLE_KEY
     );
-    const providers = buildProvidersFromEnv(
-      env as unknown as Parameters<typeof buildProvidersFromEnv>[0]
-    );
-    const triggeredBy = "queue-consumer";
 
-    const queueEnv = env as unknown as {
-      IMAGE_BUCKET: R2Bucket;
-      PHOTO_SOURCE_QUEUE: Queue<PhotoSourceMessage>;
-    };
-
-    for (const msg of batch.messages) {
-      const ctxLog = createLogContext("queue", {
-        queue: batch.queue,
-        slug: msg.body.slug,
-        attempts: msg.body.attempts ?? 0,
-      });
-
-      const outcome = await processOneSourceMessage(
-        supabase,
-        queueEnv.IMAGE_BUCKET,
-        envVars as unknown as SourcingEnv,
-        providers,
-        triggeredBy,
-        msg.body
+    if (
+      batch.queue === "equipment-photo-source" ||
+      batch.queue === "equipment-photo-source-dev"
+    ) {
+      const providers = buildProvidersFromEnv(
+        env as unknown as Parameters<typeof buildProvidersFromEnv>[0]
       );
+      const triggeredBy = "queue-consumer";
+      const queueEnv = env as unknown as {
+        IMAGE_BUCKET: R2Bucket;
+        PHOTO_SOURCE_QUEUE: Queue<PhotoSourceMessage>;
+      };
 
-      if (outcome.status === "transient") {
-        const attempts = (msg.body.attempts ?? 0) + 1;
-        const delaySeconds = computeRetryDelaySeconds(attempts);
-        Logger.info("queue.transient.requeue", ctxLog, {
-          reason: outcome.reason,
-          delaySeconds,
-          attempts,
+      for (const msg of batch.messages) {
+        const body = msg.body as PhotoSourceMessage;
+        const ctxLog = createLogContext("queue", {
+          queue: batch.queue,
+          slug: body.slug,
+          attempts: body.attempts ?? 0,
         });
-        // Send a fresh message with bumped attempts; ack the original
-        // so CF's max_retries doesn't double-count this against the
-        // hard retry budget (those are reserved for thrown errors).
-        await queueEnv.PHOTO_SOURCE_QUEUE.send(
-          { slug: msg.body.slug, attempts },
-          { delaySeconds }
+
+        const outcome = await processOneSourceMessage(
+          supabase,
+          queueEnv.IMAGE_BUCKET,
+          envVars as unknown as SourcingEnv,
+          providers,
+          triggeredBy,
+          body
         );
+
+        if (outcome.status === "transient") {
+          const attempts = (body.attempts ?? 0) + 1;
+          const delaySeconds = computeRetryDelaySeconds(attempts);
+          Logger.info("queue.transient.requeue", ctxLog, {
+            reason: outcome.reason,
+            delaySeconds,
+            attempts,
+          });
+          await queueEnv.PHOTO_SOURCE_QUEUE.send(
+            { slug: body.slug, attempts },
+            { delaySeconds }
+          );
+          msg.ack();
+          continue;
+        }
+
+        if (outcome.status === "error") {
+          Logger.error(
+            "queue.message.error",
+            ctxLog,
+            new Error(outcome.message)
+          );
+          msg.retry();
+          continue;
+        }
+
+        Logger.info("queue.message.processed", ctxLog, { outcome });
         msg.ack();
-        continue;
       }
-
-      if (outcome.status === "error") {
-        Logger.error("queue.message.error", ctxLog, new Error(outcome.message));
-        // Throw to let CF retry via max_retries; eventually DLQ.
-        msg.retry();
-        continue;
-      }
-
-      Logger.info("queue.message.processed", ctxLog, { outcome });
-      msg.ack();
+      return;
     }
+
+    if (
+      batch.queue === "spec-source-queue" ||
+      batch.queue === "spec-source-queue-dev"
+    ) {
+      const { sources, extractor } = buildSpecSourcingFromEnv(
+        env as unknown as Parameters<typeof buildSpecSourcingFromEnv>[0]
+      );
+      const queueEnv = env as unknown as {
+        SPEC_SOURCE_QUEUE: Queue<SpecSourceMessage>;
+      };
+
+      for (const msg of batch.messages) {
+        const body = msg.body as SpecSourceMessage;
+        const ctxLog = createLogContext("queue", {
+          queue: batch.queue,
+          equipmentId: body.equipmentId,
+          slug: body.slug,
+          attempts: body.attempts ?? 0,
+        });
+
+        const outcome = await processOneSpecMessage(
+          supabase,
+          sources,
+          extractor,
+          body,
+          ctxLog
+        );
+
+        if (outcome.status === "transient") {
+          const attempts = (body.attempts ?? 0) + 1;
+          const delaySeconds = computeSpecRetryDelaySeconds(attempts);
+          Logger.info("queue.spec.transient.requeue", ctxLog, {
+            reason: outcome.reason,
+            delaySeconds,
+            attempts,
+          });
+          await queueEnv.SPEC_SOURCE_QUEUE.send(
+            { ...body, attempts },
+            { delaySeconds }
+          );
+          msg.ack();
+          continue;
+        }
+
+        if (outcome.status === "error") {
+          Logger.error(
+            "queue.spec.message.error",
+            ctxLog,
+            new Error(outcome.message)
+          );
+          msg.retry();
+          continue;
+        }
+
+        Logger.info("queue.spec.message.processed", ctxLog, { outcome });
+        msg.ack();
+      }
+      return;
+    }
+
+    Logger.warn(
+      `queue.unknown-queue queue=${batch.queue}`,
+      createLogContext("queue", { queue: batch.queue })
+    );
   },
-} satisfies ExportedHandler<Env, PhotoSourceMessage>;
+} satisfies ExportedHandler<Env, WorkerQueueMessage>;

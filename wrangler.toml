@@ -48,6 +48,25 @@ max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "equipment-photo-source-dlq"
 
+# TT-149 — spec-sourcing pipeline queue. Separate queue from the
+# photo-sourcing one so the per-host throttle on en.butterfly.tt /
+# tabletennis11.com / revspin.net doesn't collide with Brave-image
+# QPS, and so a stuck photo-source DLQ doesn't block spec-sourcing
+# work. Same max_batch_size=1 / max_concurrency=1 rationale as the
+# photo queue: politeness throttles + Gemini RPM caps assume one in-
+# flight message per isolate.
+[[queues.producers]]
+queue = "spec-source-queue"
+binding = "SPEC_SOURCE_QUEUE"
+
+[[queues.consumers]]
+queue = "spec-source-queue"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 1
+max_retries = 5
+dead_letter_queue = "spec-source-dlq"
+
 # Rate limiting bindings — SECURITY.md Phase 8 (TT-17). The in-memory
 # Map in security.server.ts cannot share state across Worker isolates,
 # so without these bindings a 5-per-minute cap is enforced only
@@ -91,10 +110,16 @@ simple = { limit = 10, period = 10 }
 enabled = true
 head_sampling_rate = 1
 
-# Daily recompute of equipment_similar (TT-70). Local trigger:
-#   curl 'http://tt-reviews.local:8787/__scheduled?cron=0+3+*+*+*'
+# Cron triggers — local triggers via:
+#   curl 'http://tt-reviews.local:8787/__scheduled?cron=<cron+spec>'
+# (only with `wrangler dev`, not with `react-router dev`).
+#
+# - "0 3 * * *":     daily recompute of equipment_similar (TT-70).
+# - "0 */6 * * *":   spec-sourcing pipeline enqueue (TT-149) — every
+#                    6 hours pick a batch of equipment due for spec
+#                    sourcing and enqueue messages onto SPEC_SOURCE_QUEUE.
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "0 */6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"
@@ -131,6 +156,18 @@ max_batch_timeout = 5
 max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "equipment-photo-source-dev-dlq"
+
+[[env.dev.queues.producers]]
+queue = "spec-source-queue-dev"
+binding = "SPEC_SOURCE_QUEUE"
+
+[[env.dev.queues.consumers]]
+queue = "spec-source-queue-dev"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 1
+max_retries = 5
+dead_letter_queue = "spec-source-dlq-dev"
 
 [[env.dev.unsafe.bindings]]
 name = "FORM_RATE_LIMITER"
