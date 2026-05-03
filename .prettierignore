@@ -22,3 +22,7 @@ package-lock.json
 # Env
 .dev.vars
 .env*
+
+# Test fixtures — real-world HTML captured verbatim; reformatting
+# would defeat the point of the parser-tolerance assertions.
+**/__tests__/fixtures/**
