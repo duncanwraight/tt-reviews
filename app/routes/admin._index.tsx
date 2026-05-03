@@ -24,16 +24,14 @@ import {
 } from "~/lib/admin/activity.server";
 import { AdminActivityWidget } from "~/components/admin/AdminActivityWidget";
 import { EquipmentPhotoCoverageCard } from "~/components/admin/EquipmentPhotoCoverageCard";
+import { SpecSourcingStatusCard } from "~/components/admin/SpecSourcingStatusCard";
 import { getEquipmentSimilarStatus } from "~/lib/database/equipment";
 import { formatRelativeTime } from "~/lib/date";
 import {
   loadCoverageCounts,
   type CoverageCounts,
 } from "~/lib/photo-sourcing/queue-stats.server";
-import {
-  getSpecSourcingStatus,
-  type SpecSourcingStatus,
-} from "~/lib/spec-sourcing/status.server";
+import { getSpecSourcingStatus } from "~/lib/spec-sourcing/status.server";
 
 const pendingTotal = (s: StatusCounts) =>
   s.pending + s.awaiting_second_approval;
@@ -406,7 +404,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
             <EquipmentPhotoCoverageCard counts={photoCoverage} />
           )}
 
-          <SpecSourcingStatusSection status={specSourcingStatus} />
+          <SpecSourcingStatusCard status={specSourcingStatus} />
 
           <RecomputeSimilarSection
             csrfToken={csrfToken}
@@ -414,91 +412,6 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-// TT-149 — read-only widget surfacing the spec-sourcing cron's
-// recent activity and queue-depth signals. The cron runs on the
-// `0 */6 * * *` schedule; failures fire a Discord alert via the
-// standard installAlerter path so the dashboard signal is informational
-// rather than a primary alarm.
-interface SpecSourcingStatusSectionProps {
-  status: SpecSourcingStatus;
-}
-
-function SpecSourcingStatusSection({ status }: SpecSourcingStatusSectionProps) {
-  return (
-    <div
-      className="bg-white rounded-lg shadow p-6"
-      data-testid="spec-sourcing-status"
-    >
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-        Spec sourcing pipeline
-      </h3>
-      <p className="text-sm text-gray-600 mb-4">
-        Background cron (every 6h UTC) scrapes manufacturer + retailer + review
-        sources and proposes spec corrections for review. Last activity is the
-        most recent equipment row touched by the cron; run failures alert via
-        Discord.
-      </p>
-
-      <p
-        className="text-sm text-gray-700 mb-2"
-        data-testid="spec-sourcing-last-run"
-      >
-        {status.lastActivityAt ? (
-          <>
-            Last activity:{" "}
-            <span data-testid="spec-sourcing-last-run-relative">
-              {formatRelativeTime(status.lastActivityAt)}
-            </span>
-          </>
-        ) : (
-          <span data-testid="spec-sourcing-never-run">
-            Never run — cron will pick up on its next 6-hour tick.
-          </span>
-        )}
-      </p>
-
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div>
-          <dt className="text-gray-500">Pending review</dt>
-          <dd
-            className="text-lg font-semibold text-gray-900"
-            data-testid="spec-sourcing-pending-review"
-          >
-            {status.pendingReview.toLocaleString()}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-gray-500">Never sourced</dt>
-          <dd
-            className="text-lg font-semibold text-gray-900"
-            data-testid="spec-sourcing-never-sourced"
-          >
-            {status.neverSourced.toLocaleString()}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-gray-500">In cooldown</dt>
-          <dd
-            className="text-lg font-semibold text-gray-900"
-            data-testid="spec-sourcing-in-cooldown"
-          >
-            {status.inCooldown.toLocaleString()}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-gray-500">Applied total</dt>
-          <dd
-            className="text-lg font-semibold text-gray-900"
-            data-testid="spec-sourcing-applied-total"
-          >
-            {status.appliedTotal.toLocaleString()}
-          </dd>
-        </div>
-      </dl>
     </div>
   );
 }
