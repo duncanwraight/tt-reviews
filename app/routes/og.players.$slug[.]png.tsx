@@ -28,10 +28,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   let heroDataUrl: string | null = null;
   if (player.image_key) {
-    const heroUrl = `/cdn-cgi/image/width=384,format=png,fit=cover/api/images/${player.image_key}${
+    const sourceUrl = `/api/images/${player.image_key}${
       player.image_etag ? `?v=${encodeURIComponent(player.image_etag)}` : ""
     }`;
-    heroDataUrl = await fetchImageAsDataUrl(heroUrl, request, ctx);
+    heroDataUrl = await fetchImageAsDataUrl(
+      sourceUrl,
+      { width: 384, format: "png", fit: "cover" },
+      request,
+      ctx
+    );
   }
 
   const country = player.represents ?? player.birth_country ?? null;

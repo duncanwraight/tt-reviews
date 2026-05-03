@@ -165,6 +165,18 @@ export async function renderOgImage(
   });
 }
 
+// Transform options passed through to Cloudflare Image Transformations
+// via the `fetch(..., { cf: { image: ... } })` option. Mirrors the URL-
+// form params we used to embed in `/cdn-cgi/image/...` paths.
+export interface OgImageTransform {
+  width: number;
+  format: "png" | "jpeg";
+  fit: "scale-down" | "cover" | "contain";
+  // When set, the auto-trim mode CF supports for cropping uniform
+  // borders. Equipment images flagged by the trim toggle pass `"border"`.
+  trim?: "border";
+}
+
 /**
  * Pre-fetch a hero image and return it as a `data:image/png;base64,...`
  * data URL suitable for inlining into a Satori `<img>` tag.
@@ -174,20 +186,33 @@ export async function renderOgImage(
  * also lets us decide what to do when the source is missing (return
  * null and let the template render without the image).
  *
- * `imageUrl` should be absolute or a same-origin path; we resolve it
- * against the request URL.
+ * Transformations (resize, format=png) go through the `cf.image` option
+ * rather than a `/cdn-cgi/image/...` URL: Cloudflare's URL-form image
+ * resizing only intercepts requests as they enter the edge, so a Worker
+ * subrequest to a same-zone `/cdn-cgi/image/...` URL bounces back into
+ * our own router and 404s. The `cf.image` option calls Image
+ * Transformations from inside the Worker. See
+ * https://developers.cloudflare.com/images/transform-images/transform-via-workers/.
+ *
+ * `sourceUrl` should be absolute or a same-origin path; we resolve it
+ * against the request URL. In dev (`wrangler dev`) the `cf.image`
+ * option is a no-op — the source is fetched as-is and embedded only if
+ * already PNG/JPEG, which matches the current dev behavior (no hero on
+ * WebP sources).
  */
 export async function fetchImageAsDataUrl(
-  imageUrl: string,
+  sourceUrl: string,
+  transform: OgImageTransform,
   request: Request,
   ctx: LogContext
 ): Promise<string | null> {
   try {
-    const absolute = new URL(imageUrl, request.url).toString();
+    const absolute = new URL(sourceUrl, request.url).toString();
     const response = await fetch(absolute, {
+      cf: { image: transform },
       headers: {
-        // Satori needs PNG/JPEG; CF Image Resizing returns whatever the
-        // accept header asks for. We force PNG to match Satori's support.
+        // Satori needs PNG/JPEG; CF Image Transformations honors this
+        // when paired with the cf.image format hint above.
         Accept: "image/png,image/jpeg",
       },
     });

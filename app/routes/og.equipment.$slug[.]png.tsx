@@ -5,7 +5,6 @@
 import type { Route } from "./+types/og.equipment.$slug[.]png";
 import { DatabaseService } from "~/lib/database.server";
 import { fetchImageAsDataUrl, renderOgImage } from "~/lib/og/render.server";
-import { buildEquipmentImageUrl } from "~/lib/imageUrl";
 import { createLogContext } from "~/lib/logger.server";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -32,13 +31,22 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       : reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviewCount;
 
   // Hero image: Satori only supports PNG/JPEG. Force PNG via Cloudflare
-  // Image Resizing so any source format renders correctly.
+  // Image Transformations (called through `cf.image` on the fetch — the
+  // URL-form `/cdn-cgi/image/...` is only intercepted at the edge, not on
+  // Worker subrequests on the same zone).
   let heroDataUrl: string | null = null;
   if (equipment.image_key) {
-    const heroUrl = `/cdn-cgi/image/width=512,format=png,fit=scale-down${
-      equipment.image_trim_kind ? ",trim=border" : ""
-    }/api/images/${equipment.image_key}`;
-    heroDataUrl = await fetchImageAsDataUrl(heroUrl, request, ctx);
+    heroDataUrl = await fetchImageAsDataUrl(
+      `/api/images/${equipment.image_key}`,
+      {
+        width: 512,
+        format: "png",
+        fit: "scale-down",
+        ...(equipment.image_trim_kind ? { trim: "border" as const } : {}),
+      },
+      request,
+      ctx
+    );
   }
 
   const ratingText = averageRating
