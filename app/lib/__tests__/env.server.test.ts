@@ -14,6 +14,7 @@ const PROD_OK = {
   DISCORD_ALERTS_CHANNEL_ID: "987654321098765432",
   DISCORD_ALLOWED_ROLES: "role_1,role_2",
   AUTO_ADMIN_EMAILS: "admin@example.com",
+  GEMINI_API_KEY: "AIzaSomethingThatLooksRealEnough",
 };
 
 const DEV_OK = {
@@ -74,6 +75,7 @@ describe("validateEnv", () => {
         "DISCORD_CHANNEL_ID: missing",
         "DISCORD_ALLOWED_ROLES: missing",
         "AUTO_ADMIN_EMAILS: missing",
+        "GEMINI_API_KEY: missing",
       ])
     );
   });

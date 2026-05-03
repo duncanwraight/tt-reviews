@@ -1,5 +1,5 @@
-// Budget enforcement wrapper for photo-sourcing providers (TT-90).
-// Layers two caps on top of any Provider:
+// Photo-sourcing budget wrapper (TT-90). Layers two caps on top of any
+// Provider:
 //
 //   1. QPS rate-limit (via a Workers ratelimit binding) — fine-grain,
 //      edge-distributed. Returning 'rate_limited' lets the queue
@@ -13,28 +13,33 @@
 // (used by tests and by deployments where bindings haven't been
 // provisioned yet).
 //
-// KV is NOT atomic; the read-then-increment is last-write-wins under
-// concurrent calls. That's fine for a defensive cap that's allowed to
-// undercount by a small margin — it errs on the side of cheaper
-// (caller skips a few extra calls) rather than over-spending.
+// Shared primitives (key construction, KV read/increment, binding
+// shapes) live in app/lib/providers/budget.ts so the spec-sourcing
+// extractor can layer the same cap shape on a different inner
+// callable. This wrapper is photo-Provider-shaped — the SpecExtractor
+// equivalent is in app/lib/spec-sourcing/extract/budget.ts.
 
+import {
+  type BudgetKV,
+  type BudgetRateLimit,
+  DAILY_TTL_SECONDS,
+  MONTHLY_TTL_SECONDS,
+  dailyKey,
+  increment,
+  monthlyKey,
+  readCount,
+} from "../../providers/budget";
 import type { Provider } from "./types";
 
-// Minimal RateLimit shape so the lib doesn't depend on
-// @cloudflare/workers-types. The real binding satisfies this.
-export interface BudgetRateLimit {
-  limit(opts: { key: string }): Promise<{ success: boolean }>;
-}
-
-// Minimal KVNamespace shape. The real binding satisfies this.
-export interface BudgetKV {
-  get(key: string): Promise<string | null>;
-  put(
-    key: string,
-    value: string,
-    opts?: { expirationTtl?: number }
-  ): Promise<unknown>;
-}
+// Re-export shared primitives so existing photo-sourcing imports keep
+// working without churn. New consumers should import from
+// app/lib/providers/budget directly.
+export {
+  type BudgetKV,
+  type BudgetRateLimit,
+  dailyKey,
+  monthlyKey,
+} from "../../providers/budget";
 
 export interface BudgetOptions {
   rateLimiter?: BudgetRateLimit;
@@ -45,37 +50,6 @@ export interface BudgetOptions {
   monthlyCap?: number;
   // Test seam — defaults to wall-clock UTC.
   now?: () => Date;
-}
-
-const DAILY_TTL_SECONDS = 25 * 60 * 60;
-const MONTHLY_TTL_SECONDS = 32 * 24 * 60 * 60;
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
-export function dailyKey(name: string, d: Date): string {
-  return `provider:${name}:daily:${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
-}
-
-export function monthlyKey(name: string, d: Date): string {
-  return `provider:${name}:monthly:${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
-}
-
-async function readCount(kv: BudgetKV, key: string): Promise<number> {
-  const v = await kv.get(key);
-  if (!v) return 0;
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : 0;
-}
-
-async function increment(
-  kv: BudgetKV,
-  key: string,
-  ttlSeconds: number
-): Promise<void> {
-  const current = await readCount(kv, key);
-  await kv.put(key, String(current + 1), { expirationTtl: ttlSeconds });
 }
 
 // Wrap a Provider with rate-limit + quota checks. Returns 'rate_limited'

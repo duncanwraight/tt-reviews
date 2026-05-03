@@ -70,6 +70,10 @@ const REQUIRED_PROD_ONLY = [
   "DISCORD_ALERTS_CHANNEL_ID",
   "DISCORD_ALLOWED_ROLES",
   "AUTO_ADMIN_EMAILS",
+  // Spec-sourcing pipeline (TT-148). The cron extracts specs via
+  // Google AI Studio Gemini; without this key the pipeline is a no-op
+  // in prod and the cron silently fails to enqueue work.
+  "GEMINI_API_KEY",
 ] as const;
 
 // Discord secrets accidentally left as the placeholder strings from

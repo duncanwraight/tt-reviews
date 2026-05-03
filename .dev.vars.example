@@ -48,3 +48,9 @@ DISCORD_ALLOWED_ROLES=role_id_1,role_id_2
 # Comma-separated list of email addresses that should be automatically promoted to admin
 # These users will become admin when they sign up or sign in
 AUTO_ADMIN_EMAILS=admin@yourcompany.com,moderator@yourcompany.com
+
+# Google AI Studio Gemini API key (TT-148, spec-sourcing pipeline).
+# Get one at https://aistudio.google.com/apikey — the free tier is fine
+# for local dev. Prod must set this via `wrangler secret put
+# GEMINI_API_KEY`. Without it, the spec-sourcing cron is a no-op.
+GEMINI_API_KEY=your_google_ai_studio_api_key
