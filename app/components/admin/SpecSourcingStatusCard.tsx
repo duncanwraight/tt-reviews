@@ -10,14 +10,14 @@ interface SpecSourcingStatusCardProps {
 // Admin-dashboard card for the spec-sourcing pipeline (TT-149).
 // Mirrors EquipmentPhotoCoverageCard's shape: title, icon+label+value
 // rows, then a small footer line carrying the cron's last-activity
-// timestamp. Card links to /admin/spec-proposals (TT-150) so the
+// timestamp. Card links to /admin/manufacturer-specs (TT-150) so the
 // pending-review count doubles as the call-to-action.
 export function SpecSourcingStatusCard({
   status,
 }: SpecSourcingStatusCardProps) {
   return (
     <Link
-      to="/admin/spec-proposals"
+      to="/admin/manufacturer-specs"
       className="block bg-white rounded-lg shadow border border-gray-200 hover:border-purple-300 hover:shadow-md transition p-5"
       data-testid="spec-sourcing-status"
     >

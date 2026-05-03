@@ -1,10 +1,10 @@
-// Admin spec-proposals queue (TT-150). One PostgREST round-trip via
-// list_pending_spec_proposals — keeps the loader well under the
-// 50-subrequest cap. Per `docs/SEO.md` admin pages stay noindex; the
-// fetch path's X-Robots-Tag in workers/app.ts already covers /admin/*
-// regardless of route.
+// Admin manufacturer-specs review queue (TT-150). One PostgREST
+// round-trip via list_pending_spec_proposals — keeps the loader well
+// under the 50-subrequest cap. Per `docs/SEO.md` admin pages stay
+// noindex; the fetch path's X-Robots-Tag in workers/app.ts already
+// covers /admin/* regardless of route.
 
-import type { Route } from "./+types/admin.spec-proposals._index";
+import type { Route } from "./+types/admin.manufacturer-specs._index";
 import { data, Link } from "react-router";
 import { Inbox } from "lucide-react";
 
@@ -14,11 +14,11 @@ import { formatRelativeTime } from "~/lib/date";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Spec Proposals | Admin | TT Reviews" },
+    { title: "Manufacturer Specs | Admin | TT Reviews" },
     {
       name: "description",
       content:
-        "Review pending equipment spec proposals from the cron pipeline.",
+        "Review pending manufacturer-spec proposals from the cron pipeline.",
     },
     { name: "robots", content: "noindex, nofollow" },
   ];
@@ -48,9 +48,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   if (error) {
     Logger.error(
-      "spec-proposals.list.failed",
-      createLogContext("admin-spec-proposals", {
-        route: "/admin/spec-proposals",
+      "manufacturer-specs.list.failed",
+      createLogContext("admin-manufacturer-specs", {
+        route: "/admin/manufacturer-specs",
       }),
       new Error(error.message)
     );
@@ -64,7 +64,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return data({ proposals }, { headers: sbServerClient.headers });
 }
 
-export default function AdminSpecProposalsIndex({
+export default function AdminManufacturerSpecsIndex({
   loaderData,
 }: Route.ComponentProps) {
   const { proposals } = loaderData;
@@ -72,10 +72,11 @@ export default function AdminSpecProposalsIndex({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Spec Proposals</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Manufacturer Specs</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Pending spec corrections proposed by the background cron. Apply writes
-          to <code className="text-xs bg-gray-100 px-1">equipment.*</code> and
+          Pending manufacturer-spec corrections from the background cron. Apply
+          writes to{" "}
+          <code className="text-xs bg-gray-100 px-1">equipment.*</code> and
           stamps the 6-month cooldown; reject stamps the 14-day cooldown and
           leaves the equipment row untouched.
         </p>
@@ -84,7 +85,7 @@ export default function AdminSpecProposalsIndex({
       {proposals.length === 0 ? (
         <div
           className="bg-white rounded-lg shadow p-8 text-center text-gray-500"
-          data-testid="spec-proposals-empty"
+          data-testid="manufacturer-specs-empty"
         >
           <Inbox className="size-8 mx-auto mb-2 text-gray-400" aria-hidden />
           <p>No pending proposals.</p>
@@ -92,7 +93,7 @@ export default function AdminSpecProposalsIndex({
       ) : (
         <div
           className="bg-white rounded-lg shadow overflow-hidden"
-          data-testid="spec-proposals-list"
+          data-testid="manufacturer-specs-list"
         >
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -119,7 +120,7 @@ export default function AdminSpecProposalsIndex({
             </thead>
             <tbody className="divide-y divide-gray-200">
               {proposals.map(p => (
-                <tr key={p.id} data-testid={`spec-proposal-row-${p.id}`}>
+                <tr key={p.id} data-testid={`manufacturer-spec-row-${p.id}`}>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     <Link
                       to={`/equipment/${p.equipment_slug}`}
@@ -145,9 +146,9 @@ export default function AdminSpecProposalsIndex({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
-                      to={`/admin/spec-proposals/${p.id}`}
+                      to={`/admin/manufacturer-specs/${p.id}`}
                       className="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700"
-                      data-testid={`spec-proposal-review-${p.id}`}
+                      data-testid={`manufacturer-spec-review-${p.id}`}
                     >
                       Review
                     </Link>

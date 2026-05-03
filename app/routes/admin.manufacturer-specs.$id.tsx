@@ -1,4 +1,4 @@
-// Admin spec-proposal detail / review form (TT-150). Loads the
+// Admin manufacturer-specs review detail form (TT-150). Loads the
 // proposal + the linked equipment row, renders one form control per
 // spec field pre-filled with the merged value, and dispatches Apply
 // or Reject through the SECURITY DEFINER RPCs (see
@@ -8,7 +8,7 @@
 // "from <host>" badges below each input so the moderator can audit
 // which source supplied each value.
 
-import type { Route } from "./+types/admin.spec-proposals.$id";
+import type { Route } from "./+types/admin.manufacturer-specs.$id";
 import { data, Form, redirect } from "react-router";
 
 import {
@@ -23,10 +23,10 @@ import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Review Spec Proposal | Admin | TT Reviews" },
+    { title: "Review Manufacturer Specs | Admin | TT Reviews" },
     {
       name: "description",
-      content: "Review and apply or reject a spec proposal.",
+      content: "Review and apply or reject a manufacturer-spec proposal.",
     },
     { name: "robots", content: "noindex, nofollow" },
   ];
@@ -152,8 +152,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     const result = await rejectSpecProposal(supabaseAdmin, proposalId, user.id);
     if (!result.ok) {
       Logger.error(
-        "spec-proposals.reject.failed",
-        createLogContext("admin-spec-proposals", { proposalId }),
+        "manufacturer-specs.reject.failed",
+        createLogContext("admin-manufacturer-specs", { proposalId }),
         new Error(result.error ?? "reject failed")
       );
       return data(
@@ -161,7 +161,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         { status: 400, headers: sbServerClient.headers }
       );
     }
-    return redirect("/admin/spec-proposals", {
+    return redirect("/admin/manufacturer-specs", {
       headers: sbServerClient.headers,
     });
   }
@@ -175,8 +175,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     );
     if (!result.ok) {
       Logger.error(
-        "spec-proposals.apply.failed",
-        createLogContext("admin-spec-proposals", { proposalId }),
+        "manufacturer-specs.apply.failed",
+        createLogContext("admin-manufacturer-specs", { proposalId }),
         new Error(result.error ?? "apply failed")
       );
       return data(
@@ -184,7 +184,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         { status: 400, headers: sbServerClient.headers }
       );
     }
-    return redirect("/admin/spec-proposals", {
+    return redirect("/admin/manufacturer-specs", {
       headers: sbServerClient.headers,
     });
   }
@@ -217,7 +217,7 @@ function rangeBound(v: SpecValue | undefined, bound: "min" | "max"): string {
   return "";
 }
 
-export default function AdminSpecProposalDetail({
+export default function AdminManufacturerSpecsDetail({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
@@ -246,7 +246,7 @@ export default function AdminSpecProposalDetail({
       {error && (
         <div
           className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4 mb-4"
-          data-testid="spec-proposal-error"
+          data-testid="manufacturer-spec-error"
           role="alert"
         >
           {error}
@@ -258,7 +258,7 @@ export default function AdminSpecProposalDetail({
 
         <section
           className="bg-white rounded-lg shadow p-6"
-          data-testid="spec-proposal-form"
+          data-testid="manufacturer-spec-form"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Specs</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -383,7 +383,7 @@ export default function AdminSpecProposalDetail({
             name="intent"
             value="apply"
             className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700"
-            data-testid="spec-proposal-apply"
+            data-testid="manufacturer-spec-apply"
           >
             Apply
           </button>
@@ -392,7 +392,7 @@ export default function AdminSpecProposalDetail({
             name="intent"
             value="reject"
             className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50"
-            data-testid="spec-proposal-reject"
+            data-testid="manufacturer-spec-reject"
           >
             Reject
           </button>

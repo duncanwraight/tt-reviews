@@ -16,8 +16,8 @@ import {
   setEquipmentSpecsCooldown,
 } from "./utils/data";
 
-// TT-150: admin spec-proposals review flow. End-to-end coverage that
-// the SECURITY DEFINER apply / reject RPCs are wired correctly —
+// TT-150: admin manufacturer-specs review flow. End-to-end coverage
+// that the SECURITY DEFINER apply / reject RPCs are wired correctly —
 // mocked-Supabase unit tests cover validation, this test catches
 // PostgREST shape bugs (RPC argument names, return shape, RLS reads).
 //
@@ -44,7 +44,7 @@ const VISCARIA_PROPOSAL = {
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("Admin spec-proposals review", () => {
+test.describe("Admin manufacturer-specs review", () => {
   test("Apply writes specs + description and marks proposal applied", async ({
     page,
   }) => {
@@ -70,13 +70,13 @@ test.describe("Admin spec-proposals review", () => {
     try {
       await login(page, adminEmail);
 
-      await page.goto("/admin/spec-proposals");
+      await page.goto("/admin/manufacturer-specs");
       await expect(
-        page.getByTestId(`spec-proposal-row-${proposal.id}`)
+        page.getByTestId(`manufacturer-spec-row-${proposal.id}`)
       ).toBeVisible();
 
-      await page.getByTestId(`spec-proposal-review-${proposal.id}`).click();
-      await page.waitForURL(`**/admin/spec-proposals/${proposal.id}`);
+      await page.getByTestId(`manufacturer-spec-review-${proposal.id}`).click();
+      await page.waitForURL(`**/admin/manufacturer-specs/${proposal.id}`);
 
       // Defaults are pre-filled from merged.
       await expect(page.getByLabel(/Weight/)).toHaveValue("89");
@@ -88,8 +88,8 @@ test.describe("Admin spec-proposals review", () => {
       // Edit one numeric field to verify it persists through validation.
       await page.getByLabel(/Weight/).fill("90");
 
-      await page.getByTestId("spec-proposal-apply").click();
-      await page.waitForURL(/\/admin\/spec-proposals$/);
+      await page.getByTestId("manufacturer-spec-apply").click();
+      await page.waitForURL(/\/admin\/manufacturer-specs$/);
 
       const after = await getEquipmentSpecsAndDescription(equipment.id);
       expect(after.specifications).toMatchObject({
@@ -140,10 +140,10 @@ test.describe("Admin spec-proposals review", () => {
 
     try {
       await login(page, adminEmail);
-      await page.goto(`/admin/spec-proposals/${proposal.id}`);
+      await page.goto(`/admin/manufacturer-specs/${proposal.id}`);
 
-      await page.getByTestId("spec-proposal-reject").click();
-      await page.waitForURL(/\/admin\/spec-proposals$/);
+      await page.getByTestId("manufacturer-spec-reject").click();
+      await page.waitForURL(/\/admin\/manufacturer-specs$/);
 
       const after = await getEquipmentSpecsAndDescription(equipment.id);
       expect(after.specifications).toEqual(before.specifications);

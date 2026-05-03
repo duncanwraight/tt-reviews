@@ -27,7 +27,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Import",
     items: [
       { label: "Equipment Photos", to: "/admin/equipment-photos" },
-      { label: "Spec Proposals", to: "/admin/spec-proposals" },
+      { label: "Manufacturer Specs", to: "/admin/manufacturer-specs" },
       { label: "New Equipment", to: "/admin/import" },
     ],
   },
