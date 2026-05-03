@@ -307,3 +307,124 @@ export async function getPendingEquipmentReviews(userId: string): Promise<
     }>
   >;
 }
+
+// Spec-proposal helpers (TT-150). Insert / read / clean rows on
+// equipment_spec_proposals + equipment cooldown columns directly via
+// PostgREST (admin-key headers bypass RLS — see SUPABASE_SERVICE_ROLE_KEY
+// in adminHeaders).
+
+export interface SpecProposalSeed {
+  equipmentId: string;
+  merged: {
+    specs: Record<string, unknown>;
+    description: string | null;
+    per_field_source: Record<string, string>;
+  };
+  candidates?: Record<string, unknown>;
+  status?: "pending_review" | "applied" | "rejected" | "no_results";
+}
+
+export async function deleteSpecProposalsForEquipment(
+  equipmentId: string
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_spec_proposals?equipment_id=eq.${equipmentId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deleteSpecProposalsForEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
+export async function insertSpecProposal(
+  seed: SpecProposalSeed
+): Promise<{ id: string }> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/equipment_spec_proposals`, {
+    method: "POST",
+    headers: { ...adminHeaders(), Prefer: "return=representation" },
+    body: JSON.stringify({
+      equipment_id: seed.equipmentId,
+      merged: seed.merged,
+      candidates: seed.candidates ?? {},
+      status: seed.status ?? "pending_review",
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `insertSpecProposal failed (${res.status}): ${await res.text()}`
+    );
+  }
+  const rows = (await res.json()) as Array<{ id: string }>;
+  return { id: rows[0].id };
+}
+
+export async function getSpecProposal(id: string): Promise<{
+  status: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+} | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_spec_proposals?id=eq.${id}&select=status,reviewed_by,reviewed_at`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(`getSpecProposal failed (${res.status})`);
+  }
+  const rows = (await res.json()) as Array<{
+    status: string;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+  }>;
+  return rows[0] ?? null;
+}
+
+export async function getEquipmentSpecsAndDescription(
+  equipmentId: string
+): Promise<{
+  specifications: Record<string, unknown> | null;
+  description: string | null;
+  specs_source_status: string | null;
+  specs_sourced_at: string | null;
+}> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}&select=specifications,description,specs_source_status,specs_sourced_at`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(`getEquipmentSpecsAndDescription failed (${res.status})`);
+  }
+  const rows = (await res.json()) as Array<{
+    specifications: Record<string, unknown> | null;
+    description: string | null;
+    specs_source_status: string | null;
+    specs_sourced_at: string | null;
+  }>;
+  if (!rows[0]) throw new Error(`equipment ${equipmentId} not found`);
+  return rows[0];
+}
+
+export async function setEquipmentSpecsCooldown(
+  equipmentId: string,
+  patch: {
+    specifications?: Record<string, unknown> | null;
+    description?: string | null;
+    specs_source_status?: string | null;
+    specs_sourced_at?: string | null;
+  }
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}`,
+    {
+      method: "PATCH",
+      headers: { ...adminHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `setEquipmentSpecsCooldown failed (${res.status}): ${await res.text()}`
+    );
+  }
+}

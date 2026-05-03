@@ -16,6 +16,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { label: "Equipment Submissions", to: "/admin/equipment-submissions" },
       { label: "Equipment Edits", to: "/admin/equipment-edits" },
+      { label: "Spec Proposals", to: "/admin/spec-proposals" },
       { label: "Equipment Reviews", to: "/admin/equipment-reviews" },
       { label: "Equipment Setups", to: "/admin/player-equipment-setups" },
       { label: "Player Submissions", to: "/admin/player-submissions" },
