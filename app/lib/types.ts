@@ -108,6 +108,10 @@ export interface Equipment {
   image_license_url?: string;
   image_source_url?: string;
   image_trim_kind?: "auto" | "border" | null; // TT-88: render-time trim
+  image_sourcing_attempted_at?: string | null;
+  image_skipped_at?: string | null;
+  specs_source_status?: "fresh" | "no_results" | "pending_review" | null;
+  specs_sourced_at?: string | null;
   created_at: string;
   updated_at: string;
 }

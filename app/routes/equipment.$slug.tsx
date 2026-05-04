@@ -14,6 +14,7 @@ import { getUserWithRole } from "~/lib/auth.server";
 
 import { PageSection } from "~/components/layout/PageSection";
 import { Breadcrumb } from "~/components/ui/Breadcrumb";
+import { AdminRequeueButtons } from "~/components/equipment/AdminRequeueButtons";
 import { AdminTrimToggle } from "~/components/equipment/AdminTrimToggle";
 import { EquipmentHeader } from "~/components/equipment/EquipmentHeader";
 import { ReviewsSection } from "~/components/equipment/ReviewsSection";
@@ -378,6 +379,18 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
                       slug={equipment.slug}
                       trimKind={equipment.image_trim_kind ?? null}
                       csrfToken={adminCsrfToken}
+                    />
+                  )}
+                  {isAdmin && adminCsrfToken && (
+                    <AdminRequeueButtons
+                      slug={equipment.slug}
+                      csrfToken={adminCsrfToken}
+                      specsTouched={equipment.specs_source_status != null}
+                      photosTouched={
+                        equipment.image_sourcing_attempted_at != null ||
+                        equipment.image_skipped_at != null ||
+                        equipment.image_key != null
+                      }
                     />
                   )}
                 </>
