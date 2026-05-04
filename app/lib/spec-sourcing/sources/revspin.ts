@@ -107,18 +107,24 @@ export function makeRevspinSource(deps: RevspinSourceDeps = {}): SpecSource {
     tier: 3,
     async search(equipment: EquipmentRef): Promise<SpecCandidate[]> {
       const category = mapCategory(equipment.category, equipment.subcategory);
+      // No mapped category is a structural skip, not a failure — the
+      // run log already records the search step with count=0. Throwing
+      // would alarm moderators looking at e.g. an accessory row.
       if (!category) return [];
-      let list: RevspinListItem[];
-      try {
-        list = await getCachedList(category, fetchListFn, now());
-      } catch {
-        return [];
-      }
+      // No silent failures (TT-162): let the underlying fetch error
+      // propagate so the queue consumer logs `search.failed` with the
+      // real reason. Different fix from "0 organic matches".
+      const list = await getCachedList(category, fetchListFn, now());
       const matches = findMatches(list, equipment, 5);
       return matches.map(item => ({ url: item.url, title: item.name }));
     },
     async fetch(candidateUrl: string) {
       const res = await httpFetch(candidateUrl, httpOpts);
+      if (!res.ok) {
+        throw new Error(
+          `revspin fetch ${candidateUrl} returned HTTP ${res.status}`
+        );
+      }
       const html = await res.text();
       return { html, finalUrl: res.url || candidateUrl };
     },

@@ -40,12 +40,18 @@ function fakeRateLimiter(success: boolean): BudgetRateLimit {
 function okExtractor(): SpecExtractor {
   return {
     id: "gemini-2.5-flash",
-    match: vi.fn().mockResolvedValue({ matches: true, confidence: 0.9 }),
+    match: vi.fn().mockResolvedValue({
+      result: { matches: true, confidence: 0.9 },
+      diagnostics: { failureReason: "ok", httpStatus: 200, tokens: 100 },
+    }),
     extract: vi.fn().mockResolvedValue({
-      specs: { weight: 89 },
-      description: null,
-      perFieldConfidence: {},
-      rawHtmlExcerpt: "",
+      result: {
+        specs: { weight: 89 },
+        description: null,
+        perFieldConfidence: {},
+        rawHtmlExcerpt: "",
+      },
+      diagnostics: { failureReason: "ok", httpStatus: 200, tokens: 1234 },
     }),
   };
 }
@@ -130,8 +136,14 @@ describe("withSpecExtractorBudget", () => {
     // that the call was skipped. Cap behaviour mirrors photo-sourcing.
     const inner: SpecExtractor = {
       id: "gemini-2.5-flash",
-      match: vi.fn().mockResolvedValue(null),
-      extract: vi.fn().mockResolvedValue(null),
+      match: vi.fn().mockResolvedValue({
+        result: null,
+        diagnostics: { failureReason: "schema_invalid", httpStatus: 200 },
+      }),
+      extract: vi.fn().mockResolvedValue({
+        result: null,
+        diagnostics: { failureReason: "schema_invalid", httpStatus: 200 },
+      }),
     };
     const kv = fakeKV();
     const wrapped = withSpecExtractorBudget(inner, {

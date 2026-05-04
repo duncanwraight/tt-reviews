@@ -47,19 +47,22 @@ describe("makeGeminiExtractor.extract", () => {
     ) as unknown as typeof fetch;
 
     const extractor = makeGeminiExtractor({ apiKey: "test", fetchImpl });
-    const result = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
 
-    expect(result).not.toBeNull();
-    expect(result!.specs).toMatchObject({
+    expect(outcome.diagnostics.failureReason).toBe("ok");
+    expect(outcome.diagnostics.tokens).toBe(1234);
+    expect(outcome.diagnostics.httpStatus).toBe(200);
+    expect(outcome.result).not.toBeNull();
+    expect(outcome.result!.specs).toMatchObject({
       weight: 89,
       plies_wood: 5,
       plies_composite: 2,
       composite_material: "Arylate Carbon",
       speed: 9.5,
     });
-    expect(result!.description).toBe("Legendary all-round blade.");
-    expect(result!.perFieldConfidence).toEqual({ speed: 0.5 });
-    expect(result!.rawHtmlExcerpt.length).toBeGreaterThan(0);
+    expect(outcome.result!.description).toBe("Legendary all-round blade.");
+    expect(outcome.result!.perFieldConfidence).toEqual({ speed: 0.5 });
+    expect(outcome.result!.rawHtmlExcerpt.length).toBeGreaterThan(0);
   });
 
   it("calls the gemini.com REST endpoint with the api key in the query string", async () => {
@@ -82,34 +85,83 @@ describe("makeGeminiExtractor.extract", () => {
     );
   });
 
-  it("returns null when Gemini returns a non-OK status", async () => {
+  it("classifies a 401/403 from Gemini as auth_failed (fatal config issue)", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("API key invalid", { status: 401 })
+      ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "bad", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("auth_failed");
+    expect(outcome.diagnostics.httpStatus).toBe(401);
+    expect(outcome.diagnostics.rawResponse).toBe("API key invalid");
+  });
+
+  it("classifies a 429 / 5xx from Gemini as http_non_ok with the body excerpt", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(
         new Response("rate limited", { status: 429 })
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    expect(await extractor.extract(VISCARIA_HTML, VISCARIA_REF)).toBeNull();
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("http_non_ok");
+    expect(outcome.diagnostics.httpStatus).toBe(429);
+    expect(outcome.diagnostics.rawResponse).toBe("rate limited");
   });
 
-  it("returns null when candidate text is malformed JSON", async () => {
+  it("returns missing_api_key when constructed with an empty apiKey, without making a request", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("missing_api_key");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("classifies malformed candidate JSON as parse_failed and includes the rawResponse", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(
         geminiResponse("this is not JSON at all")
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    expect(await extractor.extract(VISCARIA_HTML, VISCARIA_REF)).toBeNull();
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("parse_failed");
+    expect(outcome.diagnostics.rawResponse).toBe("this is not JSON at all");
+    expect(outcome.diagnostics.tokens).toBe(1234);
   });
 
-  it("returns null when the response has no specs object", async () => {
+  it("classifies a missing specs object as schema_invalid with a validationDetail", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(
         geminiResponse(JSON.stringify({ description: "no specs object" }))
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    expect(await extractor.extract(VISCARIA_HTML, VISCARIA_REF)).toBeNull();
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("schema_invalid");
+    expect(outcome.diagnostics.validationDetail).toContain("specs");
+    expect(outcome.diagnostics.rawResponse).toContain("no specs object");
+  });
+
+  it("classifies an empty candidate text as empty_response", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ candidates: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("empty_response");
+    expect(outcome.diagnostics.httpStatus).toBe(200);
   });
 
   it("drops invalid spec values rather than failing the whole extraction", async () => {
@@ -128,9 +180,10 @@ describe("makeGeminiExtractor.extract", () => {
       )
     ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    const result = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
-    expect(result).not.toBeNull();
-    expect(result!.specs).toEqual({ weight: 89, plies_wood: 5 });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.diagnostics.failureReason).toBe("ok");
+    expect(outcome.result).not.toBeNull();
+    expect(outcome.result!.specs).toEqual({ weight: 89, plies_wood: 5 });
   });
 
   it("accepts a hardness range with min/max", async () => {
@@ -142,8 +195,10 @@ describe("makeGeminiExtractor.extract", () => {
       )
     ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    const result = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
-    expect(result!.specs).toEqual({ hardness: { min: 40, max: 42 } });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({
+      hardness: { min: 40, max: 42 },
+    });
   });
 });
 
@@ -156,7 +211,7 @@ describe("makeGeminiExtractor.match", () => {
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
 
-    const result = await extractor.match(
+    const outcome = await extractor.match(
       "<html><body>Viscaria blade page</body></html>",
       VISCARIA_REF,
       {
@@ -164,7 +219,8 @@ describe("makeGeminiExtractor.match", () => {
         title: "Viscaria",
       }
     );
-    expect(result).toEqual({ matches: true, confidence: 0.92 });
+    expect(outcome.diagnostics.failureReason).toBe("ok");
+    expect(outcome.result).toEqual({ matches: true, confidence: 0.92 });
   });
 
   it("clamps confidence into [0,1]", async () => {
@@ -174,37 +230,41 @@ describe("makeGeminiExtractor.match", () => {
         geminiResponse(JSON.stringify({ matches: false, confidence: 1.7 }))
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    const result = await extractor.match("<html></html>", VISCARIA_REF, {
+    const outcome = await extractor.match("<html></html>", VISCARIA_REF, {
       url: "https://x",
       title: "x",
     });
-    expect(result?.confidence).toBe(1);
+    expect(outcome.result?.confidence).toBe(1);
   });
 
-  it("returns null when matches is missing", async () => {
+  it("classifies missing `matches` as schema_invalid", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(
         geminiResponse(JSON.stringify({ confidence: 0.5 }))
       ) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    const result = await extractor.match("<html></html>", VISCARIA_REF, {
+    const outcome = await extractor.match("<html></html>", VISCARIA_REF, {
       url: "https://x",
       title: "x",
     });
-    expect(result).toBeNull();
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("schema_invalid");
+    expect(outcome.diagnostics.validationDetail).toContain("matches");
   });
 
-  it("returns null when fetch throws (network failure)", async () => {
+  it("classifies a network failure as fetch_failed with the error message", async () => {
     const fetchImpl = vi
       .fn()
       .mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
     const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
-    const result = await extractor.match("<html></html>", VISCARIA_REF, {
+    const outcome = await extractor.match("<html></html>", VISCARIA_REF, {
       url: "https://x",
       title: "x",
     });
-    expect(result).toBeNull();
+    expect(outcome.result).toBeNull();
+    expect(outcome.diagnostics.failureReason).toBe("fetch_failed");
+    expect(outcome.diagnostics.validationDetail).toBe("ECONNRESET");
   });
 });
 

@@ -17,23 +17,32 @@ export function makeTt11Source(deps: Tt11Deps = {}): SpecSource {
   const opts: Pick<HttpFetchOptions, "fetchImpl"> = {
     fetchImpl: deps.fetchImpl,
   };
+  const queryUrl = (equipment: EquipmentRef): string => {
+    const q = encodeURIComponent(`${equipment.brand} ${equipment.name}`);
+    return `${TT11_BASE}/catalogsearch/result/?q=${q}`;
+  };
+
   return {
     id: "tt11",
     kind: "retailer",
     tier: 2,
+    searchUrl: queryUrl,
     async search(equipment: EquipmentRef): Promise<SpecCandidate[]> {
-      const q = encodeURIComponent(`${equipment.brand} ${equipment.name}`);
-      const url = `${TT11_BASE}/catalogsearch/result/?q=${q}`;
-      try {
-        const res = await httpFetch(url, opts);
-        if (!res.ok) return [];
-        return parseMagentoSearchResults(await res.text(), 5);
-      } catch {
-        return [];
+      // No silent failures (TT-162): throw on transport / non-OK.
+      const url = queryUrl(equipment);
+      const res = await httpFetch(url, opts);
+      if (!res.ok) {
+        throw new Error(`tt11 search ${url} returned HTTP ${res.status}`);
       }
+      return parseMagentoSearchResults(await res.text(), 5);
     },
     async fetch(candidateUrl: string) {
       const res = await httpFetch(candidateUrl, opts);
+      if (!res.ok) {
+        throw new Error(
+          `tt11 fetch ${candidateUrl} returned HTTP ${res.status}`
+        );
+      }
       const html = await res.text();
       return { html, finalUrl: res.url || candidateUrl };
     },

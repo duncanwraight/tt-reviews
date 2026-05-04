@@ -122,6 +122,176 @@ test.describe("Admin manufacturer-specs review", () => {
     }
   });
 
+  test("Run log section renders pipeline decisions for the proposal (TT-162)", async ({
+    page,
+  }) => {
+    const equipment = await getFirstEquipmentByCategory("blade");
+    const before = await getEquipmentSpecsAndDescription(equipment.id);
+
+    await deleteSpecProposalsForEquipment(equipment.id);
+    const proposal = await insertSpecProposal({
+      equipmentId: equipment.id,
+      merged: VISCARIA_PROPOSAL,
+      runLog: [
+        {
+          at: "2026-05-04T08:00:00.000Z",
+          step: "source_skipped_brand",
+          source_id: "stiga",
+          source_brand: "Stiga",
+          equipment_brand: "Butterfly",
+        },
+        {
+          at: "2026-05-04T08:00:01.000Z",
+          step: "source_started",
+          source_id: "butterfly",
+          source_tier: 1,
+          source_kind: "manufacturer",
+        },
+        {
+          at: "2026-05-04T08:00:02.000Z",
+          step: "search",
+          source_id: "butterfly",
+          query_url: "https://en.butterfly.tt/catalogsearch/result/?q=Viscaria",
+          status: "ok",
+          count: 1,
+          candidates: [
+            {
+              url: "https://en.butterfly.tt/viscaria.html",
+              title: "Viscaria",
+            },
+          ],
+        },
+        {
+          at: "2026-05-04T08:00:03.000Z",
+          step: "prefilter",
+          source_id: "butterfly",
+          seed_tokens: ["viscaria"],
+          brand_tokens: ["butterfly"],
+          kept: [
+            {
+              url: "https://en.butterfly.tt/viscaria.html",
+              title: "Viscaria",
+            },
+          ],
+          dropped: [],
+        },
+        {
+          at: "2026-05-04T08:00:04.000Z",
+          step: "extract",
+          source_id: "butterfly",
+          candidate_url: "https://en.butterfly.tt/viscaria.html",
+          status: "ok",
+          fields_count: 4,
+          has_description: true,
+          uncertain_fields: [],
+          excerpt: "<html><body>Viscaria spec page</body></html>",
+          failure_reason: "ok",
+          tokens: 1234,
+          http_status: 200,
+        },
+        {
+          at: "2026-05-04T08:00:04.500Z",
+          step: "source_started",
+          source_id: "tt11",
+          source_tier: 2,
+          source_kind: "retailer",
+        },
+        {
+          at: "2026-05-04T08:00:04.600Z",
+          step: "search",
+          source_id: "tt11",
+          query_url:
+            "https://www.tabletennis11.com/catalogsearch/result/?q=Butterfly+Viscaria",
+          status: "ok",
+          count: 1,
+          candidates: [
+            {
+              url: "https://www.tabletennis11.com/butterfly-viscaria",
+              title: "Butterfly Viscaria",
+            },
+          ],
+        },
+        {
+          at: "2026-05-04T08:00:04.700Z",
+          step: "extract",
+          source_id: "tt11",
+          candidate_url: "https://www.tabletennis11.com/butterfly-viscaria",
+          status: "null_result",
+          excerpt: "<html><body>Out of stock</body></html>",
+          failure_reason: "schema_invalid",
+          validation_detail: "missing or non-object `specs` field",
+          raw_response: '{"description":"Just a blurb, no specs"}',
+          tokens: 980,
+          http_status: 200,
+        },
+        {
+          at: "2026-05-04T08:00:05.000Z",
+          step: "contribution",
+          source_id: "butterfly",
+          candidate_url: "https://en.butterfly.tt/viscaria.html",
+          fields: ["weight", "plies_wood", "plies_composite", "material"],
+          description: true,
+        },
+        {
+          at: "2026-05-04T08:00:06.000Z",
+          step: "outcome",
+          status: "proposed",
+          merged_field_count: 5,
+        },
+      ],
+    });
+    await setEquipmentSpecsCooldown(equipment.id, {
+      specs_source_status: "pending_review",
+      specs_sourced_at: new Date().toISOString(),
+    });
+
+    const adminEmail = generateTestEmail("specprop-runlog");
+    const { userId } = await createUser(adminEmail);
+    await setUserRole(userId, "admin");
+
+    try {
+      await login(page, adminEmail);
+      await page.goto(`/admin/manufacturer-specs/${proposal.id}`);
+
+      const runLog = page.getByTestId("spec-sourcing-run-log");
+      await expect(runLog).toBeVisible();
+
+      // Brand-skip pre-section names the skipped source.
+      await expect(runLog).toContainText("stiga");
+
+      // Per-source group renders for butterfly.
+      await expect(page.getByTestId("run-log-source-butterfly")).toBeVisible();
+
+      // Search query URL is surfaced as a clickable diagnostic link.
+      await expect(
+        page.getByRole("link", {
+          name: "https://en.butterfly.tt/catalogsearch/result/?q=Viscaria",
+        })
+      ).toBeVisible();
+
+      // Outcome footer reflects the terminal status.
+      await expect(page.getByTestId("run-log-outcome")).toContainText(
+        "proposed"
+      );
+
+      // LLM diagnostics on the tt11 null_result extract (TT-162):
+      // failure pill, validation detail, and raw_response disclosure.
+      const tt11 = page.getByTestId("run-log-source-tt11");
+      await expect(tt11).toContainText("schema_invalid");
+      await expect(tt11).toContainText("missing or non-object");
+      await expect(tt11).toContainText("Raw response from the LLM");
+    } finally {
+      await setEquipmentSpecsCooldown(equipment.id, {
+        specifications: before.specifications,
+        description: before.description,
+        specs_source_status: before.specs_source_status,
+        specs_sourced_at: before.specs_sourced_at,
+      });
+      await deleteSpecProposalsForEquipment(equipment.id);
+      await deleteUser(userId);
+    }
+  });
+
   test("Reject leaves equipment.* untouched and stamps no_results cooldown", async ({
     page,
   }) => {

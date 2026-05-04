@@ -1,19 +1,24 @@
-// Gemini 2.5 Flash spec extractor (TT-148). Calls Google AI Studio's
-// REST endpoint directly — no SDK — to keep the Worker bundle small
-// and avoid runtime polyfills. JSON mode (response_mime_type) gives
-// us a strict response shape; we still validate before trusting it
-// because the model occasionally adds prose around the JSON despite
-// JSON mode being on.
+// Gemini 2.5 Flash spec extractor (TT-148, expanded for TT-162).
+// Calls Google AI Studio's REST endpoint directly — no SDK — to keep
+// the Worker bundle small and avoid runtime polyfills. JSON mode
+// (response_mime_type) gives us a strict response shape; we still
+// validate before trusting it because the model occasionally adds
+// prose around the JSON despite JSON mode being on.
 //
 // Two callable entry points:
 //   - match(html, equipment, candidate) — disambiguation, ~500 in / 50 out
 //   - extract(html, equipment)          — full spec pull, ~30K in / 500 out
 //
-// Both fail soft to null on:
-//   - non-2xx HTTP from Gemini
-//   - empty or malformed candidate response
-//   - JSON parse failure
-//   - top-level schema mismatch
+// Per TT-162: every code path returns an Outcome with a populated
+// diagnostics envelope. Failure reasons cover:
+//   - missing_api_key  — extractor was constructed without one
+//   - fetch_failed     — fetch() threw / network error
+//   - auth_failed      — 401/403 from Gemini (config issue → alert)
+//   - http_non_ok      — other non-2xx
+//   - empty_response   — 200 but no candidate text
+//   - parse_failed     — text was not JSON
+//   - schema_invalid   — JSON shape didn't match the expected schema
+//   - ok               — success
 //
 // Per-field confidence comes from the model's `uncertain_fields` array;
 // listed fields drop to 0.5, the rest default to 1.0. Sparse on purpose:
@@ -24,7 +29,11 @@ import { Logger, createLogContext } from "../../logger.server";
 import type { EquipmentRef, SpecCandidate } from "../sources/types";
 import { cleanHtml, takeExcerpt } from "./clean-html";
 import type {
+  ExtractDiagnostics,
   ExtractedSpec,
+  ExtractOutcome,
+  ExtractorFailureReason,
+  MatchOutcome,
   MatchResult,
   SpecExtractor,
   SpecValue,
@@ -32,6 +41,8 @@ import type {
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+const RAW_RESPONSE_LOG_CHARS = 512;
 
 // Specs schema — what we ask the model to fill. Mirrors
 // archive/EQUIPMENT-SPECS.md. Keep this in sync with the doc; the
@@ -98,11 +109,26 @@ function buildEndpoint(apiKey: string, model: string): string {
   return `${GEMINI_ENDPOINT.replace("gemini-2.5-flash", model)}?key=${encodeURIComponent(apiKey)}`;
 }
 
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd() + "…";
+}
+
+interface CallResult {
+  // Parsed JSON payload from the candidate text, only present on
+  // failureReason="ok".
+  json?: unknown;
+  diagnostics: ExtractDiagnostics;
+}
+
+// Single low-level Gemini call. Returns a parsed JSON payload + a
+// fully-populated diagnostics envelope on every code path. No
+// silent nulls.
 async function callGemini(
   endpoint: string,
   body: Record<string, unknown>,
   fetchImpl: typeof fetch
-): Promise<{ json: unknown; usageMetadata: GeminiUsageMetadata } | null> {
+): Promise<CallResult> {
   let res: Response;
   try {
     res = await fetchImpl(endpoint, {
@@ -111,40 +137,109 @@ async function callGemini(
       body: JSON.stringify(body),
     });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     Logger.error(
       "gemini fetch failed",
       createLogContext("spec-sourcing-gemini"),
       err instanceof Error ? err : undefined
     );
-    return null;
+    return {
+      diagnostics: {
+        failureReason: "fetch_failed",
+        validationDetail: msg,
+      },
+    };
   }
 
+  let bodyText: string | undefined;
+  try {
+    bodyText = await res.text();
+  } catch {
+    bodyText = undefined;
+  }
+
+  const httpStatus = res.status;
+
   if (!res.ok) {
+    const reason: ExtractorFailureReason =
+      httpStatus === 401 || httpStatus === 403 ? "auth_failed" : "http_non_ok";
     Logger.warn(
-      `gemini returned ${res.status}`,
-      createLogContext("spec-sourcing-gemini", { status: res.status })
+      `gemini returned ${httpStatus}`,
+      createLogContext("spec-sourcing-gemini", { status: httpStatus })
     );
-    return null;
+    return {
+      diagnostics: {
+        failureReason: reason,
+        httpStatus,
+        rawResponse: bodyText
+          ? truncate(bodyText, RAW_RESPONSE_LOG_CHARS)
+          : undefined,
+        validationDetail: `Gemini returned HTTP ${httpStatus}`,
+      },
+    };
   }
 
   let parsed: GeminiResponse;
   try {
-    parsed = (await res.json()) as GeminiResponse;
-  } catch {
-    return null;
+    parsed = bodyText ? (JSON.parse(bodyText) as GeminiResponse) : {};
+  } catch (err) {
+    return {
+      diagnostics: {
+        failureReason: "parse_failed",
+        httpStatus,
+        rawResponse: bodyText
+          ? truncate(bodyText, RAW_RESPONSE_LOG_CHARS)
+          : undefined,
+        validationDetail:
+          err instanceof Error
+            ? `outer envelope JSON parse: ${err.message}`
+            : "outer envelope JSON parse failed",
+      },
+    };
   }
 
   const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof text !== "string" || text.length === 0) return null;
+  if (typeof text !== "string" || text.length === 0) {
+    return {
+      diagnostics: {
+        failureReason: "empty_response",
+        httpStatus,
+        tokens: parsed.usageMetadata?.totalTokenCount,
+        rawResponse: bodyText
+          ? truncate(bodyText, RAW_RESPONSE_LOG_CHARS)
+          : undefined,
+        validationDetail: "no candidate text in Gemini response",
+      },
+    };
+  }
 
   let json: unknown;
   try {
     json = JSON.parse(text);
-  } catch {
-    return null;
+  } catch (err) {
+    return {
+      diagnostics: {
+        failureReason: "parse_failed",
+        httpStatus,
+        tokens: parsed.usageMetadata?.totalTokenCount,
+        rawResponse: truncate(text, RAW_RESPONSE_LOG_CHARS),
+        validationDetail:
+          err instanceof Error
+            ? `model output JSON parse: ${err.message}`
+            : "model output JSON parse failed",
+      },
+    };
   }
 
-  return { json, usageMetadata: parsed.usageMetadata ?? {} };
+  return {
+    json,
+    diagnostics: {
+      failureReason: "ok",
+      httpStatus,
+      tokens: parsed.usageMetadata?.totalTokenCount,
+      rawResponse: truncate(text, RAW_RESPONSE_LOG_CHARS),
+    },
+  };
 }
 
 function isHardnessRange(v: unknown): v is { min: number; max: number } {
@@ -200,10 +295,25 @@ function validateSpecValue(
   return undefined;
 }
 
-function validateExtractedJson(json: unknown): ExtractedSpec | null {
-  if (typeof json !== "object" || json === null) return null;
+interface ValidatedExtract {
+  ok: true;
+  value: ExtractedSpec;
+}
+interface InvalidExtract {
+  ok: false;
+  detail: string;
+}
+
+function validateExtractedJson(
+  json: unknown
+): ValidatedExtract | InvalidExtract {
+  if (typeof json !== "object" || json === null) {
+    return { ok: false, detail: "top-level value is not an object" };
+  }
   const root = json as Record<string, unknown>;
-  if (typeof root.specs !== "object" || root.specs === null) return null;
+  if (typeof root.specs !== "object" || root.specs === null) {
+    return { ok: false, detail: "missing or non-object `specs` field" };
+  }
 
   const specsIn = root.specs as Record<string, unknown>;
   const specs: Record<string, SpecValue> = {};
@@ -222,33 +332,59 @@ function validateExtractedJson(json: unknown): ExtractedSpec | null {
   for (const k of uncertain) perFieldConfidence[k] = 0.5;
 
   return {
-    specs,
-    description,
-    perFieldConfidence,
-    rawHtmlExcerpt: "",
+    ok: true,
+    value: {
+      specs,
+      description,
+      perFieldConfidence,
+      rawHtmlExcerpt: "",
+    },
   };
 }
 
-function validateMatchJson(json: unknown): MatchResult | null {
-  if (typeof json !== "object" || json === null) return null;
+function validateMatchJson(
+  json: unknown
+): { ok: true; value: MatchResult } | { ok: false; detail: string } {
+  if (typeof json !== "object" || json === null) {
+    return { ok: false, detail: "top-level value is not an object" };
+  }
   const root = json as { matches?: unknown; confidence?: unknown };
-  if (typeof root.matches !== "boolean") return null;
-  if (typeof root.confidence !== "number" || !Number.isFinite(root.confidence))
-    return null;
+  if (typeof root.matches !== "boolean") {
+    return { ok: false, detail: "`matches` is not a boolean" };
+  }
+  if (
+    typeof root.confidence !== "number" ||
+    !Number.isFinite(root.confidence)
+  ) {
+    return { ok: false, detail: "`confidence` is not a finite number" };
+  }
   return {
-    matches: root.matches,
-    confidence: Math.min(1, Math.max(0, root.confidence)),
+    ok: true,
+    value: {
+      matches: root.matches,
+      confidence: Math.min(1, Math.max(0, root.confidence)),
+    },
   };
 }
 
 export function makeGeminiExtractor(deps: GeminiExtractorDeps): SpecExtractor {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const model = deps.model ?? "gemini-2.5-flash";
-  const endpoint = buildEndpoint(deps.apiKey, model);
+  const hasKey = deps.apiKey.length > 0;
+  const endpoint = hasKey ? buildEndpoint(deps.apiKey, model) : "";
 
   return {
     id: model,
-    async match(html, equipment, candidate) {
+    async match(html, equipment, candidate): Promise<MatchOutcome> {
+      if (!hasKey) {
+        return {
+          result: null,
+          diagnostics: {
+            failureReason: "missing_api_key",
+            validationDetail: "GEMINI_API_KEY not set",
+          },
+        };
+      }
       const cleaned = cleanHtml(html, { maxChars: 4000 });
       const userText = [
         `Reference: ${equipment.brand} ${equipment.name}`.trim(),
@@ -257,7 +393,7 @@ export function makeGeminiExtractor(deps: GeminiExtractorDeps): SpecExtractor {
         `First section of candidate page:\n${cleaned}`,
       ].join("\n");
 
-      const result = await callGemini(
+      const call = await callGemini(
         endpoint,
         {
           systemInstruction: { parts: [{ text: MATCH_SYSTEM_PROMPT }] },
@@ -269,21 +405,44 @@ export function makeGeminiExtractor(deps: GeminiExtractorDeps): SpecExtractor {
         },
         fetchImpl
       );
-      if (!result) return null;
 
-      if (result.usageMetadata.totalTokenCount !== undefined) {
+      if (call.diagnostics.failureReason !== "ok") {
+        return { result: null, diagnostics: call.diagnostics };
+      }
+
+      if (call.diagnostics.tokens !== undefined) {
         Logger.debug(
-          `gemini.match tokens=${result.usageMetadata.totalTokenCount}`,
+          `gemini.match tokens=${call.diagnostics.tokens}`,
           createLogContext("spec-sourcing-gemini", {
             kind: "match",
-            tokens: result.usageMetadata.totalTokenCount,
+            tokens: call.diagnostics.tokens,
           })
         );
       }
 
-      return validateMatchJson(result.json);
+      const validated = validateMatchJson(call.json);
+      if (!validated.ok) {
+        return {
+          result: null,
+          diagnostics: {
+            ...call.diagnostics,
+            failureReason: "schema_invalid",
+            validationDetail: validated.detail,
+          },
+        };
+      }
+      return { result: validated.value, diagnostics: call.diagnostics };
     },
-    async extract(html, equipment) {
+    async extract(html, equipment): Promise<ExtractOutcome> {
+      if (!hasKey) {
+        return {
+          result: null,
+          diagnostics: {
+            failureReason: "missing_api_key",
+            validationDetail: "GEMINI_API_KEY not set",
+          },
+        };
+      }
       const cleaned = cleanHtml(html, { maxChars: 30_000 });
       const excerpt = takeExcerpt(html, 1024);
       const userText = [
@@ -294,7 +453,7 @@ export function makeGeminiExtractor(deps: GeminiExtractorDeps): SpecExtractor {
         `Page HTML (cleaned, possibly truncated):\n${cleaned}`,
       ].join("\n");
 
-      const result = await callGemini(
+      const call = await callGemini(
         endpoint,
         {
           systemInstruction: { parts: [{ text: EXTRACT_SYSTEM_PROMPT }] },
@@ -306,21 +465,36 @@ export function makeGeminiExtractor(deps: GeminiExtractorDeps): SpecExtractor {
         },
         fetchImpl
       );
-      if (!result) return null;
 
-      if (result.usageMetadata.totalTokenCount !== undefined) {
+      if (call.diagnostics.failureReason !== "ok") {
+        return { result: null, diagnostics: call.diagnostics };
+      }
+
+      if (call.diagnostics.tokens !== undefined) {
         Logger.debug(
-          `gemini.extract tokens=${result.usageMetadata.totalTokenCount}`,
+          `gemini.extract tokens=${call.diagnostics.tokens}`,
           createLogContext("spec-sourcing-gemini", {
             kind: "extract",
-            tokens: result.usageMetadata.totalTokenCount,
+            tokens: call.diagnostics.tokens,
           })
         );
       }
 
-      const validated = validateExtractedJson(result.json);
-      if (!validated) return null;
-      return { ...validated, rawHtmlExcerpt: excerpt };
+      const validated = validateExtractedJson(call.json);
+      if (!validated.ok) {
+        return {
+          result: null,
+          diagnostics: {
+            ...call.diagnostics,
+            failureReason: "schema_invalid",
+            validationDetail: validated.detail,
+          },
+        };
+      }
+      return {
+        result: { ...validated.value, rawHtmlExcerpt: excerpt },
+        diagnostics: call.diagnostics,
+      };
     },
   };
 }

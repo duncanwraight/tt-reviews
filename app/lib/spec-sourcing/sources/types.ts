@@ -43,4 +43,10 @@ export interface SpecSource {
   brand?: string;
   search(equipment: EquipmentRef): Promise<SpecCandidate[]>;
   fetch(candidateUrl: string): Promise<{ html: string; finalUrl: string }>;
+  // Optional: the URL the adapter would hit for `equipment` in
+  // search(). Used purely for the diagnostic run log (TT-162) so a
+  // moderator can manually open the search page and see what the
+  // pipeline saw. Sources that don't have a per-equipment URL — e.g.
+  // revspin's cached full-list crawl — omit this.
+  searchUrl?(equipment: EquipmentRef): string;
 }

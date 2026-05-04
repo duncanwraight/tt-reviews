@@ -24,6 +24,8 @@ import {
   createCategoryService,
 } from "~/lib/categories.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import type { RunLogEntry } from "~/lib/spec-sourcing/run-log";
+import { SpecSourcingRunLog } from "~/components/admin/SpecSourcingRunLog";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -66,6 +68,7 @@ interface ProposalRow {
   created_at: string;
   merged: MergedSpec;
   candidates: Record<string, CandidatePayload>;
+  run_log: RunLogEntry[];
 }
 
 interface EquipmentRow {
@@ -415,6 +418,21 @@ export default function AdminManufacturerSpecsDetail({
           </button>
         </div>
       </Form>
+
+      <section className="mt-10">
+        <header className="mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Sourcing run log
+          </h2>
+          <p className="text-sm text-gray-600">
+            Every decision the cron pipeline made for this proposal — search
+            results, prefilter token comparisons, LLM verdicts, fetch outcomes,
+            extract results. Use this to understand why specific sources did or
+            didn't contribute.
+          </p>
+        </header>
+        <SpecSourcingRunLog entries={proposal.run_log ?? []} />
+      </section>
     </div>
   );
 }

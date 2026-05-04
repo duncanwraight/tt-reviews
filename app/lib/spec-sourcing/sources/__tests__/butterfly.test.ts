@@ -72,15 +72,13 @@ describe("butterflySource", () => {
     expect(candidates.length).toBeLessThanOrEqual(5);
   });
 
-  it("returns empty array when search returns a non-OK status", async () => {
+  it("throws when search returns a non-OK status (TT-162: no silent failures)", async () => {
     const fetchImpl = makeFetch(() => ({ html: "", status: 503 }));
     const src = makeButterflySource({ fetchImpl });
 
-    const candidates = await src.search({
-      brand: "Butterfly",
-      name: "Viscaria",
-    });
-    expect(candidates).toEqual([]);
+    await expect(
+      src.search({ brand: "Butterfly", name: "Viscaria" })
+    ).rejects.toThrow(/HTTP 503/);
   });
 
   it("fetch returns the HTML and final URL of a candidate", async () => {

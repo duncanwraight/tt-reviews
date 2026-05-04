@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { prefilter } from "../disambiguate";
+import { prefilter, prefilterDecisions } from "../disambiguate";
 import type { SpecCandidate } from "../sources/types";
 
 const VISCARIA_CANDIDATES: SpecCandidate[] = [
@@ -98,5 +98,63 @@ describe("prefilter", () => {
       name: "viscaria",
     });
     expect(survivors).toHaveLength(1);
+  });
+});
+
+describe("prefilterDecisions", () => {
+  it("reports seed and brand tokens once for the whole call", () => {
+    const result = prefilterDecisions(VISCARIA_CANDIDATES, {
+      brand: "Butterfly",
+      name: "Viscaria",
+    });
+    expect(result.seedTokens).toEqual(["viscaria"]);
+    expect(result.brandTokens).toEqual(["butterfly"]);
+  });
+
+  it("flags missing seed tokens on candidates that don't carry them", () => {
+    const candidates: SpecCandidate[] = [
+      {
+        url: "https://en.butterfly.tt/innerforce-layer-zlc.html",
+        title: "Innerforce Layer ZLC",
+      },
+    ];
+    const result = prefilterDecisions(candidates, {
+      brand: "Butterfly",
+      name: "Viscaria",
+    });
+    expect(result.decisions).toHaveLength(1);
+    expect(result.decisions[0].kept).toBe(false);
+    expect(result.decisions[0].missingTokens).toEqual(["viscaria"]);
+  });
+
+  it("flags extra tokens that aren't in seed or brand free-list", () => {
+    const candidates: SpecCandidate[] = [
+      {
+        url: "https://en.butterfly.tt/viscaria-super-alc.html",
+        title: "Viscaria Super ALC",
+      },
+    ];
+    const result = prefilterDecisions(candidates, {
+      brand: "Butterfly",
+      name: "Viscaria",
+    });
+    expect(result.decisions[0].kept).toBe(false);
+    expect(result.decisions[0].missingTokens).toEqual([]);
+    expect(result.decisions[0].extraTokens.sort()).toEqual(["alc", "super"]);
+  });
+
+  it("treats brand tokens as free even when present in the candidate", () => {
+    const candidates: SpecCandidate[] = [
+      {
+        url: "https://www.tabletennis11.com/butterfly-viscaria",
+        title: "Butterfly Viscaria",
+      },
+    ];
+    const result = prefilterDecisions(candidates, {
+      brand: "Butterfly",
+      name: "Viscaria",
+    });
+    expect(result.decisions[0].kept).toBe(true);
+    expect(result.decisions[0].extraTokens).toEqual([]);
   });
 });

@@ -35,26 +35,70 @@ function urlSlugTokens(url: string): string[] {
   return tokenize(slug.replace(/\.html?$/i, ""));
 }
 
+export interface PrefilterDecision {
+  candidate: SpecCandidate;
+  kept: boolean;
+  // Set when the candidate was dropped for missing seed tokens. Empty
+  // on a kept candidate.
+  missingTokens: string[];
+  // Set when the candidate was dropped for carrying tokens not in the
+  // seed name and not in the brand free-list. Empty on a kept
+  // candidate.
+  extraTokens: string[];
+}
+
+export interface PrefilterResult {
+  seedTokens: string[];
+  brandTokens: string[];
+  decisions: PrefilterDecision[];
+}
+
+// Per-candidate prefilter pass. Surfaces the seed/brand token sets
+// and the per-candidate verdict + reasons so the run log (TT-162) can
+// show *why* each candidate was dropped without re-running the logic.
+export function prefilterDecisions(
+  candidates: SpecCandidate[],
+  equipment: EquipmentRef
+): PrefilterResult {
+  const seedTokens = tokenize(equipment.name);
+  const brandTokens = tokenize(equipment.brand);
+  const seedSet = new Set(seedTokens);
+  const brandSet = new Set(brandTokens);
+
+  if (seedSet.size === 0) {
+    return {
+      seedTokens,
+      brandTokens,
+      decisions: candidates.map(candidate => ({
+        candidate,
+        kept: false,
+        missingTokens: [],
+        extraTokens: [],
+      })),
+    };
+  }
+
+  const decisions: PrefilterDecision[] = candidates.map(candidate => {
+    const candidateTokens = new Set([
+      ...tokenize(candidate.title),
+      ...urlSlugTokens(candidate.url),
+    ]);
+    const missingTokens = [...seedSet].filter(t => !candidateTokens.has(t));
+    const extraTokens = [...candidateTokens].filter(
+      t => !seedSet.has(t) && !brandSet.has(t)
+    );
+    const kept = missingTokens.length === 0 && extraTokens.length === 0;
+    return { candidate, kept, missingTokens, extraTokens };
+  });
+
+  return { seedTokens, brandTokens, decisions };
+}
+
 export function prefilter(
   candidates: SpecCandidate[],
   equipment: EquipmentRef
 ): SpecCandidate[] {
-  const seedTokens = new Set(tokenize(equipment.name));
-  if (seedTokens.size === 0) return [];
-  const brandTokens = new Set(tokenize(equipment.brand));
-
-  return candidates.filter(c => {
-    const candidateTokens = new Set([
-      ...tokenize(c.title),
-      ...urlSlugTokens(c.url),
-    ]);
-    for (const t of seedTokens) {
-      if (!candidateTokens.has(t)) return false;
-    }
-    for (const t of candidateTokens) {
-      if (seedTokens.has(t) || brandTokens.has(t)) continue;
-      return false;
-    }
-    return true;
-  });
+  return prefilterDecisions(candidates, equipment)
+    .decisions.filter(d => d.kept)
+    .map(d => d.candidate);
 }

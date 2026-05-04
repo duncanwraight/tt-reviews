@@ -55,12 +55,13 @@ describe("tt11Source", () => {
     expect(candidates.length).toBeLessThanOrEqual(5);
   });
 
-  it("returns empty when search yields non-OK", async () => {
+  it("throws when search yields non-OK (TT-162: no silent failures)", async () => {
     const fetchImpl = makeFetch("", 500);
     const src = makeTt11Source({ fetchImpl });
 
-    const candidates = await src.search({ brand: "Stiga", name: "X" });
-    expect(candidates).toEqual([]);
+    await expect(src.search({ brand: "Stiga", name: "X" })).rejects.toThrow(
+      /HTTP 500/
+    );
   });
 
   it("fetch returns the HTML for a candidate URL", async () => {

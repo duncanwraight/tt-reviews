@@ -1,8 +1,12 @@
-// Budget wrapper for the spec-sourcing LLM extractor (TT-148). Same
-// daily/monthly KV cap shape as the photo-sourcing wrapper, just
-// adapted to the SpecExtractor interface (which returns null on its
-// own failures, so we wrap the whole call in a status-keyed envelope
-// the queue consumer can branch on).
+// Budget wrapper for the spec-sourcing LLM extractor (TT-148, expanded
+// for TT-162). Same daily/monthly KV cap shape as the photo-sourcing
+// wrapper, just adapted to the SpecExtractor interface.
+//
+// The inner SpecExtractor now returns Outcome shapes that always
+// include a diagnostics envelope (TT-162). The budget wrapper forwards
+// diagnostics upward inside its own status-keyed envelope, so the
+// queue consumer can see — for every status — whether there's
+// LLM-side context to log.
 //
 // Both `match` and `extract` count as one API call each — match
 // prompts are tiny (~500 tokens) but each one still hits the Google
@@ -19,18 +23,28 @@ import {
   readCount,
 } from "../../providers/budget";
 import type { EquipmentRef, SpecCandidate } from "../sources/types";
-import type { ExtractedSpec, MatchResult, SpecExtractor } from "./types";
+import type {
+  ExtractDiagnostics,
+  ExtractedSpec,
+  MatchResult,
+  SpecExtractor,
+} from "./types";
 
 export type ExtractorStatus = "ok" | "rate_limited" | "out_of_budget";
 
 export interface MatchEnvelope {
   status: ExtractorStatus;
   result?: MatchResult | null;
+  // Set when the inner extractor was actually invoked (status=ok).
+  // Absent on rate_limited / out_of_budget — those short-circuit
+  // before the call.
+  diagnostics?: ExtractDiagnostics;
 }
 
 export interface ExtractEnvelope {
   status: ExtractorStatus;
   result?: ExtractedSpec | null;
+  diagnostics?: ExtractDiagnostics;
 }
 
 export interface BudgetedSpecExtractor {
@@ -96,16 +110,24 @@ export function withSpecExtractorBudget(
     async match(html, equipment, candidate) {
       const block = await preflightStatus(inner.id, opts);
       if (block) return { status: block };
-      const result = await inner.match(html, equipment, candidate);
+      const outcome = await inner.match(html, equipment, candidate);
       await recordCall(inner.id, opts);
-      return { status: "ok", result };
+      return {
+        status: "ok",
+        result: outcome.result,
+        diagnostics: outcome.diagnostics,
+      };
     },
     async extract(html, equipment) {
       const block = await preflightStatus(inner.id, opts);
       if (block) return { status: block };
-      const result = await inner.extract(html, equipment);
+      const outcome = await inner.extract(html, equipment);
       await recordCall(inner.id, opts);
-      return { status: "ok", result };
+      return {
+        status: "ok",
+        result: outcome.result,
+        diagnostics: outcome.diagnostics,
+      };
     },
   };
 }

@@ -408,6 +408,10 @@ export interface SpecProposalSeed {
   };
   candidates?: Record<string, unknown>;
   status?: "pending_review" | "applied" | "rejected" | "no_results";
+  // TT-162: append-only diagnostic log of pipeline decisions. Seeded
+  // directly here when a Playwright spec wants to assert the review
+  // page renders the run-log section under realistic data.
+  runLog?: Array<Record<string, unknown>>;
 }
 
 export async function deleteSpecProposalsForEquipment(
@@ -435,6 +439,7 @@ export async function insertSpecProposal(
       merged: seed.merged,
       candidates: seed.candidates ?? {},
       status: seed.status ?? "pending_review",
+      run_log: seed.runLog ?? [],
     }),
   });
   if (!res.ok) {
