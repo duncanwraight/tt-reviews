@@ -19,6 +19,10 @@ import {
   applySpecProposal,
   rejectSpecProposal,
 } from "~/lib/admin/spec-proposal-applier.server";
+import {
+  type CategoryOption,
+  createCategoryService,
+} from "~/lib/categories.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
 
 export function meta({}: Route.MetaArgs) {
@@ -75,30 +79,25 @@ interface EquipmentRow {
   description: string | null;
 }
 
-const FIELD_ORDER: ReadonlyArray<{
-  field: string;
-  label: string;
-  type: "int" | "float" | "text" | "range";
-  hint?: string;
-}> = [
-  { field: "weight", label: "Weight", type: "int", hint: "grams" },
-  { field: "thickness", label: "Thickness", type: "float", hint: "mm" },
-  { field: "plies_wood", label: "Plies (wood)", type: "int" },
-  { field: "plies_composite", label: "Plies (composite)", type: "int" },
-  {
-    field: "composite_material",
-    label: "Composite material",
-    type: "text",
-  },
-  { field: "material", label: "Material", type: "text" },
-  { field: "speed", label: "Speed", type: "float", hint: "0–10" },
-  { field: "spin", label: "Spin", type: "float", hint: "0–10" },
-  { field: "control", label: "Control", type: "float", hint: "0–10" },
-  { field: "hardness", label: "Hardness", type: "range" },
-  { field: "sponge", label: "Sponge", type: "text" },
-  { field: "topsheet", label: "Topsheet", type: "text" },
-  { field: "year", label: "Year", type: "text" },
-];
+// Spec fields are loaded dynamically from the categories table per the
+// equipment's category/subcategory — same source as the public detail
+// page (TT-25). Filtering avoids showing irrelevant inputs (e.g.
+// plies/weight on a rubber proposal).
+
+function fieldHint(field: CategoryOption): string | undefined {
+  if (
+    typeof field.scale_min === "number" &&
+    typeof field.scale_max === "number"
+  ) {
+    return `${field.scale_min}–${field.scale_max}`;
+  }
+  if (field.unit === "g") return "grams";
+  return field.unit || undefined;
+}
+
+function fieldType(field: CategoryOption): "int" | "float" | "text" | "range" {
+  return field.field_type ?? "text";
+}
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
   const gate = await ensureAdminLoader(request, context);
@@ -128,10 +127,18 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     throw new Response("Linked equipment not found", { status: 404 });
   }
 
+  const equipmentRow = equipment as EquipmentRow;
+  const categoryService = createCategoryService(supabaseAdmin);
+  const specFields = await categoryService.getEquipmentSpecFields(
+    equipmentRow.category ?? undefined,
+    equipmentRow.subcategory ?? undefined
+  );
+
   return data(
     {
       proposal: proposal as ProposalRow,
-      equipment: equipment as EquipmentRow,
+      equipment: equipmentRow,
+      specFields,
       csrfToken,
     },
     { headers: sbServerClient.headers }
@@ -221,7 +228,7 @@ export default function AdminManufacturerSpecsDetail({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { proposal, equipment, csrfToken } = loaderData;
+  const { proposal, equipment, specFields, csrfToken } = loaderData;
   const error = actionData && "error" in actionData ? actionData.error : null;
 
   const merged = proposal.merged;
@@ -230,9 +237,7 @@ export default function AdminManufacturerSpecsDetail({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {equipment.manufacturer} {equipment.name}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">{equipment.name}</h1>
         <p className="text-sm text-gray-600 mt-1">
           {equipment.category}
           {equipment.subcategory ? ` · ${equipment.subcategory}` : ""} —
@@ -262,7 +267,19 @@ export default function AdminManufacturerSpecsDetail({
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Specs</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FIELD_ORDER.map(({ field, label, type, hint }) => {
+            {specFields.length === 0 ? (
+              <p
+                className="text-sm text-gray-500 col-span-full"
+                data-testid="manufacturer-spec-no-fields"
+              >
+                No spec fields configured for this category.
+              </p>
+            ) : null}
+            {specFields.map(specField => {
+              const field = specField.value;
+              const label = specField.name;
+              const type = fieldType(specField);
+              const hint = fieldHint(specField);
               const proposedValue = merged.specs[field];
               const currentValue = current[field];
               const sourceUrl = merged.per_field_source[field];

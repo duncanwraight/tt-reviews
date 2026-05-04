@@ -147,6 +147,27 @@ export async function getFirstEquipment(): Promise<{
   return rows[0];
 }
 
+export async function getFirstEquipmentByCategory(category: string): Promise<{
+  id: string;
+  slug: string;
+  name: string;
+}> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?select=id,slug,name&category=eq.${encodeURIComponent(category)}&limit=1`,
+    { headers: { apikey: SUPABASE_ANON_KEY } }
+  );
+  if (!res.ok) {
+    throw new Error(`getFirstEquipmentByCategory failed (${res.status})`);
+  }
+  const rows = (await res.json()) as Array<{
+    id: string;
+    slug: string;
+    name: string;
+  }>;
+  if (!rows[0]) throw new Error(`No equipment seeded for category=${category}`);
+  return rows[0];
+}
+
 /**
  * Insert a row into moderator_approvals directly. Used by the admin
  * equipment-reviews queue spec to plant a prior approval and verify the

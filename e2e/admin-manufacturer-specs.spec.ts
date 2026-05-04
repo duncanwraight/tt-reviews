@@ -10,7 +10,7 @@ import {
 import {
   deleteSpecProposalsForEquipment,
   getEquipmentSpecsAndDescription,
-  getFirstEquipment,
+  getFirstEquipmentByCategory,
   getSpecProposal,
   insertSpecProposal,
   setEquipmentSpecsCooldown,
@@ -48,7 +48,11 @@ test.describe("Admin manufacturer-specs review", () => {
   test("Apply writes specs + description and marks proposal applied", async ({
     page,
   }) => {
-    const equipment = await getFirstEquipment();
+    // Proposal payload is blade-shaped (plies/composite_material), and the
+    // admin form only renders fields configured for the equipment's
+    // category — so we must target a blade row, not whatever happens to
+    // be first in the table.
+    const equipment = await getFirstEquipmentByCategory("blade");
     const before = await getEquipmentSpecsAndDescription(equipment.id);
 
     await deleteSpecProposalsForEquipment(equipment.id);
@@ -121,7 +125,7 @@ test.describe("Admin manufacturer-specs review", () => {
   test("Reject leaves equipment.* untouched and stamps no_results cooldown", async ({
     page,
   }) => {
-    const equipment = await getFirstEquipment();
+    const equipment = await getFirstEquipmentByCategory("blade");
     const before = await getEquipmentSpecsAndDescription(equipment.id);
 
     await deleteSpecProposalsForEquipment(equipment.id);
