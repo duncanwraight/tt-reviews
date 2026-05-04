@@ -59,10 +59,7 @@ test("stored XSS payload in an approved review is inert on public page", async (
 
     // Behavioural: no alert/prompt/confirm dialog fired, no sentinel set.
     expect(dialogFired).toBe(false);
-    const flag = await page.evaluate(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      () => (window as any).__xss
-    );
+    const flag = await page.evaluate(() => (window as any).__xss);
     expect(flag).toBeUndefined();
 
     // JSON-LD defense: every <script type="application/ld+json"> block

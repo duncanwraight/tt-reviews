@@ -52,7 +52,6 @@ describe("SchemaService.toJsonLd", () => {
     // Browsers parse the <script type="application/ld+json"> body as
     // JSON, and < decodes back to `<`. So a valid JSON parse must
     // still succeed and return the original string.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsed: any = JSON.parse(payload);
     expect(parsed.reviewBody).toBe("</script>tricky");
   });

@@ -40,7 +40,6 @@ function makeAdminClientStub() {
 describe("checkAndPromoteAdmin — email verification guard", () => {
   it("refuses when emailConfirmed is false, without touching user_roles", async () => {
     const stub = makeAdminClientStub();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await checkAndPromoteAdmin(
       { from: stub.from } as any,
       "admin@example.com",
@@ -55,7 +54,6 @@ describe("checkAndPromoteAdmin — email verification guard", () => {
 
   it("refuses when the email is not in the allowlist, even if confirmed", async () => {
     const stub = makeAdminClientStub();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await checkAndPromoteAdmin(
       { from: stub.from } as any,
       "not-admin@example.com",
@@ -70,7 +68,6 @@ describe("checkAndPromoteAdmin — email verification guard", () => {
 
   it("refuses when adminEmails is empty", async () => {
     const stub = makeAdminClientStub();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await checkAndPromoteAdmin(
       { from: stub.from } as any,
       "admin@example.com",
@@ -85,7 +82,6 @@ describe("checkAndPromoteAdmin — email verification guard", () => {
 
   it("case-insensitive match on the allowlist", async () => {
     const stub = makeAdminClientStub();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await checkAndPromoteAdmin(
       { from: stub.from } as any,
       "ADMIN@Example.com",

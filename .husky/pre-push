@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # npm test is intentionally omitted — the discord integration tests
 # expect a running local Supabase. CI runs them with supabase start.
 # Keep pre-push fast and always-runnable.
