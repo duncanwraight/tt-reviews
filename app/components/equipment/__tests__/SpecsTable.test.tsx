@@ -20,7 +20,8 @@ function specField(
 function item(
   id: string,
   name: string,
-  specifications: Record<string, unknown>
+  specifications: Record<string, unknown>,
+  manufacturer: string = "Test"
 ): ComparisonItem {
   return {
     equipment: {
@@ -29,7 +30,7 @@ function item(
       slug: id,
       category: "rubber",
       subcategory: "inverted",
-      manufacturer: "Test",
+      manufacturer,
       specifications,
       created_at: "",
       updated_at: "",
@@ -80,8 +81,8 @@ describe("SpecsTable sorting", () => {
       }),
     ];
     const items = [
-      item("dhs", "DHS NEO Hurricane 3", { speed: 8.5 }),
-      item("yas", "Yasaka Mark V", { speed: 8.0 }),
+      item("dhs", "NEO Hurricane 3", { speed: 8.5 }, "DHS"),
+      item("yas", "Mark V", { speed: 8.0 }, "Yasaka"),
     ];
     render(<SpecsTable items={items} specFields={fields} />);
 
@@ -142,10 +143,10 @@ describe("SpecsTable sorting", () => {
     render(<SpecsTable items={items} specFields={fields} />);
 
     await user.click(screen.getByTestId("specs-table-sort-hardness"));
-    expect(equipmentNamesInOrder()).toEqual(["A", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test A", "Test B"]);
 
     await user.click(screen.getByTestId("specs-table-sort-hardness"));
-    expect(equipmentNamesInOrder()).toEqual(["B", "A"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test B", "Test A"]);
   });
 
   it("missing values sort last in both directions", async () => {
@@ -162,11 +163,11 @@ describe("SpecsTable sorting", () => {
 
     // asc: A (8.5), C (9.0), B (missing)
     await user.click(screen.getByTestId("specs-table-sort-speed"));
-    expect(equipmentNamesInOrder()).toEqual(["A", "C", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test A", "Test C", "Test B"]);
 
     // desc: C (9.0), A (8.5), B (missing — still last)
     await user.click(screen.getByTestId("specs-table-sort-speed"));
-    expect(equipmentNamesInOrder()).toEqual(["C", "A", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test C", "Test A", "Test B"]);
   });
 
   it("plies sorts by wood first, then composite (NULL last)", async () => {
@@ -194,11 +195,11 @@ describe("SpecsTable sorting", () => {
 
     // asc by primary: 5, 5, 7. Tie on 5 → A (composite=2) before B (composite NULL). Then C.
     await user.click(screen.getByTestId("specs-table-sort-plies_wood"));
-    expect(equipmentNamesInOrder()).toEqual(["A", "B", "C"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test A", "Test B", "Test C"]);
 
     // desc: 7 (C), then ties on 5 → A (composite=2) and B (NULL). NULL secondary always last.
     await user.click(screen.getByTestId("specs-table-sort-plies_wood"));
-    expect(equipmentNamesInOrder()).toEqual(["C", "A", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test C", "Test A", "Test B"]);
   });
 
   it("renders pure-wood plies as wood count whether composite is null or 0", () => {
@@ -275,11 +276,11 @@ describe("SpecsTable sorting", () => {
     // Speed asc → B (8), A (9). Then desc.
     await user.click(screen.getByTestId("specs-table-sort-speed"));
     await user.click(screen.getByTestId("specs-table-sort-speed"));
-    expect(equipmentNamesInOrder()).toEqual(["A", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test A", "Test B"]);
 
     // Switch to Spin: should restart ascending → A (7), B (8).
     await user.click(screen.getByTestId("specs-table-sort-spin"));
-    expect(equipmentNamesInOrder()).toEqual(["A", "B"]);
+    expect(equipmentNamesInOrder()).toEqual(["Test A", "Test B"]);
     const spinHeader = screen.getByRole("rowheader", { name: /Spin/ });
     expect(spinHeader.getAttribute("aria-sort")).toBe("ascending");
     const speedHeader = screen.getByRole("rowheader", { name: /Speed/ });

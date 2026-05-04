@@ -58,3 +58,21 @@ test.describe("Equipment detail — manufacturer specifications (TT-34)", () => 
     }
   });
 });
+
+test.describe("Equipment detail — manufacturer + bare-model rendering (TT-163)", () => {
+  test("H1 is the bare model and the manufacturer renders separately above it", async ({
+    page,
+  }) => {
+    await page.goto(`/equipment/${HURRICANE_SLUG}`);
+
+    // H1 is the bare model — DHS is shown above as a small uppercase line.
+    await expect(
+      page.getByRole("heading", { level: 1, name: "NEO Hurricane 3" })
+    ).toBeVisible();
+
+    // Manufacturer is on the page (in the subtitle and elsewhere) but
+    // never doubled — "DHS DHS" was the regression mode this prevents.
+    await expect(page.getByText("DHS", { exact: true }).first()).toBeVisible();
+    expect(await page.getByText("DHS DHS").count()).toBe(0);
+  });
+});

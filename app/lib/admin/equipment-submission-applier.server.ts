@@ -44,7 +44,9 @@ export async function applyEquipmentSubmission(
     };
   }
 
-  const slug = generateSlug(submission.name);
+  // Slug includes the manufacturer (TT-163); submission.name is the bare
+  // model post-migration, so concatenate to build the brand-prefixed slug.
+  const slug = generateSlug(`${submission.manufacturer} ${submission.name}`);
 
   const { error: insertError } = await supabaseAdmin.from("equipment").insert({
     name: submission.name,

@@ -1,5 +1,6 @@
 import type { CategoryOption } from "~/lib/categories.server";
 import type { EquipmentReview } from "~/lib/database/types";
+import { displayEquipmentName } from "~/lib/equipment";
 import type { ComparisonItem } from "./comparison-types";
 
 interface RatingsTableProps {
@@ -44,7 +45,7 @@ export function RatingsTable({ items, ratingCategories }: RatingsTableProps) {
                 scope="col"
                 className="px-4 py-3 text-left font-medium text-gray-900"
               >
-                {equipment.name}
+                {displayEquipmentName(equipment)}
               </th>
             ))}
           </tr>

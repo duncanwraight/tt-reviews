@@ -23,6 +23,7 @@ import { enrichSubmissionForNotification } from "~/lib/submissions/enrichment.se
 import {
   validateSubmission,
   parseEquipmentSpecs,
+  validateEquipmentNameAgainstManufacturer,
 } from "~/lib/submissions/validate.server";
 import { parseBracketedVideos } from "~/lib/submissions/parse-videos";
 import type { SubmissionType } from "~/lib/types";
@@ -432,7 +433,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       const { data: current } = await sbServerClient.client
         .from("equipment")
         .select(
-          "name, category, subcategory, description, specifications, image_key"
+          "name, manufacturer, category, subcategory, description, specifications, image_key"
         )
         .eq("id", equipmentId)
         .single();
@@ -442,6 +443,27 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           { error: "Equipment not found." },
           { status: 404, headers: sbServerClient.headers }
         );
+      }
+
+      // TT-163: reject "<manufacturer> <model>" in the name field. Manufacturer
+      // isn't editable via equipment_edit, so the existing row's value is the
+      // canonical reference.
+      const submittedName = formData.get("name");
+      if (typeof submittedName === "string") {
+        const prefixError = validateEquipmentNameAgainstManufacturer(
+          submittedName.trim(),
+          (current as { manufacturer?: string }).manufacturer ?? ""
+        );
+        if (prefixError) {
+          return data(
+            {
+              error:
+                "Submission is invalid. Please check the highlighted fields.",
+              fieldErrors: { name: prefixError },
+            },
+            { status: 400, headers: sbServerClient.headers }
+          );
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -58,7 +58,7 @@ describe("equipment.getEquipmentById", () => {
 });
 
 describe("equipment.searchEquipment", () => {
-  it("does text search with limit 10", async () => {
+  it("OR-ILIKEs a single token across name and manufacturer with limit 10", async () => {
     const rows = [{ id: "a" }, { id: "b" }];
     const supabase = makeSupabase({ tables: { equipment: { data: rows } } });
     expect(
@@ -66,10 +66,50 @@ describe("equipment.searchEquipment", () => {
     ).toEqual(rows);
     const b = supabase._builders.get("equipment")!;
     expect(b.calls).toContainEqual({
-      method: "textSearch",
-      args: ["name", "butterfly", { type: "websearch" }],
+      method: "or",
+      args: ["name.ilike.%butterfly%,manufacturer.ilike.%butterfly%"],
     });
     expect(b.calls).toContainEqual({ method: "limit", args: [10] });
+  });
+
+  it("ANDs each whitespace token by chaining .or() (TT-163: brand+model queries)", async () => {
+    const supabase = makeSupabase({ tables: { equipment: { data: [] } } });
+    await equipment.searchEquipment(makeCtx(supabase), "Butterfly Tenergy");
+    const b = supabase._builders.get("equipment")!;
+    const orCalls = b.calls.filter(c => c.method === "or");
+    expect(orCalls).toEqual([
+      {
+        method: "or",
+        args: ["name.ilike.%Butterfly%,manufacturer.ilike.%Butterfly%"],
+      },
+      {
+        method: "or",
+        args: ["name.ilike.%Tenergy%,manufacturer.ilike.%Tenergy%"],
+      },
+    ]);
+  });
+
+  it("strips PostgREST .or()-meta characters from the query", async () => {
+    const supabase = makeSupabase({ tables: { equipment: { data: [] } } });
+    await equipment.searchEquipment(makeCtx(supabase), "Tenergy, (FX)");
+    const b = supabase._builders.get("equipment")!;
+    const orCalls = b.calls.filter(c => c.method === "or");
+    expect(orCalls).toEqual([
+      {
+        method: "or",
+        args: ["name.ilike.%Tenergy%,manufacturer.ilike.%Tenergy%"],
+      },
+      { method: "or", args: ["name.ilike.%FX%,manufacturer.ilike.%FX%"] },
+    ]);
+  });
+
+  it("short-circuits to [] on a query that sanitises to empty", async () => {
+    const supabase = makeSupabase({ tables: { equipment: { data: [] } } });
+    expect(await equipment.searchEquipment(makeCtx(supabase), "(),")).toEqual(
+      []
+    );
+    const b = supabase._builders.get("equipment");
+    expect(b?.calls.find(c => c.method === "or")).toBeUndefined();
   });
 
   it("returns [] on error", async () => {

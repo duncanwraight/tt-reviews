@@ -35,12 +35,32 @@ export async function searchEquipment(
   return withLogging<Equipment[]>(
     ctx,
     "search_equipment",
-    () =>
-      ctx.supabase
-        .from("equipment")
-        .select("*")
-        .textSearch("name", query, { type: "websearch" })
-        .limit(10),
+    () => {
+      // TT-163: equipment.name carries only the bare model post-migration,
+      // so a brand-only query ("Butterfly") would no longer match name and a
+      // brand+model query ("Butterfly Tenergy") wouldn't match either column
+      // verbatim. Tokenise on whitespace and require every token to appear
+      // somewhere across (name, manufacturer) — each chained `.or()` is
+      // ANDed. Commas / parens are PostgREST .or() filter metacharacters —
+      // strip them. The combined FTS index is unused here; TT-157 will land
+      // a proper search_equipment RPC that exploits it. Equipment is ~250
+      // rows, so the seq-scan cost is fine until then.
+      const safe = query.replace(/[,()*]/g, " ").trim();
+      const tokens = safe.split(/\s+/).filter(t => t.length > 0);
+      if (tokens.length === 0) {
+        return Promise.resolve({
+          data: [] as Equipment[],
+          error: null,
+        });
+      }
+      let builder = ctx.supabase.from("equipment").select("*");
+      for (const token of tokens) {
+        builder = builder.or(
+          `name.ilike.%${token}%,manufacturer.ilike.%${token}%`
+        );
+      }
+      return builder.limit(10);
+    },
     { query, limit: 10 }
   ).catch((): Equipment[] => []);
 }

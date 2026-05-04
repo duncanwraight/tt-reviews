@@ -199,6 +199,7 @@ interface SlugEmbedRow {
 interface NameRow {
   id: string;
   name: string | null;
+  manufacturer?: string | null;
 }
 
 async function resolveViewUrls(
@@ -241,7 +242,7 @@ type SlugRecipe =
       embedKey: "equipment" | "players";
       prefix: string;
     }
-  | { kind: "name"; table: string; prefix: string };
+  | { kind: "name"; table: string; prefix: string; brandPrefixed?: boolean };
 
 const SLUG_RECIPES: Record<ActivitySubmissionType, SlugRecipe> = {
   equipment_edit: {
@@ -282,11 +283,13 @@ const SLUG_RECIPES: Record<ActivitySubmissionType, SlugRecipe> = {
   // New-entity submissions: regenerate the slug from the submitted name
   // (matches `applyEquipmentSubmission` / `applyPlayerSubmission`'s slug
   // rule). `pickViewUrl` filters rejected rows so we never produce a
-  // 404 link for a never-created entity.
+  // 404 link for a never-created entity. Equipment slugs are brand-prefixed
+  // (TT-163), so the equipment recipe also pulls `manufacturer`.
   equipment: {
     kind: "name",
     table: "equipment_submissions",
     prefix: "/equipment/",
+    brandPrefixed: true,
   },
   player: { kind: "name", table: "player_submissions", prefix: "/players/" },
 };
@@ -307,7 +310,13 @@ async function fetchSlugs(
       recipe.prefix
     );
   }
-  return derivedSlugsFromName(supabase, recipe.table, ids, recipe.prefix);
+  return derivedSlugsFromName(
+    supabase,
+    recipe.table,
+    ids,
+    recipe.prefix,
+    recipe.brandPrefixed === true
+  );
 }
 
 async function embedSlugs(
@@ -339,18 +348,24 @@ async function derivedSlugsFromName(
   supabase: SupabaseClient,
   table: string,
   ids: string[],
-  prefix: string
+  prefix: string,
+  brandPrefixed: boolean
 ): Promise<Array<[string, string]>> {
+  const selectExpr = brandPrefixed ? "id, name, manufacturer" : "id, name";
   const { data, error } = await supabase
     .from(table)
-    .select("id, name")
+    .select(selectExpr)
     .in("id", ids);
   if (error || !data) return [];
-  const rows = data as NameRow[];
+  const rows = data as unknown as NameRow[];
   const out: Array<[string, string]> = [];
   for (const row of rows) {
     if (!row.name) continue;
-    const slug = generateSlug(row.name);
+    const fullName =
+      brandPrefixed && row.manufacturer
+        ? `${row.manufacturer} ${row.name}`
+        : row.name;
+    const slug = generateSlug(fullName);
     if (slug) out.push([row.id, prefix + slug]);
   }
   return out;

@@ -3,6 +3,7 @@ import {
   validateSubmission,
   validateUrl,
   parseEquipmentSpecs,
+  validateEquipmentNameAgainstManufacturer,
 } from "../validate.server";
 import type { CategoryOption } from "~/lib/categories.server";
 
@@ -272,6 +273,82 @@ describe("validateSubmission — equipment", () => {
     );
     expect(result.valid).toBe(false);
     expect(result.errors?.description).toMatch(/2000/);
+  });
+
+  // TT-163: name must be the bare model — manufacturer is its own field.
+  it("rejects a name that starts with the manufacturer + space", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({
+        name: "DHS Hurricane 3",
+        manufacturer: "DHS",
+        category: "rubber",
+      })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.name).toMatch(/manufacturer/i);
+  });
+
+  it("is case-insensitive on the prefix check", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({
+        name: "butterfly tenergy 05",
+        manufacturer: "Butterfly",
+        category: "rubber",
+      })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.name).toMatch(/manufacturer/i);
+  });
+
+  it("accepts a bare model name even when it shares letters with the brand", () => {
+    const result = validateSubmission(
+      "equipment",
+      fd({
+        // "Butterfly" is not a prefix of "Tenergy 05" → should pass.
+        name: "Tenergy 05",
+        manufacturer: "Butterfly",
+        category: "rubber",
+      })
+    );
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe("validateEquipmentNameAgainstManufacturer", () => {
+  it("returns null for a bare model name", () => {
+    expect(
+      validateEquipmentNameAgainstManufacturer("Sriver FX", "Butterfly")
+    ).toBeNull();
+  });
+
+  it("returns an error message when the manufacturer is the leading prefix", () => {
+    const msg = validateEquipmentNameAgainstManufacturer(
+      "Butterfly Sriver FX",
+      "Butterfly"
+    );
+    expect(msg).not.toBeNull();
+    expect(msg).toMatch(/Butterfly/);
+  });
+
+  it("handles multi-word manufacturers like Sauer & Troger", () => {
+    expect(
+      validateEquipmentNameAgainstManufacturer(
+        "Sauer & Troger Monkey",
+        "Sauer & Troger"
+      )
+    ).not.toBeNull();
+    expect(
+      validateEquipmentNameAgainstManufacturer("Monkey", "Sauer & Troger")
+    ).toBeNull();
+  });
+
+  it("returns null when either argument is empty", () => {
+    expect(
+      validateEquipmentNameAgainstManufacturer("", "Butterfly")
+    ).toBeNull();
+    expect(validateEquipmentNameAgainstManufacturer("Sriver", "")).toBeNull();
   });
 });
 

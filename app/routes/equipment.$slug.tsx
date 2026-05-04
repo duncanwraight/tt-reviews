@@ -28,6 +28,7 @@ import {
 } from "~/lib/imageUrl";
 import { SafeHtml } from "~/lib/sanitize";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { displayEquipmentName } from "~/lib/equipment";
 import {
   buildCanonicalUrl,
   buildOgImageUrl,
@@ -51,7 +52,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
 
   // Enhanced SEO title pattern based on research
   const titleSuffix = "Review - Specs, Player Usage & Ratings | TT Reviews";
-  const title = `${equipment.name} ${titleSuffix}`;
+  const title = `${displayEquipmentName(equipment)} ${titleSuffix}`;
 
   // Enhanced meta description with review stats and player usage
   const reviewCount = reviews.length;
@@ -236,7 +237,7 @@ export const loader = withLoaderCorrelation(
     const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
       { label: "Home", href: "/" },
       { label: "Equipment", href: "/equipment" },
-      { label: equipment.name },
+      { label: displayEquipmentName(equipment) },
     ]);
     const multipleSchemas = [equipmentSchema, breadcrumbSchema];
 
@@ -294,7 +295,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Equipment", href: "/equipment" },
-    { label: equipment.name, current: true },
+    { label: displayEquipmentName(equipment), current: true },
   ];
 
   return (
@@ -418,7 +419,7 @@ export default function EquipmentDetail({ loaderData }: Route.ComponentProps) {
         reviews={reviews}
         reviewCount={reviewCount}
         user={user}
-        equipmentName={equipment.name}
+        equipmentName={displayEquipmentName(equipment)}
         equipmentSlug={equipment.slug}
         ratingCategories={ratingCategories}
       />

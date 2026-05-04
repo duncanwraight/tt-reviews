@@ -132,14 +132,16 @@ export async function applyEquipmentEdit(
   // current slug from showing up as a "collision" with itself. The
   // (current.slug → updates.slug) redirect row is recorded after the
   // equipment UPDATE lands so the old URL keeps 301-forwarding to
-  // the new one (TT-141).
+  // the new one (TT-141). Slugs include the manufacturer (TT-163);
+  // since manufacturer is not editable via edits, current.manufacturer
+  // is the canonical source.
   if (
     "name" in updates &&
     typeof updates.name === "string" &&
     updates.name &&
     updates.name !== current.name
   ) {
-    const baseSlug = generateSlug(updates.name);
+    const baseSlug = generateSlug(`${current.manufacturer} ${updates.name}`);
     updates.slug = await ensureUniqueSlug(
       supabaseAdmin,
       baseSlug,

@@ -17,7 +17,7 @@ function renderCard(ui: ReactNode) {
 
 const baseRubber = {
   id: "eq-1",
-  name: "Butterfly Tenergy 05",
+  name: "Tenergy 05",
   slug: "butterfly-tenergy-05",
   category: "rubber",
   subcategory: "inverted",
@@ -26,7 +26,7 @@ const baseRubber = {
 
 const baseBlade = {
   id: "eq-2",
-  name: "Butterfly Viscaria",
+  name: "Viscaria",
   slug: "butterfly-viscaria",
   category: "blade",
   manufacturer: "Butterfly",

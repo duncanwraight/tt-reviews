@@ -434,3 +434,58 @@ test("equipment_edit: submit → admin rejects → equipment row unchanged", asy
     await deleteUser(adminId);
   }
 });
+
+test("equipment_edit: name with manufacturer prefix is rejected (TT-163)", async ({
+  page,
+}) => {
+  // The name field stores the bare model only; the brand has its own
+  // column. The validator in the submit handler rejects anything that
+  // looks like "<manufacturer> <model>" with a clear field error and
+  // never creates an equipment_edits row.
+  const submitterEmail = generateTestEmail("ee-prefix-sub");
+  const { userId: submitterId } = await createUser(submitterEmail);
+  await setUserRole(submitterId, "admin");
+
+  const uniqueName = `Sriver E2E ${Date.now()}`;
+  const equipment = await createTestEquipment(uniqueName, "Butterfly");
+
+  try {
+    await login(page, submitterEmail);
+    await page.goto(
+      `/submissions/equipment_edit/submit?equipment_id=${equipment.id}`
+    );
+
+    // Pre-fill should populate name with the bare model. Replace it with
+    // the brand-prefixed form the validator must reject.
+    const nameField = page.getByLabel(/^Equipment Name/i);
+    await expect(nameField).toHaveValue(uniqueName);
+    await nameField.click();
+    await nameField.press("Control+a");
+    await nameField.fill(`Butterfly ${uniqueName}`);
+
+    await page
+      .getByLabel(/^Reason for Changes/i)
+      .fill("e2e prefix-reject test");
+    await page.getByRole("button", { name: /Submit Changes/i }).click();
+
+    // Validator returns 400; the "Submission Failed" banner surfaces and
+    // the form stays on the submit URL (no /profile redirect). The
+    // field-specific message is in the action's `fieldErrors` but
+    // UnifiedSubmissionForm doesn't currently merge server-side field
+    // errors into its UI — the observable signals are: banner shown,
+    // URL unchanged, no equipment_edits row written.
+    await expect(
+      page.getByRole("heading", { name: /Submission Failed/i })
+    ).toBeVisible();
+    expect(page.url()).toContain("/submissions/equipment_edit/submit");
+
+    const editsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/equipment_edits?user_id=eq.${submitterId}&select=id`,
+      { headers: adminHeaders() }
+    );
+    expect((await editsRes.json()) as unknown[]).toHaveLength(0);
+  } finally {
+    await deleteTestEquipment(equipment.id);
+    await deleteUser(submitterId);
+  }
+});

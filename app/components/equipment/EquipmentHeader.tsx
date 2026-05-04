@@ -73,6 +73,9 @@ export function EquipmentHeader({
         ) : null}
       </div>
 
+      <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+        {equipment.manufacturer}
+      </p>
       <h1 className="text-3xl font-bold text-gray-900">{equipment.name}</h1>
 
       {equipment.updated_at && (

@@ -64,7 +64,7 @@ describe("applyEquipmentSubmission", () => {
     const stub = makeStub({
       submission: {
         id: "es1",
-        name: "Stiga Airoc Astro M",
+        name: "Airoc Astro M",
         manufacturer: "Stiga",
         category: "rubber",
         subcategory: "inverted",
@@ -80,7 +80,7 @@ describe("applyEquipmentSubmission", () => {
     expect(stub.captured).toHaveLength(1);
     expect(stub.captured[0].table).toBe("equipment");
     expect(stub.captured[0].payload).toEqual({
-      name: "Stiga Airoc Astro M",
+      name: "Airoc Astro M",
       slug: "stiga-airoc-astro-m",
       manufacturer: "Stiga",
       category: "rubber",
@@ -95,7 +95,7 @@ describe("applyEquipmentSubmission", () => {
     const stub = makeStub({
       submission: {
         id: "es1",
-        name: "Butterfly  Tenergy 05 (FX)!",
+        name: "Tenergy 05 (FX)!",
         manufacturer: "Butterfly",
         category: "rubber",
         subcategory: "inverted",
@@ -113,7 +113,7 @@ describe("applyEquipmentSubmission", () => {
     const stub = makeStub({
       submission: {
         id: "es1",
-        name: "DHS Hurricane Long 5",
+        name: "Hurricane Long 5",
         manufacturer: "DHS",
         category: "blade",
         subcategory: null,

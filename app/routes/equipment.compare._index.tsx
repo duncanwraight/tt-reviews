@@ -10,6 +10,7 @@ import { ComparisonHeader } from "~/components/equipment/ComparisonHeader";
 import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { RatingsTable } from "~/components/equipment/RatingsTable";
 import { ProUsageSidebar } from "~/components/equipment/ProUsageSidebar";
+import { displayEquipmentName } from "~/lib/equipment";
 
 const MAX_IDS = 3;
 
@@ -41,7 +42,9 @@ export function meta({ data }: Route.MetaArgs) {
       { name: "robots", content: "noindex, follow" },
     ];
   }
-  const names = data.items.map(({ equipment }) => equipment.name).join(" vs ");
+  const names = data.items
+    .map(({ equipment }) => displayEquipmentName(equipment))
+    .join(" vs ");
   return [
     { title: `${names} - Detailed Comparison | TT Reviews` },
     { name: "robots", content: "noindex, follow" },
@@ -124,7 +127,9 @@ export default function EquipmentCompareThree({
 }: Route.ComponentProps) {
   const { items, specFields, ratingCategories } = loaderData;
 
-  const heading = items.map(({ equipment }) => equipment.name).join(" vs ");
+  const heading = items
+    .map(({ equipment }) => displayEquipmentName(equipment))
+    .join(" vs ");
 
   return (
     <>

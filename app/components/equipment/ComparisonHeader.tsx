@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { LazyImage } from "~/components/ui/LazyImage";
 import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
+import { displayEquipmentName } from "~/lib/equipment";
 import type { ComparisonItem } from "./comparison-types";
 
 interface ComparisonHeaderProps {
@@ -43,7 +44,7 @@ export function ComparisonHeader({ items }: ComparisonHeaderProps) {
             {equipment.image_key ? (
               <LazyImage
                 src={`/api/images/${equipment.image_key}`}
-                alt={equipment.name}
+                alt={displayEquipmentName(equipment)}
                 className="h-full w-full"
                 placeholder="skeleton"
               />

@@ -12,6 +12,7 @@ import { SpecsTable } from "~/components/equipment/SpecsTable";
 import { RatingsTable } from "~/components/equipment/RatingsTable";
 import { ProUsageSidebar } from "~/components/equipment/ProUsageSidebar";
 import { StructuredData } from "~/components/seo/StructuredData";
+import { displayEquipmentName } from "~/lib/equipment";
 import {
   buildCanonicalUrl,
   buildOgImageUrl,
@@ -53,8 +54,10 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
 
   const siteUrl = getSiteUrl(matches);
   const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
-  const title = `${equipment1.name} vs ${equipment2.name} - Detailed Comparison | TT Reviews`;
-  const ogTitle = `${equipment1.name} vs ${equipment2.name}`;
+  const displayName1 = displayEquipmentName(equipment1);
+  const displayName2 = displayEquipmentName(equipment2);
+  const title = `${displayName1} vs ${displayName2} - Detailed Comparison | TT Reviews`;
+  const ogTitle = `${displayName1} vs ${displayName2}`;
   // Compare slugs are alphabetised at the loader level so the canonical
   // URL is stable; reuse the same ordering for the OG path so a single
   // CDN cache key serves both directions.
@@ -68,7 +71,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
       ? `${name} (${avg.toFixed(1)}★ from ${count} review${count === 1 ? "" : "s"})`
       : `${name} (no reviews yet)`;
 
-  const description = `Compare ${ratingFragment(equipment1.name, averageRating1, reviewCount1)} against ${ratingFragment(equipment2.name, averageRating2, reviewCount2)}. Side-by-side specs and community ratings.`;
+  const description = `Compare ${ratingFragment(displayName1, averageRating1, reviewCount1)} against ${ratingFragment(displayName2, averageRating2, reviewCount2)}. Side-by-side specs and community ratings.`;
 
   return [
     { title },
@@ -177,7 +180,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
     { label: "Equipment", href: "/equipment" },
-    { label: `${equipment1.name} vs ${equipment2.name}` },
+    {
+      label: `${displayEquipmentName(equipment1)} vs ${displayEquipmentName(equipment2)}`,
+    },
   ]);
 
   return data(
@@ -242,7 +247,9 @@ export default function EquipmentCompare({ loaderData }: Route.ComponentProps) {
           items={[
             { label: "Home", href: "/" },
             { label: "Equipment", href: "/equipment" },
-            { label: `${equipment1.name} vs ${equipment2.name}` },
+            {
+              label: `${displayEquipmentName(equipment1)} vs ${displayEquipmentName(equipment2)}`,
+            },
           ]}
         />
       </PageSection>

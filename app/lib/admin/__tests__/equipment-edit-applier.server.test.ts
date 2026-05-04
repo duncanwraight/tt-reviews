@@ -211,11 +211,12 @@ describe("applyEquipmentEdit", () => {
       edit: {
         id: "e1",
         equipment_id: "eq1",
-        edit_data: { name: "Butterfly Tenergy" },
+        edit_data: { name: "Tenergy" },
       },
       equipment: {
         id: "eq1",
-        name: "Butterfly Tinergy",
+        name: "Tinergy",
+        manufacturer: "Butterfly",
         slug: "butterfly-tinergy",
         category: "rubber",
         subcategory: "inverted",
@@ -360,13 +361,14 @@ describe("applyEquipmentEdit", () => {
       edit: {
         id: "e1",
         equipment_id: "eq1",
-        edit_data: { name: "Butterfly Viscaria" },
+        edit_data: { name: "Viscaria" },
         moderator_id: "mod-uuid",
       },
       equipment: {
         id: "eq1",
         slug: "old-viscaria",
         name: "Old Viscaria",
+        manufacturer: "Butterfly",
         category: "blade",
         subcategory: null,
         specifications: {},

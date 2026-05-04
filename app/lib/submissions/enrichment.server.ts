@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { displayEquipmentName } from "../equipment";
 import type { SubmissionType } from "./types";
 
 /**
@@ -36,10 +37,12 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     if (!submission.equipment_id) return {};
     const { data: equipment } = (await adminClient
       .from("equipment")
-      .select("name")
+      .select("name, manufacturer")
       .eq("id", submission.equipment_id as string)
-      .single()) as { data: { name: string } | null };
-    return equipment ? { equipment_name: equipment.name } : {};
+      .single()) as {
+      data: { name: string; manufacturer: string } | null;
+    };
+    return equipment ? { equipment_name: displayEquipmentName(equipment) } : {};
   },
 
   player: async (submission, adminClient) => {
@@ -96,11 +99,13 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     if (equipmentIds.length > 0) {
       const { data: rows } = (await adminClient
         .from("equipment")
-        .select("id, name")
+        .select("id, name, manufacturer")
         .in("id", equipmentIds)) as {
-        data: Array<{ id: string; name: string }> | null;
+        data: Array<{ id: string; name: string; manufacturer: string }> | null;
       };
-      const nameById = new Map((rows ?? []).map(r => [r.id, r.name]));
+      const nameById = new Map(
+        (rows ?? []).map(r => [r.id, displayEquipmentName(r)])
+      );
       if (typeof setup.blade_id === "string") {
         extras.blade_name = nameById.get(setup.blade_id);
       }
@@ -158,11 +163,13 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     if (equipmentIds.length > 0) {
       const { data: rows } = (await adminClient
         .from("equipment")
-        .select("id, name")
+        .select("id, name, manufacturer")
         .in("id", equipmentIds)) as {
-        data: Array<{ id: string; name: string }> | null;
+        data: Array<{ id: string; name: string; manufacturer: string }> | null;
       };
-      const nameById = new Map((rows ?? []).map(r => [r.id, r.name]));
+      const nameById = new Map(
+        (rows ?? []).map(r => [r.id, displayEquipmentName(r)])
+      );
       if (submission.blade_id) {
         extras.blade_name = nameById.get(submission.blade_id as string);
       }
@@ -202,13 +209,19 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     const { data: equipment } = (await adminClient
       .from("equipment")
       .select(
-        "name, slug, category, subcategory, description, specifications, image_key"
+        "name, manufacturer, slug, category, subcategory, description, specifications, image_key"
       )
       .eq("id", submission.equipment_id as string)
       .single()) as { data: Record<string, unknown> | null };
     if (!equipment) return {};
     return {
-      equipment_name: equipment.name as string,
+      // Card title is "<brand> <model>"; the diff lines below still
+      // operate against equipment_current.name (bare model) so a name
+      // change renders the actual stored value, not the display string.
+      equipment_name: displayEquipmentName({
+        manufacturer: equipment.manufacturer as string,
+        name: equipment.name as string,
+      }),
       equipment_current: equipment,
     };
   },

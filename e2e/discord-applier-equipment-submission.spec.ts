@@ -75,10 +75,11 @@ test("Discord 2× approval applies equipment submission to the equipment table",
   const { userId: submitterId } = await createUser(submitterEmail);
 
   // Unique submission name → unique slug → unambiguous assertion that
-  // the canonical row is the one this test created.
+  // the canonical row is the one this test created. Slugs are
+  // brand-prefixed (TT-163), so the applier prepends manufacturer.
   const ts = Date.now();
   const submittedName = `e2e equipment ${ts}`;
-  const expectedSlug = `e2e-equipment-${ts}`;
+  const expectedSlug = `e2e-mfr-e2e-equipment-${ts}`;
 
   const submissionInsertRes = await fetch(
     `${SUPABASE_URL}/rest/v1/equipment_submissions`,

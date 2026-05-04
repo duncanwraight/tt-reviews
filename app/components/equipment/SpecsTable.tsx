@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import type { CategoryOption } from "~/lib/categories.server";
+import { displayEquipmentName } from "~/lib/equipment";
 import type { ComparisonItem } from "./comparison-types";
 
 interface SpecsTableProps {
@@ -265,7 +266,7 @@ export function SpecsTable({ items, specFields }: SpecsTableProps) {
                 className="px-4 py-3 text-left font-medium text-gray-900"
                 data-testid="specs-table-equipment-header"
               >
-                {equipment.name}
+                {displayEquipmentName(equipment)}
               </th>
             ))}
           </tr>

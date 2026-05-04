@@ -29,7 +29,7 @@ describe("search.search", () => {
     expect(result).toEqual({ equipment: [], players: [] });
   });
 
-  it("applies textSearch with limit 10 on both tables", async () => {
+  it("applies the search filter with limit 10 on both tables", async () => {
     const supabase = makeSupabase({
       tables: {
         equipment: { data: [] },
@@ -39,10 +39,14 @@ describe("search.search", () => {
     await search.search(makeCtx(supabase), "vis");
     const eq = supabase._builders.get("equipment")!;
     const pl = supabase._builders.get("players")!;
+    // Equipment: TT-163 token-OR on (name, manufacturer) — single token
+    // here, but multi-token queries chain one .or() per token.
     expect(eq.calls).toContainEqual({
-      method: "textSearch",
-      args: ["name", "vis", { type: "websearch" }],
+      method: "or",
+      args: ["name.ilike.%vis%,manufacturer.ilike.%vis%"],
     });
+    // Players still use textSearch on the bare name column — there's
+    // no brand split there.
     expect(pl.calls).toContainEqual({
       method: "textSearch",
       args: ["name", "vis", { type: "websearch" }],

@@ -96,10 +96,10 @@ describe("formatForDiscord — player", () => {
       name: "Ma Long",
       submitter_email: "u@example.com",
       equipment_setup: { year: 2024 },
-      blade_name: "Viscaria",
-      forehand_rubber_name: "Hurricane 3",
+      blade_name: "Butterfly Viscaria",
+      forehand_rubber_name: "DHS Hurricane 3",
       forehand_thickness: "2.1mm",
-      backhand_rubber_name: "Tenergy 05",
+      backhand_rubber_name: "Butterfly Tenergy 05",
       backhand_thickness: "2.0mm",
       videos: [
         { title: "Final 2024", platform: "youtube" },
@@ -109,12 +109,12 @@ describe("formatForDiscord — player", () => {
       ],
     });
     expect(findField(card.fields, "Year")?.value).toBe("2024");
-    expect(findField(card.fields, "Blade")?.value).toBe("Viscaria");
+    expect(findField(card.fields, "Blade")?.value).toBe("Butterfly Viscaria");
     expect(findField(card.fields, "Forehand Rubber")?.value).toBe(
-      "Hurricane 3 (2.1mm)"
+      "DHS Hurricane 3 (2.1mm)"
     );
     expect(findField(card.fields, "Backhand Rubber")?.value).toBe(
-      "Tenergy 05 (2.0mm)"
+      "Butterfly Tenergy 05 (2.0mm)"
     );
     expect(findField(card.fields, "Video Count")?.value).toBe("4");
     expect(findField(card.fields, "Video 1")?.value).toBe(
@@ -196,7 +196,7 @@ describe("formatForDiscord — review", () => {
   it("surfaces per-category ratings + reviewer context", () => {
     const card = SUBMISSION_REGISTRY.review.formatForDiscord!({
       id: "sub-1",
-      equipment_name: "Hurricane 3",
+      equipment_name: "DHS Hurricane 3",
       overall_rating: 9,
       category_ratings: { speed: 9, control: 7, spin: 10 },
       reviewer_context: {
@@ -219,7 +219,7 @@ describe("formatForDiscord — review", () => {
   it("omits the optional fields when category_ratings + context are absent", () => {
     const card = SUBMISSION_REGISTRY.review.formatForDiscord!({
       id: "sub-1",
-      equipment_name: "Hurricane 3",
+      equipment_name: "DHS Hurricane 3",
       overall_rating: 7,
       review_text: "Decent",
       submitter_email: "u@example.com",
@@ -234,21 +234,21 @@ describe("formatForDiscord — player_equipment_setup", () => {
     const card = SUBMISSION_REGISTRY.player_equipment_setup.formatForDiscord!({
       id: "sub-1",
       player_name: "Ma Long",
-      blade_name: "Viscaria",
-      forehand_rubber_name: "Hurricane 3",
+      blade_name: "Butterfly Viscaria",
+      forehand_rubber_name: "DHS Hurricane 3",
       forehand_thickness: "2.1mm",
-      backhand_rubber_name: "Tenergy 05",
+      backhand_rubber_name: "Butterfly Tenergy 05",
       backhand_thickness: "2.1mm",
       year: 2024,
       submitter_email: "u@example.com",
     });
     expect(findField(card.fields, "Player")?.value).toBe("Ma Long");
-    expect(findField(card.fields, "Blade")?.value).toBe("Viscaria");
+    expect(findField(card.fields, "Blade")?.value).toBe("Butterfly Viscaria");
     expect(findField(card.fields, "Forehand Rubber")?.value).toBe(
-      "Hurricane 3 (2.1mm)"
+      "DHS Hurricane 3 (2.1mm)"
     );
     expect(findField(card.fields, "Backhand Rubber")?.value).toBe(
-      "Tenergy 05 (2.1mm)"
+      "Butterfly Tenergy 05 (2.1mm)"
     );
   });
 });
@@ -257,10 +257,11 @@ describe("formatForDiscord — equipment_edit", () => {
   it("renders before→after diff lines and surfaces the reason", () => {
     const card = SUBMISSION_REGISTRY.equipment_edit.formatForDiscord!({
       id: "sub-1",
-      equipment_name: "Hurricane 3",
+      equipment_name: "DHS Hurricane 3",
       equipment_current: {
         name: "Hurricane 3",
-        slug: "hurricane-3",
+        manufacturer: "DHS",
+        slug: "dhs-hurricane-3",
         description: "Tacky",
         specifications: { speed: 9.0 },
       },
@@ -271,8 +272,8 @@ describe("formatForDiscord — equipment_edit", () => {
         edit_reason: "manufacturer updated speed rating",
       },
     });
-    expect(findField(card.fields, "Equipment")?.value).toBe("Hurricane 3");
-    expect(findField(card.fields, "Slug")?.value).toBe("hurricane-3");
+    expect(findField(card.fields, "Equipment")?.value).toBe("DHS Hurricane 3");
+    expect(findField(card.fields, "Slug")?.value).toBe("dhs-hurricane-3");
     const changes = findField(card.fields, "Changes")?.value || "";
     expect(changes).toContain("**description**: Tacky → Tacky and fast");
     expect(changes).toContain("**speed**: 9 → 9.5");

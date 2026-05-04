@@ -26,6 +26,7 @@ import {
 import { Logger, createLogContext } from "~/lib/logger.server";
 import type { RunLogEntry } from "~/lib/spec-sourcing/run-log";
 import { SpecSourcingRunLog } from "~/components/admin/SpecSourcingRunLog";
+import { displayEquipmentName } from "~/lib/equipment";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -240,7 +241,9 @@ export default function AdminManufacturerSpecsDetail({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{equipment.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {displayEquipmentName(equipment)}
+        </h1>
         <p className="text-sm text-gray-600 mt-1">
           {equipment.category}
           {equipment.subcategory ? ` · ${equipment.subcategory}` : ""} —

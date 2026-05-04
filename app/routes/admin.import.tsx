@@ -11,6 +11,7 @@ import {
   type RevspinCategory,
   type RevspinProduct,
 } from "~/lib/revspin.server";
+import { stripManufacturerPrefix } from "~/lib/equipment";
 
 // Product with generated slug included (for client-side use)
 type RevspinProductWithSlug = RevspinProduct & { generatedSlug: string };
@@ -143,9 +144,12 @@ export async function action({ request, context }: Route.ActionArgs) {
       // Use override subcategory if provided, otherwise use product's subcategory
       const subcategory = subcategoryOverride || product.subcategory;
 
-      // Insert the equipment
+      // Insert the equipment. RevSpin titles arrive as "<brand> <model>";
+      // equipment.name stores only the bare model (TT-163), so we strip the
+      // manufacturer prefix before persisting. Slug generation still uses
+      // the full title so URLs stay brand-prefixed.
       const { error } = await supabase.from("equipment").insert({
-        name: product.name,
+        name: stripManufacturerPrefix(product.name, product.manufacturer),
         slug,
         manufacturer: product.manufacturer,
         category: product.category,

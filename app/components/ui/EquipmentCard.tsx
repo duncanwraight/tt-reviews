@@ -5,6 +5,7 @@ import { LazyImage } from "./LazyImage";
 import { ImagePlaceholder } from "./ImagePlaceholder";
 import { MAX_SELECTION, useComparison } from "~/contexts/ComparisonContext";
 import {
+  displayEquipmentName,
   formatSubcategoryLabel,
   getCategoryPillClasses,
   getSubcategoryPillClasses,
@@ -107,8 +108,9 @@ function CompareCard({ equipment }: { equipment: Equipment }) {
           aria-pressed={isSelected}
           aria-label={
             isSelected
-              ? `Remove ${equipment.name} from comparison`
-              : (disabledReason ?? `Add ${equipment.name} to comparison`)
+              ? `Remove ${displayEquipmentName(equipment)} from comparison`
+              : (disabledReason ??
+                `Add ${displayEquipmentName(equipment)} to comparison`)
           }
           title={disabledReason ?? undefined}
           data-testid="comparison-toggle"
@@ -163,7 +165,7 @@ function CardBody({ equipment }: { equipment: Equipment }) {
         {imageUrl ? (
           <LazyImage
             src={imageUrl}
-            alt={equipment.name}
+            alt={displayEquipmentName(equipment)}
             className="w-full h-full"
             objectFit="contain"
             placeholder="skeleton"
@@ -178,7 +180,7 @@ function CardBody({ equipment }: { equipment: Equipment }) {
 
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2">
-          {equipment.name}
+          {displayEquipmentName(equipment)}
         </h3>
 
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-3 text-xs">

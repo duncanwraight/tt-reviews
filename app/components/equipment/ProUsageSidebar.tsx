@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { displayEquipmentName } from "~/lib/equipment";
 import type { ComparisonItem } from "./comparison-types";
 
 interface ProUsageSidebarProps {
@@ -19,7 +20,7 @@ export function ProUsageSidebar({ items }: ProUsageSidebarProps) {
         return (
           <section key={equipment.id} className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-900">
-              {equipment.name}
+              {displayEquipmentName(equipment)}
             </h3>
             {usedByPlayers.length === 0 ? (
               <p className="text-sm text-gray-500">No tracked pro users.</p>

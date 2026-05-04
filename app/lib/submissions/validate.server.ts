@@ -1,5 +1,6 @@
 import type { SubmissionType } from "~/lib/types";
 import type { CategoryOption } from "~/lib/categories.server";
+import { stripManufacturerPrefix } from "~/lib/equipment";
 
 /**
  * Server-side input validation at the submission boundary
@@ -178,10 +179,42 @@ export function validateSubmission(
     }
   }
 
+  // TT-163: equipment.name carries the bare model only — manufacturer is
+  // its own column. Reject submissions where the user typed
+  // "<manufacturer> <model>" in the name field. equipment_edit goes
+  // through the same check at the submit-handler level (manufacturer
+  // isn't editable so it isn't on the form).
+  if (type === "equipment" && !errors.name) {
+    const name = (formData.get("name") as string | null)?.trim() ?? "";
+    const manufacturer =
+      (formData.get("manufacturer") as string | null)?.trim() ?? "";
+    if (
+      name &&
+      manufacturer &&
+      stripManufacturerPrefix(name, manufacturer) !== name
+    ) {
+      errors.name = `Don't include the manufacturer in the model name — "${manufacturer}" is a separate field.`;
+    }
+  }
+
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
   return { valid: true };
+}
+
+// Cross-field check for equipment_edit, where the submission flow has
+// already loaded the existing equipment row's manufacturer. Returns the
+// field-error message or null when the proposed name is a clean bare
+// model. Co-located with the other equipment-name rules in this file so
+// the rule lives in one place.
+export function validateEquipmentNameAgainstManufacturer(
+  name: string,
+  manufacturer: string
+): string | null {
+  if (!name || !manufacturer) return null;
+  if (stripManufacturerPrefix(name, manufacturer) === name) return null;
+  return `Don't include the manufacturer in the model name — "${manufacturer}" is a separate field.`;
 }
 
 function validateField(value: string, spec: FieldKind): string | null {

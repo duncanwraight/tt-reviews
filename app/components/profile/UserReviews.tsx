@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { displayEquipmentName } from "~/lib/equipment";
 import { ReviewCard } from "../equipment/ReviewCard";
 
 interface UserReview {
@@ -21,6 +22,7 @@ interface UserReview {
   equipment?: {
     name: string;
     slug: string;
+    manufacturer: string;
   };
 }
 
@@ -65,7 +67,7 @@ export function UserReviews({ reviews }: UserReviewsProps) {
                   to={`/equipment/${review.equipment.slug}`}
                   className="text-sm font-medium text-purple-600 hover:text-purple-800"
                 >
-                  {review.equipment.name}
+                  {displayEquipmentName(review.equipment)}
                 </Link>
               </div>
             )}
