@@ -30,14 +30,14 @@ const VISCARIA_PROPOSAL = {
     weight: 89,
     plies_wood: 5,
     plies_composite: 2,
-    composite_material: "Arylate Carbon",
+    material: "Arylate Carbon",
   },
   description: "Legendary all-round blade.",
   per_field_source: {
     weight: "https://en.butterfly.tt/viscaria.html",
     plies_wood: "https://en.butterfly.tt/viscaria.html",
     plies_composite: "https://en.butterfly.tt/viscaria.html",
-    composite_material: "https://en.butterfly.tt/viscaria.html",
+    material: "https://en.butterfly.tt/viscaria.html",
     description: "https://en.butterfly.tt/viscaria.html",
   },
 };
@@ -48,7 +48,7 @@ test.describe("Admin manufacturer-specs review", () => {
   test("Apply writes specs + description and marks proposal applied", async ({
     page,
   }) => {
-    // Proposal payload is blade-shaped (plies/composite_material), and the
+    // Proposal payload is blade-shaped (plies/material), and the
     // admin form only renders fields configured for the equipment's
     // category — so we must target a blade row, not whatever happens to
     // be first in the table.
@@ -100,7 +100,7 @@ test.describe("Admin manufacturer-specs review", () => {
         weight: 90,
         plies_wood: 5,
         plies_composite: 2,
-        composite_material: "Arylate Carbon",
+        material: "Arylate Carbon",
       });
       expect(after.description).toBe("Legendary all-round blade.");
       expect(after.specs_source_status).toBe("fresh");
