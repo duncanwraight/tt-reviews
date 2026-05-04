@@ -201,6 +201,65 @@ describe("SpecsTable sorting", () => {
     expect(equipmentNamesInOrder()).toEqual(["C", "A", "B"]);
   });
 
+  it("renders pure-wood plies as wood count whether composite is null or 0", () => {
+    const fields = [
+      specField({
+        name: "Plies (wood)",
+        value: "plies_wood",
+        field_type: "int",
+      }),
+      specField({
+        name: "Plies (composite)",
+        value: "plies_composite",
+        field_type: "int",
+      }),
+    ];
+
+    // Single-item detail view, plies_composite missing.
+    const { unmount: unmountNull } = render(
+      <SpecsTable
+        items={[item("a", "A", { plies_wood: 5 })]}
+        specFields={fields}
+      />
+    );
+    expect(screen.getByTestId("specs-table").textContent).toContain("5");
+    expect(screen.getByTestId("specs-table").textContent).not.toContain("5+");
+    unmountNull();
+
+    // plies_composite === 0 must render the same as missing — historical
+    // data from the spec extractor used 0 for pure-wood blades.
+    render(
+      <SpecsTable
+        items={[item("a", "A", { plies_wood: 5, plies_composite: 0 })]}
+        specFields={fields}
+      />
+    );
+    expect(screen.getByTestId("specs-table").textContent).toContain("5");
+    expect(screen.getByTestId("specs-table").textContent).not.toContain("5+0");
+  });
+
+  it("renders composite plies as wood+composite when composite > 0", () => {
+    const fields = [
+      specField({
+        name: "Plies (wood)",
+        value: "plies_wood",
+        field_type: "int",
+      }),
+      specField({
+        name: "Plies (composite)",
+        value: "plies_composite",
+        field_type: "int",
+      }),
+    ];
+    render(
+      <SpecsTable
+        items={[item("a", "A", { plies_wood: 5, plies_composite: 2 })]}
+        specFields={fields}
+      />
+    );
+    expect(screen.getByTestId("specs-table").textContent).toContain("5+2");
+  });
+
   it("switching to a different sortable row resets to ascending", async () => {
     const user = userEvent.setup();
     const fields = [

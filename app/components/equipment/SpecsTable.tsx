@@ -57,11 +57,18 @@ function renderCell(field: CategoryOption, raw: unknown): string {
 
 // Plies are a paired field — wood + composite — rendered as one row.
 // Wood-only blades show just the wood count; composite blades show "5+2".
+// `0` composite is treated as wood-only — semantically identical to null,
+// and historically some sources/extractors emitted 0 for pure-wood blades.
 function renderPliesPair(specs: Record<string, unknown>): string {
   const wood = specs[PLIES_WOOD_KEY];
   const composite = specs[PLIES_COMPOSITE_KEY];
   if (wood === null || wood === undefined || wood === "") return "—";
-  if (composite === null || composite === undefined || composite === "") {
+  if (
+    composite === null ||
+    composite === undefined ||
+    composite === "" ||
+    composite === 0
+  ) {
     return String(wood);
   }
   return `${wood}+${composite}`;

@@ -45,7 +45,7 @@ Return ONLY JSON with this exact shape:
     "weight": number | null,             // grams, integer
     "thickness": number | null,          // millimetres, e.g. 5.7
     "plies_wood": number | null,         // integer
-    "plies_composite": number | null,    // integer; 0 if pure wood
+    "plies_composite": number | null,    // integer; null for pure-wood blades
     "composite_material": string | null, // e.g. "Arylate Carbon", "ZL Fiber"
     "speed": number | null,              // 0..10 manufacturer rating
     "spin": number | null,
