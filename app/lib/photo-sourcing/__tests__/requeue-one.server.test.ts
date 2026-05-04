@@ -105,7 +105,11 @@ describe("requeueOneEquipmentPhotos", () => {
     // image_key intentionally NOT in the payload — the live image
     // survives until a new candidate is picked.
     expect(calls.updatePayload).not.toHaveProperty("image_key");
-    expect(queue.sent).toEqual([{ slug: "butterfly-viscaria" }]);
+    // TT-171: force:true is what makes the consumer skip the
+    // image_key "already-imaged" short-circuit — without it, this whole
+    // re-queue path is a silent no-op for any row that already has a
+    // picked photo.
+    expect(queue.sent).toEqual([{ slug: "butterfly-viscaria", force: true }]);
   });
 
   it("propagates a candidate-delete failure without enqueueing", async () => {

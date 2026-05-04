@@ -252,6 +252,43 @@ describe("sourcePhotosForEquipment", () => {
     expect(puts).toHaveLength(0);
   });
 
+  // TT-171: per-row admin re-queue passes force:true so the consumer
+  // overrides the image_key short-circuit. The picked-candidate row is
+  // intentionally still in place (the live image stays put) — proving
+  // here that providers actually run + new candidates land.
+  it("runs providers when force=true even with image_key already set", async () => {
+    const { supabase, candidates } = makeSupabase({
+      equipment: [{ ...STIGA_ROW, image_key: "equipment/x/y.webp" }],
+    });
+    const { bucket, puts } = makeBucket();
+    const randomId = deterministicIds("uuid");
+    const provider = mockProvider([
+      fakeResolved({
+        imageUrl: "https://www.revspin.net/img/stiga-airoc-m.jpg",
+        pageUrl: "https://www.revspin.net/stiga-airoc-m",
+      }),
+    ]);
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [provider],
+        deps: { fetchImpl: fakeFetch(), randomId },
+        force: true,
+      }
+    );
+
+    expect(result.status).toBe("sourced");
+    expect(result.insertedCount).toBe(1);
+    expect(provider.resolveCandidates).toHaveBeenCalledTimes(1);
+    expect(puts).toHaveLength(1);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].picked_at).toBeNull();
+  });
+
   it("inserts candidate rows for each resolver hit and stamps attempted_at", async () => {
     const { supabase, candidates, equipment } = makeSupabase({
       equipment: [STIGA_ROW],

@@ -275,7 +275,7 @@ export default {
             attempts,
           });
           await queueEnv.PHOTO_SOURCE_QUEUE.send(
-            { slug: body.slug, attempts },
+            { slug: body.slug, attempts, force: body.force },
             { delaySeconds }
           );
           msg.ack();

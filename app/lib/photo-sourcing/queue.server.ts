@@ -39,6 +39,11 @@ export interface PhotoSourceMessage {
   // resets on every successful ack. Used to compute exponential
   // backoff on out_of_budget.
   attempts?: number;
+  // TT-171: per-row admin re-queue sets this so the consumer skips the
+  // image_key "already-imaged" guard in sourcePhotosForEquipment.
+  // Preserved across transient re-queues (workers/app.ts) so a
+  // rate-limited retry doesn't suddenly bail.
+  force?: boolean;
 }
 
 export type ProcessOutcome =
@@ -73,6 +78,7 @@ export async function processOneSourceMessage(
   try {
     result = await sourceFn(supabase, bucket, env, message.slug, {
       providers,
+      force: message.force,
     });
   } catch (err) {
     return {

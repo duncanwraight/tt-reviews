@@ -147,6 +147,14 @@ export async function sourcePhotosForEquipment(
     limit?: number;
     deps?: SourcingDeps;
     providers?: Provider[];
+    // TT-171: bypass the image_key short-circuit. Set by the per-row
+    // admin re-queue path (requeue-one.server.ts) so the consumer can
+    // re-source a row whose image is already picked. The picked-
+    // candidate row + equipment.image_key are intentionally preserved
+    // by the re-queue action so the live page keeps its photo until a
+    // new candidate is approved; without this flag the consumer would
+    // see image_key set and bail out as "already-imaged".
+    force?: boolean;
   } = {}
 ): Promise<SourcingResult> {
   const deps = options.deps ?? {};
@@ -169,7 +177,7 @@ export async function sourcePhotosForEquipment(
 
   const row = equipment as EquipmentRow;
 
-  if (row.image_key) {
+  if (row.image_key && !options.force) {
     const { data: existing } = await supabase
       .from("equipment_photo_candidates")
       .select("*")

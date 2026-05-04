@@ -229,6 +229,40 @@ describe("processOneSourceMessage", () => {
     expect(result).toEqual({ status: "error", message: "boom" });
   });
 
+  // TT-171: per-row admin re-queue sets `force: true` on the message so
+  // the consumer skips sourcePhotosForEquipment's image_key short-circuit.
+  // The button left image_key in place on purpose so the live page keeps
+  // its photo — without this thread-through the message would silently
+  // ack as "already-imaged".
+  it("threads message.force through to sourceFn", async () => {
+    const sourceFn = vi.fn().mockResolvedValue(
+      fakeResult({
+        status: "no-candidates",
+        candidates: [],
+        insertedCount: 0,
+        providerStatuses: [{ name: "brave", status: "ok" }],
+      })
+    );
+
+    await processOneSourceMessage(
+      FAKE_SUPABASE,
+      FAKE_BUCKET,
+      ENV,
+      PROVIDERS,
+      "u",
+      { slug: "stiga-airoc-m", force: true },
+      { sourceFn, pickFn: vi.fn() }
+    );
+
+    expect(sourceFn).toHaveBeenCalledWith(
+      FAKE_SUPABASE,
+      FAKE_BUCKET,
+      ENV,
+      "stiga-airoc-m",
+      expect.objectContaining({ force: true })
+    );
+  });
+
   it("falls back to 'sourced' when auto-pick throws", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({

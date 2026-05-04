@@ -9,6 +9,11 @@
 // image until an admin picks a new candidate from the next sourcing
 // run. R2 objects for the deleted un-picked candidates aren't cleaned
 // up — tracked separately as the orphaned-image cleanup ticket.
+//
+// TT-171: send `force: true` so the consumer skips the image_key
+// short-circuit in sourcePhotosForEquipment. Without this the message
+// would silently ack as "already-imaged" because we deliberately leave
+// image_key in place (see above).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -45,5 +50,5 @@ export async function requeueOneEquipmentPhotos(
     throw new Error(`reset cooldown: ${updError.message}`);
   }
 
-  await queue.send({ slug: row.slug });
+  await queue.send({ slug: row.slug, force: true });
 }
