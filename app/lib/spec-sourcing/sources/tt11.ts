@@ -4,7 +4,7 @@
 // base URL and slugs that don't carry a .html extension.
 
 import { httpFetch, type HttpFetchOptions } from "./http";
-import { parseMagentoSearchResults } from "./magento";
+import { parseMagentoSearchResponse } from "./magento";
 import type { EquipmentRef, SpecCandidate, SpecSource } from "./types";
 
 const TT11_BASE = "https://www.tabletennis11.com";
@@ -34,7 +34,12 @@ export function makeTt11Source(deps: Tt11Deps = {}): SpecSource {
       if (!res.ok) {
         throw new Error(`tt11 search ${url} returned HTTP ${res.status}`);
       }
-      return parseMagentoSearchResults(await res.text(), 5);
+      return parseMagentoSearchResponse(
+        await res.text(),
+        res.url || url,
+        url,
+        5
+      );
     },
     async fetch(candidateUrl: string) {
       const res = await httpFetch(candidateUrl, opts);

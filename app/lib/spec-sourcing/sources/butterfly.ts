@@ -9,7 +9,7 @@
 // parseMagentoSearchResults helper extracts.
 
 import { httpFetch, type HttpFetchOptions } from "./http";
-import { parseMagentoSearchResults } from "./magento";
+import { parseMagentoSearchResponse } from "./magento";
 import type { EquipmentRef, SpecCandidate, SpecSource } from "./types";
 
 const BUTTERFLY_BASE = "https://en.butterfly.tt";
@@ -43,7 +43,12 @@ export function makeButterflySource(deps: ButterflyDeps = {}): SpecSource {
       if (!res.ok) {
         throw new Error(`butterfly search ${url} returned HTTP ${res.status}`);
       }
-      return parseMagentoSearchResults(await res.text(), 5);
+      return parseMagentoSearchResponse(
+        await res.text(),
+        res.url || url,
+        url,
+        5
+      );
     },
     async fetch(candidateUrl: string) {
       const res = await httpFetch(candidateUrl, opts);

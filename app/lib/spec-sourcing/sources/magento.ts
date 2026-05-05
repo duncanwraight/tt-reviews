@@ -1,4 +1,4 @@
-// Shared parser for Magento `catalogsearch` result pages. Both the
+// Shared parser for Magento `catalogsearch` responses. Both the
 // Butterfly and TT11 adapters point at the same Magento product-card
 // shape:
 //
@@ -17,6 +17,8 @@ import type { SpecCandidate } from "./types";
 
 const PRODUCT_LINK_RE =
   /<a\s+class=["']product-item-link["']\s+href=["']([^"']+)["'][^>]*>\s*([^<]+?)\s*<\/a>/gi;
+
+const TITLE_RE = /<title[^>]*>([^<]+)<\/title>/i;
 
 function decodeEntities(s: string): string {
   return s
@@ -51,4 +53,35 @@ export function parseMagentoSearchResults(
     if (out.length >= limit) break;
   }
   return out;
+}
+
+// Magento `catalogsearch` 302s straight to the canonical product page
+// whenever exactly one product matches the query (TT-176). Default
+// `fetch()` follows the redirect, so the adapter ends up reading
+// product-page HTML rather than a result list. The product page
+// happens to carry one `<a class="product-item-link">` of its own —
+// the "Weight selection (rubber)" sidebar widget on Butterfly — so the
+// result-list parser would mis-extract that link and prefilter would
+// then drop it.
+//
+// Detect by URL shape: when the final URL has moved off
+// `/catalogsearch/`, treat the response as a direct hit and synthesise
+// one candidate from the page `<title>`. Otherwise fall through to the
+// result-list parser unchanged.
+export function parseMagentoSearchResponse(
+  html: string,
+  finalUrl: string,
+  searchUrl: string,
+  limit = 5
+): SpecCandidate[] {
+  if (finalUrl !== searchUrl && !finalUrl.includes("/catalogsearch/")) {
+    const title = parseHtmlTitle(html);
+    return title ? [{ url: finalUrl, title }] : [];
+  }
+  return parseMagentoSearchResults(html, limit);
+}
+
+function parseHtmlTitle(html: string): string {
+  const m = TITLE_RE.exec(html);
+  return m ? decodeEntities(m[1]).replace(/\s+/g, " ").trim() : "";
 }
