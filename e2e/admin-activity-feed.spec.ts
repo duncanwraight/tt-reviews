@@ -7,8 +7,10 @@ import {
   setUserRole,
 } from "./utils/auth";
 import {
+  createTestEquipment,
+  deleteEquipment,
+  deleteEquipmentReview,
   getEquipmentReviewStatus,
-  getFirstEquipment,
   insertPendingEquipmentReview,
 } from "./utils/data";
 // TT-127: the Recent Activity widget on /admin reads moderator emails via
@@ -18,6 +20,13 @@ import {
 // literal fallback) for those rows. The profiles table itself was
 // dropped in TT-128. This spec asserts the widget surfaces the real
 // auth.users email, locking in the auth.users-backed path.
+//
+// TT-169: the widget feed is global, so under parallel scheduling
+// another spec's approval can land between this test's approval and
+// its assertion — `.first()` then picks the wrong row. We avoid both
+// halves: hermetic equipment row (so the entity link's `/equipment/:slug`
+// is unique to this test) plus a row-scoping filter on that href so we
+// only inspect *our* approval regardless of recency.
 
 test("recent activity widget shows admin email from auth.users", async ({
   page,
@@ -28,7 +37,7 @@ test("recent activity widget shows admin email from auth.users", async ({
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  const equipment = await getFirstEquipment();
+  const equipment = await createTestEquipment("activity-feed", "rubber");
   const reviewText = `TT-127 activity widget marker ${Date.now()}`;
   const review = await insertPendingEquipmentReview({
     userId: reviewerId,
@@ -52,10 +61,8 @@ test("recent activity widget shows admin email from auth.users", async ({
     await page.goto("/admin");
     await expect(page).toHaveURL(/\/admin$/);
 
-    // The newest activity row should be this approval, attributed to the
-    // admin's actual email — not the "Admin" fallback. Scope the assertion
-    // to the Recent Activity card so it isn't satisfied by the admin
-    // header showing the same email elsewhere on the page.
+    // Scope to the Recent Activity card so the assertion isn't satisfied
+    // by the admin header showing the same email elsewhere on the page.
     const activityCard = page
       .locator("div", {
         has: page.getByRole("heading", { name: /Recent Activity/i }),
@@ -63,22 +70,35 @@ test("recent activity widget shows admin email from auth.users", async ({
       .first();
     await expect(activityCard).toBeVisible();
 
-    const topEntry = activityCard.locator("li").first();
-    // Entity label is now a link to the public view page; the
-    // approved-vs-rejected and admin-vs-discord signals moved to icons,
-    // so the verb and "(Admin UI)" suffix were dropped.
-    const reviewLink = topEntry.getByRole("link", {
+    // Find *this* test's row by the unique equipment href. Other parallel
+    // specs may insert their own activity rows in this window; without
+    // this filter, `.first()` could land on one of theirs and surface a
+    // different email.
+    const reviewLink = activityCard.getByRole("link", {
       name: "Equipment review",
     });
-    await expect(reviewLink).toBeVisible();
-    await expect(reviewLink).toHaveAttribute(
+    const ourEntry = activityCard
+      .locator("li")
+      .filter({ has: page.locator(`a[href="/equipment/${equipment.slug}"]`) });
+    await expect(ourEntry).toBeVisible();
+
+    const ourLink = ourEntry.getByRole("link", { name: "Equipment review" });
+    await expect(ourLink).toHaveAttribute(
       "href",
       `/equipment/${equipment.slug}`
     );
-    await expect(topEntry).toContainText(adminEmail);
-    await expect(topEntry).not.toContainText("Admin UI");
-    await expect(topEntry).not.toContainText(/Admin\s*$/);
+    // Sanity: at least one Equipment review link is rendered (catches the
+    // entire-widget regression where no entries surface at all).
+    await expect(reviewLink.first()).toBeVisible();
+    await expect(ourEntry).toContainText(adminEmail);
+    // Entity label is now a link to the public view page; the
+    // approved-vs-rejected and admin-vs-discord signals moved to icons,
+    // so the verb and "(Admin UI)" suffix were dropped.
+    await expect(ourEntry).not.toContainText("Admin UI");
+    await expect(ourEntry).not.toContainText(/Admin\s*$/);
   } finally {
+    await deleteEquipmentReview(review.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(reviewerId);
     await deleteUser(adminId);
   }
