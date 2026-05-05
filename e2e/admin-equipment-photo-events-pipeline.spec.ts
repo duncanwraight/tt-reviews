@@ -13,6 +13,7 @@ import {
   deleteEquipment,
   deletePhotoEventsForEquipment,
   getPhotoEventsForEquipment,
+  setEquipmentImage,
   setEquipmentSlug,
   type PhotoEventRow,
 } from "./utils/data";
@@ -22,6 +23,14 @@ import {
 // playwright.config.ts) and asserts equipment_photo_events reflects
 // every kind we can elicit through the queue path:
 //   sourcing_attempted, no_candidates, provider_transient.
+//
+// We use the per-row admin re-queue button rather than 'Enqueue all
+// unsourced' — the latter would queue every never-sourced row in the
+// seed (or in other parallel specs' fixtures) and stamp
+// image_sourcing_attempted_at on them, breaking specs that assert on
+// pristine row state. The re-queue button gives `triggered_by:
+// admin-requeue` instead of 'cron', but the source/queue plumbing
+// being exercised is identical — and the cron path is unit-tested.
 //
 // candidates_found / routed_to_review / auto_picked require
 // fetchable image bytes from the provider — those are covered by
@@ -48,22 +57,40 @@ async function pollForEvent(
   return events;
 }
 
-test("queue drain on default slug emits sourcing_attempted + no_candidates", async ({
+// Pre-stamp image_sourcing_attempted_at so AdminRequeueButtons sees
+// photosTouched=true and renders the button enabled. The requeue
+// action clears the cooldown anyway, so this is just to unblock the
+// click — it doesn't affect the assertion target.
+async function prepareRequeueable(equipmentId: string): Promise<void> {
+  await setEquipmentImage(equipmentId, {
+    image_key: null,
+    image_etag: null,
+    image_credit_text: null,
+    image_credit_link: null,
+    image_license_short: null,
+    image_license_url: null,
+    image_source_url: null,
+    image_skipped_at: null,
+    image_sourcing_attempted_at: new Date().toISOString(),
+    image_trim_kind: null,
+  });
+}
+
+test("admin re-queue drains and emits sourcing_attempted + no_candidates with triggered_by=admin-requeue", async ({
   page,
 }) => {
   const adminEmail = generateTestEmail("evtpipe");
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  // Hermetic per-test row — created unsourced (image_key + flags
-  // already null on a fresh insert) so 'Enqueue all unsourced' will
-  // pick it up. No teardown of foreign-row state needed.
   const equipment = await createTestEquipment("photo-evtpipe", "rubber");
+  await prepareRequeueable(equipment.id);
 
   try {
     await login(page, adminEmail);
-    await page.goto("/admin/equipment-photos");
-    await page.getByTestId("enqueue-all-button").click();
+    await page.goto(`/equipment/${equipment.slug}`);
+    await page.getByTestId("admin-requeue-photos-button").click();
+    await expect(page).toHaveURL(new RegExp(`/equipment/${equipment.slug}$`));
 
     const events = await pollForEvent(
       equipment.id,
@@ -81,9 +108,10 @@ test("queue drain on default slug emits sourcing_attempted + no_candidates", asy
     const noCandTime = new Date(noCandidates!.created_at).getTime();
     expect(sourcingTime).toBeLessThanOrEqual(noCandTime);
 
-    // Default fixture has no admin-requeue or queue-retry hint, so
-    // metadata.triggered_by is 'cron' (the helper's default).
-    expect(sourcing!.metadata.triggered_by).toBe("cron");
+    // Triggered via the per-row admin re-queue, so the queue message
+    // carries triggered_by=admin-requeue and source forwards that into
+    // the sourcing_attempted metadata.
+    expect(sourcing!.metadata.triggered_by).toBe("admin-requeue");
     expect(sourcing!.actor_id).toBeNull();
   } finally {
     await deletePhotoEventsForEquipment(equipment.id);
@@ -93,23 +121,24 @@ test("queue drain on default slug emits sourcing_attempted + no_candidates", asy
   }
 });
 
-test("queue drain on a *-rate slug emits provider_transient with reason + attempts", async ({
+test("admin re-queue on a *-rate slug emits provider_transient with reason + attempts", async ({
   page,
 }) => {
   const adminEmail = generateTestEmail("evtpipe");
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  // Hermetic per-test row, then rename the slug so it ends in "-rate"
-  // — that suffix triggers the test provider's rate_limited branch.
   const equipment = await createTestEquipment("photo-evtpipe", "rubber");
+  // Slug-suffix triggers the test provider's rate_limited branch.
   const renamedSlug = `${equipment.slug}-rate`;
   await setEquipmentSlug(equipment.id, renamedSlug);
+  await prepareRequeueable(equipment.id);
 
   try {
     await login(page, adminEmail);
-    await page.goto("/admin/equipment-photos");
-    await page.getByTestId("enqueue-all-button").click();
+    await page.goto(`/equipment/${renamedSlug}`);
+    await page.getByTestId("admin-requeue-photos-button").click();
+    await expect(page).toHaveURL(new RegExp(`/equipment/${renamedSlug}$`));
 
     const events = await pollForEvent(
       equipment.id,
