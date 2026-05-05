@@ -229,6 +229,48 @@ describe("processOneSourceMessage", () => {
     expect(result).toEqual({ status: "error", message: "boom" });
   });
 
+  // TT-172: force=true must skip auto-pick. The admin re-queued because
+  // the previous picked image was wrong; auto-promoting the next single
+  // trailing tier-1 hit gives them the same class of result that just
+  // failed AND deletes the previous picked row + R2 object as a "loser"
+  // in pickCandidate, leaving no fallback. New candidates must land in
+  // the review queue.
+  it("does not auto-pick when message.force is true", async () => {
+    const sourceFn = vi.fn().mockResolvedValue(
+      fakeResult({
+        status: "sourced",
+        candidates: [
+          {
+            id: "c1",
+            r2_key: "equipment/x/cand/uuid.png",
+            source_url: null,
+            image_source_host: null,
+            source_label: null,
+            match_kind: "trailing",
+            tier: 1,
+            width: null,
+            height: null,
+          },
+        ],
+        insertedCount: 1,
+      })
+    );
+    const pickFn = vi.fn();
+
+    const result = await processOneSourceMessage(
+      FAKE_SUPABASE,
+      FAKE_BUCKET,
+      ENV,
+      PROVIDERS,
+      "u",
+      { slug: "stiga-airoc-m", force: true },
+      { sourceFn, pickFn }
+    );
+
+    expect(result).toEqual({ status: "sourced", insertedCount: 1 });
+    expect(pickFn).not.toHaveBeenCalled();
+  });
+
   // TT-171: per-row admin re-queue sets `force: true` on the message so
   // the consumer skips sourcePhotosForEquipment's image_key short-circuit.
   // The button left image_key in place on purpose so the live page keeps

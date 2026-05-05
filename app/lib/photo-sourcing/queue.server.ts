@@ -106,6 +106,18 @@ export async function processOneSourceMessage(
   }
 
   // status === "sourced" — try auto-pick.
+  //
+  // TT-172: auto-pick is for the cron re-sourcing unsourced rows, where
+  // a single trailing tier-≤2 hit is high-confidence enough to skip
+  // review. The admin re-queue button (force=true) inverts that —
+  // they're correcting a wrong picked image, so the new candidate must
+  // land in the review queue, not get auto-promoted (which would also
+  // delete the previous picked row + R2 object via pickCandidate's
+  // losers cleanup, leaving no fallback).
+  if (message.force) {
+    return { status: "sourced", insertedCount: result.insertedCount };
+  }
+
   const trailingTopTier = result.candidates.filter(
     c => c.match_kind === "trailing" && c.tier <= AUTO_PICK_TIER_THRESHOLD
   );
