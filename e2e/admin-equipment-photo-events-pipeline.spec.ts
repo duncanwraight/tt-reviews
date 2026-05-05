@@ -8,13 +8,12 @@ import {
   setUserRole,
 } from "./utils/auth";
 import {
+  createTestEquipment,
   deleteCandidatesForEquipment,
+  deleteEquipment,
   deletePhotoEventsForEquipment,
-  getFirstEquipmentByCategory,
   getPhotoEventsForEquipment,
-  setEquipmentImage,
   setEquipmentSlug,
-  snapshotEquipmentImage,
   type PhotoEventRow,
 } from "./utils/data";
 
@@ -56,26 +55,10 @@ test("queue drain on default slug emits sourcing_attempted + no_candidates", asy
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  // Use a rubber row to avoid contention with admin-events spec that
-  // grabs the first equipment globally (typically a blade).
-  const equipment = await getFirstEquipmentByCategory("rubber");
-  const snapshot = await snapshotEquipmentImage(equipment.id);
-
-  await deletePhotoEventsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
-  // Reset to unsourced so 'Enqueue all unsourced' picks it up.
-  await setEquipmentImage(equipment.id, {
-    image_key: null,
-    image_etag: null,
-    image_credit_text: null,
-    image_credit_link: null,
-    image_license_short: null,
-    image_license_url: null,
-    image_source_url: null,
-    image_skipped_at: null,
-    image_sourcing_attempted_at: null,
-    image_trim_kind: null,
-  });
+  // Hermetic per-test row — created unsourced (image_key + flags
+  // already null on a fresh insert) so 'Enqueue all unsourced' will
+  // pick it up. No teardown of foreign-row state needed.
+  const equipment = await createTestEquipment("photo-evtpipe", "rubber");
 
   try {
     await login(page, adminEmail);
@@ -104,7 +87,8 @@ test("queue drain on default slug emits sourcing_attempted + no_candidates", asy
     expect(sourcing!.actor_id).toBeNull();
   } finally {
     await deletePhotoEventsForEquipment(equipment.id);
-    await setEquipmentImage(equipment.id, snapshot);
+    await deleteCandidatesForEquipment(equipment.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });
@@ -116,27 +100,10 @@ test("queue drain on a *-rate slug emits provider_transient with reason + attemp
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  // Use a rubber row to avoid contention with admin-events spec that
-  // grabs the first equipment globally (typically a blade).
-  const equipment = await getFirstEquipmentByCategory("rubber");
-  const snapshot = await snapshotEquipmentImage(equipment.id);
+  // Hermetic per-test row, then rename the slug so it ends in "-rate"
+  // — that suffix triggers the test provider's rate_limited branch.
+  const equipment = await createTestEquipment("photo-evtpipe", "rubber");
   const renamedSlug = `${equipment.slug}-rate`;
-
-  await deletePhotoEventsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
-  await setEquipmentImage(equipment.id, {
-    image_key: null,
-    image_etag: null,
-    image_credit_text: null,
-    image_credit_link: null,
-    image_license_short: null,
-    image_license_url: null,
-    image_source_url: null,
-    image_skipped_at: null,
-    image_sourcing_attempted_at: null,
-    image_trim_kind: null,
-  });
-  // Slug-suffix triggers the test provider's rate_limited branch.
   await setEquipmentSlug(equipment.id, renamedSlug);
 
   try {
@@ -160,10 +127,9 @@ test("queue drain on a *-rate slug emits provider_transient with reason + attemp
     const sourcing = events.find(e => e.event_kind === "sourcing_attempted");
     expect(sourcing).toBeTruthy();
   } finally {
-    // Restore slug FIRST so subsequent tests see the original.
-    await setEquipmentSlug(equipment.id, equipment.slug);
     await deletePhotoEventsForEquipment(equipment.id);
-    await setEquipmentImage(equipment.id, snapshot);
+    await deleteCandidatesForEquipment(equipment.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });

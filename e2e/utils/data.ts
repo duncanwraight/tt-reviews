@@ -395,6 +395,51 @@ export async function deletePhotoEventsForEquipment(
   }
 }
 
+// Create a fresh equipment row scoped to one e2e spec, so the test
+// can mutate image_key / candidates / events without contending with
+// other specs that grab `getFirstEquipment()`. Always pair with
+// `deleteEquipment` in finally.
+export async function createTestEquipment(
+  prefix: string,
+  category: "blade" | "rubber" = "rubber"
+): Promise<{ id: string; slug: string; name: string }> {
+  const stamp = `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const row = {
+    name: `e2e ${stamp}`,
+    slug: stamp,
+    category,
+    manufacturer: "e2e",
+  };
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/equipment`, {
+    method: "POST",
+    headers: { ...adminHeaders(), Prefer: "return=representation" },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `createTestEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+  const inserted = (await res.json()) as Array<{
+    id: string;
+    slug: string;
+    name: string;
+  }>;
+  return inserted[0];
+}
+
+export async function deleteEquipment(equipmentId: string): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deleteEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
 // Direct slug PATCH bypassing slug_redirects (admin-action machinery).
 // Used by photo-events e2e to rename a row to one matching a test
 // provider's slug-pattern hook (e.g. "*-rate" for rate_limited). Always

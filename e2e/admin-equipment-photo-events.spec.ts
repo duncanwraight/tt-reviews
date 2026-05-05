@@ -8,15 +8,13 @@ import {
   setUserRole,
 } from "./utils/auth";
 import {
-  clearEquipmentImage,
+  createTestEquipment,
   deleteCandidatesForEquipment,
+  deleteEquipment,
   deletePhotoEventsForEquipment,
-  getFirstEquipmentByCategory,
   getPhotoEventsForEquipment,
   insertEquipmentPhotoCandidates,
   setEquipmentImage,
-  snapshotEquipmentImage,
-  type EquipmentImageSnapshot,
 } from "./utils/data";
 
 // TT-174: photo-pipeline activity log. Each admin action — pick,
@@ -57,21 +55,15 @@ interface FixtureArgs {
   equipmentSlug: string;
   candidateAId: string;
   candidateBId: string;
-  snapshot: EquipmentImageSnapshot;
 }
 
+// Hermetic per-test equipment row so concurrent specs (notably
+// admin-equipment-photos.spec.ts which uses getFirstEquipment()) can't
+// race-mutate image_key / candidates / events on a shared seed row.
 async function withFixture(
   fn: (args: FixtureArgs) => Promise<void>
 ): Promise<void> {
-  // Pin to category=blade so we don't contend with the pipeline-events
-  // spec (which targets rubber). Avoids the parallel-worker race where
-  // both files'  getFirstEquipment() picked the same row.
-  const equipment = await getFirstEquipmentByCategory("blade");
-  const snapshot = await snapshotEquipmentImage(equipment.id);
-
-  await deletePhotoEventsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
-  await clearEquipmentImage(equipment.id);
+  const equipment = await createTestEquipment("photo-events", "rubber");
 
   const inserted = await insertEquipmentPhotoCandidates(equipment.id, [
     {
@@ -98,12 +90,11 @@ async function withFixture(
       equipmentSlug: equipment.slug,
       candidateAId: inserted[0].id,
       candidateBId: inserted[1].id,
-      snapshot,
     });
   } finally {
     await deletePhotoEventsForEquipment(equipment.id);
     await deleteCandidatesForEquipment(equipment.id);
-    await setEquipmentImage(equipment.id, snapshot);
+    await deleteEquipment(equipment.id);
   }
 }
 
@@ -238,17 +229,13 @@ test("admin requeue → emits 'requeued' event with previous_image_key, queue me
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  // Pin to category=blade so we don't contend with the pipeline-events
-  // spec (which targets rubber). Avoids the parallel-worker race where
-  // both files'  getFirstEquipment() picked the same row.
-  const equipment = await getFirstEquipmentByCategory("blade");
-  const snapshot = await snapshotEquipmentImage(equipment.id);
+  const equipment = await createTestEquipment("photo-events-requeue", "rubber");
   const PRIOR_KEY = "equipment/test/cand/prior-pick.png";
 
-  // Seed the "row already has a picked image" state so requeue fires
-  // with a non-null previous_image_key.
-  await deletePhotoEventsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
+  // Seed "row already has a picked image" so requeue fires with a
+  // non-null previous_image_key. photosTouched on AdminRequeueButtons
+  // becomes true once any of image_key / image_skipped_at /
+  // image_sourcing_attempted_at is set.
   await setEquipmentImage(equipment.id, {
     image_key: PRIOR_KEY,
     image_etag: PRIOR_KEY.slice(-12),
@@ -267,15 +254,10 @@ test("admin requeue → emits 'requeued' event with previous_image_key, queue me
     await requeueButton.click();
     await expect(page).toHaveURL(new RegExp(`/equipment/${equipment.slug}$`));
 
-    // Poll briefly: the action emits the requeued event before the
-    // queue.send returns.
-    let events: Awaited<ReturnType<typeof getPhotoEventsForEquipment>> = [];
-    const deadline = Date.now() + 5000;
-    while (Date.now() < deadline) {
-      events = await getPhotoEventsForEquipment(equipment.id);
-      if (events.some(e => e.event_kind === "requeued")) break;
-      await page.waitForTimeout(200);
-    }
+    const events = await pollForEvent(
+      equipment.id,
+      e => e.event_kind === "requeued"
+    );
     const requeued = events.find(e => e.event_kind === "requeued");
     expect(requeued).toBeTruthy();
     expect(requeued?.actor_id).toBe(adminId);
@@ -283,7 +265,7 @@ test("admin requeue → emits 'requeued' event with previous_image_key, queue me
   } finally {
     await deletePhotoEventsForEquipment(equipment.id);
     await deleteCandidatesForEquipment(equipment.id);
-    await setEquipmentImage(equipment.id, snapshot);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });
