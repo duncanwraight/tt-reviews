@@ -440,29 +440,6 @@ export async function deleteEquipment(equipmentId: string): Promise<void> {
   }
 }
 
-// Direct slug PATCH bypassing slug_redirects (admin-action machinery).
-// Used by photo-events e2e to rename a row to one matching a test
-// provider's slug-pattern hook (e.g. "*-rate" for rate_limited). Always
-// pair with a restore in finally.
-export async function setEquipmentSlug(
-  equipmentId: string,
-  newSlug: string
-): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}`,
-    {
-      method: "PATCH",
-      headers: { ...adminHeaders(), Prefer: "return=minimal" },
-      body: JSON.stringify({ slug: newSlug }),
-    }
-  );
-  if (!res.ok) {
-    throw new Error(
-      `setEquipmentSlug failed (${res.status}): ${await res.text()}`
-    );
-  }
-}
-
 export async function getPendingEquipmentSubmissions(userId: string): Promise<
   Array<{
     id: string;

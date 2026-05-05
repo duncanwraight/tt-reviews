@@ -624,4 +624,165 @@ describe("sourcePhotosForEquipment", () => {
     expect(result.status).toBe("no-candidates");
     expect(equipment[0].image_sourcing_attempted_at).toBeTruthy();
   });
+
+  // TT-174: append-only event log emission. The events table is the
+  // canonical record of what the pipeline did; the loader for
+  // /admin/equipment-photos reads from it directly. Each kind has a
+  // shape we don't want silently regressing, so each test stubs
+  // recordEvent and asserts the exact payload.
+  it("emits sourcing_attempted with metadata.triggered_by at the start of every run", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [
+        {
+          ...STIGA_ROW,
+          id: "eq-emit-1",
+          slug: "events-trigger-cron",
+        },
+      ],
+    });
+    const { bucket } = makeBucket();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
+
+    await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "events-trigger-cron",
+      {
+        providers: [mockProvider([])],
+        deps: { fetchImpl: fakeFetch(), recordEvent },
+      }
+    );
+
+    expect(recordEvent).toHaveBeenCalledWith(supabase, {
+      equipmentId: "eq-emit-1",
+      eventKind: "sourcing_attempted",
+      metadata: { triggered_by: "cron" },
+    });
+  });
+
+  it("forwards triggered_by from options into the sourcing_attempted metadata", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [
+        {
+          ...STIGA_ROW,
+          id: "eq-emit-2",
+          slug: "events-trigger-admin",
+        },
+      ],
+    });
+    const { bucket } = makeBucket();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
+
+    await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "events-trigger-admin",
+      {
+        providers: [mockProvider([])],
+        triggeredBy: "admin-requeue",
+        deps: { fetchImpl: fakeFetch(), recordEvent },
+      }
+    );
+
+    const sourcingCall = recordEvent.mock.calls.find(
+      ([, args]) => args.eventKind === "sourcing_attempted"
+    );
+    expect(sourcingCall?.[1].metadata).toEqual({
+      triggered_by: "admin-requeue",
+    });
+  });
+
+  it("emits no_candidates when all providers were ok and zero results landed", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [
+        {
+          ...STIGA_ROW,
+          id: "eq-emit-3",
+          slug: "events-no-cand",
+        },
+      ],
+    });
+    const { bucket } = makeBucket();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
+
+    await sourcePhotosForEquipment(supabase, bucket, ENV, "events-no-cand", {
+      providers: [mockProvider([])],
+      deps: { fetchImpl: fakeFetch(), recordEvent },
+    });
+
+    const noCand = recordEvent.mock.calls.find(
+      ([, args]) => args.eventKind === "no_candidates"
+    );
+    expect(noCand).toBeTruthy();
+    expect(noCand?.[1].metadata).toEqual({
+      provider_outcomes: [{ name: "mock", status: "ok" }],
+    });
+  });
+
+  it("does NOT emit no_candidates when a provider was rate_limited (transient path)", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [
+        {
+          ...STIGA_ROW,
+          id: "eq-emit-4",
+          slug: "events-transient",
+        },
+      ],
+    });
+    const { bucket } = makeBucket();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
+
+    await sourcePhotosForEquipment(supabase, bucket, ENV, "events-transient", {
+      providers: [mockProvider([], { status: "rate_limited" })],
+      deps: { fetchImpl: fakeFetch(), recordEvent },
+    });
+
+    const noCand = recordEvent.mock.calls.find(
+      ([, args]) => args.eventKind === "no_candidates"
+    );
+    expect(noCand).toBeUndefined();
+    // sourcing_attempted still fires regardless.
+    const sourcing = recordEvent.mock.calls.find(
+      ([, args]) => args.eventKind === "sourcing_attempted"
+    );
+    expect(sourcing).toBeTruthy();
+  });
+
+  it("emits candidates_found with inserted_count when providers returned hits", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [
+        {
+          ...STIGA_ROW,
+          id: "eq-emit-5",
+          slug: "events-found",
+        },
+      ],
+    });
+    const { bucket } = makeBucket();
+    const randomId = deterministicIds("uuid-found");
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
+    const provider = mockProvider([
+      fakeResolved({
+        imageUrl: "https://r.example/a.png",
+        pageUrl: "https://r.example/a",
+      }),
+      fakeResolved({
+        imageUrl: "https://r.example/b.png",
+        pageUrl: "https://r.example/b",
+      }),
+    ]);
+
+    await sourcePhotosForEquipment(supabase, bucket, ENV, "events-found", {
+      providers: [provider],
+      deps: { fetchImpl: fakeFetch(), randomId, recordEvent },
+    });
+
+    const found = recordEvent.mock.calls.find(
+      ([, args]) => args.eventKind === "candidates_found"
+    );
+    expect(found?.[1].metadata).toMatchObject({ inserted_count: 2 });
+    expect(found?.[1].metadata).toHaveProperty("provider_outcomes");
+  });
 });
