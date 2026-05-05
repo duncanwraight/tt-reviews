@@ -34,7 +34,7 @@ function fakeResult(over: Partial<SourcingResult>): SourcingResult {
 }
 
 describe("processOneSourceMessage", () => {
-  it("returns 'auto-picked' when sourcing yields one trailing tier-1 candidate", async () => {
+  it("returns 'auto-picked' and emits auto_picked event when sourcing yields one trailing tier-1 candidate", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "sourced",
@@ -58,15 +58,15 @@ describe("processOneSourceMessage", () => {
       equipmentId: "eq-1",
       pickedR2Key: "equipment/x/cand/uuid.png",
     });
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "stiga-airoc-m" },
-      { sourceFn, pickFn }
+      { sourceFn, pickFn, recordEvent }
     );
 
     expect(result).toEqual({
@@ -76,11 +76,20 @@ describe("processOneSourceMessage", () => {
     expect(pickFn).toHaveBeenCalledWith(FAKE_SUPABASE, FAKE_BUCKET, {
       equipmentId: "eq-1",
       candidateId: "c1",
-      pickedBy: "u",
+      pickedBy: null,
+    });
+    expect(recordEvent).toHaveBeenCalledWith(FAKE_SUPABASE, {
+      equipmentId: "eq-1",
+      eventKind: "auto_picked",
+      metadata: {
+        candidate_id: "c1",
+        r2_key: "equipment/x/cand/uuid.png",
+        tier: 1,
+      },
     });
   });
 
-  it("returns 'sourced' (not auto-picked) when 2+ trailing tier-1 candidates", async () => {
+  it("emits routed_to_review when 2+ trailing tier-1 candidates land", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         candidates: [
@@ -111,45 +120,67 @@ describe("processOneSourceMessage", () => {
       })
     );
     const pickFn = vi.fn();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "stiga-airoc-m" },
-      { sourceFn, pickFn }
+      { sourceFn, pickFn, recordEvent }
     );
 
     expect(result).toEqual({ status: "sourced", insertedCount: 2 });
     expect(pickFn).not.toHaveBeenCalled();
+    expect(recordEvent).toHaveBeenCalledWith(FAKE_SUPABASE, {
+      equipmentId: "eq-1",
+      eventKind: "routed_to_review",
+      metadata: { candidate_count: 2 },
+    });
   });
 
-  it("returns 'transient' when no candidates AND a provider is out_of_budget", async () => {
+  it("emits one provider_transient per non-ok provider with attempts metadata", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "no-candidates",
         candidates: [],
         insertedCount: 0,
-        providerStatuses: [{ name: "brave", status: "out_of_budget" }],
+        providerStatuses: [
+          { name: "brave", status: "out_of_budget" },
+          { name: "google", status: "rate_limited" },
+        ],
       })
     );
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
-      { slug: "x" },
-      { sourceFn, pickFn: vi.fn() }
+      { slug: "x", attempts: 3 },
+      { sourceFn, pickFn: vi.fn(), recordEvent }
     );
 
+    // One transient event per non-ok provider; outcome reflects the
+    // first one for queue retry classification.
     expect(result).toEqual({ status: "transient", reason: "out_of_budget" });
+    const transientCalls = recordEvent.mock.calls.filter(
+      ([, args]) => args.eventKind === "provider_transient"
+    );
+    expect(transientCalls).toHaveLength(2);
+    expect(transientCalls[0][1]).toMatchObject({
+      eventKind: "provider_transient",
+      metadata: { provider: "brave", reason: "out_of_budget", attempts: 3 },
+    });
+    expect(transientCalls[1][1]).toMatchObject({
+      eventKind: "provider_transient",
+      metadata: { provider: "google", reason: "rate_limited", attempts: 3 },
+    });
   });
 
-  it("returns 'transient' when no candidates AND a provider is rate_limited", async () => {
+  it("returns 'transient' and emits provider_transient when a provider is rate_limited", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "no-candidates",
@@ -158,21 +189,26 @@ describe("processOneSourceMessage", () => {
         providerStatuses: [{ name: "brave", status: "rate_limited" }],
       })
     );
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "x" },
-      { sourceFn, pickFn: vi.fn() }
+      { sourceFn, pickFn: vi.fn(), recordEvent }
     );
 
     expect(result).toEqual({ status: "transient", reason: "rate_limited" });
+    expect(recordEvent).toHaveBeenCalledWith(FAKE_SUPABASE, {
+      equipmentId: "eq-1",
+      eventKind: "provider_transient",
+      metadata: { provider: "brave", reason: "rate_limited", attempts: 0 },
+    });
   });
 
-  it("returns 'no-candidates' (genuine empty) when all providers were 'ok'", async () => {
+  it("returns 'no-candidates' and does not emit provider_transient when all providers were 'ok'", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "no-candidates",
@@ -181,18 +217,22 @@ describe("processOneSourceMessage", () => {
         providerStatuses: [{ name: "brave", status: "ok" }],
       })
     );
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "x" },
-      { sourceFn, pickFn: vi.fn() }
+      { sourceFn, pickFn: vi.fn(), recordEvent }
     );
 
     expect(result).toEqual({ status: "no-candidates" });
+    const transientCalls = recordEvent.mock.calls.filter(
+      ([, args]) => args.eventKind === "provider_transient"
+    );
+    expect(transientCalls).toHaveLength(0);
   });
 
   it("returns 'error' when sourceFn throws", async () => {
@@ -203,9 +243,8 @@ describe("processOneSourceMessage", () => {
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "x" },
-      { sourceFn, pickFn: vi.fn() }
+      { sourceFn, pickFn: vi.fn(), recordEvent: vi.fn() }
     );
 
     expect(result).toEqual({ status: "error", message: "boom" });
@@ -219,7 +258,7 @@ describe("processOneSourceMessage", () => {
   // must land in the review queue. Replaces the TT-171/TT-172 force
   // flag tests — gating on row state instead of a message flag means
   // every re-queue trigger inherits this behaviour for free.
-  it("does not auto-pick when equipment.image_key is already set", async () => {
+  it("does not auto-pick when equipment.image_key is already set; emits routed_to_review", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "sourced",
@@ -246,22 +285,27 @@ describe("processOneSourceMessage", () => {
       })
     );
     const pickFn = vi.fn();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "stiga-airoc-m" },
-      { sourceFn, pickFn }
+      { sourceFn, pickFn, recordEvent }
     );
 
     expect(result).toEqual({ status: "sourced", insertedCount: 1 });
     expect(pickFn).not.toHaveBeenCalled();
+    expect(recordEvent).toHaveBeenCalledWith(FAKE_SUPABASE, {
+      equipmentId: "eq-1",
+      eventKind: "routed_to_review",
+      metadata: { candidate_count: 1 },
+    });
   });
 
-  it("falls back to 'sourced' when auto-pick throws", async () => {
+  it("falls back to 'sourced' and emits routed_to_review when auto-pick throws", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "sourced",
@@ -282,18 +326,28 @@ describe("processOneSourceMessage", () => {
       })
     );
     const pickFn = vi.fn().mockRejectedValue(new Error("DB blip"));
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
     const result = await processOneSourceMessage(
       FAKE_SUPABASE,
       FAKE_BUCKET,
       ENV,
       PROVIDERS,
-      "u",
       { slug: "x" },
-      { sourceFn, pickFn }
+      { sourceFn, pickFn, recordEvent }
     );
 
     expect(result).toEqual({ status: "sourced", insertedCount: 1 });
+    expect(recordEvent).toHaveBeenCalledWith(FAKE_SUPABASE, {
+      equipmentId: "eq-1",
+      eventKind: "routed_to_review",
+      metadata: { candidate_count: 1 },
+    });
+    // No auto_picked event on the failure path.
+    const autoPickedCalls = recordEvent.mock.calls.filter(
+      ([, args]) => args.eventKind === "auto_picked"
+    );
+    expect(autoPickedCalls).toHaveLength(0);
   });
 });
 

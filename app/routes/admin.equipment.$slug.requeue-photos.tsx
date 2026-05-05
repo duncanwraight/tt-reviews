@@ -43,7 +43,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
   const { data: row, error: lookupError } = await supabaseAdmin
     .from("equipment")
-    .select("id, slug")
+    .select("id, slug, image_key")
     .eq("slug", slug)
     .maybeSingle();
   if (lookupError) {
@@ -71,7 +71,8 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     await requeueOneEquipmentPhotos(
       supabaseAdmin,
       env.PHOTO_SOURCE_QUEUE as PhotoSourceQueue,
-      row as Parameters<typeof requeueOneEquipmentPhotos>[2]
+      row as Parameters<typeof requeueOneEquipmentPhotos>[2],
+      { actorId: user.id }
     );
     Logger.info(
       "requeue-photos completed",

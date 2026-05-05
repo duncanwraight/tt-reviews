@@ -15,6 +15,7 @@ import {
   type SourcingEnv,
   type SourcingResult,
 } from "./source.server";
+import { recordPhotoEvent } from "./events.server";
 import { detectTransparentEdges, type TrimDetectDeps } from "./trim-detect";
 
 // R2 surface used by review actions: put (proxied for re-source) +
@@ -41,14 +42,20 @@ export interface ReviewDeps {
     bucket: R2PutBucket,
     env: SourcingEnv,
     slug: string,
-    options?: { limit?: number }
+    options?: { limit?: number; triggeredBy?: string }
   ) => Promise<SourcingResult>;
+  // Event-log writer; defaults to recordPhotoEvent. Tests stub this to
+  // assert emitted events without mocking Supabase chains.
+  recordEvent?: typeof recordPhotoEvent;
 }
 
 export interface PickArgs {
   equipmentId: string;
   candidateId: string;
-  pickedBy: string;
+  // Admin's auth.users id when picked from the review UI; null for
+  // system-driven auto-picks from the queue consumer (writes NULL
+  // into equipment_photo_candidates.picked_by).
+  pickedBy: string | null;
 }
 
 export interface PickResult {
@@ -116,8 +123,11 @@ export async function pickCandidate(
   supabase: SupabaseClient,
   bucket: R2BucketSurface,
   args: PickArgs,
-  trimDeps: TrimDetectDeps = {}
+  trimDeps: TrimDetectDeps = {},
+  reviewDeps: Pick<ReviewDeps, "recordEvent"> = {}
 ): Promise<PickResult> {
+  const recordEvent = reviewDeps.recordEvent ?? recordPhotoEvent;
+
   const candidates = await loadCandidatesForEquipment(
     supabase,
     args.equipmentId
@@ -128,6 +138,19 @@ export async function pickCandidate(
   }
   if (picked.picked_at) {
     throw new Error("candidate already picked");
+  }
+
+  // Read the live image_key BEFORE we overwrite it, so the picked
+  // event can record what's being replaced.
+  let previousImageKey: string | null = null;
+  if (args.pickedBy !== null) {
+    const { data: equipmentRow } = await supabase
+      .from("equipment")
+      .select("image_key")
+      .eq("id", args.equipmentId)
+      .maybeSingle();
+    previousImageKey =
+      (equipmentRow as { image_key: string | null } | null)?.image_key ?? null;
   }
 
   const updates: Record<string, unknown> = {
@@ -191,6 +214,21 @@ export async function pickCandidate(
   const losers = candidates.filter(c => c.id !== picked.id);
   await deleteCandidates(supabase, bucket, losers);
 
+  // Emit picked only on the admin path — queue auto-pick (pickedBy
+  // null) is captured by the auto_picked event from queue.server.ts.
+  if (args.pickedBy !== null) {
+    await recordEvent(supabase, {
+      equipmentId: args.equipmentId,
+      eventKind: "picked",
+      actorId: args.pickedBy,
+      metadata: {
+        candidate_id: picked.id,
+        r2_key: picked.r2_key,
+        previous_image_key: previousImageKey,
+      },
+    });
+  }
+
   return { equipmentId: args.equipmentId, pickedR2Key: picked.r2_key };
 }
 
@@ -231,8 +269,12 @@ export async function toggleEquipmentTrim(
 export async function rejectCandidate(
   supabase: SupabaseClient,
   bucket: R2BucketSurface,
-  candidateId: string
+  candidateId: string,
+  actorId: string,
+  deps: Pick<ReviewDeps, "recordEvent"> = {}
 ): Promise<void> {
+  const recordEvent = deps.recordEvent ?? recordPhotoEvent;
+
   const { data, error } = await supabase
     .from("equipment_photo_candidates")
     .select(
@@ -247,6 +289,13 @@ export async function rejectCandidate(
     throw new Error("cannot reject a picked candidate");
   }
   await deleteCandidates(supabase, bucket, [row]);
+
+  await recordEvent(supabase, {
+    equipmentId: row.equipment_id,
+    eventKind: "candidate_rejected",
+    actorId,
+    metadata: { candidate_id: row.id },
+  });
 }
 
 // "None of these": skip the equipment row permanently (until an admin
@@ -254,8 +303,12 @@ export async function rejectCandidate(
 export async function skipEquipment(
   supabase: SupabaseClient,
   bucket: R2BucketSurface,
-  equipmentId: string
+  equipmentId: string,
+  actorId: string,
+  deps: Pick<ReviewDeps, "recordEvent"> = {}
 ): Promise<void> {
+  const recordEvent = deps.recordEvent ?? recordPhotoEvent;
+
   const candidates = await loadCandidatesForEquipment(supabase, equipmentId);
   const pending = candidates.filter(c => !c.picked_at);
   await deleteCandidates(supabase, bucket, pending);
@@ -264,6 +317,13 @@ export async function skipEquipment(
     .update({ image_skipped_at: new Date().toISOString() })
     .eq("id", equipmentId);
   if (error) throw new Error(`skip update failed: ${error.message}`);
+
+  await recordEvent(supabase, {
+    equipmentId,
+    eventKind: "skipped",
+    actorId,
+    metadata: { candidate_count_cleared: pending.length },
+  });
 }
 
 // Re-source: throw away existing pending candidates and run the
@@ -275,13 +335,27 @@ export async function resourceEquipment(
   env: SourcingEnv,
   equipmentId: string,
   slug: string,
+  actorId: string,
   deps: ReviewDeps & {
     providers?: import("./providers/types").Provider[];
   } = {}
 ): Promise<SourcingResult> {
+  const recordEvent = deps.recordEvent ?? recordPhotoEvent;
+
   const candidates = await loadCandidatesForEquipment(supabase, equipmentId);
   const pending = candidates.filter(c => !c.picked_at);
   await deleteCandidates(supabase, bucket, pending);
+
+  await recordEvent(supabase, {
+    equipmentId,
+    eventKind: "resourced",
+    actorId,
+    metadata: { candidate_count_cleared: pending.length },
+  });
+
   const sourceFn = deps.resource ?? sourcePhotosForEquipment;
-  return sourceFn(supabase, bucket, env, slug, { providers: deps.providers });
+  return sourceFn(supabase, bucket, env, slug, {
+    providers: deps.providers,
+    triggeredBy: "admin-resource",
+  });
 }

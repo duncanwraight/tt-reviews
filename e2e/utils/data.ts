@@ -357,6 +357,67 @@ export async function getCandidatesForEquipment(
   >;
 }
 
+export interface PhotoEventRow {
+  id: string;
+  equipment_id: string;
+  event_kind: string;
+  actor_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export async function getPhotoEventsForEquipment(
+  equipmentId: string
+): Promise<PhotoEventRow[]> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_events?equipment_id=eq.${equipmentId}&select=*&order=created_at.desc`,
+    { headers: adminHeaders() }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `getPhotoEventsForEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+  return res.json() as Promise<PhotoEventRow[]>;
+}
+
+export async function deletePhotoEventsForEquipment(
+  equipmentId: string
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_events?equipment_id=eq.${equipmentId}`,
+    { method: "DELETE", headers: adminHeaders() }
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(
+      `deletePhotoEventsForEquipment failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
+// Direct slug PATCH bypassing slug_redirects (admin-action machinery).
+// Used by photo-events e2e to rename a row to one matching a test
+// provider's slug-pattern hook (e.g. "*-rate" for rate_limited). Always
+// pair with a restore in finally.
+export async function setEquipmentSlug(
+  equipmentId: string,
+  newSlug: string
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?id=eq.${equipmentId}`,
+    {
+      method: "PATCH",
+      headers: { ...adminHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify({ slug: newSlug }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `setEquipmentSlug failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
 export async function getPendingEquipmentSubmissions(userId: string): Promise<
   Array<{
     id: string;

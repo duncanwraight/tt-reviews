@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { type ResolvedCandidate } from "./brave.server";
 import { braveProvider } from "./providers/brave";
 import type { Provider } from "./providers/types";
+import { recordPhotoEvent } from "./events.server";
 import { Logger, createLogContext } from "../logger.server";
 
 const DEFAULT_LIMIT = 6;
@@ -83,6 +84,9 @@ export interface SourcingDeps {
   // Defaults to a UUID; overridable for tests so candidate keys are
   // deterministic.
   randomId?: () => string;
+  // Event-log writer; defaults to recordPhotoEvent. Tests stub this to
+  // assert which events fired without mocking the full Supabase chain.
+  recordEvent?: typeof recordPhotoEvent;
 }
 
 interface EquipmentRow {
@@ -161,12 +165,15 @@ export async function sourcePhotosForEquipment(
     limit?: number;
     deps?: SourcingDeps;
     providers?: Provider[];
+    triggeredBy?: string;
   } = {}
 ): Promise<SourcingResult> {
   const deps = options.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
   const randomId = deps.randomId ?? defaultRandomId;
+  const recordEvent = deps.recordEvent ?? recordPhotoEvent;
   const providers = options.providers ?? [braveProvider];
+  const triggeredBy = options.triggeredBy ?? "cron";
 
   const { data: equipment, error: equipmentError } = await supabase
     .from("equipment")
@@ -182,6 +189,12 @@ export async function sourcePhotosForEquipment(
   }
 
   const row = equipment as EquipmentRow;
+
+  await recordEvent(supabase, {
+    equipmentId: row.id,
+    eventKind: "sourcing_attempted",
+    metadata: { triggered_by: triggeredBy },
+  });
 
   const limit = options.limit ?? DEFAULT_LIMIT;
   const seed = {
@@ -272,6 +285,11 @@ export async function sourcePhotosForEquipment(
         .from("equipment")
         .update({ image_sourcing_attempted_at: new Date().toISOString() })
         .eq("id", row.id);
+      await recordEvent(supabase, {
+        equipmentId: row.id,
+        eventKind: "no_candidates",
+        metadata: { provider_outcomes: providerStatuses },
+      });
     }
     return {
       status: "no-candidates",
@@ -377,6 +395,17 @@ export async function sourcePhotosForEquipment(
     .from("equipment")
     .update({ image_sourcing_attempted_at: new Date().toISOString() })
     .eq("id", row.id);
+
+  if (candidates.length > 0) {
+    await recordEvent(supabase, {
+      equipmentId: row.id,
+      eventKind: "candidates_found",
+      metadata: {
+        inserted_count: candidates.length,
+        provider_outcomes: providerStatuses,
+      },
+    });
+  }
 
   return {
     status: "sourced",

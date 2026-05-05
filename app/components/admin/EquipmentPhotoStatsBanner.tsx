@@ -1,25 +1,33 @@
 import { useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
+  CircleSlash,
   Clock,
   CheckCircle2,
   Inbox,
-  XCircle,
   ImageOff,
   ImageIcon,
   EyeOff,
+  RefreshCcw,
+  RotateCw,
+  Search,
+  Sparkles,
+  XCircle,
 } from "lucide-react";
 import type {
   FullPhotoStats,
-  RecentAttempt,
-  RecentAttemptOutcome,
+  PhotoEvent,
 } from "~/lib/photo-sourcing/queue-stats.server";
+import type { PhotoEventKind } from "~/lib/photo-sourcing/events.server";
 
 interface EquipmentPhotoStatsBannerProps {
   stats: FullPhotoStats;
 }
+
+const EVENTS_VISIBLE_INITIAL = 20;
 
 // Full stats banner above the /admin/equipment-photos review queue
 // (TT-98). Three rows of information:
@@ -27,14 +35,20 @@ interface EquipmentPhotoStatsBannerProps {
 //      skipped / total).
 //   2. Throughput + provider quota (last-hour processed + Brave today
 //      / month).
-//   3. Collapsible recent-activity log (last 20 attempts).
+//   3. Collapsible recent-event log (TT-174). Default top
+//      EVENTS_VISIBLE_INITIAL (20); "show more" expands to the full
+//      RECENT_EVENTS_LIMIT (50) loaded by the loader.
 export function EquipmentPhotoStatsBanner({
   stats,
 }: EquipmentPhotoStatsBannerProps) {
   const [expanded, setExpanded] = useState(false);
-  const { counts, processedLastHour, providerStats, recentAttempts } = stats;
+  const [showAll, setShowAll] = useState(false);
+  const { counts, processedLastHour, providerStats, recentEvents } = stats;
   const coveragePct =
     counts.total > 0 ? Math.round((counts.picked / counts.total) * 100) : 0;
+  const visibleEvents = showAll
+    ? recentEvents
+    : recentEvents.slice(0, EVENTS_VISIBLE_INITIAL);
 
   return (
     <section
@@ -99,7 +113,7 @@ export function EquipmentPhotoStatsBanner({
           ) : (
             <ChevronRight className="size-3" aria-hidden="true" />
           )}
-          Recent activity ({recentAttempts.length})
+          Recent activity ({recentEvents.length})
         </button>
       </div>
 
@@ -108,14 +122,26 @@ export function EquipmentPhotoStatsBanner({
           id="photo-recent-activity"
           className="border-t border-gray-100 pt-3"
         >
-          {recentAttempts.length === 0 ? (
+          {recentEvents.length === 0 ? (
             <p className="text-xs text-gray-500">No recent activity.</p>
           ) : (
-            <ul className="space-y-1.5 text-xs">
-              {recentAttempts.map(a => (
-                <RecentAttemptRow key={a.slug} attempt={a} />
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-1.5 text-xs" data-testid="recent-events">
+                {visibleEvents.map(event => (
+                  <PhotoEventRow key={event.id} event={event} />
+                ))}
+              </ul>
+              {!showAll && recentEvents.length > EVENTS_VISIBLE_INITIAL && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="mt-2 text-xs text-gray-600 hover:text-gray-900"
+                  data-testid="banner-show-all-events"
+                >
+                  Show {recentEvents.length - EVENTS_VISIBLE_INITIAL} more
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -181,37 +207,161 @@ function ProviderStat({ stats }: ProviderStatProps) {
   );
 }
 
-interface RecentAttemptRowProps {
-  attempt: RecentAttempt;
+interface PhotoEventRowProps {
+  event: PhotoEvent;
 }
 
-function RecentAttemptRow({ attempt }: RecentAttemptRowProps) {
+function PhotoEventRow({ event }: PhotoEventRowProps) {
+  const presentation = EVENT_PRESENTATION[event.eventKind];
+  const summary = formatEventSummary(event);
   return (
-    <li className="flex items-center gap-2">
-      <OutcomeIcon outcome={attempt.outcome} />
-      <span className="font-mono text-gray-700">{attempt.slug}</span>
-      <span className="text-gray-500">·</span>
-      <span className="text-gray-500">{attempt.outcome}</span>
+    <li
+      className="flex items-center gap-2"
+      data-testid={`event-row-${event.eventKind}`}
+      data-event-slug={event.slug}
+    >
+      <span className={presentation.iconClass} aria-hidden="true">
+        {presentation.icon}
+      </span>
+      <span className="text-gray-700">{presentation.label}</span>
+      <span className="text-gray-400">·</span>
+      <span className="font-mono text-gray-700">{event.slug}</span>
+      {summary && (
+        <>
+          <span className="text-gray-400">·</span>
+          <span className="text-gray-500">{summary}</span>
+        </>
+      )}
       <span className="text-gray-400 ml-auto">
-        {new Date(attempt.attemptedAt).toLocaleTimeString()}
+        {new Date(event.createdAt).toLocaleTimeString()}
       </span>
     </li>
   );
 }
 
-function OutcomeIcon({ outcome }: { outcome: RecentAttemptOutcome }) {
-  if (outcome === "picked") {
-    return (
-      <CheckCircle2 className="size-3.5 text-emerald-600" aria-label="picked" />
-    );
+interface EventPresentation {
+  label: string;
+  icon: React.ReactNode;
+  iconClass: string;
+}
+
+const EVENT_PRESENTATION: Record<PhotoEventKind, EventPresentation> = {
+  sourcing_attempted: {
+    label: "Sourced",
+    icon: <Search className="size-3.5" />,
+    iconClass: "text-blue-500",
+  },
+  candidates_found: {
+    label: "Candidates found",
+    icon: <Inbox className="size-3.5" />,
+    iconClass: "text-blue-600",
+  },
+  no_candidates: {
+    label: "No candidates",
+    icon: <ImageOff className="size-3.5" />,
+    iconClass: "text-amber-500",
+  },
+  provider_transient: {
+    label: "Provider transient",
+    icon: <AlertTriangle className="size-3.5" />,
+    iconClass: "text-amber-600",
+  },
+  auto_picked: {
+    label: "Auto-picked",
+    icon: <Sparkles className="size-3.5" />,
+    iconClass: "text-emerald-600",
+  },
+  routed_to_review: {
+    label: "Routed to review",
+    icon: <Inbox className="size-3.5" />,
+    iconClass: "text-amber-500",
+  },
+  requeued: {
+    label: "Re-queued",
+    icon: <RotateCw className="size-3.5" />,
+    iconClass: "text-blue-500",
+  },
+  picked: {
+    label: "Picked",
+    icon: <CheckCircle2 className="size-3.5" />,
+    iconClass: "text-emerald-600",
+  },
+  skipped: {
+    label: "Skipped",
+    icon: <CircleSlash className="size-3.5" />,
+    iconClass: "text-gray-500",
+  },
+  candidate_rejected: {
+    label: "Candidate rejected",
+    icon: <XCircle className="size-3.5" />,
+    iconClass: "text-rose-500",
+  },
+  resourced: {
+    label: "Re-sourced",
+    icon: <RefreshCcw className="size-3.5" />,
+    iconClass: "text-blue-500",
+  },
+};
+
+function formatEventSummary(event: PhotoEvent): string {
+  const m = event.metadata;
+  switch (event.eventKind) {
+    case "sourcing_attempted": {
+      const trigger = stringField(m, "triggered_by");
+      return trigger ? `triggered by ${trigger}` : "";
+    }
+    case "candidates_found": {
+      const inserted = numberField(m, "inserted_count");
+      return inserted !== null ? `${inserted} new` : "";
+    }
+    case "no_candidates":
+      return "providers returned no images";
+    case "provider_transient": {
+      const provider = stringField(m, "provider");
+      const reason = stringField(m, "reason");
+      const attempts = numberField(m, "attempts");
+      const parts: string[] = [];
+      if (provider) parts.push(provider);
+      if (reason) parts.push(reason.replace(/_/g, " "));
+      if (attempts !== null && attempts > 0) parts.push(`attempt ${attempts}`);
+      return parts.join(", ");
+    }
+    case "auto_picked": {
+      const tier = numberField(m, "tier");
+      return tier !== null ? `tier ${tier}` : "";
+    }
+    case "routed_to_review": {
+      const count = numberField(m, "candidate_count");
+      return count !== null
+        ? `${count} candidate${count === 1 ? "" : "s"} pending`
+        : "";
+    }
+    case "requeued": {
+      const previous = stringField(m, "previous_image_key");
+      return previous ? `previous: ${previous}` : "no previous image";
+    }
+    case "picked": {
+      const previous = stringField(m, "previous_image_key");
+      return previous ? `replaced ${previous}` : "first picked image";
+    }
+    case "skipped":
+    case "resourced": {
+      const cleared = numberField(m, "candidate_count_cleared");
+      return cleared !== null ? `${cleared} cleared` : "";
+    }
+    case "candidate_rejected":
+      return "";
+    default:
+      return "";
   }
-  if (outcome === "in-review") {
-    return <Inbox className="size-3.5 text-amber-500" aria-label="in review" />;
-  }
-  if (outcome === "skipped") {
-    return <XCircle className="size-3.5 text-gray-400" aria-label="skipped" />;
-  }
-  return (
-    <Inbox className="size-3.5 text-blue-500" aria-label="awaiting review" />
-  );
+}
+
+function stringField(m: Record<string, unknown>, key: string): string | null {
+  const v = m[key];
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+function numberField(m: Record<string, unknown>, key: string): number | null {
+  const v = m[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }

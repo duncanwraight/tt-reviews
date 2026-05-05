@@ -15,6 +15,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { recordPhotoEvent } from "./events.server";
 import type { PhotoSourceMessage } from "./queue.server";
 
 export interface PhotoSourceQueue {
@@ -24,13 +25,24 @@ export interface PhotoSourceQueue {
 export interface RequeuePhotosRow {
   id: string;
   slug: string;
+  // Current image_key on the row, recorded on the requeued event so
+  // the activity feed can show what's about to be replaced.
+  image_key?: string | null;
+}
+
+export interface RequeueOptions {
+  actorId?: string | null;
+  recordEvent?: typeof recordPhotoEvent;
 }
 
 export async function requeueOneEquipmentPhotos(
   supabase: SupabaseClient,
   queue: PhotoSourceQueue,
-  row: RequeuePhotosRow
+  row: RequeuePhotosRow,
+  options: RequeueOptions = {}
 ): Promise<void> {
+  const recordEvent = options.recordEvent ?? recordPhotoEvent;
+
   const { error: delError } = await supabase
     .from("equipment_photo_candidates")
     .delete()
@@ -48,5 +60,12 @@ export async function requeueOneEquipmentPhotos(
     throw new Error(`reset cooldown: ${updError.message}`);
   }
 
-  await queue.send({ slug: row.slug });
+  await recordEvent(supabase, {
+    equipmentId: row.id,
+    eventKind: "requeued",
+    actorId: options.actorId ?? null,
+    metadata: { previous_image_key: row.image_key ?? null },
+  });
+
+  await queue.send({ slug: row.slug, triggeredBy: "admin-requeue" });
 }

@@ -235,19 +235,28 @@ const C2: FakeCandidate = {
   picked_at: null,
 };
 
+// Stub recordEvent so the fake supabase doesn't need an
+// equipment_photo_events table — we'd just be testing the fake.
+function noopRecord() {
+  return vi.fn().mockResolvedValue(undefined);
+}
+
 describe("pickCandidate", () => {
-  it("promotes a candidate, marks it picked, and deletes runners-up", async () => {
+  it("promotes a candidate, marks it picked, deletes runners-up, and emits picked event with previous_image_key", async () => {
     const { supabase, state } = makeSupabase({
-      equipment: [{ ...EQ }],
+      equipment: [{ ...EQ, image_key: "equipment/old.webp" }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
     const { bucket, deletes } = makeBucket();
+    const recordEvent = noopRecord();
 
-    const result = await pickCandidate(supabase, bucket, {
-      equipmentId: "eq-1",
-      candidateId: "c1",
-      pickedBy: "user-1",
-    });
+    const result = await pickCandidate(
+      supabase,
+      bucket,
+      { equipmentId: "eq-1", candidateId: "c1", pickedBy: "user-1" },
+      {},
+      { recordEvent }
+    );
 
     expect(result.pickedR2Key).toBe(C1.r2_key);
     expect(state.equipment[0].image_key).toBe(C1.r2_key);
@@ -264,6 +273,36 @@ describe("pickCandidate", () => {
 
     // R2 delete called once with the loser's key.
     expect(deletes).toEqual([C2.r2_key]);
+
+    expect(recordEvent).toHaveBeenCalledWith(supabase, {
+      equipmentId: "eq-1",
+      eventKind: "picked",
+      actorId: "user-1",
+      metadata: {
+        candidate_id: "c1",
+        r2_key: C1.r2_key,
+        previous_image_key: "equipment/old.webp",
+      },
+    });
+  });
+
+  it("does not emit picked event when pickedBy is null (queue auto-pick path)", async () => {
+    const { supabase } = makeSupabase({
+      equipment: [{ ...EQ }],
+      candidates: [{ ...C1 }],
+    });
+    const { bucket } = makeBucket();
+    const recordEvent = noopRecord();
+
+    await pickCandidate(
+      supabase,
+      bucket,
+      { equipmentId: "eq-1", candidateId: "c1", pickedBy: null },
+      {},
+      { recordEvent }
+    );
+
+    expect(recordEvent).not.toHaveBeenCalled();
   });
 
   it("throws when the candidate doesn't belong to the given equipment", async () => {
@@ -273,11 +312,13 @@ describe("pickCandidate", () => {
     });
     const { bucket } = makeBucket();
     await expect(
-      pickCandidate(supabase, bucket, {
-        equipmentId: "eq-1",
-        candidateId: "ghost",
-        pickedBy: "u",
-      })
+      pickCandidate(
+        supabase,
+        bucket,
+        { equipmentId: "eq-1", candidateId: "ghost", pickedBy: "u" },
+        {},
+        { recordEvent: noopRecord() }
+      )
     ).rejects.toThrow(/candidate not found/);
   });
 
@@ -288,11 +329,13 @@ describe("pickCandidate", () => {
     });
     const { bucket } = makeBucket();
     await expect(
-      pickCandidate(supabase, bucket, {
-        equipmentId: "eq-1",
-        candidateId: "c1",
-        pickedBy: "u",
-      })
+      pickCandidate(
+        supabase,
+        bucket,
+        { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
+        {},
+        { recordEvent: noopRecord() }
+      )
     ).rejects.toThrow(/already picked/);
   });
 
@@ -315,7 +358,8 @@ describe("pickCandidate", () => {
       supabase,
       bucket,
       { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
-      { decodePng }
+      { decodePng },
+      { recordEvent: noopRecord() }
     );
 
     expect(state.equipment[0].image_trim_kind).toBe("auto");
@@ -340,7 +384,8 @@ describe("pickCandidate", () => {
       supabase,
       bucket,
       { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
-      { decodePng }
+      { decodePng },
+      { recordEvent: noopRecord() }
     );
 
     expect(state.equipment[0].image_trim_kind).toBeUndefined();
@@ -363,7 +408,8 @@ describe("pickCandidate", () => {
       supabase,
       bucket,
       { equipmentId: "eq-1", candidateId: "c1", pickedBy: "u" },
-      { decodePng, decodeWebp }
+      { decodePng, decodeWebp },
+      { recordEvent: noopRecord() }
     );
 
     expect(decodePng).not.toHaveBeenCalled();
@@ -412,15 +458,26 @@ describe("toggleEquipmentTrim", () => {
 });
 
 describe("rejectCandidate", () => {
-  it("deletes a single pending candidate", async () => {
+  it("deletes a single pending candidate and emits candidate_rejected", async () => {
     const { supabase, state } = makeSupabase({
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
     const { bucket, deletes } = makeBucket();
-    await rejectCandidate(supabase, bucket, "c1");
+    const recordEvent = noopRecord();
+
+    await rejectCandidate(supabase, bucket, "c1", "admin-uuid", {
+      recordEvent,
+    });
+
     expect(state.candidates.map(c => c.id)).toEqual(["c2"]);
     expect(deletes).toEqual([C1.r2_key]);
+    expect(recordEvent).toHaveBeenCalledWith(supabase, {
+      equipmentId: "eq-1",
+      eventKind: "candidate_rejected",
+      actorId: "admin-uuid",
+      metadata: { candidate_id: "c1" },
+    });
   });
 
   it("refuses to reject a picked candidate", async () => {
@@ -429,9 +486,11 @@ describe("rejectCandidate", () => {
       candidates: [{ ...C1, picked_at: "2026-04-26T00:00:00Z" }],
     });
     const { bucket } = makeBucket();
-    await expect(rejectCandidate(supabase, bucket, "c1")).rejects.toThrow(
-      /cannot reject a picked candidate/
-    );
+    await expect(
+      rejectCandidate(supabase, bucket, "c1", "u", {
+        recordEvent: noopRecord(),
+      })
+    ).rejects.toThrow(/cannot reject a picked candidate/);
   });
 
   it("throws when the candidate doesn't exist", async () => {
@@ -440,23 +499,36 @@ describe("rejectCandidate", () => {
       candidates: [],
     });
     const { bucket } = makeBucket();
-    await expect(rejectCandidate(supabase, bucket, "ghost")).rejects.toThrow(
-      /candidate not found/
-    );
+    await expect(
+      rejectCandidate(supabase, bucket, "ghost", "u", {
+        recordEvent: noopRecord(),
+      })
+    ).rejects.toThrow(/candidate not found/);
   });
 });
 
 describe("skipEquipment", () => {
-  it("clears all pending candidates and stamps image_skipped_at", async () => {
+  it("clears all pending candidates, stamps image_skipped_at, and emits skipped", async () => {
     const { supabase, state } = makeSupabase({
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
     });
     const { bucket, deletes } = makeBucket();
-    await skipEquipment(supabase, bucket, "eq-1");
+    const recordEvent = noopRecord();
+
+    await skipEquipment(supabase, bucket, "eq-1", "admin-uuid", {
+      recordEvent,
+    });
+
     expect(state.candidates).toHaveLength(0);
     expect(state.equipment[0].image_skipped_at).toBeTruthy();
     expect(deletes).toHaveLength(2);
+    expect(recordEvent).toHaveBeenCalledWith(supabase, {
+      equipmentId: "eq-1",
+      eventKind: "skipped",
+      actorId: "admin-uuid",
+      metadata: { candidate_count_cleared: 2 },
+    });
   });
 
   it("keeps already-picked candidates intact", async () => {
@@ -465,14 +537,16 @@ describe("skipEquipment", () => {
       candidates: [{ ...C1, picked_at: "2026-04-26T00:00:00Z" }, { ...C2 }],
     });
     const { bucket } = makeBucket();
-    await skipEquipment(supabase, bucket, "eq-1");
+    await skipEquipment(supabase, bucket, "eq-1", "u", {
+      recordEvent: noopRecord(),
+    });
     expect(state.candidates.map(c => c.id)).toEqual(["c1"]);
     expect(state.equipment[0].image_skipped_at).toBeTruthy();
   });
 });
 
 describe("resourceEquipment", () => {
-  it("clears pending candidates then re-runs the sourcing pipeline", async () => {
+  it("clears pending candidates, emits resourced, then re-runs the sourcing pipeline", async () => {
     const { supabase, state } = makeSupabase({
       equipment: [{ ...EQ }],
       candidates: [{ ...C1 }, { ...C2 }],
@@ -490,6 +564,7 @@ describe("resourceEquipment", () => {
       insertedCount: 0,
       providerStatuses: [],
     });
+    const recordEvent = noopRecord();
 
     const result = await resourceEquipment(
       supabase,
@@ -497,12 +572,19 @@ describe("resourceEquipment", () => {
       ENV,
       "eq-1",
       "stiga-airoc-m",
-      { resource }
+      "admin-uuid",
+      { resource, recordEvent }
     );
 
     expect(state.candidates).toHaveLength(0);
     expect(deletes).toHaveLength(2);
     expect(resource).toHaveBeenCalledTimes(1);
     expect(result.status).toBe("sourced");
+    expect(recordEvent).toHaveBeenCalledWith(supabase, {
+      equipmentId: "eq-1",
+      eventKind: "resourced",
+      actorId: "admin-uuid",
+      metadata: { candidate_count_cleared: 2 },
+    });
   });
 });

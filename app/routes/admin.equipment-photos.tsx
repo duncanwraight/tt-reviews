@@ -252,7 +252,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400, headers: sbServerClient.headers }
         );
       }
-      await rejectCandidate(supabaseAdmin, bucket, candidateId);
+      await rejectCandidate(supabaseAdmin, bucket, candidateId, user.id);
     } else if (op === "skip") {
       if (!equipmentId) {
         return data(
@@ -260,7 +260,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400, headers: sbServerClient.headers }
         );
       }
-      await skipEquipment(supabaseAdmin, bucket, equipmentId);
+      await skipEquipment(supabaseAdmin, bucket, equipmentId, user.id);
     } else if (op === "resource") {
       if (!equipmentId || !slug) {
         return data(
@@ -274,6 +274,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         env as SourcingEnv,
         equipmentId,
         slug,
+        user.id,
         {
           providers: buildProvidersFromEnv(
             env as Parameters<typeof buildProvidersFromEnv>[0]

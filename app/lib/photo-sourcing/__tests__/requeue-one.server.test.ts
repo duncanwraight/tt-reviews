@@ -87,11 +87,17 @@ function fakeQueue(): PhotoSourceQueue & { sent: PhotoSourceMessage[] } {
 const row = { id: "eq-1", slug: "butterfly-viscaria" };
 
 describe("requeueOneEquipmentPhotos", () => {
-  it("deletes only un-picked candidates, clears cooldown, enqueues", async () => {
+  it("deletes only un-picked candidates, clears cooldown, emits requeued event, enqueues with admin-requeue trigger", async () => {
     const { client, calls } = fakeSupabase({});
     const queue = fakeQueue();
+    const recordEvent = vi.fn().mockResolvedValue(undefined);
 
-    await requeueOneEquipmentPhotos(client, queue, row);
+    await requeueOneEquipmentPhotos(
+      client,
+      queue,
+      { ...row, image_key: "equipment/old.png" },
+      { actorId: "admin-uuid", recordEvent }
+    );
 
     expect(calls.deleteEqFilter).toEqual({ col: "equipment_id", val: "eq-1" });
     // The .is('picked_at', null) filter is what protects the live image
@@ -108,26 +114,38 @@ describe("requeueOneEquipmentPhotos", () => {
     // so leaving it set is what routes the new candidates to review
     // instead of clobbering the live image (TT-173).
     expect(calls.updatePayload).not.toHaveProperty("image_key");
-    expect(queue.sent).toEqual([{ slug: "butterfly-viscaria" }]);
+    expect(recordEvent).toHaveBeenCalledWith(client, {
+      equipmentId: "eq-1",
+      eventKind: "requeued",
+      actorId: "admin-uuid",
+      metadata: { previous_image_key: "equipment/old.png" },
+    });
+    expect(queue.sent).toEqual([
+      { slug: "butterfly-viscaria", triggeredBy: "admin-requeue" },
+    ]);
   });
 
-  it("propagates a candidate-delete failure without enqueueing", async () => {
+  it("propagates a candidate-delete failure without enqueueing or emitting", async () => {
     const { client } = fakeSupabase({ deleteError: "rls violation" });
     const queue = fakeQueue();
+    const recordEvent = vi.fn();
 
-    await expect(requeueOneEquipmentPhotos(client, queue, row)).rejects.toThrow(
-      /delete candidates: rls violation/
-    );
+    await expect(
+      requeueOneEquipmentPhotos(client, queue, row, { recordEvent })
+    ).rejects.toThrow(/delete candidates: rls violation/);
     expect(queue.sent).toHaveLength(0);
+    expect(recordEvent).not.toHaveBeenCalled();
   });
 
-  it("propagates an equipment-update failure without enqueueing", async () => {
+  it("propagates an equipment-update failure without enqueueing or emitting", async () => {
     const { client } = fakeSupabase({ updateError: "permission denied" });
     const queue = fakeQueue();
+    const recordEvent = vi.fn();
 
-    await expect(requeueOneEquipmentPhotos(client, queue, row)).rejects.toThrow(
-      /reset cooldown: permission denied/
-    );
+    await expect(
+      requeueOneEquipmentPhotos(client, queue, row, { recordEvent })
+    ).rejects.toThrow(/reset cooldown: permission denied/);
     expect(queue.sent).toHaveLength(0);
+    expect(recordEvent).not.toHaveBeenCalled();
   });
 });

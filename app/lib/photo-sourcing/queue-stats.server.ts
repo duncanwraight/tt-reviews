@@ -5,20 +5,29 @@
 //                                       Cheap (5 parallel head-counts).
 //                                       Used by the admin dashboard.
 //   loadFullPhotoStats(supabase, env) — coverage + last-hour throughput
-//                                       + recent-activity + per-provider
+//                                       + recent-event log + per-provider
 //                                       quota usage. Used by the
 //                                       /admin/equipment-photos page.
+//
+// Recent activity reads from the equipment_photo_events append-only log
+// (TT-174) — the canonical record of every pipeline transition. The
+// previous shape derived activity from equipment columns + a per-row
+// candidate lookup, which only reflected what providers did and missed
+// admin-driven actions like requeue / skip / reject.
 //
 // Provider quota stats read directly from the same KV namespace the
 // budget wrapper writes. KV missing or absent keys → zeros, never
 // throws.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PhotoEventKind } from "./events.server";
 import { dailyKey, monthlyKey, type BudgetKV } from "./providers/budget";
 import {
   DEFAULT_BRAVE_DAILY_CAP,
   DEFAULT_BRAVE_MONTHLY_CAP,
 } from "./providers/factory";
+
+export const RECENT_EVENTS_LIMIT = 50;
 
 export interface CoverageCounts {
   picked: number;
@@ -28,17 +37,15 @@ export interface CoverageCounts {
   total: number;
 }
 
-export type RecentAttemptOutcome =
-  | "picked"
-  | "in-review"
-  | "skipped"
-  | "no-image";
-
-export interface RecentAttempt {
+export interface PhotoEvent {
+  id: string;
+  equipmentId: string;
   slug: string;
   name: string;
-  attemptedAt: string;
-  outcome: RecentAttemptOutcome;
+  eventKind: PhotoEventKind;
+  actorId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface ProviderQuotaStats {
@@ -52,7 +59,7 @@ export interface ProviderQuotaStats {
 export interface FullPhotoStats {
   counts: CoverageCounts;
   processedLastHour: number;
-  recentAttempts: RecentAttempt[];
+  recentEvents: PhotoEvent[];
   providerStats: ProviderQuotaStats[];
 }
 
@@ -99,55 +106,41 @@ export async function loadFullPhotoStats(
     now().getTime() - 60 * 60 * 1000
   ).toISOString();
 
-  const [counts, lastHour, recent] = await Promise.all([
+  const [counts, lastHour, events] = await Promise.all([
     loadCoverageCounts(supabase),
     supabase
       .from("equipment")
       .select("id", { count: "exact", head: true })
       .gte("image_sourcing_attempted_at", oneHourAgoISO),
     supabase
-      .from("equipment")
+      .from("equipment_photo_events")
       .select(
-        "id, slug, name, image_key, image_skipped_at, image_sourcing_attempted_at"
+        "id, equipment_id, event_kind, actor_id, metadata, created_at, equipment(slug, name)"
       )
-      .not("image_sourcing_attempted_at", "is", null)
-      .order("image_sourcing_attempted_at", { ascending: false })
-      .limit(20),
+      .order("created_at", { ascending: false })
+      .limit(RECENT_EVENTS_LIMIT),
   ]);
 
-  type RecentRow = {
+  type EventRow = {
     id: string;
-    slug: string;
-    name: string;
-    image_key: string | null;
-    image_skipped_at: string | null;
-    image_sourcing_attempted_at: string;
+    equipment_id: string;
+    event_kind: PhotoEventKind;
+    actor_id: string | null;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+    equipment: { slug: string; name: string } | null;
   };
-  const recentRows = (recent.data ?? []) as RecentRow[];
+  const eventRows = (events.data ?? []) as unknown as EventRow[];
 
-  // Look up which of the recent equipment ids have un-picked candidates
-  // pending — those rows are "in review" regardless of image_key state
-  // (admin re-queue leaves the live image in place while new candidates
-  // wait for approval). One bounded query keeps us inside the
-  // 50-subrequest cap on /admin loaders.
-  const recentIds = recentRows.map(r => r.id);
-  const inReview = new Set<string>();
-  if (recentIds.length > 0) {
-    const { data: pendingRows } = await supabase
-      .from("equipment_photo_candidates")
-      .select("equipment_id")
-      .in("equipment_id", recentIds)
-      .is("picked_at", null);
-    for (const row of (pendingRows ?? []) as Array<{ equipment_id: string }>) {
-      inReview.add(row.equipment_id);
-    }
-  }
-
-  const recentAttempts: RecentAttempt[] = recentRows.map(r => ({
-    slug: r.slug,
-    name: r.name,
-    attemptedAt: r.image_sourcing_attempted_at,
-    outcome: classifyOutcome(r, inReview.has(r.id)),
+  const recentEvents: PhotoEvent[] = eventRows.map(r => ({
+    id: r.id,
+    equipmentId: r.equipment_id,
+    slug: r.equipment?.slug ?? "",
+    name: r.equipment?.name ?? "",
+    eventKind: r.event_kind,
+    actorId: r.actor_id,
+    metadata: r.metadata ?? {},
+    createdAt: r.created_at,
   }));
 
   const providerStats: ProviderQuotaStats[] = [];
@@ -171,23 +164,7 @@ export async function loadFullPhotoStats(
   return {
     counts,
     processedLastHour: lastHour.count ?? 0,
-    recentAttempts,
+    recentEvents,
     providerStats,
   };
-}
-
-// `pendingReview` wins over `picked` so a re-queued row (image_key
-// still set, new candidates waiting for admin approval) renders as
-// "in-review" rather than misleadingly as "picked".
-function classifyOutcome(
-  row: {
-    image_key: string | null;
-    image_skipped_at: string | null;
-  },
-  pendingReview: boolean
-): RecentAttemptOutcome {
-  if (pendingReview) return "in-review";
-  if (row.image_key) return "picked";
-  if (row.image_skipped_at) return "skipped";
-  return "no-image";
 }

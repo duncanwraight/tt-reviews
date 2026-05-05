@@ -32,6 +32,7 @@ import {
   type SourcingResult,
 } from "./source.server";
 import { pickCandidate, type R2BucketSurface } from "./review.server";
+import { recordPhotoEvent } from "./events.server";
 import type { Provider } from "./providers/types";
 
 export const AUTO_PICK_TIER_THRESHOLD = 2;
@@ -42,6 +43,10 @@ export interface PhotoSourceMessage {
   // resets on every successful ack. Used to compute exponential
   // backoff on out_of_budget.
   attempts?: number;
+  // Source of this enqueue. Carried through to the sourcing_attempted
+  // event so the activity feed can distinguish cron / admin-requeue /
+  // queue-retry origins. Defaults to 'cron' when absent.
+  triggeredBy?: string;
 }
 
 export type ProcessOutcome =
@@ -54,6 +59,7 @@ export type ProcessOutcome =
 export interface ProcessDeps {
   sourceFn?: typeof sourcePhotosForEquipment;
   pickFn?: typeof pickCandidate;
+  recordEvent?: typeof recordPhotoEvent;
 }
 
 // Process one queue message. Returns a ProcessOutcome the caller maps
@@ -64,17 +70,19 @@ export async function processOneSourceMessage(
   bucket: R2BucketSurface,
   env: SourcingEnv,
   providers: Provider[],
-  triggeredBy: string,
   message: PhotoSourceMessage,
   deps: ProcessDeps = {}
 ): Promise<ProcessOutcome> {
   const sourceFn = deps.sourceFn ?? sourcePhotosForEquipment;
   const pickFn = deps.pickFn ?? pickCandidate;
+  const recordEvent = deps.recordEvent ?? recordPhotoEvent;
+  const triggeredBy = message.triggeredBy ?? "cron";
 
   let result: SourcingResult;
   try {
     result = await sourceFn(supabase, bucket, env, message.slug, {
       providers,
+      triggeredBy,
     });
   } catch (err) {
     return {
@@ -83,15 +91,30 @@ export async function processOneSourceMessage(
     };
   }
 
+  // Emit one provider_transient event per non-ok provider, regardless
+  // of whether the run produced candidates — a partial transient on a
+  // multi-provider run still warrants visibility in the feed.
+  const transientProviders = result.providerStatuses.filter(
+    p => p.status === "rate_limited" || p.status === "out_of_budget"
+  );
+  for (const tp of transientProviders) {
+    await recordEvent(supabase, {
+      equipmentId: result.equipment.id,
+      eventKind: "provider_transient",
+      metadata: {
+        provider: tp.name,
+        reason: tp.status,
+        attempts: message.attempts ?? 0,
+      },
+    });
+  }
+
   if (result.status === "no-candidates") {
-    // Distinguish transient (provider non-ok) from genuine empty.
-    const transient = result.providerStatuses.find(
-      p => p.status === "rate_limited" || p.status === "out_of_budget"
-    );
-    if (transient) {
+    if (transientProviders.length > 0) {
+      const first = transientProviders[0];
       return {
         status: "transient",
-        reason: transient.status as "rate_limited" | "out_of_budget",
+        reason: first.status as "rate_limited" | "out_of_budget",
       };
     }
     return { status: "no-candidates" };
@@ -106,6 +129,13 @@ export async function processOneSourceMessage(
   // delete the previous picked row + R2 object via pickCandidate's
   // losers cleanup, leaving no fallback if the new pick is also wrong.
   if (result.equipment.image_key !== null) {
+    if (result.insertedCount > 0) {
+      await recordEvent(supabase, {
+        equipmentId: result.equipment.id,
+        eventKind: "routed_to_review",
+        metadata: { candidate_count: result.insertedCount },
+      });
+    }
     return { status: "sourced", insertedCount: result.insertedCount };
   }
 
@@ -114,15 +144,36 @@ export async function processOneSourceMessage(
   );
   if (trailingTopTier.length === 1) {
     try {
+      // System-driven auto-pick: pickedBy is null. The picked_by FK on
+      // equipment_photo_candidates is nullable (ON DELETE SET NULL) so
+      // a system pick is fine without an actor. TT-175 tracks the
+      // earlier shape where we passed the literal "queue-consumer"
+      // string into a uuid column and silently caught the constraint
+      // violation here.
       await pickFn(supabase, bucket, {
         equipmentId: result.equipment.id,
         candidateId: trailingTopTier[0].id,
-        pickedBy: triggeredBy,
+        pickedBy: null,
+      });
+      await recordEvent(supabase, {
+        equipmentId: result.equipment.id,
+        eventKind: "auto_picked",
+        metadata: {
+          candidate_id: trailingTopTier[0].id,
+          r2_key: trailingTopTier[0].r2_key,
+          tier: trailingTopTier[0].tier,
+        },
       });
       return { status: "auto-picked", r2Key: trailingTopTier[0].r2_key };
     } catch {
       // Auto-pick failure is not fatal — the candidates are still in
-      // the review queue, admin can pick manually. Treat as 'sourced'.
+      // the review queue, admin can pick manually. Treat as 'sourced'
+      // and emit routed_to_review so the feed reflects it.
+      await recordEvent(supabase, {
+        equipmentId: result.equipment.id,
+        eventKind: "routed_to_review",
+        metadata: { candidate_count: result.insertedCount },
+      });
       return {
         status: "sourced",
         insertedCount: result.insertedCount,
@@ -130,6 +181,13 @@ export async function processOneSourceMessage(
     }
   }
 
+  if (result.insertedCount > 0) {
+    await recordEvent(supabase, {
+      equipmentId: result.equipment.id,
+      eventKind: "routed_to_review",
+      metadata: { candidate_count: result.insertedCount },
+    });
+  }
   return { status: "sourced", insertedCount: result.insertedCount };
 }
 

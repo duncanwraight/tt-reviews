@@ -62,6 +62,13 @@ function makeSupabase(
       if (table === "equipment_photo_candidates") {
         return new CandidatesBuilder(candidates);
       }
+      if (table === "equipment_photo_events") {
+        // Append-only event log (TT-174). Source tests don't assert on
+        // event emission — covered by dedicated tests on the helper +
+        // by the queue test suite. Just no-op the insert here so the
+        // production path runs cleanly.
+        return { insert: async () => ({ error: null }) };
+      }
       throw new Error(`unexpected table: ${table}`);
     },
   } as unknown as SupabaseClient;

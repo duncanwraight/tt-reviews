@@ -243,7 +243,6 @@ export default {
       const providers = buildProvidersFromEnv(
         env as unknown as Parameters<typeof buildProvidersFromEnv>[0]
       );
-      const triggeredBy = "queue-consumer";
       const queueEnv = env as unknown as {
         IMAGE_BUCKET: R2Bucket;
         PHOTO_SOURCE_QUEUE: Queue<PhotoSourceMessage>;
@@ -262,7 +261,6 @@ export default {
           queueEnv.IMAGE_BUCKET,
           envVars as unknown as SourcingEnv,
           providers,
-          triggeredBy,
           body
         );
 
@@ -275,7 +273,7 @@ export default {
             attempts,
           });
           await queueEnv.PHOTO_SOURCE_QUEUE.send(
-            { slug: body.slug, attempts },
+            { slug: body.slug, attempts, triggeredBy: "queue-retry" },
             { delaySeconds }
           );
           msg.ack();
