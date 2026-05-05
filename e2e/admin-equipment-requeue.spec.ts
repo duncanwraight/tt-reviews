@@ -6,21 +6,13 @@ import {
   login,
   setUserRole,
 } from "./utils/auth";
-
-// Serialize: each test mutates the same blade fixture row's sourcing
-// state. Running in parallel would let one test clear another's
-// seeded cooldown mid-flight.
-test.describe.configure({ mode: "serial" });
-
 import {
+  createTestEquipment,
   deleteCandidatesForEquipment,
+  deleteEquipment,
   deleteSpecProposalsForEquipment,
-  getEquipmentSpecsAndDescription,
-  getFirstEquipmentByCategory,
   setEquipmentImage,
   setEquipmentSpecsCooldown,
-  snapshotEquipmentImage,
-  type EquipmentImageSnapshot,
 } from "./utils/data";
 
 // TT-166: per-equipment admin re-queue buttons on /equipment/:slug.
@@ -31,6 +23,12 @@ import {
 // consumer races the assertion (it wakes immediately, finds no
 // candidates in the test environment, and re-stamps the cooldown
 // columns we'd want to assert as cleared).
+//
+// TT-177: each test creates its own hermetic blade equipment row.
+// The earlier shared seed picker (`getFirstEquipmentByCategory("blade")`)
+// raced admin-manufacturer-specs.spec.ts under parallel scheduling —
+// both files target the same seeded blade and rewrite
+// `specs_source_status` mid-flight. Hermetic rows can't collide.
 
 test("admin sees both re-queue buttons enabled when sourcing has run", async ({
   page,
@@ -39,13 +37,9 @@ test("admin sees both re-queue buttons enabled when sourcing has run", async ({
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  const equipment = await getFirstEquipmentByCategory("blade");
-  const imageSnapshot = await snapshotEquipmentImage(equipment.id);
-  const specsSnapshot = await getEquipmentSpecsAndDescription(equipment.id);
+  const equipment = await createTestEquipment("requeue-enabled", "blade");
 
   // Plant "previously-sourced" state so the buttons enable.
-  await deleteSpecProposalsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
   await setEquipmentSpecsCooldown(equipment.id, {
     specs_source_status: "no_results",
     specs_sourced_at: new Date().toISOString(),
@@ -61,13 +55,9 @@ test("admin sees both re-queue buttons enabled when sourcing has run", async ({
     await expect(page.getByTestId("admin-requeue-specs-button")).toBeEnabled();
     await expect(page.getByTestId("admin-requeue-photos-button")).toBeEnabled();
   } finally {
-    await setEquipmentSpecsCooldown(equipment.id, {
-      specifications: specsSnapshot.specifications,
-      description: specsSnapshot.description,
-      specs_source_status: specsSnapshot.specs_source_status,
-      specs_sourced_at: specsSnapshot.specs_sourced_at,
-    });
-    await setEquipmentImage(equipment.id, imageSnapshot);
+    await deleteSpecProposalsForEquipment(equipment.id);
+    await deleteCandidatesForEquipment(equipment.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });
@@ -79,25 +69,9 @@ test("admin sees re-queue buttons disabled when sourcing has never run", async (
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  const equipment = await getFirstEquipmentByCategory("blade");
-  const imageSnapshot = await snapshotEquipmentImage(equipment.id);
-  const specsSnapshot = await getEquipmentSpecsAndDescription(equipment.id);
-
-  // Reset to pristine "never-sourced" state. image_key needs to be
-  // null too — the photo button stays enabled when there's a live
-  // picked image so admin can request a fresh one.
-  await deleteSpecProposalsForEquipment(equipment.id);
-  await deleteCandidatesForEquipment(equipment.id);
-  await setEquipmentSpecsCooldown(equipment.id, {
-    specs_source_status: null,
-    specs_sourced_at: null,
-  });
-  await setEquipmentImage(equipment.id, {
-    image_key: null,
-    image_etag: null,
-    image_sourcing_attempted_at: null,
-    image_skipped_at: null,
-  } as Partial<EquipmentImageSnapshot>);
+  // Fresh row → all sourcing/image state is null by default, which is
+  // the "never sourced" case the buttons gate on.
+  const equipment = await createTestEquipment("requeue-disabled", "blade");
 
   try {
     await login(page, adminEmail);
@@ -108,13 +82,9 @@ test("admin sees re-queue buttons disabled when sourcing has never run", async (
       page.getByTestId("admin-requeue-photos-button")
     ).toBeDisabled();
   } finally {
-    await setEquipmentSpecsCooldown(equipment.id, {
-      specifications: specsSnapshot.specifications,
-      description: specsSnapshot.description,
-      specs_source_status: specsSnapshot.specs_source_status,
-      specs_sourced_at: specsSnapshot.specs_sourced_at,
-    });
-    await setEquipmentImage(equipment.id, imageSnapshot);
+    await deleteSpecProposalsForEquipment(equipment.id);
+    await deleteCandidatesForEquipment(equipment.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });
@@ -124,7 +94,7 @@ test("non-admin user does not see the re-queue buttons", async ({ page }) => {
   const { userId } = await createUser(userEmail);
   // Default role is `user`; no setUserRole.
 
-  const equipment = await getFirstEquipmentByCategory("blade");
+  const equipment = await createTestEquipment("requeue-nonadmin", "blade");
 
   try {
     await login(page, userEmail);
@@ -138,6 +108,7 @@ test("non-admin user does not see the re-queue buttons", async ({ page }) => {
       0
     );
   } finally {
+    await deleteEquipment(equipment.id);
     await deleteUser(userId);
   }
 });
@@ -154,11 +125,8 @@ test("clicking the re-queue specs button POSTs to a non-404 route", async ({
   const { userId: adminId } = await createUser(adminEmail);
   await setUserRole(adminId, "admin");
 
-  const equipment = await getFirstEquipmentByCategory("blade");
-  const imageSnapshot = await snapshotEquipmentImage(equipment.id);
-  const specsSnapshot = await getEquipmentSpecsAndDescription(equipment.id);
+  const equipment = await createTestEquipment("requeue-route", "blade");
 
-  await deleteSpecProposalsForEquipment(equipment.id);
   await setEquipmentSpecsCooldown(equipment.id, {
     specs_source_status: "no_results",
     specs_sourced_at: new Date().toISOString(),
@@ -175,13 +143,9 @@ test("clicking the re-queue specs button POSTs to a non-404 route", async ({
     const response = await responsePromise;
     expect(response.status()).not.toBe(404);
   } finally {
-    await setEquipmentSpecsCooldown(equipment.id, {
-      specifications: specsSnapshot.specifications,
-      description: specsSnapshot.description,
-      specs_source_status: specsSnapshot.specs_source_status,
-      specs_sourced_at: specsSnapshot.specs_sourced_at,
-    });
-    await setEquipmentImage(equipment.id, imageSnapshot);
+    await deleteSpecProposalsForEquipment(equipment.id);
+    await deleteCandidatesForEquipment(equipment.id);
+    await deleteEquipment(equipment.id);
     await deleteUser(adminId);
   }
 });

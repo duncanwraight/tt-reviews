@@ -8,9 +8,10 @@ import {
   setUserRole,
 } from "./utils/auth";
 import {
+  createTestEquipment,
+  deleteEquipment,
   deleteSpecProposalsForEquipment,
   getEquipmentSpecsAndDescription,
-  getFirstEquipmentByCategory,
   getSpecProposal,
   insertSpecProposal,
   setEquipmentSpecsCooldown,
@@ -21,9 +22,10 @@ import {
 // mocked-Supabase unit tests cover validation, this test catches
 // PostgREST shape bugs (RPC argument names, return shape, RLS reads).
 //
-// Serial because both tests mutate the same equipment row's cooldown
-// + specifications columns; running in parallel would let one test's
-// reset clobber the other mid-flight.
+// TT-177: each test creates its own hermetic blade equipment row to
+// avoid colliding with admin-equipment-requeue.spec.ts, which used to
+// share the same `getFirstEquipmentByCategory("blade")` row and
+// race-mutate `specs_source_status` under parallel workers.
 
 const VISCARIA_PROPOSAL = {
   specs: {
@@ -42,20 +44,15 @@ const VISCARIA_PROPOSAL = {
   },
 };
 
-test.describe.configure({ mode: "serial" });
-
 test.describe("Admin manufacturer-specs review", () => {
   test("Apply writes specs + description and marks proposal applied", async ({
     page,
   }) => {
     // Proposal payload is blade-shaped (plies/material), and the
     // admin form only renders fields configured for the equipment's
-    // category — so we must target a blade row, not whatever happens to
-    // be first in the table.
-    const equipment = await getFirstEquipmentByCategory("blade");
-    const before = await getEquipmentSpecsAndDescription(equipment.id);
+    // category — so we must target a blade row.
+    const equipment = await createTestEquipment("specprop-apply", "blade");
 
-    await deleteSpecProposalsForEquipment(equipment.id);
     const proposal = await insertSpecProposal({
       equipmentId: equipment.id,
       merged: VISCARIA_PROPOSAL,
@@ -110,14 +107,8 @@ test.describe("Admin manufacturer-specs review", () => {
       expect(proposalAfter?.reviewed_by).toBe(userId);
       expect(proposalAfter?.reviewed_at).not.toBeNull();
     } finally {
-      // Restore the equipment row to its pre-test state.
-      await setEquipmentSpecsCooldown(equipment.id, {
-        specifications: before.specifications,
-        description: before.description,
-        specs_source_status: before.specs_source_status,
-        specs_sourced_at: before.specs_sourced_at,
-      });
       await deleteSpecProposalsForEquipment(equipment.id);
+      await deleteEquipment(equipment.id);
       await deleteUser(userId);
     }
   });
@@ -125,10 +116,8 @@ test.describe("Admin manufacturer-specs review", () => {
   test("Run log section renders pipeline decisions for the proposal (TT-162)", async ({
     page,
   }) => {
-    const equipment = await getFirstEquipmentByCategory("blade");
-    const before = await getEquipmentSpecsAndDescription(equipment.id);
+    const equipment = await createTestEquipment("specprop-runlog", "blade");
 
-    await deleteSpecProposalsForEquipment(equipment.id);
     const proposal = await insertSpecProposal({
       equipmentId: equipment.id,
       merged: VISCARIA_PROPOSAL,
@@ -281,13 +270,8 @@ test.describe("Admin manufacturer-specs review", () => {
       await expect(tt11).toContainText("missing or non-object");
       await expect(tt11).toContainText("Raw response from the LLM");
     } finally {
-      await setEquipmentSpecsCooldown(equipment.id, {
-        specifications: before.specifications,
-        description: before.description,
-        specs_source_status: before.specs_source_status,
-        specs_sourced_at: before.specs_sourced_at,
-      });
       await deleteSpecProposalsForEquipment(equipment.id);
+      await deleteEquipment(equipment.id);
       await deleteUser(userId);
     }
   });
@@ -295,10 +279,9 @@ test.describe("Admin manufacturer-specs review", () => {
   test("Reject leaves equipment.* untouched and stamps no_results cooldown", async ({
     page,
   }) => {
-    const equipment = await getFirstEquipmentByCategory("blade");
+    const equipment = await createTestEquipment("specprop-reject", "blade");
     const before = await getEquipmentSpecsAndDescription(equipment.id);
 
-    await deleteSpecProposalsForEquipment(equipment.id);
     const proposal = await insertSpecProposal({
       equipmentId: equipment.id,
       merged: VISCARIA_PROPOSAL,
@@ -328,13 +311,8 @@ test.describe("Admin manufacturer-specs review", () => {
       expect(proposalAfter?.status).toBe("rejected");
       expect(proposalAfter?.reviewed_by).toBe(userId);
     } finally {
-      await setEquipmentSpecsCooldown(equipment.id, {
-        specifications: before.specifications,
-        description: before.description,
-        specs_source_status: before.specs_source_status,
-        specs_sourced_at: before.specs_sourced_at,
-      });
       await deleteSpecProposalsForEquipment(equipment.id);
+      await deleteEquipment(equipment.id);
       await deleteUser(userId);
     }
   });
