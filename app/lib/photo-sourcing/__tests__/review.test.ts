@@ -480,7 +480,12 @@ describe("resourceEquipment", () => {
     const { bucket, deletes } = makeBucket();
     const resource = vi.fn<() => Promise<SourcingResult>>().mockResolvedValue({
       status: "sourced",
-      equipment: { id: "eq-1", slug: "stiga-airoc-m", name: "Stiga Airoc M" },
+      equipment: {
+        id: "eq-1",
+        slug: "stiga-airoc-m",
+        name: "Stiga Airoc M",
+        image_key: null,
+      },
       candidates: [],
       insertedCount: 0,
       providerStatuses: [],

@@ -17,6 +17,7 @@ import {
   getCandidatesForEquipment,
   getFirstEquipment,
   insertEquipmentPhotoCandidates,
+  setCandidatePickedAt,
   setEquipmentImage,
   snapshotEquipmentImage,
   type EquipmentImageSnapshot,
@@ -314,6 +315,118 @@ test("non-admin user does not see the trim toggle", async ({ page }) => {
   } finally {
     await setEquipmentImage(equipment.id, snapshot);
     await deleteUser(userId);
+  }
+});
+
+// TT-173 regression guard: re-queued rows (image_key set + un-picked
+// candidates pending) must appear on /admin/equipment-photos, and a
+// pick must replace the live image. Without the loader fix this whole
+// fixture is invisible — the row gets dropped by the image_key IS NULL
+// filter and admin can't approve a replacement. Without the consumer
+// fix (auto-pick gated on image_key === null) the candidates would
+// have been silently auto-promoted, deleting the previously-picked
+// row + R2 object as losers.
+//
+// Hermetic shape mirrors the existing review-queue tests: candidates
+// are seeded directly into Postgres rather than driven through the
+// click-to-consumer pipeline. The picked-state setup uses a PATCH on
+// the candidate row to set picked_at (insertEquipmentPhotoCandidates
+// only writes pending rows).
+test("re-queued row with image_key set still appears on the review queue, pick replaces live image", async ({
+  page,
+}) => {
+  const adminEmail = generateTestEmail("photoadm");
+  const { userId: adminId } = await createUser(adminEmail);
+  await setUserRole(adminId, "admin");
+
+  const equipment = await getFirstEquipment();
+  const snapshot = await snapshotEquipmentImage(equipment.id);
+
+  const PICKED_KEY = "equipment/test/cand/picked-old.png";
+  const NEW_KEY_A = "equipment/test/cand/new-a.png";
+  const NEW_KEY_B = "equipment/test/cand/new-b.png";
+
+  await deleteCandidatesForEquipment(equipment.id);
+
+  // Seed the "row already has a picked image" state. image_key set on
+  // equipment + one candidate row tagged picked_at (so pickCandidate's
+  // losers cleanup has something to delete when admin picks a new
+  // candidate later in this test).
+  await setEquipmentImage(equipment.id, {
+    image_key: PICKED_KEY,
+    image_etag: PICKED_KEY.slice(-12),
+    image_skipped_at: null,
+    image_sourcing_attempted_at: new Date().toISOString(),
+  });
+  const [pickedCand] = await insertEquipmentPhotoCandidates(equipment.id, [
+    {
+      r2_key: PICKED_KEY,
+      source_url: "https://www.revspin.net/old-pick",
+      image_source_host: "www.revspin.net",
+      source_label: "revspin",
+      match_kind: "trailing",
+      tier: 1,
+    },
+  ]);
+  await setCandidatePickedAt(pickedCand.id, new Date().toISOString());
+
+  // The two un-picked candidates that a successful re-queue → consumer
+  // drain would have produced.
+  const inserted = await insertEquipmentPhotoCandidates(equipment.id, [
+    {
+      r2_key: NEW_KEY_A,
+      source_url: "https://www.revspin.net/new-a",
+      image_source_host: "www.revspin.net",
+      source_label: "revspin",
+      match_kind: "trailing",
+      tier: 1,
+    },
+    {
+      r2_key: NEW_KEY_B,
+      source_url: "https://contra.de/new-b",
+      image_source_host: "contra.de",
+      source_label: "contra",
+      match_kind: "loose",
+      tier: 2,
+    },
+  ]);
+
+  try {
+    await login(page, adminEmail);
+    await page.goto("/admin/equipment-photos");
+
+    const card = page.locator(
+      `[data-testid="equipment-review-card"][data-equipment-slug="${equipment.slug}"]`
+    );
+    await expect(card).toBeVisible();
+
+    const newTileA = card.locator(
+      `[data-testid="candidate-tile"][data-candidate-id="${inserted[0].id}"]`
+    );
+    const newTileB = card.locator(
+      `[data-testid="candidate-tile"][data-candidate-id="${inserted[1].id}"]`
+    );
+    await expect(newTileA).toBeVisible();
+    await expect(newTileB).toBeVisible();
+
+    await newTileA.getByTestId("candidate-pick").click();
+
+    // After the pick the row drops out of the queue (image_key now
+    // points at the new candidate, no un-picked rows remain).
+    await expect(card).toHaveCount(0, { timeout: 10000 });
+
+    const after = await snapshotEquipmentImage(equipment.id);
+    expect(after.image_key).toBe(NEW_KEY_A);
+
+    // The previously-picked row + the loser tile are both gone.
+    const remaining = await getCandidatesForEquipment(equipment.id);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].r2_key).toBe(NEW_KEY_A);
+    expect(remaining[0].picked_at).not.toBeNull();
+  } finally {
+    await deleteCandidatesForEquipment(equipment.id);
+    await setEquipmentImage(equipment.id, snapshot);
+    await deleteUser(adminId);
   }
 });
 

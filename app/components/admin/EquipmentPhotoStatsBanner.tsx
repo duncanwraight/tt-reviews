@@ -205,6 +205,9 @@ function OutcomeIcon({ outcome }: { outcome: RecentAttemptOutcome }) {
       <CheckCircle2 className="size-3.5 text-emerald-600" aria-label="picked" />
     );
   }
+  if (outcome === "in-review") {
+    return <Inbox className="size-3.5 text-amber-500" aria-label="in review" />;
+  }
   if (outcome === "skipped") {
     return <XCircle className="size-3.5 text-gray-400" aria-label="skipped" />;
   }

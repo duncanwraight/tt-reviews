@@ -138,8 +138,13 @@ export async function bulkSourcePhotos(
       unresolved += 1;
       continue;
     }
-    if (result.status === "already-imaged") {
-      // Race: someone picked between count and list. Skip.
+
+    // Race-tolerant: if someone (or the consumer) picked the photo
+    // between the chunk listing and now, the row's image_key is set,
+    // so skip the auto-pick branch — pickCandidate would clobber the
+    // newly-picked image otherwise.
+    if (result.equipment.image_key !== null) {
+      candidatesCreated += result.insertedCount;
       continue;
     }
 

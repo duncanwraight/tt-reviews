@@ -37,8 +37,18 @@ export interface SourcedCandidate {
 }
 
 export interface SourcingResult {
-  status: "sourced" | "already-imaged" | "no-candidates";
-  equipment: { id: string; slug: string; name: string };
+  status: "sourced" | "no-candidates";
+  // image_key reflects the row state at the start of this sourcing run.
+  // Consumers gate auto-pick on `image_key === null` so a row that
+  // already has a published image (e.g. an admin-triggered re-queue
+  // preserving the live image) lands in the review queue instead of
+  // silently swapping the photo via pickCandidate's losers cleanup.
+  equipment: {
+    id: string;
+    slug: string;
+    name: string;
+    image_key: string | null;
+  };
   candidates: SourcedCandidate[];
   // Set when status === "sourced"; reflects what got inserted (after
   // de-duplication against existing pending candidates for this row).
@@ -46,8 +56,7 @@ export interface SourcingResult {
   // Per-provider outcome status. Lets the queue consumer decide whether
   // a 'no-candidates' result is genuine (all providers said 'ok') or
   // transient (a provider was rate_limited / out_of_budget) and worth
-  // re-queueing. Empty for the 'already-imaged' early-return path
-  // because no providers were called.
+  // re-queueing.
   providerStatuses: Array<{
     name: string;
     status: "ok" | "rate_limited" | "out_of_budget";
@@ -132,12 +141,17 @@ function defaultRandomId(): string {
   return crypto.randomUUID();
 }
 
-// Source candidates for one equipment row. Orchestrates: short-circuit
-// when image already chosen → resolve via Brave → for each candidate
-// download bytes (skip on failure), upload to R2 under
+// Source candidates for one equipment row. Resolve via providers → for
+// each candidate download bytes (skip on failure), upload to R2 under
 // equipment/<slug>/cand/<uuid>.<ext>, dedupe against existing pending
 // rows by source_url, insert. Updates equipment.image_sourcing_attempted_at
 // on completion so bulk-source (TT-53) doesn't pick the row up again.
+//
+// Pipeline state ("does this row need work?") is read from the candidate
+// table, not encoded as a flag on the call. The cron path pre-filters
+// `image_key IS NULL` before invoking this; the per-row admin re-queue
+// path means "the admin asked, run it." Both cases want providers to
+// run, so there's no image_key short-circuit here.
 export async function sourcePhotosForEquipment(
   supabase: SupabaseClient,
   bucket: R2PutBucket,
@@ -147,14 +161,6 @@ export async function sourcePhotosForEquipment(
     limit?: number;
     deps?: SourcingDeps;
     providers?: Provider[];
-    // TT-171: bypass the image_key short-circuit. Set by the per-row
-    // admin re-queue path (requeue-one.server.ts) so the consumer can
-    // re-source a row whose image is already picked. The picked-
-    // candidate row + equipment.image_key are intentionally preserved
-    // by the re-queue action so the live page keeps its photo until a
-    // new candidate is approved; without this flag the consumer would
-    // see image_key set and bail out as "already-imaged".
-    force?: boolean;
   } = {}
 ): Promise<SourcingResult> {
   const deps = options.deps ?? {};
@@ -176,21 +182,6 @@ export async function sourcePhotosForEquipment(
   }
 
   const row = equipment as EquipmentRow;
-
-  if (row.image_key && !options.force) {
-    const { data: existing } = await supabase
-      .from("equipment_photo_candidates")
-      .select("*")
-      .eq("equipment_id", row.id)
-      .is("picked_at", null);
-    return {
-      status: "already-imaged",
-      equipment: { id: row.id, slug: row.slug, name: row.name },
-      candidates: (existing ?? []) as SourcedCandidate[],
-      insertedCount: 0,
-      providerStatuses: [],
-    };
-  }
 
   const limit = options.limit ?? DEFAULT_LIMIT;
   const seed = {
@@ -284,7 +275,12 @@ export async function sourcePhotosForEquipment(
     }
     return {
       status: "no-candidates",
-      equipment: { id: row.id, slug: row.slug, name: row.name },
+      equipment: {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        image_key: row.image_key,
+      },
       candidates: [],
       insertedCount: 0,
       providerStatuses,
@@ -384,7 +380,12 @@ export async function sourcePhotosForEquipment(
 
   return {
     status: "sourced",
-    equipment: { id: row.id, slug: row.slug, name: row.name },
+    equipment: {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      image_key: row.image_key,
+    },
     candidates,
     insertedCount: candidates.length,
     providerStatuses,

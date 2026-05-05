@@ -7,13 +7,11 @@
 // NULL — that's the row backing the live equipment.image_key. We also
 // do NOT clear equipment.image_key here, so the page keeps its current
 // image until an admin picks a new candidate from the next sourcing
-// run. R2 objects for the deleted un-picked candidates aren't cleaned
-// up — tracked separately as the orphaned-image cleanup ticket.
-//
-// TT-171: send `force: true` so the consumer skips the image_key
-// short-circuit in sourcePhotosForEquipment. Without this the message
-// would silently ack as "already-imaged" because we deliberately leave
-// image_key in place (see above).
+// run. The consumer reads image_key off the equipment row to decide
+// whether to auto-pick, so leaving it set is what routes the new
+// candidates into the review queue instead of silently swapping the
+// live image. R2 objects for the deleted un-picked candidates aren't
+// cleaned up — tracked separately as the orphaned-image cleanup ticket.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -50,5 +48,5 @@ export async function requeueOneEquipmentPhotos(
     throw new Error(`reset cooldown: ${updError.message}`);
   }
 
-  await queue.send({ slug: row.slug, force: true });
+  await queue.send({ slug: row.slug });
 }

@@ -20,7 +20,12 @@ const PROVIDERS: Provider[] = [];
 function fakeResult(over: Partial<SourcingResult>): SourcingResult {
   return {
     status: "sourced",
-    equipment: { id: "eq-1", slug: "stiga-airoc-m", name: "Stiga Airoc M" },
+    equipment: {
+      id: "eq-1",
+      slug: "stiga-airoc-m",
+      name: "Stiga Airoc M",
+      image_key: null,
+    },
     candidates: [],
     insertedCount: 0,
     providerStatuses: [{ name: "brave", status: "ok" }],
@@ -190,29 +195,6 @@ describe("processOneSourceMessage", () => {
     expect(result).toEqual({ status: "no-candidates" });
   });
 
-  it("returns 'already-imaged' when sourcing short-circuits", async () => {
-    const sourceFn = vi.fn().mockResolvedValue(
-      fakeResult({
-        status: "already-imaged",
-        candidates: [],
-        insertedCount: 0,
-        providerStatuses: [],
-      })
-    );
-
-    const result = await processOneSourceMessage(
-      FAKE_SUPABASE,
-      FAKE_BUCKET,
-      ENV,
-      PROVIDERS,
-      "u",
-      { slug: "x" },
-      { sourceFn, pickFn: vi.fn() }
-    );
-
-    expect(result).toEqual({ status: "already-imaged" });
-  });
-
   it("returns 'error' when sourceFn throws", async () => {
     const sourceFn = vi.fn().mockRejectedValue(new Error("boom"));
 
@@ -229,16 +211,24 @@ describe("processOneSourceMessage", () => {
     expect(result).toEqual({ status: "error", message: "boom" });
   });
 
-  // TT-172: force=true must skip auto-pick. The admin re-queued because
-  // the previous picked image was wrong; auto-promoting the next single
-  // trailing tier-1 hit gives them the same class of result that just
-  // failed AND deletes the previous picked row + R2 object as a "loser"
-  // in pickCandidate, leaving no fallback. New candidates must land in
-  // the review queue.
-  it("does not auto-pick when message.force is true", async () => {
+  // TT-173: a row with image_key already set (admin re-queued the
+  // photo and the live image was deliberately preserved) must not
+  // auto-pick. Auto-promoting would route through pickCandidate's
+  // losers cleanup and delete the previous picked row + R2 object,
+  // leaving no fallback if the new pick is also wrong. New candidates
+  // must land in the review queue. Replaces the TT-171/TT-172 force
+  // flag tests — gating on row state instead of a message flag means
+  // every re-queue trigger inherits this behaviour for free.
+  it("does not auto-pick when equipment.image_key is already set", async () => {
     const sourceFn = vi.fn().mockResolvedValue(
       fakeResult({
         status: "sourced",
+        equipment: {
+          id: "eq-1",
+          slug: "stiga-airoc-m",
+          name: "Stiga Airoc M",
+          image_key: "equipment/stiga-airoc-m/picked.webp",
+        },
         candidates: [
           {
             id: "c1",
@@ -263,46 +253,12 @@ describe("processOneSourceMessage", () => {
       ENV,
       PROVIDERS,
       "u",
-      { slug: "stiga-airoc-m", force: true },
+      { slug: "stiga-airoc-m" },
       { sourceFn, pickFn }
     );
 
     expect(result).toEqual({ status: "sourced", insertedCount: 1 });
     expect(pickFn).not.toHaveBeenCalled();
-  });
-
-  // TT-171: per-row admin re-queue sets `force: true` on the message so
-  // the consumer skips sourcePhotosForEquipment's image_key short-circuit.
-  // The button left image_key in place on purpose so the live page keeps
-  // its photo — without this thread-through the message would silently
-  // ack as "already-imaged".
-  it("threads message.force through to sourceFn", async () => {
-    const sourceFn = vi.fn().mockResolvedValue(
-      fakeResult({
-        status: "no-candidates",
-        candidates: [],
-        insertedCount: 0,
-        providerStatuses: [{ name: "brave", status: "ok" }],
-      })
-    );
-
-    await processOneSourceMessage(
-      FAKE_SUPABASE,
-      FAKE_BUCKET,
-      ENV,
-      PROVIDERS,
-      "u",
-      { slug: "stiga-airoc-m", force: true },
-      { sourceFn, pickFn: vi.fn() }
-    );
-
-    expect(sourceFn).toHaveBeenCalledWith(
-      FAKE_SUPABASE,
-      FAKE_BUCKET,
-      ENV,
-      "stiga-airoc-m",
-      expect.objectContaining({ force: true })
-    );
   });
 
   it("falls back to 'sourced' when auto-pick throws", async () => {

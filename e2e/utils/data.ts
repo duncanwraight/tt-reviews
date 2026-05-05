@@ -321,6 +321,25 @@ export async function insertEquipmentPhotoCandidates(
   return (await res.json()) as Array<{ id: string; r2_key: string }>;
 }
 
+export async function setCandidatePickedAt(
+  candidateId: string,
+  pickedAtIso: string
+): Promise<void> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment_photo_candidates?id=eq.${candidateId}`,
+    {
+      method: "PATCH",
+      headers: { ...adminHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify({ picked_at: pickedAtIso }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      `setCandidatePickedAt failed (${res.status}): ${await res.text()}`
+    );
+  }
+}
+
 export async function getCandidatesForEquipment(
   equipmentId: string
 ): Promise<Array<{ id: string; r2_key: string; picked_at: string | null }>> {

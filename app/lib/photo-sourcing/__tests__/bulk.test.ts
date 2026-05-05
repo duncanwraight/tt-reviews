@@ -79,7 +79,12 @@ class Builder {
 function fakeSourcing(over: Partial<SourcingResult>): SourcingResult {
   return {
     status: "sourced",
-    equipment: { id: "eq-1", slug: "eq-1-slug", name: "x" },
+    equipment: {
+      id: "eq-1",
+      slug: "eq-1-slug",
+      name: "x",
+      image_key: null,
+    },
     candidates: [],
     insertedCount: 0,
     providerStatuses: [],
@@ -144,7 +149,7 @@ describe("bulkSourcePhotos", () => {
     const supabase = makeSupabase(rows);
     const sourceFn = vi.fn().mockResolvedValue(
       fakeSourcing({
-        equipment: { id: "eq-1", slug: "s1", name: "x" },
+        equipment: { id: "eq-1", slug: "s1", name: "x", image_key: null },
         candidates: [
           fakeCandidate({ id: "winner", match_kind: "trailing", tier: 1 }),
         ],
@@ -185,7 +190,7 @@ describe("bulkSourcePhotos", () => {
     const supabase = makeSupabase(rows);
     const sourceFn = vi.fn().mockResolvedValue(
       fakeSourcing({
-        equipment: { id: "eq-1", slug: "s1", name: "x" },
+        equipment: { id: "eq-1", slug: "s1", name: "x", image_key: null },
         candidates: [
           fakeCandidate({ id: "a", match_kind: "trailing", tier: 1 }),
           fakeCandidate({ id: "b", match_kind: "trailing", tier: 2 }),
@@ -220,7 +225,7 @@ describe("bulkSourcePhotos", () => {
     const supabase = makeSupabase(rows);
     const sourceFn = vi.fn().mockResolvedValue(
       fakeSourcing({
-        equipment: { id: "eq-1", slug: "s1", name: "x" },
+        equipment: { id: "eq-1", slug: "s1", name: "x", image_key: null },
         candidates: [fakeCandidate({ id: "a", match_kind: "loose", tier: 1 })],
         insertedCount: 1,
       })
@@ -252,7 +257,7 @@ describe("bulkSourcePhotos", () => {
     const supabase = makeSupabase(rows);
     const sourceFn = vi.fn().mockResolvedValue(
       fakeSourcing({
-        equipment: { id: "eq-1", slug: "s1", name: "x" },
+        equipment: { id: "eq-1", slug: "s1", name: "x", image_key: null },
         candidates: [
           fakeCandidate({ id: "a", match_kind: "trailing", tier: 3 }),
         ],

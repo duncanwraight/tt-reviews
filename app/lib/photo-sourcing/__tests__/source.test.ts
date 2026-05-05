@@ -231,32 +231,13 @@ function deterministicIds(prefix: string): () => string {
 }
 
 describe("sourcePhotosForEquipment", () => {
-  it("short-circuits when equipment.image_key is already set", async () => {
-    const { supabase } = makeSupabase({
-      equipment: [{ ...STIGA_ROW, image_key: "equipment/x/y.webp" }],
-    });
-    const { bucket, puts } = makeBucket();
-    const provider = mockProvider([]);
-    const result = await sourcePhotosForEquipment(
-      supabase,
-      bucket,
-      ENV,
-      "stiga-airoc-m",
-      {
-        providers: [provider],
-        deps: { fetchImpl: fakeFetch() },
-      }
-    );
-    expect(result.status).toBe("already-imaged");
-    expect(provider.resolveCandidates).not.toHaveBeenCalled();
-    expect(puts).toHaveLength(0);
-  });
-
-  // TT-171: per-row admin re-queue passes force:true so the consumer
-  // overrides the image_key short-circuit. The picked-candidate row is
-  // intentionally still in place (the live image stays put) — proving
-  // here that providers actually run + new candidates land.
-  it("runs providers when force=true even with image_key already set", async () => {
+  // TT-173: providers run regardless of image_key. Pipeline state is
+  // determined by candidate-table contents, not the equipment row's
+  // live-image column. Caller (cron-bulk or admin re-queue) decides
+  // whether to invoke; once invoked, this function always sources.
+  // The result surfaces image_key so the consumer can decide whether
+  // to auto-pick or route to review.
+  it("runs providers when image_key is already set and surfaces it on the result", async () => {
     const { supabase, candidates } = makeSupabase({
       equipment: [{ ...STIGA_ROW, image_key: "equipment/x/y.webp" }],
     });
@@ -277,11 +258,11 @@ describe("sourcePhotosForEquipment", () => {
       {
         providers: [provider],
         deps: { fetchImpl: fakeFetch(), randomId },
-        force: true,
       }
     );
 
     expect(result.status).toBe("sourced");
+    expect(result.equipment.image_key).toBe("equipment/x/y.webp");
     expect(result.insertedCount).toBe(1);
     expect(provider.resolveCandidates).toHaveBeenCalledTimes(1);
     expect(puts).toHaveLength(1);

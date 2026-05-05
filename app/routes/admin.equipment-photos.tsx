@@ -145,12 +145,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     );
   }
 
+  // The candidate-presence check below is the canonical "row needs
+  // review" gate — un-picked candidates exist → render. Don't pre-
+  // filter on image_key / image_skipped_at: an admin re-queue
+  // deliberately leaves image_key set to keep the live page populated
+  // while new candidates land in review, and that state would be
+  // hidden by an image_key IS NULL filter (TT-173).
   const { data: equipmentRows, error: equipmentError } = await supabaseAdmin
     .from("equipment")
     .select("id, slug, name, manufacturer, category, subcategory")
-    .in("id", candidateEquipmentIds)
-    .is("image_key", null)
-    .is("image_skipped_at", null);
+    .in("id", candidateEquipmentIds);
 
   if (equipmentError) {
     Logger.error(

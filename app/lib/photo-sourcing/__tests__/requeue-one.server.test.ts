@@ -103,13 +103,12 @@ describe("requeueOneEquipmentPhotos", () => {
       image_skipped_at: null,
     });
     // image_key intentionally NOT in the payload — the live image
-    // survives until a new candidate is picked.
+    // survives until a new candidate is picked. The consumer reads
+    // image_key off the equipment row to decide whether to auto-pick,
+    // so leaving it set is what routes the new candidates to review
+    // instead of clobbering the live image (TT-173).
     expect(calls.updatePayload).not.toHaveProperty("image_key");
-    // TT-171: force:true is what makes the consumer skip the
-    // image_key "already-imaged" short-circuit — without it, this whole
-    // re-queue path is a silent no-op for any row that already has a
-    // picked photo.
-    expect(queue.sent).toEqual([{ slug: "butterfly-viscaria", force: true }]);
+    expect(queue.sent).toEqual([{ slug: "butterfly-viscaria" }]);
   });
 
   it("propagates a candidate-delete failure without enqueueing", async () => {

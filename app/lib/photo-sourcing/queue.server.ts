@@ -4,7 +4,7 @@
 // up Miniflare's queue runtime.
 //
 // Retry semantics map provider statuses → re-queue decisions:
-//   * sourced / already-imaged          → ack (terminal success).
+//   * sourced / auto-picked             → ack (terminal success).
 //   * no-candidates with all 'ok'       → ack (genuinely no images;
 //                                         attempted_at is stamped by
 //                                         sourcePhotosForEquipment).
@@ -18,9 +18,12 @@
 //                                         and eventually DLQs the
 //                                         message.
 //
-// Auto-pick is the same rule the old bulk.server.ts used: exactly one
-// trailing-match candidate at tier ≤ 2 → promote without admin review.
-// The 'auto-picked' status lets the caller log + count distinctly.
+// Auto-pick rule: row had no published image (image_key === null) AND
+// providers returned exactly one trailing-match tier ≤ 2 hit → promote
+// without admin review. Reading image_key off the equipment row (rather
+// than from a message flag) means manual re-queue paths — which leave
+// image_key in place to keep the live page populated — naturally fall
+// through to review without any caller having to opt out.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -39,17 +42,11 @@ export interface PhotoSourceMessage {
   // resets on every successful ack. Used to compute exponential
   // backoff on out_of_budget.
   attempts?: number;
-  // TT-171: per-row admin re-queue sets this so the consumer skips the
-  // image_key "already-imaged" guard in sourcePhotosForEquipment.
-  // Preserved across transient re-queues (workers/app.ts) so a
-  // rate-limited retry doesn't suddenly bail.
-  force?: boolean;
 }
 
 export type ProcessOutcome =
   | { status: "sourced"; insertedCount: number }
   | { status: "auto-picked"; r2Key: string }
-  | { status: "already-imaged" }
   | { status: "no-candidates" }
   | { status: "transient"; reason: "rate_limited" | "out_of_budget" }
   | { status: "error"; message: string };
@@ -78,17 +75,12 @@ export async function processOneSourceMessage(
   try {
     result = await sourceFn(supabase, bucket, env, message.slug, {
       providers,
-      force: message.force,
     });
   } catch (err) {
     return {
       status: "error",
       message: err instanceof Error ? err.message : String(err),
     };
-  }
-
-  if (result.status === "already-imaged") {
-    return { status: "already-imaged" };
   }
 
   if (result.status === "no-candidates") {
@@ -107,14 +99,13 @@ export async function processOneSourceMessage(
 
   // status === "sourced" — try auto-pick.
   //
-  // TT-172: auto-pick is for the cron re-sourcing unsourced rows, where
-  // a single trailing tier-≤2 hit is high-confidence enough to skip
-  // review. The admin re-queue button (force=true) inverts that —
-  // they're correcting a wrong picked image, so the new candidate must
-  // land in the review queue, not get auto-promoted (which would also
+  // Auto-pick only fires when the row has no published image yet. A
+  // re-queue of an already-picked row (admin correcting a wrong image)
+  // leaves image_key in place to keep the live page populated, so we
+  // route those candidates to review instead. Auto-promoting would
   // delete the previous picked row + R2 object via pickCandidate's
-  // losers cleanup, leaving no fallback).
-  if (message.force) {
+  // losers cleanup, leaving no fallback if the new pick is also wrong.
+  if (result.equipment.image_key !== null) {
     return { status: "sourced", insertedCount: result.insertedCount };
   }
 

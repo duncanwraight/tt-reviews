@@ -28,7 +28,11 @@ export interface CoverageCounts {
   total: number;
 }
 
-export type RecentAttemptOutcome = "picked" | "skipped" | "no-image";
+export type RecentAttemptOutcome =
+  | "picked"
+  | "in-review"
+  | "skipped"
+  | "no-image";
 
 export interface RecentAttempt {
   slug: string;
@@ -104,26 +108,46 @@ export async function loadFullPhotoStats(
     supabase
       .from("equipment")
       .select(
-        "slug, name, image_key, image_skipped_at, image_sourcing_attempted_at"
+        "id, slug, name, image_key, image_skipped_at, image_sourcing_attempted_at"
       )
       .not("image_sourcing_attempted_at", "is", null)
       .order("image_sourcing_attempted_at", { ascending: false })
       .limit(20),
   ]);
 
-  const recentAttempts: RecentAttempt[] = (
-    (recent.data ?? []) as Array<{
-      slug: string;
-      name: string;
-      image_key: string | null;
-      image_skipped_at: string | null;
-      image_sourcing_attempted_at: string;
-    }>
-  ).map(r => ({
+  type RecentRow = {
+    id: string;
+    slug: string;
+    name: string;
+    image_key: string | null;
+    image_skipped_at: string | null;
+    image_sourcing_attempted_at: string;
+  };
+  const recentRows = (recent.data ?? []) as RecentRow[];
+
+  // Look up which of the recent equipment ids have un-picked candidates
+  // pending — those rows are "in review" regardless of image_key state
+  // (admin re-queue leaves the live image in place while new candidates
+  // wait for approval). One bounded query keeps us inside the
+  // 50-subrequest cap on /admin loaders.
+  const recentIds = recentRows.map(r => r.id);
+  const inReview = new Set<string>();
+  if (recentIds.length > 0) {
+    const { data: pendingRows } = await supabase
+      .from("equipment_photo_candidates")
+      .select("equipment_id")
+      .in("equipment_id", recentIds)
+      .is("picked_at", null);
+    for (const row of (pendingRows ?? []) as Array<{ equipment_id: string }>) {
+      inReview.add(row.equipment_id);
+    }
+  }
+
+  const recentAttempts: RecentAttempt[] = recentRows.map(r => ({
     slug: r.slug,
     name: r.name,
     attemptedAt: r.image_sourcing_attempted_at,
-    outcome: classifyOutcome(r),
+    outcome: classifyOutcome(r, inReview.has(r.id)),
   }));
 
   const providerStats: ProviderQuotaStats[] = [];
@@ -152,10 +176,17 @@ export async function loadFullPhotoStats(
   };
 }
 
-function classifyOutcome(row: {
-  image_key: string | null;
-  image_skipped_at: string | null;
-}): RecentAttemptOutcome {
+// `pendingReview` wins over `picked` so a re-queued row (image_key
+// still set, new candidates waiting for admin approval) renders as
+// "in-review" rather than misleadingly as "picked".
+function classifyOutcome(
+  row: {
+    image_key: string | null;
+    image_skipped_at: string | null;
+  },
+  pendingReview: boolean
+): RecentAttemptOutcome {
+  if (pendingReview) return "in-review";
   if (row.image_key) return "picked";
   if (row.image_skipped_at) return "skipped";
   return "no-image";
