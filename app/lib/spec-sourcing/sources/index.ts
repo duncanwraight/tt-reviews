@@ -9,12 +9,20 @@
 // the worker skip non-matching brands without per-call branching.
 
 import { butterflySource } from "./butterfly";
+import { donicSource } from "./donic";
+import { joolaSource } from "./joola";
 import { revspinSource } from "./revspin";
+import { tibharSource } from "./tibhar";
 import { tt11Source } from "./tt11";
+import { victasSource } from "./victas";
 import type { SpecSource } from "./types";
 
 export const SPEC_SOURCES: SpecSource[] = [
   butterflySource,
+  donicSource,
+  joolaSource,
+  tibharSource,
+  victasSource,
   tt11Source,
   revspinSource,
 ];
