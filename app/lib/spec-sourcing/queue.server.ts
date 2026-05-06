@@ -66,6 +66,28 @@ const EXTRACT_EXCERPT_CHARS = 1024;
 // run log but don't escalate.
 const FATAL_LLM_FAILURE_REASONS = new Set(["auth_failed", "missing_api_key"]);
 
+// Upstream LLM errors that should bubble up as a transient outcome and
+// trigger a backoff requeue, instead of being recorded as null_result
+// against this source. Covers Gemini "UNAVAILABLE" (503 from the
+// "high demand" surge), gateway errors, and rate-limit responses from
+// the model endpoint itself (distinct from our own KV budget cap, which
+// the budget wrapper handles upstream of this).
+const TRANSIENT_LLM_HTTP_STATUSES = new Set([
+  408, 425, 429, 500, 502, 503, 504,
+]);
+
+function isTransientLlmFailure(diag: ExtractDiagnostics | undefined): boolean {
+  if (!diag) return false;
+  if (diag.failureReason === "fetch_failed") return true;
+  if (diag.failureReason === "http_non_ok") {
+    return (
+      typeof diag.httpStatus === "number" &&
+      TRANSIENT_LLM_HTTP_STATUSES.has(diag.httpStatus)
+    );
+  }
+  return false;
+}
+
 function llmDiagFields(diag: ExtractDiagnostics | undefined): Partial<{
   failure_reason: string;
   validation_detail: string;
@@ -185,7 +207,10 @@ async function pickCandidateViaMatch(
   ctxLog: LogContext
 ): Promise<
   | { status: "ok"; candidate: SpecCandidate | null; attempted: number }
-  | { status: "transient"; reason: "rate_limited" | "out_of_budget" }
+  | {
+      status: "transient";
+      reason: "rate_limited" | "out_of_budget" | "llm_unavailable";
+    }
 > {
   if (candidates.length <= 1) {
     return {
@@ -226,6 +251,17 @@ async function pickCandidateViaMatch(
         reason: env.status,
       });
       return { status: "transient", reason: env.status };
+    }
+    if (isTransientLlmFailure(env.diagnostics)) {
+      log.record({
+        step: "match",
+        source_id: source.id,
+        candidate_url: c.url,
+        status: "transient",
+        reason: "llm_unavailable",
+        ...llmDiagFields(env.diagnostics),
+      });
+      return { status: "transient", reason: "llm_unavailable" };
     }
     maybeAlertLlmFatal(env.diagnostics, ctxLog, source.id, "match");
     log.record({
@@ -460,6 +496,22 @@ export async function processOneSpecMessage(
       });
       log.record({ step: "outcome", status: "transient", reason: env.status });
       return { status: "transient", reason: env.status };
+    }
+    if (isTransientLlmFailure(env.diagnostics)) {
+      log.record({
+        step: "extract",
+        source_id: source.id,
+        candidate_url: winner.url,
+        status: "transient",
+        reason: "llm_unavailable",
+        ...llmDiagFields(env.diagnostics),
+      });
+      log.record({
+        step: "outcome",
+        status: "transient",
+        reason: "llm_unavailable",
+      });
+      return { status: "transient", reason: "llm_unavailable" };
     }
     maybeAlertLlmFatal(env.diagnostics, ctxLog, source.id, "extract");
     const extracted: ExtractedSpec | null | undefined = env.result;

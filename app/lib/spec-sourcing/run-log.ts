@@ -70,7 +70,7 @@ export type RunLogEntry =
       source_id: string;
       candidate_url: string;
       status: "ok" | "transient";
-      reason?: "rate_limited" | "out_of_budget";
+      reason?: "rate_limited" | "out_of_budget" | "llm_unavailable";
       matches?: boolean;
       confidence?: number;
       result_null?: boolean;
@@ -112,7 +112,7 @@ export type RunLogEntry =
       source_id: string;
       candidate_url: string;
       status: "ok" | "transient" | "null_result";
-      reason?: "rate_limited" | "out_of_budget";
+      reason?: "rate_limited" | "out_of_budget" | "llm_unavailable";
       fields_count?: number;
       has_description?: boolean;
       uncertain_fields?: string[];

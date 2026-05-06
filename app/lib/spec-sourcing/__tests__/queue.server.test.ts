@@ -305,6 +305,139 @@ describe("processOneSpecMessage", () => {
     expect(sb.upserts).toHaveLength(0);
   });
 
+  it("returns transient llm_unavailable when extract() inner call hits Gemini 503", async () => {
+    const source = stubSource({
+      id: "butterfly",
+      tier: 1,
+      brand: "Butterfly",
+      candidates: [
+        { url: "https://en.butterfly.tt/viscaria.html", title: "Viscaria" },
+      ],
+    });
+    const extractor: BudgetedSpecExtractor = {
+      id: "stub",
+      async match(): Promise<MatchEnvelope> {
+        return { status: "ok", result: { matches: true, confidence: 1 } };
+      },
+      async extract(): Promise<ExtractEnvelope> {
+        return {
+          status: "ok",
+          result: null,
+          diagnostics: {
+            failureReason: "http_non_ok",
+            httpStatus: 503,
+            rawResponse: '{"error":{"code":503,"status":"UNAVAILABLE"}}',
+            validationDetail: "Gemini returned HTTP 503",
+          },
+        };
+      },
+    };
+    const sb = fakeSupabase();
+
+    const outcome = await processOneSpecMessage(
+      sb.client,
+      [source],
+      extractor,
+      VISCARIA_MSG,
+      ctx,
+      { now: () => FROZEN_NOW }
+    );
+
+    expect(outcome).toEqual({
+      status: "transient",
+      reason: "llm_unavailable",
+    });
+    expect(sb.upserts).toHaveLength(0);
+    expect(sb.updates).toHaveLength(0);
+  });
+
+  it("returns transient llm_unavailable when match() inner call hits Gemini 503", async () => {
+    const source = stubSource({
+      id: "butterfly",
+      tier: 1,
+      brand: "Butterfly",
+      candidates: [
+        { url: "https://en.butterfly.tt/viscaria.html", title: "Viscaria" },
+        { url: "https://shop.butterfly.com/viscaria", title: "Viscaria" },
+      ],
+    });
+    const extractor: BudgetedSpecExtractor = {
+      id: "stub",
+      async match(): Promise<MatchEnvelope> {
+        return {
+          status: "ok",
+          result: null,
+          diagnostics: {
+            failureReason: "http_non_ok",
+            httpStatus: 503,
+            validationDetail: "Gemini returned HTTP 503",
+          },
+        };
+      },
+      async extract(): Promise<ExtractEnvelope> {
+        return { status: "ok", result: null };
+      },
+    };
+    const sb = fakeSupabase();
+
+    const outcome = await processOneSpecMessage(
+      sb.client,
+      [source],
+      extractor,
+      VISCARIA_MSG,
+      ctx,
+      { now: () => FROZEN_NOW }
+    );
+
+    expect(outcome).toEqual({
+      status: "transient",
+      reason: "llm_unavailable",
+    });
+    expect(sb.upserts).toHaveLength(0);
+    expect(sb.updates).toHaveLength(0);
+  });
+
+  it("treats extract diagnostics with non-retryable http_non_ok status as null_result, not transient", async () => {
+    const source = stubSource({
+      id: "butterfly",
+      tier: 1,
+      brand: "Butterfly",
+      candidates: [
+        { url: "https://en.butterfly.tt/viscaria.html", title: "Viscaria" },
+      ],
+    });
+    const extractor: BudgetedSpecExtractor = {
+      id: "stub",
+      async match(): Promise<MatchEnvelope> {
+        return { status: "ok", result: { matches: true, confidence: 1 } };
+      },
+      async extract(): Promise<ExtractEnvelope> {
+        return {
+          status: "ok",
+          result: null,
+          diagnostics: {
+            failureReason: "http_non_ok",
+            httpStatus: 400,
+            validationDetail: "Gemini returned HTTP 400",
+          },
+        };
+      },
+    };
+    const sb = fakeSupabase();
+
+    const outcome = await processOneSpecMessage(
+      sb.client,
+      [source],
+      extractor,
+      VISCARIA_MSG,
+      ctx,
+      { now: () => FROZEN_NOW }
+    );
+
+    expect(outcome.status).toBe("no-results");
+    expect(sb.upserts).toHaveLength(1);
+  });
+
   it("returns 'error' when the proposal upsert fails", async () => {
     const source = stubSource({
       id: "butterfly",
