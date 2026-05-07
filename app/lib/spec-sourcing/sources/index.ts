@@ -13,6 +13,7 @@ import { butterflySource } from "./butterfly";
 import { dhsSource } from "./dhs";
 import { donicSource } from "./donic";
 import { joolaSource } from "./joola";
+import { nittakuSource } from "./nittaku";
 import { revspinSource } from "./revspin";
 import { stigaSource } from "./stiga";
 import { tibharSource } from "./tibhar";
@@ -28,6 +29,7 @@ export const SPEC_SOURCES: SpecSource[] = [
   dhsSource,
   donicSource,
   joolaSource,
+  nittakuSource,
   stigaSource,
   tibharSource,
   victasSource,
