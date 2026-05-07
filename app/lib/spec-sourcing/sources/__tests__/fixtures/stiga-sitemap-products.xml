@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Trimmed slice of stigasports.com /sitemap-0.xml. Keeps a few
+     /en/product/* entries (TT blades + rubbers) plus a non-EN entry and
+     a non-product page so the parser's locale + path filter is
+     exercised. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.stigasports.com/robots.txt</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/product/carbonado-45</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/product/destiny-carbon</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/product/mantra-pro-h</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/product/mantra-pro-m</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/product/mantra-pro-xh</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/de/product/carbonado-45</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://www.stigasports.com/en/category/table-tennis/table-tennis-blades</loc>
+    <changefreq>daily</changefreq>
+  </url>
+</urlset>

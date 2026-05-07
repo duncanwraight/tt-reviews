@@ -12,6 +12,7 @@ import { butterflySource } from "./butterfly";
 import { donicSource } from "./donic";
 import { joolaSource } from "./joola";
 import { revspinSource } from "./revspin";
+import { stigaSource } from "./stiga";
 import { tibharSource } from "./tibhar";
 import { tt11Source } from "./tt11";
 import { victasSource } from "./victas";
@@ -22,6 +23,7 @@ export const SPEC_SOURCES: SpecSource[] = [
   butterflySource,
   donicSource,
   joolaSource,
+  stigaSource,
   tibharSource,
   victasSource,
   xiomSource,
