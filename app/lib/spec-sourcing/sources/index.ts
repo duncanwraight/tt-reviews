@@ -10,6 +10,7 @@
 
 import { androSource } from "./andro";
 import { butterflySource } from "./butterfly";
+import { dhsSource } from "./dhs";
 import { donicSource } from "./donic";
 import { joolaSource } from "./joola";
 import { revspinSource } from "./revspin";
@@ -24,6 +25,7 @@ import type { SpecSource } from "./types";
 export const SPEC_SOURCES: SpecSource[] = [
   androSource,
   butterflySource,
+  dhsSource,
   donicSource,
   joolaSource,
   stigaSource,
