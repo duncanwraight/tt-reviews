@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Trimmed slice of yasakatabletennis.com /sitemap.xml. The real
+     sitemap is a single flat <urlset> mixing CMS pages, category
+     listings, and /product/<slug> entries. This fixture exercises the
+     /product/<slug> filter against several non-product entries. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://yasakatabletennis.com/categories</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product-category/blades</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/products</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/ma-lin-extra-offensive</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/ma-lin-extra-special</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/rakza-7</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/rakza-7-soft</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/rakza-9</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/mark-v</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://yasakatabletennis.com/product/sweden-extra</loc>
+    <changefreq>daily</changefreq>
+  </url>
+</urlset>

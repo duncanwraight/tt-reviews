@@ -17,6 +17,7 @@ import { tibharSource } from "./tibhar";
 import { tt11Source } from "./tt11";
 import { victasSource } from "./victas";
 import { xiomSource } from "./xiom";
+import { yasakaSource } from "./yasaka";
 import type { SpecSource } from "./types";
 
 export const SPEC_SOURCES: SpecSource[] = [
@@ -27,6 +28,7 @@ export const SPEC_SOURCES: SpecSource[] = [
   tibharSource,
   victasSource,
   xiomSource,
+  yasakaSource,
   tt11Source,
   revspinSource,
 ];
