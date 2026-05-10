@@ -235,6 +235,20 @@ Recommendation: omit. Placeholder noise looks worse than no image.
 
 "Top result outranks runner-up by 1.5×" is my current proposal. Could go higher (stricter, more ambiguous-error rejections) or lower (more "best-guess" matches at the cost of occasional wrong picks). I'd settle this empirically against seed data during implementation, not now — flagging it so you know it's tunable.
 
+**Update (TT-157, 2026-05-10).** Rank ratios captured against the seed via the integration test (`app/lib/database/__tests__/search.integration.test.ts`):
+
+| Query       | Result count | Top rank | Runner-up rank | Ratio          |
+| ----------- | ------------ | -------- | -------------- | -------------- |
+| `viscaria`  | 1            | —        | —              | (single match) |
+| `butterfly` | 10           | 0.0608   | 0.0608         | 1.00×          |
+| `tenergy`   | 4            | 0.0608   | 0.0608         | 1.00×          |
+| `ma long`   | 1            | —        | —              | (single match) |
+| `harimoto`  | 2            | 0.0608   | 0.0608         | 1.00×          |
+| `lin`       | 3            | 0.0608   | 0.0608         | 1.00×          |
+| `wang`      | 3            | 0.0608   | 0.0608         | 1.00×          |
+
+Single-token queries that match the same number of terms in every candidate score identically (`ts_rank` produces the same value), so the runner-up ratio is 1.0× across the board for ambiguous queries. The 1.5× threshold cleanly separates these from single matches and from naturally-skewed multi-token queries (e.g., "butterfly viscaria" — top result matches both tokens, runners-up match only one). Locking in 1.5× for v1; revisit empirically post-launch via the `discord.search.invocation` log line C3 will emit.
+
 ### Q6 — Anything else you want in the embeds
 
 The "Profile" / "Current setup" / "Recent videos" split for players, and "Manufacturer specs" / "Reviews" for equipment, is my proposal. If there's a piece of site data you'd want surfaced — playing-style notes, equipment lineage, popular reviews quoted, anything else — flag it before tickets get cut.

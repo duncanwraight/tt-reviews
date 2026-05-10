@@ -407,8 +407,14 @@ INSERT INTO equipment (name, slug, category, manufacturer, specifications) VALUE
  '{"plies_wood": 5, "plies_composite": null, "material": "ZL Carbon", "weight": 86, "thickness": 5.8, "speed": 9.6, "control": 8.2}'),
 ('Zhang Jike ALC', 'butterfly-zhang-jike-alc', 'blade', 'Butterfly', 
  '{"plies_wood": 5, "plies_composite": null, "material": "Arylate Carbon", "weight": 85, "thickness": 5.8, "speed": 9.7, "control": 8.1}'),
-('Acoustic', 'nittaku-acoustic', 'blade', 'Nittaku', 
- '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 86, "thickness": 6.0, "speed": 8.4, "control": 9.3}');
+('Acoustic', 'nittaku-acoustic', 'blade', 'Nittaku',
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 86, "thickness": 6.0, "speed": 8.4, "control": 9.3}'),
+-- TT-157: Victas VKM blades — used by Discord search integration tests
+-- (manufacturer-token coverage: "Victas VKM" must match via combined-name FTS).
+('VKM', 'victas-vkm', 'blade', 'Victas',
+ '{"plies_wood": 5, "plies_composite": null, "material": "Wood", "weight": 86, "thickness": 5.7, "speed": 8.7, "control": 9.0}'),
+('VKM ZC', 'victas-vkm-zc', 'blade', 'Victas',
+ '{"plies_wood": 5, "plies_composite": "ZLC", "material": "Zylon Carbon", "weight": 87, "thickness": 5.8, "speed": 9.4, "control": 8.5}');
 
 -- Insert equipment (popular rubbers from revspin.net - all inverted type)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
@@ -922,6 +928,12 @@ INSERT INTO players (name, slug, highest_rating, active_years, active, birth_cou
 ('Prithika PAVADE', 'prithika-pavade', 'WR23', '2019-present', true, 'FRA', 'FRA', 'shakehand_attacker', 'F'),
 ('Miyuu KIHARA', 'miyuu-kihara', 'WR24', '2020-present', true, 'JPN', 'JPN', 'shakehand_attacker', 'F'),
 ('Hana GODA', 'hana-goda', 'WR25', '2018-present', true, 'EGY', 'EGY', 'shakehand_attacker', 'F');
+
+-- TT-157: Retired/historical players, used by Discord search integration
+-- tests (multi-token "ma lo" → Ma Long; diacritic "samsonov" → Sámsonov).
+INSERT INTO players (name, slug, highest_rating, active_years, active, birth_country, represents, playing_style, gender) VALUES
+('Ma Long', 'ma-long', 'WR1', '2003-2024', false, 'CHN', 'CHN', 'shakehand_attacker', 'M'),
+('Vladimír Sámsonov', 'vladimir-samsonov', 'WR3', '1995-2024', false, 'BLR', 'BLR', 'shakehand_attacker', 'M');
 
 -- Get IDs for equipment setups (we'll use these in the next inserts)
 -- Note: In a real seed script, you'd typically handle this differently, but for simplicity we'll use subqueries
