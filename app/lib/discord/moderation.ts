@@ -314,20 +314,21 @@ export const rejectVideoSubmission = (
 export const E2E_TEST_ROLE_ID = "role_e2e_moderator";
 
 /**
- * Allow any user when no DISCORD_ALLOWED_ROLES is configured; otherwise
- * require the user to have at least one of the listed role IDs. In dev,
- * the well-known E2E_TEST_ROLE_ID is also accepted.
+ * Shared role-list check. Empty/unset env var means "everyone allowed",
+ * matching the existing convention. In development, the well-known
+ * E2E_TEST_ROLE_ID is auto-allowed so Discord click specs run locally
+ * without each developer adding it to their env vars.
  */
-export async function checkUserPermissions(
+function memberHasAllowedRole(
   ctx: DiscordContext,
   member: DiscordMember,
-  _guildId: string
-): Promise<boolean> {
+  envValue: string | undefined
+): boolean {
   if (!member || !member.roles) return false;
 
-  const allowedRoles = ctx.env.DISCORD_ALLOWED_ROLES?.split(",") || [];
+  const allowedRoles = envValue?.split(",").filter(Boolean) || [];
   if (allowedRoles.length === 0) {
-    // If no roles configured, allow all users
+    // No roles configured → everyone allowed.
     return true;
   }
 
@@ -339,6 +340,40 @@ export async function checkUserPermissions(
   }
 
   return member.roles.some((roleId: string) => allowedRoles.includes(roleId));
+}
+
+/**
+ * Moderator role gate (DISCORD_ALLOWED_ROLES). Used by the
+ * button-interaction moderation path (handleMessageComponent) — that's
+ * the real mod surface; the dropped /approve and /reject slash commands
+ * were redundant plumbing.
+ */
+export async function checkModeratorPermissions(
+  ctx: DiscordContext,
+  member: DiscordMember,
+  _guildId: string
+): Promise<boolean> {
+  return memberHasAllowedRole(ctx, member, ctx.env.DISCORD_ALLOWED_ROLES);
+}
+
+/**
+ * Search-eligible role gate (DISCORD_SEARCH_ALLOWED_ROLES). Used by the
+ * /equipment and /player slash commands. Distinct from moderator
+ * permissions so search can be opened up to a broader role set
+ * (e.g. all verified members) without granting moderation rights.
+ *
+ * Empty/unset DISCORD_SEARCH_ALLOWED_ROLES means "everyone".
+ */
+export async function checkSearchPermissions(
+  ctx: DiscordContext,
+  member: DiscordMember,
+  _guildId: string
+): Promise<boolean> {
+  return memberHasAllowedRole(
+    ctx,
+    member,
+    ctx.env.DISCORD_SEARCH_ALLOWED_ROLES
+  );
 }
 
 // ============================================================

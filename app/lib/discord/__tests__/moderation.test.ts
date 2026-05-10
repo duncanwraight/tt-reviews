@@ -68,9 +68,9 @@ vi.mock("../../admin/player-equipment-setup-applier.server", () => ({
   applyPlayerEquipmentSetup: vi.fn().mockResolvedValue({ success: true }),
 }));
 
-describe("moderation.checkUserPermissions", () => {
+describe("moderation.checkModeratorPermissions (TT-159: renamed from checkUserPermissions)", () => {
   it("rejects when member is missing", async () => {
-    const result = await moderation.checkUserPermissions(
+    const result = await moderation.checkModeratorPermissions(
       makeCtx(),
       null as any,
       "g"
@@ -79,7 +79,7 @@ describe("moderation.checkUserPermissions", () => {
   });
 
   it("rejects when member.roles is missing", async () => {
-    const result = await moderation.checkUserPermissions(
+    const result = await moderation.checkModeratorPermissions(
       makeCtx(),
       {} as any,
       "g"
@@ -88,7 +88,7 @@ describe("moderation.checkUserPermissions", () => {
   });
 
   it("allows any user when DISCORD_ALLOWED_ROLES is not configured", async () => {
-    const result = await moderation.checkUserPermissions(
+    const result = await moderation.checkModeratorPermissions(
       makeCtx({ DISCORD_ALLOWED_ROLES: undefined }),
       { roles: ["whatever"] },
       "g"
@@ -97,7 +97,7 @@ describe("moderation.checkUserPermissions", () => {
   });
 
   it("allows user whose role matches an allowed role", async () => {
-    const result = await moderation.checkUserPermissions(
+    const result = await moderation.checkModeratorPermissions(
       makeCtx({ DISCORD_ALLOWED_ROLES: "r1,r2,r3" }),
       { roles: ["unrelated", "r2"] },
       "g"
@@ -106,7 +106,7 @@ describe("moderation.checkUserPermissions", () => {
   });
 
   it("rejects user with no matching role", async () => {
-    const result = await moderation.checkUserPermissions(
+    const result = await moderation.checkModeratorPermissions(
       makeCtx({ DISCORD_ALLOWED_ROLES: "r1,r2" }),
       { roles: ["other"] },
       "g"
@@ -119,7 +119,7 @@ describe("moderation.checkUserPermissions", () => {
     // Discord click specs pass checkUserPermissions locally without
     // each dev appending role_e2e_moderator to DISCORD_ALLOWED_ROLES.
     it("allows the e2e test role when ENVIRONMENT=development and role not listed", async () => {
-      const result = await moderation.checkUserPermissions(
+      const result = await moderation.checkModeratorPermissions(
         makeCtx({
           ENVIRONMENT: "development",
           DISCORD_ALLOWED_ROLES: "real-role-only",
@@ -137,7 +137,7 @@ describe("moderation.checkUserPermissions", () => {
     ])(
       "does NOT auto-allow the e2e test role when ENVIRONMENT is %s",
       async (_label, env) => {
-        const result = await moderation.checkUserPermissions(
+        const result = await moderation.checkModeratorPermissions(
           makeCtx({
             ENVIRONMENT: env,
             DISCORD_ALLOWED_ROLES: "real-role-only",

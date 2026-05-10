@@ -5,11 +5,7 @@ import { createUnifiedDiscordNotifier } from "./discord/unified-notifier.server"
 import * as dispatch from "./discord/dispatch";
 import * as messages from "./discord/messages";
 import * as notifications from "./discord/notifications";
-import type {
-  DiscordContext,
-  DiscordInteraction,
-  DiscordMessage,
-} from "./discord/types";
+import type { DiscordContext, DiscordInteraction } from "./discord/types";
 import type { SubmissionType } from "./types";
 
 /**
@@ -49,11 +45,6 @@ export class DiscordService {
 
   async handleSlashCommand(interaction: DiscordInteraction): Promise<Response> {
     return dispatch.handleSlashCommand(this.ctx, interaction);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async handlePrefixCommand(message: DiscordMessage): Promise<any> {
-    return dispatch.handlePrefixCommand(this.ctx, message);
   }
 
   async handleMessageComponent(

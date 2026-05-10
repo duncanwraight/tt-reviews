@@ -1,27 +1,25 @@
 import * as moderation from "./moderation";
 import * as search from "./search";
-import type {
-  DiscordContext,
-  DiscordInteraction,
-  DiscordMessage,
-} from "./types";
+import type { DiscordContext, DiscordInteraction } from "./types";
 
 /**
- * Discord inbound request routing. Three entry points:
- *  - handleSlashCommand: /equipment, /player, /approve, /reject
- *  - handlePrefixCommand: legacy !equipment, !player
- *  - handleMessageComponent: button custom_id dispatch (approve/reject)
+ * Discord inbound request routing. Two entry points:
+ *  - handleSlashCommand: /equipment, /player. Defers (type-5) and PATCHes
+ *    a webhook followup with the rendered embed once the search work
+ *    finishes (TT-159 — see search.ts for the actual search + render).
+ *  - handleMessageComponent: button custom_id dispatch (approve/reject).
+ *    Untouched — that's the moderation surface.
  *
- * Each performs permission + user-identity checks, then hands off to
- * search or moderation. Kept deliberately thin — the business rules
- * live in those modules.
+ * The /approve, /reject, !equipment, !player surfaces existed pre-TT-156
+ * but were either redundant with the button moderation flow or unreachable
+ * (no message-create gateway is wired up); they were removed in C3.
  */
 
 export async function handleSlashCommand(
   ctx: DiscordContext,
   interaction: DiscordInteraction
 ): Promise<Response> {
-  // Handle ping challenge first (before checking permissions or data)
+  // Ping challenge first — Discord uses this during registration.
   if (interaction.type === 1) {
     return new Response(JSON.stringify({ type: 1 }), {
       headers: { "Content-Type": "application/json" },
@@ -31,90 +29,91 @@ export async function handleSlashCommand(
   const { data } = interaction;
   const commandName = data.name;
 
-  // Get user from either interaction.user or interaction.member.user
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const user = interaction.user || (interaction.member as any)?.user;
-
-  if (!user && (commandName === "approve" || commandName === "reject")) {
-    return ephemeralJson(
-      "❌ **Error**: Unable to identify user from interaction."
-    );
-  }
-
-  const hasPermission = await moderation.checkUserPermissions(
+  const allowed = await moderation.checkSearchPermissions(
     ctx,
     interaction.member,
     interaction.guild_id
   );
-  if (!hasPermission) {
+  if (!allowed) {
     return ephemeralJson("❌ You do not have permission to use this command.");
   }
 
-  switch (commandName) {
-    case "equipment":
-      return search.handleEquipmentSearch(ctx, data.options?.[0]?.value || "");
-    case "player":
-      return search.handlePlayerSearch(ctx, data.options?.[0]?.value || "");
-    case "approve":
-      return moderation.approveReview(
-        ctx,
-        data.options?.[0]?.value || "",
-        user
-      );
-    case "reject":
-      return moderation.rejectReview(ctx, data.options?.[0]?.value || "", user);
-    default:
-      return ephemeralJson("❌ Unknown command.");
-  }
-}
-
-export async function handlePrefixCommand(
-  ctx: DiscordContext,
-  message: DiscordMessage
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
-  const content = message.content.trim();
-
-  const hasPermission = await moderation.checkUserPermissions(
-    ctx,
-    message.member,
-    message.guild_id
-  );
-  if (!hasPermission) {
-    return {
-      content: "❌ You do not have permission to use this command.",
-    };
+  if (commandName !== "equipment" && commandName !== "player") {
+    return ephemeralJson("❌ Unknown command.");
   }
 
-  if (content.startsWith("!equipment ")) {
-    const query = content.slice(11).trim();
-    return search.searchEquipment(ctx, query);
+  const query = (data.options?.[0]?.value || "").trim();
+  if (!query) {
+    return ephemeralJson(
+      `❌ Please provide a search query. Example: \`/${commandName} query:viscaria\``
+    );
   }
 
-  if (content.startsWith("!player ")) {
-    const query = content.slice(8).trim();
-    return search.searchPlayer(ctx, query);
+  // Defer the response — the 3-second Discord deadline is unforgiving
+  // and silent. Cold isolate + cold Supabase pool + image-CDN warm-up
+  // routinely brushes against it. Type-5 acks within milliseconds and
+  // we PATCH the followup once search + render finish, anywhere up to
+  // 15 minutes later. ctx.waitUntil keeps the Worker alive for the
+  // followup PATCH after the response returns.
+  if (!interaction.application_id || !interaction.token) {
+    // Defensive — Discord guarantees both on every dispatch we'd see,
+    // but if they're missing the followup PATCH can't be addressed.
+    // Fall back to a synchronous error rather than silently dropping
+    // the user's request.
+    return ephemeralJson("❌ Search error: malformed interaction.");
   }
 
-  return null;
+  const followup = (async () => {
+    try {
+      const outcome =
+        commandName === "equipment"
+          ? await search.runEquipmentSearch(ctx, query)
+          : await search.runPlayerSearch(ctx, query);
+      await sendFollowup(ctx, interaction, outcome);
+    } catch (err) {
+      // Best-effort: surface a generic error to the user even when the
+      // search path itself blew up. The structured Logger.error inside
+      // search.ts has already fired the Discord alerter for ops.
+      try {
+        await sendFollowup(ctx, interaction, {
+          kind: "error",
+          content: "❌ Search error. Please try again later.",
+          outcome: "error",
+          topRank: null,
+          runnerUpRank: null,
+          matchCount: 0,
+        });
+      } catch {
+        // Followup PATCH failed too — nothing we can do. The deferred
+        // ack will eventually time out client-side; the alerter will
+        // have captured the underlying error.
+      }
+      throw err;
+    }
+  })();
+
+  ctx.context.cloudflare?.ctx?.waitUntil?.(followup);
+
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function handleMessageComponent(
   ctx: DiscordContext,
   interaction: DiscordInteraction
 ): Promise<Response> {
-  const hasPermission = await moderation.checkUserPermissions(
+  const allowed = await moderation.checkModeratorPermissions(
     ctx,
     interaction.member,
     interaction.guild_id
   );
-  if (!hasPermission) {
+  if (!allowed) {
     return ephemeralJson("❌ You do not have permission to use this command.");
   }
 
   const customId = interaction.data.custom_id!;
 
-  // Get user from either interaction.user or interaction.member.user
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = interaction.user || (interaction.member as any)?.user;
 
@@ -240,6 +239,34 @@ export async function handleMessageComponent(
   }
 
   return ephemeralJson("❌ Unknown interaction.");
+}
+
+async function sendFollowup(
+  ctx: DiscordContext,
+  interaction: DiscordInteraction,
+  outcome: search.SearchOutcome
+): Promise<void> {
+  const url = `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
+
+  // Followup PATCH cannot toggle ephemeral state — that's set at ack time
+  // (we ack public to keep useful single-match results visible to the
+  // channel). Ambiguity / no-match hints are sent the same way; brief,
+  // informational, fine to be public.
+  let body: Record<string, unknown>;
+  if (outcome.kind === "embed") {
+    body = { embeds: [outcome.embed], allowed_mentions: { parse: [] } };
+  } else {
+    body = { content: outcome.content, allowed_mentions: { parse: [] } };
+  }
+
+  await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${ctx.env.DISCORD_BOT_TOKEN}`,
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 function ephemeralJson(content: string): Response {

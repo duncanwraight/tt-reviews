@@ -70,6 +70,11 @@ export interface DiscordInteraction {
   user?: DiscordUser;
   member: DiscordMember & { user?: DiscordUser };
   guild_id: string;
+  // Slash commands ack with type-5 (deferred) and follow up by PATCHing
+  // https://discord.com/api/v10/webhooks/{application_id}/{token}/messages/@original.
+  // Both fields are present on every interaction Discord posts to us.
+  application_id?: string;
+  token?: string;
 }
 
 /**

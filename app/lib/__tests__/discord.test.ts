@@ -360,15 +360,21 @@ describe("Discord Integration Tests", () => {
   });
 
   describe("Pull Functionality - Discord Slash Commands", () => {
+    // TT-159: /equipment and /player now defer (type 5). Detailed tests
+    // for the deferred-ack flow live in
+    // app/lib/discord/__tests__/dispatch.test.ts (mocks waitUntil + fetch
+    // to assert on the followup PATCH). The integration tests below cover
+    // only the synchronous ack path, since hitting the real Discord
+    // webhooks API from `npm test` isn't appropriate.
+
     it.skipIf(!hasSupabaseEnv())(
-      "should handle equipment search command with real database",
+      "should ack the equipment search command with type 5 (deferred)",
       async () => {
         const mockInteraction = {
-          type: 2, // Application Command
-          data: {
-            name: "equipment",
-            options: [{ value: "butterfly" }],
-          },
+          type: 2,
+          application_id: "app-id",
+          token: "interaction-token",
+          data: { name: "equipment", options: [{ value: "butterfly" }] },
           user: { id: "test-user", username: "TestUser" },
           member: { roles: ["role_id_1"] },
           guild_id: "test-guild",
@@ -377,37 +383,19 @@ describe("Discord Integration Tests", () => {
         const response =
           await discordService.handleSlashCommand(mockInteraction);
         expect(response).toBeInstanceOf(Response);
-
         const responseData = (await response.json()) as DiscordResponse;
-        expect(responseData).toHaveProperty("type", 4); // Channel message with source
-        expect(responseData).toHaveProperty("data");
-        expect(responseData.data).toHaveProperty("content");
-
-        // Should contain search results or "no results" message
-        const content = responseData.data!.content;
-        expect(content).toMatch(/Equipment Search Results|No equipment found/);
-
-        if (content.includes("Equipment Search Results")) {
-          // If results found, should contain equipment info
-          expect(content).toMatch(
-            /🏓.*Equipment Search Results for "butterfly"/
-          );
-        } else {
-          // If no results, should be proper no-results message
-          expect(content).toBe('🔍 No equipment found for "butterfly"');
-        }
+        expect(responseData).toHaveProperty("type", 5);
       }
     );
 
     it.skipIf(!hasSupabaseEnv())(
-      "should handle player search command with real database",
+      "should ack the player search command with type 5 (deferred)",
       async () => {
         const mockInteraction = {
           type: 2,
-          data: {
-            name: "player",
-            options: [{ value: "test" }],
-          },
+          application_id: "app-id",
+          token: "interaction-token",
+          data: { name: "player", options: [{ value: "test" }] },
           user: { id: "test-user", username: "TestUser" },
           member: { roles: ["role_id_1"] },
           guild_id: "test-guild",
@@ -416,49 +404,18 @@ describe("Discord Integration Tests", () => {
         const response =
           await discordService.handleSlashCommand(mockInteraction);
         const responseData = (await response.json()) as DiscordResponse;
-
-        expect(responseData.type).toBe(4);
-        expect(responseData.data!.content).toMatch(
-          /Player Search Results|No players found/
-        );
+        expect(responseData.type).toBe(5);
       }
     );
 
     it.skipIf(!hasSupabaseEnv())(
-      "should reject commands from users without proper roles",
+      "should respond ephemerally for empty queries (no defer)",
       async () => {
         const mockInteraction = {
           type: 2,
-          data: {
-            name: "equipment",
-            options: [{ value: "test" }],
-          },
-          user: { id: "test-user", username: "TestUser" },
-          member: { roles: ["wrong_role"] }, // Not in DISCORD_ALLOWED_ROLES
-          guild_id: "test-guild",
-        };
-
-        const response =
-          await discordService.handleSlashCommand(mockInteraction);
-        const responseData = (await response.json()) as DiscordResponse;
-
-        expect(responseData.type).toBe(4);
-        expect(responseData.data!.content).toBe(
-          "❌ You do not have permission to use this command."
-        );
-        expect(responseData.data!.flags).toBe(64); // Ephemeral flag
-      }
-    );
-
-    it.skipIf(!hasSupabaseEnv())(
-      "should handle empty search queries appropriately",
-      async () => {
-        const mockInteraction = {
-          type: 2,
-          data: {
-            name: "equipment",
-            options: [{ value: "" }],
-          },
+          application_id: "app-id",
+          token: "interaction-token",
+          data: { name: "equipment", options: [{ value: "" }] },
           user: { id: "test-user", username: "TestUser" },
           member: { roles: ["role_id_1"] },
           guild_id: "test-guild",
@@ -467,12 +424,11 @@ describe("Discord Integration Tests", () => {
         const response =
           await discordService.handleSlashCommand(mockInteraction);
         const responseData = (await response.json()) as DiscordResponse;
-
         expect(responseData.type).toBe(4);
         expect(responseData.data!.content).toContain(
           "Please provide a search query"
         );
-        expect(responseData.data!.flags).toBe(64); // Ephemeral flag
+        expect(responseData.data!.flags).toBe(64);
       }
     );
   });
@@ -725,73 +681,8 @@ describe("Discord Integration Tests", () => {
     );
   });
 
-  describe("Prefix Commands", () => {
-    it.skipIf(!hasSupabaseEnv())(
-      "should handle equipment prefix command",
-      async () => {
-        const mockMessage = {
-          content: "!equipment butterfly",
-          member: { roles: ["role_id_1"] },
-          guild_id: "test-guild",
-        };
-
-        const result = await discordService.handlePrefixCommand(mockMessage);
-
-        expect(result).toBeDefined();
-        expect(result.content).toMatch(
-          /Equipment Search Results|No equipment found/
-        );
-      }
-    );
-
-    it.skipIf(!hasSupabaseEnv())(
-      "should handle player prefix command",
-      async () => {
-        const mockMessage = {
-          content: "!player test",
-          member: { roles: ["role_id_1"] },
-          guild_id: "test-guild",
-        };
-
-        const result = await discordService.handlePrefixCommand(mockMessage);
-
-        expect(result).toBeDefined();
-        expect(result.content).toMatch(
-          /Player Search Results|No players found/
-        );
-      }
-    );
-
-    it.skipIf(!hasSupabaseEnv())(
-      "should return null for unrecognized prefix commands",
-      async () => {
-        const mockMessage = {
-          content: "!unknown command",
-          member: { roles: ["role_id_1"] },
-          guild_id: "test-guild",
-        };
-
-        const result = await discordService.handlePrefixCommand(mockMessage);
-        expect(result).toBeNull();
-      }
-    );
-
-    it.skipIf(!hasSupabaseEnv())(
-      "should reject prefix commands from unauthorized users",
-      async () => {
-        const mockMessage = {
-          content: "!equipment test",
-          member: { roles: ["wrong_role"] },
-          guild_id: "test-guild",
-        };
-
-        const result = await discordService.handlePrefixCommand(mockMessage);
-
-        expect(result).toBeDefined();
-        expect(result.content).toBe(
-          "❌ You do not have permission to use this command."
-        );
-      }
-    );
-  });
+  // TT-159: !equipment / !player prefix commands removed — that surface
+  // never had a message-create gateway wired up, so no Discord traffic
+  // ever reached them. The /equipment and /player slash command tests
+  // live in "Pull Functionality — Discord Slash Commands" above.
 });

@@ -1,31 +1,92 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as search from "../search";
 import type { DiscordContext } from "../types";
 
 /**
- * Unit tests for search helpers — exercise DB-result formatting and the
- * slash-command Response wrapping with a mocked DatabaseService.
+ * TT-159 unit tests for the search outcomes.
+ *
+ * The renderers (TT-158) own their own coverage; this file checks the
+ * tagged-union outcome shape, the 1.5× ambiguity threshold, the
+ * fallback-link composition for zero-match, and that the supabaseAdmin
+ * RPC + detail-fetch stubs are invoked the way the dispatch (TT-159)
+ * and e2e (TT-161) expect.
  */
 
-function makeCtx(
-  dbOverrides: Partial<{
-    searchEquipment: (query: string) => Promise<any[]>;
+interface RpcCall {
+  fn: string;
+  args: unknown;
+}
 
-    searchPlayers: (query: string) => Promise<any[]>;
-  }> = {}
-): DiscordContext {
+function makeSupabase(config: {
+  rpc?: Record<string, { data?: unknown; error?: { message: string } | null }>;
+  tables?: Record<
+    string,
+    {
+      data?: unknown;
+      error?: { message: string } | null;
+      single?: boolean;
+      maybeSingle?: boolean;
+    }
+  >;
+}) {
+  const rpcCalls: RpcCall[] = [];
+  const fromCalls: RpcCall[] = [];
+
+  const rpc = vi.fn((name: string, args: unknown) => {
+    rpcCalls.push({ fn: name, args });
+    const entry = config.rpc?.[name];
+    return Promise.resolve({
+      data: entry?.data ?? null,
+      error: entry?.error ?? null,
+    });
+  });
+
+  const from = vi.fn((table: string) => {
+    fromCalls.push({ fn: table, args: null });
+    const entry = config.tables?.[table] ?? {};
+    const builder = {
+      select: (..._args: any[]) => builder,
+
+      eq: (..._args: any[]) => builder,
+
+      order: (..._args: any[]) => builder,
+      limit: (_n: number) => builder,
+      single: () =>
+        Promise.resolve({
+          data: entry.data ?? null,
+          error: entry.error ?? null,
+        }),
+      maybeSingle: () =>
+        Promise.resolve({
+          data: entry.data ?? null,
+          error: entry.error ?? null,
+        }),
+      // Awaiting the builder directly resolves to the row list.
+      then: (resolve: (v: unknown) => void) =>
+        resolve({ data: entry.data ?? [], error: entry.error ?? null }),
+    };
+    return builder;
+  });
+
+  return {
+    rpc,
+    from,
+    _rpcCalls: rpcCalls,
+    _fromCalls: fromCalls,
+  };
+}
+
+function makeCtx(supabase: ReturnType<typeof makeSupabase>): DiscordContext {
   return {
     env: {
       SITE_URL: "https://tt-reviews.local",
     } as any,
 
     context: {} as any,
-    supabaseAdmin: {} as any,
-    dbService: {
-      searchEquipment: vi.fn().mockResolvedValue([]),
-      searchPlayers: vi.fn().mockResolvedValue([]),
-      ...dbOverrides,
-    } as any,
+
+    supabaseAdmin: supabase as any,
+
+    dbService: {} as any,
 
     moderationService: {} as any,
 
@@ -33,155 +94,252 @@ function makeCtx(
   };
 }
 
-describe("search.searchEquipment", () => {
-  it("returns no-results message when DB returns empty", async () => {
-    const ctx = makeCtx({ searchEquipment: vi.fn().mockResolvedValue([]) });
-    const result = await search.searchEquipment(ctx, "butterfly");
-    expect(result.content).toContain("No equipment found");
-    expect(result.content).toContain("butterfly");
+describe("search.runEquipmentSearch", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("formats up to 5 results with name, manufacturer, category, url", async () => {
-    const ctx = makeCtx({
-      searchEquipment: vi.fn().mockResolvedValue([
-        {
-          name: "Viscaria",
-          manufacturer: "Butterfly",
-          category: "blade",
-          slug: "butterfly-viscaria",
+  it("returns single-match embed outcome when exactly one row matches", async () => {
+    const supabase = makeSupabase({
+      rpc: {
+        search_equipment: {
+          data: [
+            {
+              id: "eq-1",
+              name: "Viscaria",
+              manufacturer: "Butterfly",
+              slug: "butterfly-viscaria",
+              category: "blade",
+              rank: 0.0608,
+            },
+          ],
         },
-      ]),
+        get_equipment_stats: {
+          data: { average_rating: 8.4, total_reviews: 37 },
+        },
+      },
+      tables: {
+        equipment: {
+          data: {
+            id: "eq-1",
+            name: "Viscaria",
+            manufacturer: "Butterfly",
+            slug: "butterfly-viscaria",
+            description: "5-ply ALC blade",
+            image_key: null,
+            image_trim_kind: null,
+            specifications: { weight: 86, thickness: 5.7 },
+          },
+        },
+      },
     });
-    const result = await search.searchEquipment(ctx, "viscaria");
-    expect(result.content).toContain("Viscaria");
-    expect(result.content).toContain("Butterfly");
-    expect(result.content).toContain("blade");
-    expect(result.content).toContain(
+    const result = await search.runEquipmentSearch(
+      makeCtx(supabase),
+      "viscaria"
+    );
+    expect(result.kind).toBe("embed");
+    if (result.kind !== "embed") return;
+    expect(result.outcome).toBe("single");
+    expect(result.matchCount).toBe(1);
+    expect(result.embed.title).toBe("Viscaria");
+    expect(result.embed.url).toBe(
       "https://tt-reviews.local/equipment/butterfly-viscaria"
     );
-  });
-
-  it("truncates to 5 results and appends a 'Showing top 5 of N' note", async () => {
-    const six = Array.from({ length: 6 }, (_, i) => ({
-      name: `Item${i}`,
-      manufacturer: "m",
-      category: "blade",
-      slug: `s${i}`,
-    }));
-    const ctx = makeCtx({
-      searchEquipment: vi.fn().mockResolvedValue(six),
+    expect(supabase.rpc).toHaveBeenCalledWith("search_equipment", {
+      query: "viscaria",
     });
-    const result = await search.searchEquipment(ctx, "q");
-    expect(result.content).toContain("Showing top 5 of 6");
   });
 
-  it("returns a user-friendly error message on DB failure", async () => {
-    const ctx = makeCtx({
-      searchEquipment: vi.fn().mockRejectedValue(new Error("db down")),
+  it("returns embed when top result is dominant (rank ratio >= 1.5)", async () => {
+    const supabase = makeSupabase({
+      rpc: {
+        search_equipment: {
+          data: [
+            {
+              id: "eq-1",
+              name: "Viscaria",
+              manufacturer: "Butterfly",
+              slug: "butterfly-viscaria",
+              category: "blade",
+              rank: 0.3,
+            },
+            {
+              id: "eq-2",
+              name: "Other",
+              manufacturer: "Butterfly",
+              slug: "other",
+              category: "blade",
+              rank: 0.1,
+            },
+          ],
+        },
+        get_equipment_stats: { data: null },
+      },
+      tables: {
+        equipment: {
+          data: {
+            id: "eq-1",
+            name: "Viscaria",
+            manufacturer: "Butterfly",
+            slug: "butterfly-viscaria",
+            description: null,
+            image_key: null,
+            image_trim_kind: null,
+            specifications: null,
+          },
+        },
+      },
     });
-    const result = await search.searchEquipment(ctx, "q");
-    expect(result.content).toContain("Error searching equipment");
-  });
-});
-
-describe("search.searchPlayer", () => {
-  it("returns no-results message when DB returns empty", async () => {
-    const ctx = makeCtx({ searchPlayers: vi.fn().mockResolvedValue([]) });
-    const result = await search.searchPlayer(ctx, "ma long");
-    expect(result.content).toContain("No players found");
+    const result = await search.runEquipmentSearch(
+      makeCtx(supabase),
+      "viscaria"
+    );
+    expect(result.kind).toBe("embed");
+    if (result.kind === "embed") {
+      expect(result.outcome).toBe("dominant");
+    }
   });
 
-  it("formats player status and URL", async () => {
-    const ctx = makeCtx({
-      searchPlayers: vi
-        .fn()
-        .mockResolvedValue([
-          { name: "Ma Long", active: true, slug: "ma-long" },
-        ]),
+  it("returns ambiguity outcome when no top result is dominant", async () => {
+    const supabase = makeSupabase({
+      rpc: {
+        search_equipment: {
+          data: [
+            { id: "1", rank: 0.06 },
+            { id: "2", rank: 0.06 },
+            { id: "3", rank: 0.06 },
+            { id: "4", rank: 0.06 },
+            { id: "5", rank: 0.06 },
+            { id: "6", rank: 0.06 },
+          ].map(r => ({
+            ...r,
+            name: "x",
+            manufacturer: "Butterfly",
+            slug: "s",
+            category: "blade",
+          })),
+        },
+      },
     });
-    const result = await search.searchPlayer(ctx, "ma long");
-    expect(result.content).toContain("Ma Long");
-    expect(result.content).toContain("Active");
+    const result = await search.runEquipmentSearch(
+      makeCtx(supabase),
+      "butterfly"
+    );
+    expect(result.kind).toBe("ambiguity");
+    if (result.kind !== "ambiguity") return;
+    expect(result.outcome).toBe("ambiguous");
+    expect(result.matchCount).toBe(6);
+    expect(result.content).toContain("butterfly");
+    expect(result.content).toContain("`butterfly viscaria`");
+  });
+
+  it("returns empty outcome with fallback link when zero rows match", async () => {
+    const supabase = makeSupabase({
+      rpc: { search_equipment: { data: [] } },
+    });
+    const result = await search.runEquipmentSearch(makeCtx(supabase), "ksdjfh");
+    expect(result.kind).toBe("empty");
+    if (result.kind !== "empty") return;
+    expect(result.outcome).toBe("no-match");
+    expect(result.content).toContain("ksdjfh");
     expect(result.content).toContain(
-      "https://tt-reviews.local/players/ma-long"
+      "https://tt-reviews.local/equipment?q=ksdjfh"
     );
   });
 
-  it("renders 'Inactive' for inactive players", async () => {
-    const ctx = makeCtx({
-      searchPlayers: vi
-        .fn()
-        .mockResolvedValue([{ name: "Retired", active: false, slug: "r" }]),
+  it("returns error outcome when the RPC fails", async () => {
+    const supabase = makeSupabase({
+      rpc: { search_equipment: { error: { message: "db down" } } },
     });
-    const result = await search.searchPlayer(ctx, "r");
-    expect(result.content).toContain("Inactive");
-  });
-
-  it("returns a user-friendly error on DB failure", async () => {
-    const ctx = makeCtx({
-      searchPlayers: vi.fn().mockRejectedValue(new Error("db error")),
-    });
-    const result = await search.searchPlayer(ctx, "q");
-    expect(result.content).toContain("Error searching players");
+    const result = await search.runEquipmentSearch(makeCtx(supabase), "x");
+    expect(result.kind).toBe("error");
+    if (result.kind === "error") {
+      expect(result.outcome).toBe("error");
+    }
   });
 });
 
-describe("search.handleEquipmentSearch (Response wrapper)", () => {
-  it("returns an ephemeral error when query is empty", async () => {
-    const ctx = makeCtx();
-    const response = await search.handleEquipmentSearch(ctx, "   ");
-    expect(response).toBeInstanceOf(Response);
-    const body = (await response.json()) as {
-      type: number;
-      data: { content: string; flags?: number };
-    };
-    expect(body.type).toBe(4);
-    expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("search query");
+describe("search.runPlayerSearch", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("wraps searchEquipment results in a type-4 response", async () => {
-    const ctx = makeCtx({
-      searchEquipment: vi
-        .fn()
-        .mockResolvedValue([
-          { name: "x", manufacturer: "m", category: "blade", slug: "x" },
-        ]),
+  it("returns single-match embed for a unique result, including profile fields", async () => {
+    const supabase = makeSupabase({
+      rpc: {
+        search_players: {
+          data: [
+            {
+              id: "p-1",
+              name: "Ma Long",
+              slug: "ma-long",
+              represents: "CHN",
+              rank: 0.06,
+            },
+          ],
+        },
+      },
+      tables: {
+        players: {
+          data: {
+            id: "p-1",
+            name: "Ma Long",
+            slug: "ma-long",
+            active: false,
+            represents: "CHN",
+            playing_style: "shakehand_attacker",
+            highest_rating: "WR1",
+            active_years: "2003-2024",
+            image_key: null,
+            image_etag: null,
+          },
+        },
+        // setup + footage + categories all return empty/null — exercise
+        // the "no enrichments available" path.
+        player_equipment_setups: { data: null },
+        player_footage: { data: [] },
+        categories: { data: { name: "China", flag_emoji: "🇨🇳" } },
+      },
     });
-    const response = await search.handleEquipmentSearch(ctx, "x");
-    const body = (await response.json()) as {
-      type: number;
-      data: { content: string; flags?: number };
-    };
-    expect(body.type).toBe(4);
-    expect(body.data.content).toContain("x");
-  });
-});
-
-describe("search.handlePlayerSearch (Response wrapper)", () => {
-  it("returns an ephemeral error when query is empty", async () => {
-    const ctx = makeCtx();
-    const response = await search.handlePlayerSearch(ctx, "");
-    const body = (await response.json()) as {
-      type: number;
-      data: { content: string; flags?: number };
-    };
-    expect(body.type).toBe(4);
-    expect(body.data.flags).toBe(64);
+    const result = await search.runPlayerSearch(makeCtx(supabase), "ma long");
+    expect(result.kind).toBe("embed");
+    if (result.kind !== "embed") return;
+    expect(result.embed.title).toBe("Ma Long");
+    expect(result.embed.url).toBe("https://tt-reviews.local/players/ma-long");
+    expect(result.embed.author?.name).toContain("CHN");
+    const profile = result.embed.fields?.find(f => f.name === "Profile");
+    expect(profile?.value).toContain("Shakehand attacker");
   });
 
-  it("wraps searchPlayer results in a type-4 response", async () => {
-    const ctx = makeCtx({
-      searchPlayers: vi
-        .fn()
-        .mockResolvedValue([{ name: "x", active: true, slug: "x" }]),
+  it("returns ambiguity when multiple equally-ranked rows", async () => {
+    const supabase = makeSupabase({
+      rpc: {
+        search_players: {
+          data: [
+            { id: "1", rank: 0.06 },
+            { id: "2", rank: 0.06 },
+          ].map(r => ({
+            ...r,
+            name: "Harimoto",
+            slug: "h",
+            represents: "JPN",
+          })),
+        },
+      },
     });
-    const response = await search.handlePlayerSearch(ctx, "x");
-    const body = (await response.json()) as {
-      type: number;
-      data: { content: string; flags?: number };
-    };
-    expect(body.type).toBe(4);
-    expect(body.data.content).toContain("x");
+    const result = await search.runPlayerSearch(makeCtx(supabase), "harimoto");
+    expect(result.kind).toBe("ambiguity");
+  });
+
+  it("returns empty outcome with fallback link", async () => {
+    const supabase = makeSupabase({
+      rpc: { search_players: { data: [] } },
+    });
+    const result = await search.runPlayerSearch(makeCtx(supabase), "nobody");
+    expect(result.kind).toBe("empty");
+    if (result.kind !== "empty") return;
+    expect(result.content).toContain(
+      "https://tt-reviews.local/players?q=nobody"
+    );
   });
 });

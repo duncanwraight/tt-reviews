@@ -1,29 +1,60 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as dispatch from "../dispatch";
 import * as moderation from "../moderation";
 import * as search from "../search";
 import type { DiscordContext } from "../types";
 
 /**
- * Unit tests for dispatch routing. Covers:
- *  - slash commands (equipment, player, approve, reject, ping, unknown)
- *  - prefix commands (!equipment, !player, no-prefix)
- *  - message component custom_id routing (all 6 pairs + collision)
- *  - permission gate + missing-user guard
+ * TT-159 unit tests for dispatch routing. Covers:
+ *  - slash command happy path: type-5 deferred ack + ctx.waitUntil-driven
+ *    followup PATCH for /equipment and /player
+ *  - slash command rejections: empty query, unknown command, search
+ *    permission denied, malformed interaction (no application_id/token)
+ *  - permission split: slash commands gate on checkSearchPermissions,
+ *    button interactions on checkModeratorPermissions
+ *  - message component custom_id routing (all 6 pairs + collision
+ *    regressions). Untouched flows from the pre-TT-159 code path.
  *
- * Absorbs the prior discord-custom-id-routing.test.ts — the
- * regression-pinning tests for the approve_player_equipment_setup_
- * vs approve_player_ collision remain, now asserted against the
- * moderation module directly rather than class private methods.
+ * /approve, /reject, !equipment, !player are removed in TT-159; the
+ * tests asserting their absence live in dispatch's "unknown command"
+ * test plus the e2e spec in TT-161.
  */
 
-function makeCtx(): DiscordContext {
+function makeWaitUntil(): {
+  waitUntil: ReturnType<typeof vi.fn>;
+  done: () => Promise<void>;
+} {
+  const promises: Promise<unknown>[] = [];
+  const waitUntil = vi.fn((p: Promise<unknown>) => {
+    promises.push(p);
+  });
   return {
-    env: {} as any,
+    waitUntil,
+    done: () => Promise.allSettled(promises).then(() => undefined),
+  };
+}
 
-    context: {} as any,
+function makeCtx(
+  envOverrides: Record<string, string | undefined> = {},
+  cf?: { waitUntil: ReturnType<typeof vi.fn> }
+): DiscordContext {
+  return {
+    env: {
+      DISCORD_BOT_TOKEN: "Bot.Token",
+      DISCORD_ALLOWED_ROLES: "moderator",
+      DISCORD_SEARCH_ALLOWED_ROLES: "",
+      ENVIRONMENT: "production",
+      SITE_URL: "https://tt-reviews.local",
+      ...envOverrides,
+    } as any,
+    context: {
+      cloudflare: cf
+        ? { ctx: { waitUntil: cf.waitUntil } }
+        : { ctx: { waitUntil: vi.fn() } },
+    } as any,
 
     dbService: {} as any,
+
     supabaseAdmin: {} as any,
 
     moderationService: {} as any,
@@ -51,11 +82,171 @@ function makeInteraction(overrides: Record<string, any> = {}): any {
       roles: ["moderator"],
     },
     guild_id: "g",
+    application_id: "app-id",
+    token: "interaction-token",
     ...overrides,
   };
 }
 
-describe("dispatch.handleSlashCommand", () => {
+describe("dispatch.handleSlashCommand — happy path (deferred)", () => {
+  let waitUntil: ReturnType<typeof vi.fn>;
+  let done: () => Promise<void>;
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    const wu = makeWaitUntil();
+    waitUntil = wu.waitUntil;
+    done = wu.done;
+    fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("acks /equipment with type 5 (deferred)", async () => {
+    vi.spyOn(search, "runEquipmentSearch").mockResolvedValue({
+      kind: "embed",
+      embed: { title: "Viscaria" },
+      outcome: "single",
+      topRank: 0.1,
+      runnerUpRank: null,
+      matchCount: 1,
+    });
+    const response = await dispatch.handleSlashCommand(
+      makeCtx({}, { waitUntil }),
+      {
+        type: 2,
+        data: { name: "equipment", options: [{ value: "viscaria" }] },
+        member: { user: { id: "u", username: "u" }, roles: [] },
+        guild_id: "g",
+        application_id: "app-id",
+        token: "tok",
+      } as any
+    );
+    expect(response.status).toBe(200);
+    expect(await asJson(response)).toEqual({ type: 5 });
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    await done();
+    expect(search.runEquipmentSearch).toHaveBeenCalledWith(
+      expect.any(Object),
+      "viscaria"
+    );
+  });
+
+  it("PATCHes the followup with the rendered embed for a single match", async () => {
+    vi.spyOn(search, "runEquipmentSearch").mockResolvedValue({
+      kind: "embed",
+      embed: { title: "Viscaria", url: "https://x/eq/butterfly-viscaria" },
+      outcome: "single",
+      topRank: 0.1,
+      runnerUpRank: null,
+      matchCount: 1,
+    });
+    await dispatch.handleSlashCommand(makeCtx({}, { waitUntil }), {
+      type: 2,
+      data: { name: "equipment", options: [{ value: "viscaria" }] },
+      member: { user: { id: "u", username: "u" }, roles: [] },
+      guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
+    } as any);
+    await done();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "https://discord.com/api/v10/webhooks/app-id/tok/messages/@original"
+    );
+    expect(init.method).toBe("PATCH");
+    expect(init.headers).toMatchObject({
+      Authorization: "Bot Bot.Token",
+      "Content-Type": "application/json",
+    });
+    const body = JSON.parse(init.body as string);
+    expect(body.embeds).toHaveLength(1);
+    expect(body.embeds[0]).toMatchObject({
+      title: "Viscaria",
+      url: "https://x/eq/butterfly-viscaria",
+    });
+    expect(body.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("PATCHes the followup with content text for an ambiguous match", async () => {
+    vi.spyOn(search, "runEquipmentSearch").mockResolvedValue({
+      kind: "ambiguity",
+      content: "Multiple equipment match 'butterfly'.",
+      outcome: "ambiguous",
+      topRank: 0.1,
+      runnerUpRank: 0.1,
+      matchCount: 47,
+    });
+    await dispatch.handleSlashCommand(makeCtx({}, { waitUntil }), {
+      type: 2,
+      data: { name: "equipment", options: [{ value: "butterfly" }] },
+      member: { user: { id: "u", username: "u" }, roles: [] },
+      guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
+    } as any);
+    await done();
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.content).toBe("Multiple equipment match 'butterfly'.");
+    expect(body.embeds).toBeUndefined();
+  });
+
+  it("PATCHes the followup with the fallback link for zero-match", async () => {
+    vi.spyOn(search, "runEquipmentSearch").mockResolvedValue({
+      kind: "empty",
+      content:
+        "No equipment found for 'xyz'. Try the site search: https://tt-reviews.local/equipment?q=xyz",
+      outcome: "no-match",
+      topRank: null,
+      runnerUpRank: null,
+      matchCount: 0,
+    });
+    await dispatch.handleSlashCommand(makeCtx({}, { waitUntil }), {
+      type: 2,
+      data: { name: "equipment", options: [{ value: "xyz" }] },
+      member: { user: { id: "u", username: "u" }, roles: [] },
+      guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
+    } as any);
+    await done();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.content).toContain("Try the site search");
+  });
+
+  it("routes /player to runPlayerSearch", async () => {
+    vi.spyOn(search, "runPlayerSearch").mockResolvedValue({
+      kind: "embed",
+      embed: { title: "Ma Long" },
+      outcome: "single",
+      topRank: 0.1,
+      runnerUpRank: null,
+      matchCount: 1,
+    });
+    await dispatch.handleSlashCommand(makeCtx({}, { waitUntil }), {
+      type: 2,
+      data: { name: "player", options: [{ value: "ma long" }] },
+      member: { user: { id: "u", username: "u" }, roles: [] },
+      guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
+    } as any);
+    await done();
+    expect(search.runPlayerSearch).toHaveBeenCalledWith(
+      expect.any(Object),
+      "ma long"
+    );
+  });
+});
+
+describe("dispatch.handleSlashCommand — synchronous-only paths", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -68,159 +259,79 @@ describe("dispatch.handleSlashCommand", () => {
     expect(body.type).toBe(1);
   });
 
-  it("rejects approve without a user", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
+  it("denies permission when checkSearchPermissions returns false", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(false);
     const response = await dispatch.handleSlashCommand(makeCtx(), {
       type: 2,
-      data: { name: "approve", options: [{ value: "rid" }] },
-      member: { roles: ["moderator"] }, // no user anywhere
+      data: { name: "equipment", options: [{ value: "q" }] },
+      member: { user: { id: "u" }, roles: [] },
       guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
     } as any);
     const body = await asJson(response);
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("Unable to identify user");
+    expect(body.data.content).toContain("do not have permission");
   });
 
-  it("denies permission when checkUserPermissions returns false", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(false);
+  it("returns 'Unknown command' for any non-equipment, non-player command (regression: /approve removed)", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
     const response = await dispatch.handleSlashCommand(makeCtx(), {
       type: 2,
-      data: { name: "equipment", options: [{ value: "q" }] },
-      member: { user: { id: "u", username: "u" }, roles: [] },
+      data: { name: "approve", options: [{ value: "id" }] },
+      member: { user: { id: "u" }, roles: [] },
       guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
     } as any);
     const body = await asJson(response);
-    expect(body.data.content).toContain("do not have permission");
+    expect(body.data.content).toContain("Unknown command");
     expect(body.data.flags).toBe(64);
   });
 
-  it("routes 'equipment' command to search.handleEquipmentSearch", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(search, "handleEquipmentSearch")
-      .mockImplementation(okResponse);
-    await dispatch.handleSlashCommand(makeCtx(), {
-      type: 2,
-      data: { name: "equipment", options: [{ value: "butterfly" }] },
-      member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
-      guild_id: "g",
-    } as any);
-    expect(spy).toHaveBeenCalledWith(expect.any(Object), "butterfly");
-  });
-
-  it("routes 'player' command to search.handlePlayerSearch", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(search, "handlePlayerSearch")
-      .mockImplementation(okResponse);
-    await dispatch.handleSlashCommand(makeCtx(), {
-      type: 2,
-      data: { name: "player", options: [{ value: "ma long" }] },
-      member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
-      guild_id: "g",
-    } as any);
-    expect(spy).toHaveBeenCalledWith(expect.any(Object), "ma long");
-  });
-
-  it("routes 'approve' command to moderation.approveReview", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(moderation, "approveReview")
-      .mockImplementation(okResponse);
-    await dispatch.handleSlashCommand(makeCtx(), {
-      type: 2,
-      data: { name: "approve", options: [{ value: "r-id" }] },
-      member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
-      guild_id: "g",
-    } as any);
-    expect(spy).toHaveBeenCalledWith(
-      expect.any(Object),
-      "r-id",
-      expect.objectContaining({ id: "u" })
-    );
-  });
-
-  it("routes 'reject' command to moderation.rejectReview", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(moderation, "rejectReview")
-      .mockImplementation(okResponse);
-    await dispatch.handleSlashCommand(makeCtx(), {
-      type: 2,
-      data: { name: "reject", options: [{ value: "r-id" }] },
-      member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
-      guild_id: "g",
-    } as any);
-    expect(spy).toHaveBeenCalledWith(
-      expect.any(Object),
-      "r-id",
-      expect.any(Object)
-    );
-  });
-
-  it("returns 'Unknown command' for any other command name", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
+  it("returns 'Unknown command' for /reject (also removed)", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
     const response = await dispatch.handleSlashCommand(makeCtx(), {
       type: 2,
-      data: { name: "nonsense", options: [] },
-      member: { user: { id: "u", username: "u" }, roles: ["moderator"] },
+      data: { name: "reject", options: [{ value: "id" }] },
+      member: { user: { id: "u" }, roles: [] },
       guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
     } as any);
     const body = await asJson(response);
     expect(body.data.content).toContain("Unknown command");
   });
-});
 
-describe("dispatch.handlePrefixCommand", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  it("returns ephemeral error for empty query without deferring", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
+    const response = await dispatch.handleSlashCommand(makeCtx(), {
+      type: 2,
+      data: { name: "equipment", options: [{ value: "   " }] },
+      member: { user: { id: "u" }, roles: [] },
+      guild_id: "g",
+      application_id: "app-id",
+      token: "tok",
+    } as any);
+    const body = await asJson(response);
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("Please provide a search query");
   });
 
-  it("denies permission when checkUserPermissions returns false", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(false);
-    const result = await dispatch.handlePrefixCommand(makeCtx(), {
-      content: "!equipment x",
-      member: { roles: [] },
+  it("returns ephemeral error when application_id or token is missing", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
+    const response = await dispatch.handleSlashCommand(makeCtx(), {
+      type: 2,
+      data: { name: "equipment", options: [{ value: "viscaria" }] },
+      member: { user: { id: "u" }, roles: [] },
       guild_id: "g",
-    });
-    expect(result.content).toContain("do not have permission");
-  });
-
-  it("routes !equipment to search.searchEquipment", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(search, "searchEquipment")
-      .mockResolvedValue({ content: "eq results" });
-    await dispatch.handlePrefixCommand(makeCtx(), {
-      content: "!equipment viscaria",
-      member: { roles: ["moderator"] },
-      guild_id: "g",
-    });
-    expect(spy).toHaveBeenCalledWith(expect.any(Object), "viscaria");
-  });
-
-  it("routes !player to search.searchPlayer", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const spy = vi
-      .spyOn(search, "searchPlayer")
-      .mockResolvedValue({ content: "player results" });
-    await dispatch.handlePrefixCommand(makeCtx(), {
-      content: "!player ma long",
-      member: { roles: ["moderator"] },
-      guild_id: "g",
-    });
-    expect(spy).toHaveBeenCalledWith(expect.any(Object), "ma long");
-  });
-
-  it("returns null for unknown prefixes", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
-    const result = await dispatch.handlePrefixCommand(makeCtx(), {
-      content: "!help",
-      member: { roles: ["moderator"] },
-      guild_id: "g",
-    });
-    expect(result).toBeNull();
+      // application_id and token deliberately absent
+    } as any);
+    const body = await asJson(response);
+    expect(body.type).toBe(4);
+    expect(body.data.content).toContain("malformed interaction");
   });
 });
 
@@ -251,7 +362,7 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(true);
+    vi.spyOn(moderation, "checkModeratorPermissions").mockResolvedValue(true);
     approveReview = vi
       .spyOn(moderation, "approveReview")
       .mockImplementation(okResponse);
@@ -290,8 +401,8 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
       .mockImplementation(okResponse);
   });
 
-  it("denies permission when checkUserPermissions returns false", async () => {
-    vi.spyOn(moderation, "checkUserPermissions").mockResolvedValue(false);
+  it("denies permission when checkModeratorPermissions returns false", async () => {
+    vi.spyOn(moderation, "checkModeratorPermissions").mockResolvedValue(false);
     const response = await dispatch.handleMessageComponent(
       makeCtx(),
       makeInteraction({ data: { custom_id: "approve_review_xyz" } })
@@ -306,7 +417,7 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
       makeCtx(),
       makeInteraction({
         data: { custom_id: "approve_review_xyz" },
-        member: { roles: ["moderator"] }, // no member.user, no interaction.user
+        member: { roles: ["moderator"] },
       })
     );
     const body = await asJson(response);
@@ -362,8 +473,6 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
     );
   });
 
-  // Regression: approve_player_equipment_setup_<id> must not be swallowed
-  // by the shorter approve_player_ prefix.
   it("routes approve_player_equipment_setup_<id> (not player submission)", async () => {
     await dispatch.handleMessageComponent(
       makeCtx(),
@@ -394,7 +503,7 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
     expect(rejectPlayer).not.toHaveBeenCalled();
   });
 
-  it("routes plain approve_player_<id> to the player submission handler", async () => {
+  it("routes plain approve_player_<id>", async () => {
     await dispatch.handleMessageComponent(
       makeCtx(),
       makeInteraction({ data: { custom_id: "approve_player_plain-uuid" } })
@@ -407,7 +516,7 @@ describe("dispatch.handleMessageComponent — custom_id routing", () => {
     expect(approveSetup).not.toHaveBeenCalled();
   });
 
-  it("routes plain reject_player_<id> to the player submission reject handler", async () => {
+  it("routes plain reject_player_<id>", async () => {
     await dispatch.handleMessageComponent(
       makeCtx(),
       makeInteraction({ data: { custom_id: "reject_player_plain-uuid" } })
