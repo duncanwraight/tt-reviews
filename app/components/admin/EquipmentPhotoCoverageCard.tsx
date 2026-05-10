@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { Inbox, ImageOff, ImageIcon, EyeOff } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { CoverageCounts } from "~/lib/photo-sourcing/queue-stats.server";
 
 interface EquipmentPhotoCoverageCardProps {
@@ -9,8 +10,9 @@ interface EquipmentPhotoCoverageCardProps {
 // Compact 5-bucket card for the admin dashboard (TT-98). Mirrors the
 // granular shape of /admin/equipment-photos but at-a-glance — no
 // recent activity / quota / queue depth here, those live on the
-// detail page. Total appears as a denominator on the picked row so
-// the catalog-coverage ratio is the headline.
+// detail page. Total appears as a denominator on the headline so the
+// catalog-coverage ratio is the headline. Tile shape matches Content
+// Statistics on the same row (TT-188) for visual consistency.
 export function EquipmentPhotoCoverageCard({
   counts,
 }: EquipmentPhotoCoverageCardProps) {
@@ -20,62 +22,72 @@ export function EquipmentPhotoCoverageCard({
   return (
     <Link
       to="/admin/equipment-photos"
-      className="block bg-white rounded-lg shadow border border-gray-200 hover:border-purple-300 hover:shadow-md transition p-5"
+      className="block bg-white rounded-lg shadow border border-gray-200 hover:border-purple-300 hover:shadow-md transition p-6"
       data-testid="equipment-photo-coverage-card"
     >
-      <div className="flex items-baseline justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Equipment photo coverage
-        </h3>
-        <span className="text-xs text-gray-500">
-          {coveragePct}% of {counts.total}
-        </span>
-      </div>
-      <ul className="space-y-2 text-sm">
-        <Row
-          icon={<ImageIcon className="size-4 text-emerald-600" />}
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        Equipment photo coverage
+      </h3>
+      <div className="space-y-4">
+        <Tile
+          icon={ImageIcon}
+          color="bg-emerald-100 text-emerald-700"
           label="Picked"
           value={counts.picked}
           testId="coverage-picked"
         />
-        <Row
-          icon={<Inbox className="size-4 text-blue-600" />}
+        <Tile
+          icon={Inbox}
+          color="bg-blue-100 text-blue-700"
           label="Unsourced"
           value={counts.unsourced}
           testId="coverage-unsourced"
         />
-        <Row
-          icon={<ImageOff className="size-4 text-amber-600" />}
+        <Tile
+          icon={ImageOff}
+          color="bg-amber-100 text-amber-700"
           label="Attempted, no image"
           value={counts.attemptedNoImage}
           testId="coverage-attempted-no-image"
         />
-        <Row
-          icon={<EyeOff className="size-4 text-gray-400" />}
+        <Tile
+          icon={EyeOff}
+          color="bg-gray-100 text-gray-500"
           label="Skipped"
           value={counts.skipped}
           testId="coverage-skipped"
         />
-      </ul>
+      </div>
+      <p
+        className="mt-4 text-xs text-gray-500"
+        data-testid="coverage-headline-ratio"
+      >
+        {coveragePct}% of {counts.total}
+      </p>
     </Link>
   );
 }
 
-interface RowProps {
-  icon: React.ReactNode;
+interface TileProps {
+  icon: LucideIcon;
+  color: string;
   label: string;
   value: number;
   testId: string;
 }
 
-function Row({ icon, label, value, testId }: RowProps) {
+function Tile({ icon: Icon, color, label, value, testId }: TileProps) {
   return (
-    <li className="flex items-center justify-between" data-testid={testId}>
-      <span className="flex items-center gap-2 text-gray-700">
-        {icon}
-        {label}
-      </span>
-      <span className="font-semibold tabular-nums text-gray-900">{value}</span>
-    </li>
+    <div className="flex items-center" data-testid={testId}>
+      <div className={`${color} rounded-lg p-2 mr-3`}>
+        <Icon className="size-5" aria-hidden />
+      </div>
+      <div>
+        <div className="text-xl font-semibold tabular-nums text-gray-900">
+          {value}
+        </div>
+        <div className="text-sm text-gray-600">{label}</div>
+      </div>
+    </div>
   );
 }

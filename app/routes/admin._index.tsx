@@ -269,14 +269,18 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       testId: "content-stats-users-total",
       subtitle: (
         <>
-          <span data-testid="content-stats-users-7d">
-            {stats.usersLast7Days}
-          </span>{" "}
-          in 7d ·{" "}
-          <span data-testid="content-stats-users-30d">
-            {stats.usersLast30Days}
-          </span>{" "}
-          in 30d
+          <div>
+            <span data-testid="content-stats-users-7d">
+              {stats.usersLast7Days}
+            </span>{" "}
+            in 7d
+          </div>
+          <div>
+            <span data-testid="content-stats-users-30d">
+              {stats.usersLast30Days}
+            </span>{" "}
+            in 30d
+          </div>
         </>
       ),
     },
@@ -414,9 +418,12 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Content Statistics
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-4">
               {contentStats.map((stat, index) => (
-                <div key={index} className="flex items-center">
+                <div
+                  key={index}
+                  className={`flex ${stat.subtitle ? "items-start" : "items-center"}`}
+                >
                   <div className={`${stat.color} rounded-lg p-3 mr-4`}>
                     <stat.icon className="size-6" aria-hidden />
                   </div>
@@ -429,7 +436,7 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
                     </div>
                     <div className="text-sm text-gray-600">{stat.title}</div>
                     {stat.subtitle && (
-                      <div className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                      <div className="text-xs text-gray-500 mt-1 tabular-nums space-y-0.5">
                         {stat.subtitle}
                       </div>
                     )}

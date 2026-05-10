@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { Clock, Inbox, Hourglass, CheckCircle2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { formatRelativeTime } from "~/lib/date";
 import type { SpecSourcingStatus } from "~/lib/spec-sourcing/status.server";
 
@@ -8,9 +9,10 @@ interface SpecSourcingStatusCardProps {
 }
 
 // Admin-dashboard card for the spec-sourcing pipeline (TT-149).
-// Mirrors EquipmentPhotoCoverageCard's shape: title, icon+label+value
-// rows, then a small footer line carrying the cron's last-activity
-// timestamp. Card links to /admin/manufacturer-specs (TT-150) so the
+// Mirrors the Content Statistics tile shape (TT-188): icon in a
+// coloured rounded background + bold value + small label, with the
+// cron's last-activity timestamp pinned to a small footer line.
+// Card links to /admin/manufacturer-specs (TT-150) so the
 // pending-review count doubles as the call-to-action.
 export function SpecSourcingStatusCard({
   status,
@@ -18,40 +20,42 @@ export function SpecSourcingStatusCard({
   return (
     <Link
       to="/admin/manufacturer-specs"
-      className="block bg-white rounded-lg shadow border border-gray-200 hover:border-purple-300 hover:shadow-md transition p-5"
+      className="block bg-white rounded-lg shadow border border-gray-200 hover:border-purple-300 hover:shadow-md transition p-6"
       data-testid="spec-sourcing-status"
     >
-      <div className="flex items-baseline justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Spec sourcing pipeline
-        </h3>
-      </div>
-      <ul className="space-y-2 text-sm">
-        <Row
-          icon={<Clock className="size-4 text-blue-600" />}
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        Spec sourcing pipeline
+      </h3>
+      <div className="space-y-4">
+        <Tile
+          icon={Clock}
+          color="bg-blue-100 text-blue-700"
           label="Pending review"
           value={status.pendingReview}
           testId="spec-sourcing-pending-review"
         />
-        <Row
-          icon={<Inbox className="size-4 text-amber-600" />}
+        <Tile
+          icon={Inbox}
+          color="bg-amber-100 text-amber-700"
           label="Never sourced"
           value={status.neverSourced}
           testId="spec-sourcing-never-sourced"
         />
-        <Row
-          icon={<Hourglass className="size-4 text-gray-400" />}
+        <Tile
+          icon={Hourglass}
+          color="bg-gray-100 text-gray-500"
           label="In cooldown"
           value={status.inCooldown}
           testId="spec-sourcing-in-cooldown"
         />
-        <Row
-          icon={<CheckCircle2 className="size-4 text-emerald-600" />}
+        <Tile
+          icon={CheckCircle2}
+          color="bg-emerald-100 text-emerald-700"
           label="Applied total"
           value={status.appliedTotal}
           testId="spec-sourcing-applied-total"
         />
-      </ul>
+      </div>
       <p
         className="mt-4 text-xs text-gray-500"
         data-testid="spec-sourcing-last-run"
@@ -73,21 +77,26 @@ export function SpecSourcingStatusCard({
   );
 }
 
-interface RowProps {
-  icon: React.ReactNode;
+interface TileProps {
+  icon: LucideIcon;
+  color: string;
   label: string;
   value: number;
   testId: string;
 }
 
-function Row({ icon, label, value, testId }: RowProps) {
+function Tile({ icon: Icon, color, label, value, testId }: TileProps) {
   return (
-    <li className="flex items-center justify-between" data-testid={testId}>
-      <span className="flex items-center gap-2 text-gray-700">
-        {icon}
-        {label}
-      </span>
-      <span className="font-semibold tabular-nums text-gray-900">{value}</span>
-    </li>
+    <div className="flex items-center" data-testid={testId}>
+      <div className={`${color} rounded-lg p-2 mr-3`}>
+        <Icon className="size-5" aria-hidden />
+      </div>
+      <div>
+        <div className="text-xl font-semibold tabular-nums text-gray-900">
+          {value}
+        </div>
+        <div className="text-sm text-gray-600">{label}</div>
+      </div>
+    </div>
   );
 }
