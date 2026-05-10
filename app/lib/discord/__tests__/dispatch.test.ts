@@ -162,9 +162,11 @@ describe("dispatch.handleSlashCommand — happy path (deferred)", () => {
     );
     expect(init.method).toBe("PATCH");
     expect(init.headers).toMatchObject({
-      Authorization: "Bot Bot.Token",
       "Content-Type": "application/json",
     });
+    // Auth: interaction token in the URL — NOT Bot bot-token. The
+    // followup webhook endpoint family rejects bot-auth headers.
+    expect(init.headers).not.toHaveProperty("Authorization");
     const body = JSON.parse(init.body as string);
     expect(body.embeds).toHaveLength(1);
     expect(body.embeds[0]).toMatchObject({

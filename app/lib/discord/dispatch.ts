@@ -255,6 +255,14 @@ async function sendFollowup(
   interaction: DiscordInteraction,
   outcome: search.SearchOutcome
 ): Promise<void> {
+  // The interaction-followup webhook is authenticated by `interaction.token`
+  // baked into the URL — NOT by `Authorization: Bot ...`. Sending a bot
+  // header here causes Discord to 401 silently and the user sees "the
+  // application didn't respond in time" (the original C3 spec asked for
+  // bot-token auth here, but that turns out to be wrong for this
+  // endpoint family — bot auth is for /channels/{id}/messages, not
+  // /webhooks/{appId}/{token}/...).
+  void ctx;
   const url = `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
 
   // Followup PATCH cannot toggle ephemeral state — that's set at ack time
@@ -268,14 +276,25 @@ async function sendFollowup(
     body = { content: outcome.content, allowed_mentions: { parse: [] } };
   }
 
-  await fetch(url, {
+  const response = await fetch(url, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bot ${ctx.env.DISCORD_BOT_TOKEN}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  if (!response.ok) {
+    // Surface the failure so the user sees something better than a
+    // silent "didn't respond in time" timeout from Discord. Logger.error
+    // also fires the alerter so a broken followup can't go unnoticed.
+    const text = await response.text().catch(() => "<no body>");
+    const { Logger, createLogContext } = await import("~/lib/logger.server");
+    Logger.error(
+      `discord.followup.patch.failed status=${response.status}`,
+      createLogContext("discord-search", {}),
+      undefined,
+      { status: response.status, body: text.slice(0, 600) }
+    );
+  }
 }
 
 function ephemeralJson(content: string): Response {
