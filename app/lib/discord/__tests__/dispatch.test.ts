@@ -333,6 +333,56 @@ describe("dispatch.handleSlashCommand — synchronous-only paths", () => {
     expect(body.type).toBe(4);
     expect(body.data.content).toContain("malformed interaction");
   });
+
+  it("strips a `test-` prefix in dev so /test-equipment reaches runEquipmentSearch", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
+    const runEq = vi.spyOn(search, "runEquipmentSearch").mockResolvedValue({
+      kind: "embed",
+      embed: { title: "Viscaria" },
+      outcome: "single",
+      topRank: 0.1,
+      runnerUpRank: null,
+      matchCount: 1,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const response = await dispatch.handleSlashCommand(
+        makeCtx({ ENVIRONMENT: "development" }),
+        {
+          type: 2,
+          data: { name: "test-equipment", options: [{ value: "viscaria" }] },
+          member: { user: { id: "u" }, roles: [] },
+          guild_id: "g",
+          application_id: "app-id",
+          token: "tok",
+        } as any
+      );
+      expect(await asJson(response)).toEqual({ type: 5 });
+      expect(runEq).toHaveBeenCalledWith(expect.any(Object), "viscaria");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does NOT strip a `test-` prefix in production (treats it as Unknown command)", async () => {
+    vi.spyOn(moderation, "checkSearchPermissions").mockResolvedValue(true);
+    const response = await dispatch.handleSlashCommand(
+      makeCtx({ ENVIRONMENT: "production" }),
+      {
+        type: 2,
+        data: { name: "test-equipment", options: [{ value: "viscaria" }] },
+        member: { user: { id: "u" }, roles: [] },
+        guild_id: "g",
+        application_id: "app-id",
+        token: "tok",
+      } as any
+    );
+    const body = await asJson(response);
+    expect(body.data.content).toContain("Unknown command");
+  });
 });
 
 describe("dispatch.handleMessageComponent — custom_id routing", () => {

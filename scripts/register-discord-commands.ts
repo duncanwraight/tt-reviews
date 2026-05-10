@@ -9,21 +9,27 @@
 //
 // Usage:
 //
-//   # Dev guild — values auto-loaded from .dev.vars:
+//   # Dev guild — uses the runtime's DISCORD_* values from .dev.vars:
 //   node --experimental-strip-types scripts/register-discord-commands.ts --env dev
 //
-//   # Prod (real bot, real guild) — explicit values + confirm flag:
-//   DISCORD_BOT_TOKEN=... DISCORD_APP_ID=... DISCORD_GUILD_ID=... \
-//     node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
+//   # Prod guild — uses the script-only PROD_DISCORD_* values:
+//   node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
 //
-// Why guild-scoped: guild commands propagate instantly (vs ~1 hour for
-// global). And the dev/prod isolation we already use (separate Discord
-// applications, separate guilds) means a stray prod registration can't
-// land in dev or vice versa even with the wrong token.
+// Why prefixed prod vars: the runtime Worker reads DISCORD_BOT_TOKEN /
+// DISCORD_APP_ID / DISCORD_GUILD_ID from `.dev.vars` and those point at
+// the dev application + dev guild, deliberately. Holding the prod app
+// credentials under PROD_DISCORD_* means (a) the script can pick the
+// right set per --env without juggling shell exports, and (b) a stray
+// runtime read can never pull prod values — they're invisible to
+// DiscordContext.env.
 //
-// Why .dev.vars is only auto-loaded for --env dev: in prod we want the
-// operator to pass values explicitly so a stray .dev.vars on disk
-// can't ever leak into a prod registration call.
+// Both modes auto-load `.dev.vars` so the file (gitignored) can be the
+// single source of truth for both runtime and script credentials.
+//
+// Why guild-scoped registration: guild commands propagate instantly (vs
+// ~1 hour for global), and the dev/prod isolation (separate Discord
+// applications, separate guilds) means a stray dev registration can't
+// land in prod or vice versa.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -47,10 +53,12 @@ Usage:
   node --experimental-strip-types scripts/register-discord-commands.ts \\
     --env <dev|prod> [--confirm prod]
 
-Env (auto-loaded from .dev.vars in --env dev; pass explicitly for --env prod):
-  DISCORD_BOT_TOKEN  bot token for the target application
-  DISCORD_APP_ID     application ID for the target Discord app
-  DISCORD_GUILD_ID   guild ID where commands should be registered
+Env (auto-loaded from .dev.vars; mirrors runtime conventions):
+  --env dev   reads:  DISCORD_BOT_TOKEN, DISCORD_APP_ID, DISCORD_GUILD_ID
+              (same values the Worker reads when running 'wrangler dev')
+  --env prod  reads:  PROD_DISCORD_BOT_TOKEN, PROD_DISCORD_APP_ID,
+                      PROD_DISCORD_GUILD_ID
+              (script-only — these never reach the runtime Worker)
 
 Flags:
   --env dev|prod     required — chooses which credentials to expect
@@ -127,13 +135,11 @@ function loadDevVarsIfPresent(): void {
   }
 }
 
-function readEnvOrFail(name: string, env: "dev" | "prod"): string {
+function readEnvOrFail(name: string, _env: "dev" | "prod"): string {
   const value = process.env[name];
   if (!value || value.length === 0) {
     fail(
-      env === "dev"
-        ? `${name} is not set. Add it to .dev.vars or export it before running.`
-        : `${name} is not set. Pass it explicitly when running --env prod.`
+      `${name} is not set. Add it to .dev.vars or export it before running.`
     );
   }
   return value;
@@ -183,26 +189,43 @@ async function registerCommands(
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
 
-  if (args.env === "dev") {
-    loadDevVarsIfPresent();
-  }
+  // Auto-load .dev.vars for both modes — that file is the single source
+  // of truth for both runtime and script credentials. The prefix on
+  // PROD_* names is what keeps modes isolated; .dev.vars holding
+  // PROD_DISCORD_* values can never leak into the runtime Worker
+  // because DiscordContext.env reads the unprefixed names.
+  loadDevVarsIfPresent();
 
-  const botToken = readEnvOrFail("DISCORD_BOT_TOKEN", args.env);
-  const appId = readEnvOrFail("DISCORD_APP_ID", args.env);
-  const guildId = readEnvOrFail("DISCORD_GUILD_ID", args.env);
+  const prefix = args.env === "prod" ? "PROD_" : "";
+  const botToken = readEnvOrFail(`${prefix}DISCORD_BOT_TOKEN`, args.env);
+  const appId = readEnvOrFail(`${prefix}DISCORD_APP_ID`, args.env);
+  const guildId = readEnvOrFail(`${prefix}DISCORD_GUILD_ID`, args.env);
+
+  // Dev commands ship with a `test-` prefix on the registered name so
+  // they're visually distinct in the Discord picker for testers, and so
+  // a tighter role gate (DISCORD_SEARCH_ALLOWED_ROLES set to the
+  // testing-mod role) keeps stray invocations to vetted users only.
+  // The dispatch (app/lib/discord/dispatch.ts:handleSlashCommand) strips
+  // the prefix in dev so handlers stay environment-agnostic.
+  const commandsToRegister: SlashCommandDefinition[] =
+    args.env === "dev"
+      ? SLASH_COMMANDS.map(c => ({ ...c, name: `test-${c.name}` }))
+      : [...SLASH_COMMANDS];
 
   // eslint-disable-next-line no-console
   console.log(
-    `About to register ${SLASH_COMMANDS.length} command(s) to app \`${appId}\` ` +
+    `About to register ${commandsToRegister.length} command(s) to app \`${appId}\` ` +
       `in guild \`${guildId}\` (env=\`${args.env}\`).`
   );
   // eslint-disable-next-line no-console
-  console.log(`Commands: ${SLASH_COMMANDS.map(c => "/" + c.name).join(", ")}`);
+  console.log(
+    `Commands: ${commandsToRegister.map(c => "/" + c.name).join(", ")}`
+  );
   // eslint-disable-next-line no-console
   console.log("Continuing in 2s — Ctrl-C now to abort.\n");
   await sleep(2_000);
 
-  await registerCommands(appId, guildId, botToken, SLASH_COMMANDS);
+  await registerCommands(appId, guildId, botToken, commandsToRegister);
 }
 
 main().catch(err => {

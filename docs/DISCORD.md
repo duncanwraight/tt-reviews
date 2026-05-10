@@ -92,23 +92,39 @@ The registered slash-command list (what shows up in Discord's `/` picker) is dec
 
 Why a script: there's no auto-registration in the Worker startup. Discord requires an explicit PUT to `https://discord.com/api/v10/applications/{appId}/guilds/{guildId}/commands`, and that PUT is the **only** way to delete a stale command. If the registered list drifts from the in-code array (e.g. a command you removed in code is still being shown to users in the picker), it's because nobody re-ran the script — there's nothing in deploy that does it for you.
 
+The script auto-loads `.dev.vars` for both modes and picks credentials based on `--env`:
+
+| `--env` | Vars read                                                                       |
+| ------- | ------------------------------------------------------------------------------- |
+| `dev`   | `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID` (the runtime/dev set) |
+| `prod`  | `PROD_DISCORD_BOT_TOKEN`, `PROD_DISCORD_APP_ID`, `PROD_DISCORD_GUILD_ID`        |
+
+The dev set is the same one the Worker reads under `wrangler dev`, so dev mode stays DRY. The `PROD_*` prefix is deliberate: the runtime Worker never reads those names, so holding the prod credentials in `.dev.vars` (gitignored) can't leak into a `wrangler dev` session.
+
 ### Dev guild
 
 ```sh
-set -a; source .dev.vars; set +a
 node --experimental-strip-types scripts/register-discord-commands.ts --env dev
 ```
 
-The script reads `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID` from the shell. It prints what it's about to write, waits 2s for Ctrl-C, then PUTs and lists the result.
+Prints the target app + guild IDs, waits 2s for Ctrl-C, then PUTs and lists what's now registered.
+
+**Dev names carry a `test-` prefix.** The dev script registers `/test-equipment` and `/test-player` (instead of the bare `/equipment` and `/player` that prod uses). This is deliberate:
+
+- **Visual signal in the picker** so testers see immediately which commands run against the dev application + dev guild rather than prod.
+- **Tighter role gate.** Set `DISCORD_SEARCH_ALLOWED_ROLES` in `.dev.vars` to your testing-mod role ID(s) to limit who can invoke them — useful for shared dev guilds.
+
+The dispatch in `app/lib/discord/dispatch.ts:handleSlashCommand` strips the `test-` prefix when `ENVIRONMENT=development`, so the rest of the codepath (including the e2e tests at `e2e/discord-search.spec.ts`) stays environment-agnostic. In prod, an unexpected `test-equipment` invocation falls through to the "Unknown command" path.
 
 ### Prod guild
 
+Add `PROD_DISCORD_BOT_TOKEN`, `PROD_DISCORD_APP_ID`, `PROD_DISCORD_GUILD_ID` to your local `.dev.vars` (or export them inline) and run:
+
 ```sh
-DISCORD_BOT_TOKEN=... DISCORD_APP_ID=... DISCORD_GUILD_ID=... \
-  node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
+node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
 ```
 
-The `--confirm prod` flag is required for `--env prod` — guards against accidentally writing prod credentials sourced from a misconfigured shell. Refuses to run without it.
+The `--confirm prod` flag is required for `--env prod` — refuses to run without it. The `PROD_*` prefix is the additional safety: `DISCORD_BOT_TOKEN` (unprefixed) can never accidentally hit the prod Discord application from the script.
 
 ### Idempotency
 

@@ -27,7 +27,16 @@ export async function handleSlashCommand(
   }
 
   const { data } = interaction;
-  const commandName = data.name;
+  // Dev guild registers commands with a `test-` prefix (so they're
+  // visually distinct in the picker for testers and so a tighter role
+  // gate can be applied via DISCORD_SEARCH_ALLOWED_ROLES). Strip the
+  // prefix here so the rest of the dispatch is environment-agnostic;
+  // prod and e2e alike send the bare names.
+  const isDev = ctx.env.ENVIRONMENT === "development";
+  const commandName =
+    isDev && data.name.startsWith("test-")
+      ? data.name.slice("test-".length)
+      : data.name;
 
   const allowed = await moderation.checkSearchPermissions(
     ctx,

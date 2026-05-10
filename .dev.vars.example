@@ -28,6 +28,16 @@ DISCORD_GUILD_ID=your_dev_discord_guild_id
 # by scripts/register-discord-commands.ts (TT-160). The runtime Worker
 # doesn't need it; the registration script reads it from process.env.
 DISCORD_APP_ID=your_dev_discord_application_id
+
+# PROD_DISCORD_* values — script-only. The registration script picks
+# these up when invoked with --env prod so it can hit the prod Discord
+# application from your local machine without juggling shell exports.
+# These names are deliberately prefixed; the runtime Worker never reads
+# them, which keeps `wrangler dev` pinned to the dev application even
+# when the prod creds are also present in this file.
+# PROD_DISCORD_BOT_TOKEN=your_prod_discord_bot_token
+# PROD_DISCORD_APP_ID=your_prod_discord_application_id
+# PROD_DISCORD_GUILD_ID=your_prod_discord_guild_id
 # DISCORD_PUBLIC_KEY accepts a CSV of Ed25519 public keys (Discord
 # verifies against any). Set this to the dev Discord app's real key
 # so real button clicks verify against the dev server. The well-known
