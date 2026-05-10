@@ -42,6 +42,7 @@ import {
 interface ParsedArgs {
   env: "dev" | "prod";
   confirmProd: boolean;
+  clearGlobals: boolean;
 }
 
 function showHelp(): void {
@@ -63,6 +64,11 @@ Env (auto-loaded from .dev.vars; mirrors runtime conventions):
 Flags:
   --env dev|prod     required — chooses which credentials to expect
   --confirm prod     required when --env prod (guard against accidents)
+  --clear-globals    instead of registering, PUT [] to the app's GLOBAL
+                     command list. Use to clean up commands that were
+                     manually registered globally before the script
+                     existed (visible in every guild, separate from the
+                     guild-scoped list this script normally manages).
   --help             show this message
 
 Idempotent: re-runs replace whatever's currently registered. Removing a
@@ -78,6 +84,7 @@ function parseCliArgs(argv: string[]): ParsedArgs {
       env: { type: "string" },
       confirm: { type: "string" },
       help: { type: "boolean" },
+      "clear-globals": { type: "boolean" },
     },
     strict: true,
   });
@@ -100,7 +107,11 @@ function parseCliArgs(argv: string[]): ParsedArgs {
     );
   }
 
-  return { env, confirmProd };
+  return {
+    env,
+    confirmProd,
+    clearGlobals: values["clear-globals"] === true,
+  };
 }
 
 function fail(message: string): never {
@@ -186,6 +197,39 @@ async function registerCommands(
   }
 }
 
+async function clearGlobalCommands(
+  appId: string,
+  botToken: string
+): Promise<void> {
+  // Discord exposes two separate command lists per app:
+  //   - Global:  /applications/{appId}/commands           — visible in
+  //              every guild the bot is in.
+  //   - Guild:   /applications/{appId}/guilds/{id}/commands — local.
+  // Both lists show in the picker simultaneously (no dedup), so a
+  // legacy global registration shows up alongside our guild-scoped
+  // one. PUTting [] to the global endpoint clears it cleanly.
+  const url = `https://discord.com/api/v10/applications/${appId}/commands`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${botToken}`,
+    },
+    body: JSON.stringify([]),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    fail(
+      `Discord rejected PUT [] (status ${response.status}). Body: ${text.slice(0, 800)}`
+    );
+  }
+  const remaining = (await response.json()) as Array<{ name: string }>;
+  // eslint-disable-next-line no-console
+  console.log(
+    `\n✓ Cleared global commands for app \`${appId}\`. Remaining global count: ${remaining.length}`
+  );
+}
+
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
 
@@ -199,6 +243,20 @@ async function main(): Promise<void> {
   const prefix = args.env === "prod" ? "PROD_" : "";
   const botToken = readEnvOrFail(`${prefix}DISCORD_BOT_TOKEN`, args.env);
   const appId = readEnvOrFail(`${prefix}DISCORD_APP_ID`, args.env);
+
+  if (args.clearGlobals) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `About to CLEAR all GLOBAL slash commands on app \`${appId}\` (env=\`${args.env}\`). ` +
+        `Guild-scoped commands are not affected.`
+    );
+    // eslint-disable-next-line no-console
+    console.log("Continuing in 2s — Ctrl-C now to abort.\n");
+    await sleep(2_000);
+    await clearGlobalCommands(appId, botToken);
+    return;
+  }
+
   const guildId = readEnvOrFail(`${prefix}DISCORD_GUILD_ID`, args.env);
 
   // Dev commands ship with a `test-` prefix on the registered name so
