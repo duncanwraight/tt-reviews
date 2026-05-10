@@ -60,12 +60,58 @@ export function buildButtonInteraction(params: {
     },
     member: {
       // Must match at least one role from DISCORD_ALLOWED_ROLES or the
-      // handler's checkUserPermissions rejects with "You do not have
-      // permission to use this command."
+      // handler's checkModeratorPermissions rejects with "You do not
+      // have permission to use this command."
       roles: ["role_e2e_moderator"],
       user: {
         id: params.userId ?? "1234567890",
         username: params.username ?? "e2e-discord-mod",
+      },
+    },
+    channel_id: "test-channel-id",
+    guild_id: "test-guild-id",
+  };
+}
+
+/**
+ * APPLICATION_COMMAND (slash command) interaction. Used by the TT-161
+ * search e2e to drive the /equipment and /player paths through the real
+ * dispatch + RPCs. Includes application_id and token so the deferred-ack
+ * followup PATCH (TT-159) can address its target — the PATCH itself
+ * fails harmlessly in test (the token is fake) and that's fine; the
+ * dispatch swallows followup failures.
+ */
+export function buildSlashCommandInteraction(params: {
+  command: "equipment" | "player" | string;
+  query: string;
+  userId?: string;
+  username?: string;
+}): object {
+  return {
+    type: 2, // APPLICATION_COMMAND
+    id: "test-interaction-id",
+    application_id: "test-app-id",
+    token: "test-interaction-token",
+    version: 1,
+    data: {
+      name: params.command,
+      // 1 = CHAT_INPUT
+      type: 1,
+      options: [
+        {
+          name: "query",
+          type: 3, // STRING
+          value: params.query,
+        },
+      ],
+    },
+    member: {
+      // role_e2e_moderator is auto-allowed by both
+      // checkModeratorPermissions and checkSearchPermissions in dev.
+      roles: ["role_e2e_moderator"],
+      user: {
+        id: params.userId ?? "1234567890",
+        username: params.username ?? "e2e-discord-search",
       },
     },
     channel_id: "test-channel-id",
