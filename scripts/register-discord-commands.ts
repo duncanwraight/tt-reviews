@@ -9,11 +9,10 @@
 //
 // Usage:
 //
-//   # Dev guild — uses .dev.vars values exported into the shell:
-//   set -a; source .dev.vars; set +a
+//   # Dev guild — values auto-loaded from .dev.vars:
 //   node --experimental-strip-types scripts/register-discord-commands.ts --env dev
 //
-//   # Prod (real bot, real guild) — explicit confirm flag required:
+//   # Prod (real bot, real guild) — explicit values + confirm flag:
 //   DISCORD_BOT_TOKEN=... DISCORD_APP_ID=... DISCORD_GUILD_ID=... \
 //     node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
 //
@@ -21,7 +20,13 @@
 // global). And the dev/prod isolation we already use (separate Discord
 // applications, separate guilds) means a stray prod registration can't
 // land in dev or vice versa even with the wrong token.
+//
+// Why .dev.vars is only auto-loaded for --env dev: in prod we want the
+// operator to pass values explicitly so a stray .dev.vars on disk
+// can't ever leak into a prod registration call.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   SLASH_COMMANDS,
@@ -42,7 +47,7 @@ Usage:
   node --experimental-strip-types scripts/register-discord-commands.ts \\
     --env <dev|prod> [--confirm prod]
 
-Env (read from process.env, sourced from .dev.vars in dev):
+Env (auto-loaded from .dev.vars in --env dev; pass explicitly for --env prod):
   DISCORD_BOT_TOKEN  bot token for the target application
   DISCORD_APP_ID     application ID for the target Discord app
   DISCORD_GUILD_ID   guild ID where commands should be registered
@@ -96,11 +101,39 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function readEnvOrFail(name: string): string {
+// In dev, populate process.env from .dev.vars on the way in so the
+// operator can run the script without sourcing the file themselves.
+// Existing values in process.env take precedence so an explicit
+// override on the command line still wins. Mirrors the loader pattern
+// in scripts/photo-sourcing/test-resolver.ts.
+function loadDevVarsIfPresent(): void {
+  const path = resolve(process.cwd(), ".dev.vars");
+  let raw: string;
+  try {
+    raw = readFileSync(path, "utf8");
+  } catch {
+    return;
+  }
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+function readEnvOrFail(name: string, env: "dev" | "prod"): string {
   const value = process.env[name];
   if (!value || value.length === 0) {
     fail(
-      `${name} is not set. For dev, run \`set -a; source .dev.vars; set +a\` first.`
+      env === "dev"
+        ? `${name} is not set. Add it to .dev.vars or export it before running.`
+        : `${name} is not set. Pass it explicitly when running --env prod.`
     );
   }
   return value;
@@ -150,9 +183,13 @@ async function registerCommands(
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
 
-  const botToken = readEnvOrFail("DISCORD_BOT_TOKEN");
-  const appId = readEnvOrFail("DISCORD_APP_ID");
-  const guildId = readEnvOrFail("DISCORD_GUILD_ID");
+  if (args.env === "dev") {
+    loadDevVarsIfPresent();
+  }
+
+  const botToken = readEnvOrFail("DISCORD_BOT_TOKEN", args.env);
+  const appId = readEnvOrFail("DISCORD_APP_ID", args.env);
+  const guildId = readEnvOrFail("DISCORD_GUILD_ID", args.env);
 
   // eslint-disable-next-line no-console
   console.log(
