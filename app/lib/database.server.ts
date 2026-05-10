@@ -12,7 +12,6 @@ import * as players from "./database/players";
 import * as reviews from "./database/reviews";
 import * as submissions from "./database/submissions";
 import * as search from "./database/search";
-import * as admin from "./database/admin";
 
 // Re-export shared types
 export type { Player, Equipment, PlayerEquipmentSetup } from "./types";
@@ -217,10 +216,6 @@ export class DatabaseService {
     limit = 6
   ): Promise<(Equipment & { averageRating?: number; reviewCount?: number })[]> {
     return equipment.getPopularEquipment(this.ctx, limit);
-  }
-
-  async getAdminDashboardCounts(): Promise<admin.AdminDashboardCounts> {
-    return admin.getAdminDashboardCounts(this.ctx);
   }
 
   async getSimilarEquipment(
