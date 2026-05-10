@@ -19,21 +19,12 @@ function baseInput(over: Partial<PlayerEmbedInput> = {}): PlayerEmbedInput {
   };
 }
 
-describe("renderPlayerEmbed", () => {
-  it("populates title, link, author, profile for a fully-specified row", () => {
+describe("renderPlayerEmbed — header + profile (description)", () => {
+  it("populates title, link, author, profile-as-description for a fully-specified row", () => {
     const embed = renderPlayerEmbed(
       baseInput({
         imageKey: "players/ma-long.webp",
         imageEtag: "abc123",
-        setup: {
-          bladeName: "Ma Long Carbon",
-          forehandRubberName: "DHS Hurricane 3 NEO",
-          backhandRubberName: "Butterfly Tenergy 05",
-          year: 2024,
-        },
-        videos: [
-          { title: "Ma Long highlights 2024", url: "https://example.com/1" },
-        ],
       })
     );
 
@@ -45,108 +36,30 @@ describe("renderPlayerEmbed", () => {
     );
     expect(embed.footer?.text).toBe("tabletennis.reviews/players/ma-long");
 
-    const profile = embed.fields?.find(f => f.name === "Profile");
-    expect(profile?.value).toContain("**Style:** Shakehand attacker");
-    expect(profile?.value).toContain("**Retired:** 2003-2024");
-    expect(profile?.value).toContain("**Highest rating:** WR1");
-
-    const setup = embed.fields?.find(f => f.name === "Current setup");
-    expect(setup?.value).toBe(
-      "Ma Long Carbon / DHS Hurricane 3 NEO / Butterfly Tenergy 05 (since 2024)"
-    );
-
-    const videos = embed.fields?.find(f => f.name === "Recent videos");
-    expect(videos?.value).toBe(
-      "[Ma Long highlights 2024](https://example.com/1)"
-    );
+    // Profile lines render as the embed `description`, not as a labelled
+    // field — there's no "Profile" heading anywhere in the output.
+    expect(embed.description).toContain("**Style:** Shakehand attacker");
+    expect(embed.description).toContain("**Retired:** 2003-2024");
+    expect(embed.description).toContain("**Highest rating:** WR1");
+    expect(embed.fields?.find(f => f.name === "Profile")).toBeUndefined();
   });
 
   it("uses 'Active' label for active players, 'Retired' for inactive", () => {
     const active = renderPlayerEmbed(
       baseInput({ active: true, activeYears: "2017-present" })
     );
-    expect(active.fields?.find(f => f.name === "Profile")?.value).toContain(
-      "**Active:** 2017-present"
-    );
+    expect(active.description).toContain("**Active:** 2017-present");
 
     const retired = renderPlayerEmbed(baseInput({ active: false }));
-    expect(retired.fields?.find(f => f.name === "Profile")?.value).toContain(
-      "**Retired:** 2003-2024"
-    );
+    expect(retired.description).toContain("**Retired:** 2003-2024");
   });
 
-  it("omits Current setup when no verified setup is supplied", () => {
-    const embed = renderPlayerEmbed(baseInput({ setup: null }));
-    expect(embed.fields?.find(f => f.name === "Current setup")).toBeUndefined();
-  });
-
-  it("omits 'since YYYY' when setup year is missing but renders blade/FH/BH", () => {
+  it("falls back to Status: Active/Retired when active_years is missing", () => {
     const embed = renderPlayerEmbed(
-      baseInput({
-        setup: {
-          bladeName: "Viscaria",
-          forehandRubberName: "Tenergy 05",
-          backhandRubberName: "Tenergy 64",
-          year: null,
-        },
-      })
+      baseInput({ activeYears: null, active: true })
     );
-    const setup = embed.fields?.find(f => f.name === "Current setup");
-    expect(setup?.value).toBe("Viscaria / Tenergy 05 / Tenergy 64");
-    expect(setup?.value).not.toContain("since");
-  });
-
-  it("renders an em-dash placeholder for missing rubbers in a partial setup", () => {
-    const embed = renderPlayerEmbed(
-      baseInput({
-        setup: {
-          bladeName: "Viscaria",
-          forehandRubberName: null,
-          backhandRubberName: null,
-          year: 2024,
-        },
-      })
-    );
-    const setup = embed.fields?.find(f => f.name === "Current setup");
-    expect(setup?.value).toBe("Viscaria / — / — (since 2024)");
-  });
-
-  it("omits Recent videos when no videos are supplied", () => {
-    const embed = renderPlayerEmbed(baseInput({ videos: [] }));
-    expect(embed.fields?.find(f => f.name === "Recent videos")).toBeUndefined();
-  });
-
-  it("caps videos at 3 even if more are supplied", () => {
-    const five: PlayerEmbedVideoInput[] = Array.from({ length: 5 }, (_, i) => ({
-      title: `Video ${i + 1}`,
-      url: `https://example.com/${i + 1}`,
-    }));
-    const embed = renderPlayerEmbed(baseInput({ videos: five }));
-    const videosField = embed.fields?.find(f => f.name === "Recent videos");
-    const lines = videosField!.value.split("\n");
-    expect(lines).toHaveLength(3);
-    expect(lines[0]).toContain("Video 1");
-    expect(lines[2]).toContain("Video 3");
-  });
-
-  it("truncates video titles longer than 80 chars with ellipsis", () => {
-    const longTitle = "x".repeat(100);
-    const embed = renderPlayerEmbed(
-      baseInput({
-        videos: [{ title: longTitle, url: "https://example.com/x" }],
-      })
-    );
-    const videosField = embed.fields?.find(f => f.name === "Recent videos");
-    // Match `[<truncated>…](url)` — anchor on the trailing "](url)"
-    expect(videosField?.value).toMatch(/…\]\(https:\/\/example\.com\/x\)$/);
-    // Title text inside the brackets is at most 80 chars (incl. ellipsis).
-    const inside = videosField!.value.match(/\[(.+?)\]/)![1];
-    expect(inside.length).toBeLessThanOrEqual(80);
-  });
-
-  it("omits thumbnail when image_key is null", () => {
-    const embed = renderPlayerEmbed(baseInput({ imageKey: null }));
-    expect(embed.thumbnail).toBeUndefined();
+    expect(embed.description).toContain("**Status:** Active");
+    expect(embed.description).not.toContain("**Active:**");
   });
 
   it("renders author with just country code if flag emoji is missing", () => {
@@ -163,30 +76,195 @@ describe("renderPlayerEmbed", () => {
     expect(embed.author).toBeUndefined();
   });
 
-  it("falls back to Status: Active/Retired when active_years is missing", () => {
+  it("omits thumbnail when image_key is null", () => {
+    const embed = renderPlayerEmbed(baseInput({ imageKey: null }));
+    expect(embed.thumbnail).toBeUndefined();
+  });
+});
+
+describe("renderPlayerEmbed — Current setup field", () => {
+  it("renders a full setup as 3 emoji-prefixed lines + italic 'Since YYYY'", () => {
     const embed = renderPlayerEmbed(
-      baseInput({ activeYears: null, active: true })
+      baseInput({
+        setup: {
+          blade: { name: "Viscaria", manufacturer: "Butterfly" },
+          forehandRubber: {
+            name: "Hurricane 3 NEO",
+            manufacturer: "DHS",
+            color: "black",
+          },
+          backhandRubber: {
+            name: "Tenergy 05",
+            manufacturer: "Butterfly",
+            color: "red",
+          },
+          year: 2024,
+        },
+      })
     );
-    const profile = embed.fields?.find(f => f.name === "Profile");
-    expect(profile?.value).toContain("**Status:** Active");
-    expect(profile?.value).not.toContain("**Active:**");
+    const setup = embed.fields?.find(f => f.name === "Current setup");
+    expect(setup).toBeDefined();
+    const lines = setup!.value.split("\n");
+    expect(lines[0]).toBe("🏓 (blade) Butterfly Viscaria");
+    expect(lines[1]).toBe("⚫ (FH) DHS Hurricane 3 NEO");
+    expect(lines[2]).toBe("🔴 (BH) Butterfly Tenergy 05");
+    expect(lines[3]).toBe("*Since 2024*");
   });
 
-  it("does not render the Profile field when there's nothing to show", () => {
-    // No playing style, no rating, no active years — just the bare
-    // active boolean. The renderer still falls back to a Status line,
-    // so the Profile field should still be present.
-    const embed = renderPlayerEmbed({
-      name: "Anon Player",
-      slug: "anon-player",
-      siteUrl: SITE,
-      active: true,
-      playingStyleLabel: null,
-      activeYears: null,
-      highestRating: null,
-    });
-    const profile = embed.fields?.find(f => f.name === "Profile");
-    expect(profile).toBeDefined();
-    expect(profile!.value).toContain("Status:** Active");
+  it("avoids double-prefixing when the rubber name already starts with the manufacturer", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        setup: {
+          blade: { name: "Viscaria", manufacturer: "Butterfly" },
+          forehandRubber: {
+            // Pre-TT-163 catalogue rows often had the brand baked into
+            // the name (e.g. "Butterfly Tenergy 05"). Don't render
+            // "Butterfly Butterfly Tenergy 05".
+            name: "Butterfly Tenergy 05",
+            manufacturer: "Butterfly",
+            color: "red",
+          },
+          backhandRubber: null,
+          year: null,
+        },
+      })
+    );
+    const setup = embed.fields?.find(f => f.name === "Current setup");
+    expect(setup?.value).toContain("🏓 (blade) Butterfly Viscaria");
+    expect(setup?.value).toContain("🔴 (FH) Butterfly Tenergy 05");
+    expect(setup?.value).not.toContain("Butterfly Butterfly");
+  });
+
+  it("uses a • fallback when rubber color is null/unknown", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        setup: {
+          blade: null,
+          forehandRubber: {
+            name: "Mark V",
+            manufacturer: "Yasaka",
+            color: null,
+          },
+          backhandRubber: null,
+          year: null,
+        },
+      })
+    );
+    const setup = embed.fields?.find(f => f.name === "Current setup");
+    expect(setup?.value).toContain("• (FH) Yasaka Mark V");
+  });
+
+  it("omits 'Since YYYY' line when year is missing but renders the rest", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        setup: {
+          blade: { name: "Viscaria", manufacturer: "Butterfly" },
+          forehandRubber: null,
+          backhandRubber: null,
+          year: null,
+        },
+      })
+    );
+    const setup = embed.fields?.find(f => f.name === "Current setup");
+    expect(setup?.value).toBe("🏓 (blade) Butterfly Viscaria");
+    expect(setup?.value).not.toContain("Since");
+  });
+
+  it("omits the Current setup field entirely when blade + both rubbers are absent", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        setup: {
+          blade: null,
+          forehandRubber: null,
+          backhandRubber: null,
+          year: 2024,
+        },
+      })
+    );
+    expect(embed.fields?.find(f => f.name === "Current setup")).toBeUndefined();
+  });
+
+  it("omits the Current setup field when no setup is supplied at all", () => {
+    const embed = renderPlayerEmbed(baseInput({ setup: null }));
+    expect(embed.fields?.find(f => f.name === "Current setup")).toBeUndefined();
+  });
+
+  it("renders a partial setup (blade only) without falsy emoji rows", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        setup: {
+          blade: { name: "Viscaria", manufacturer: "Butterfly" },
+          forehandRubber: null,
+          backhandRubber: null,
+          year: 2024,
+        },
+      })
+    );
+    const setup = embed.fields?.find(f => f.name === "Current setup");
+    expect(setup?.value).toBe("🏓 (blade) Butterfly Viscaria\n*Since 2024*");
+  });
+});
+
+describe("renderPlayerEmbed — Videos field", () => {
+  it("renders a single video as a bare link (no bullet)", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        videos: [
+          { title: "Ma Long highlights 2024", url: "https://example.com/1" },
+        ],
+      })
+    );
+    const videos = embed.fields?.find(f => f.name === "Videos");
+    expect(videos?.value).toBe(
+      "[Ma Long highlights 2024](https://example.com/1)"
+    );
+    expect(videos?.value).not.toMatch(/^- /);
+  });
+
+  it("bullet-prefixes each line when more than one video is supplied", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        videos: [
+          { title: "First", url: "https://example.com/1" },
+          { title: "Second", url: "https://example.com/2" },
+        ],
+      })
+    );
+    const videos = embed.fields?.find(f => f.name === "Videos");
+    const lines = videos!.value.split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe("- [First](https://example.com/1)");
+    expect(lines[1]).toBe("- [Second](https://example.com/2)");
+  });
+
+  it("caps videos at 3 (with bullet markers)", () => {
+    const five: PlayerEmbedVideoInput[] = Array.from({ length: 5 }, (_, i) => ({
+      title: `Video ${i + 1}`,
+      url: `https://example.com/${i + 1}`,
+    }));
+    const embed = renderPlayerEmbed(baseInput({ videos: five }));
+    const videos = embed.fields?.find(f => f.name === "Videos");
+    const lines = videos!.value.split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[0].startsWith("- ")).toBe(true);
+    expect(lines[2]).toContain("Video 3");
+  });
+
+  it("truncates video titles longer than 80 chars with ellipsis", () => {
+    const longTitle = "x".repeat(100);
+    const embed = renderPlayerEmbed(
+      baseInput({
+        videos: [{ title: longTitle, url: "https://example.com/x" }],
+      })
+    );
+    const videos = embed.fields?.find(f => f.name === "Videos");
+    expect(videos?.value).toMatch(/…\]\(https:\/\/example\.com\/x\)$/);
+    const inside = videos!.value.match(/\[(.+?)\]/)![1];
+    expect(inside.length).toBeLessThanOrEqual(80);
+  });
+
+  it("omits the Videos field when none are supplied", () => {
+    const embed = renderPlayerEmbed(baseInput({ videos: [] }));
+    expect(embed.fields?.find(f => f.name === "Videos")).toBeUndefined();
   });
 });

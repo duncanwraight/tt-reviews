@@ -309,8 +309,9 @@ describe("search.runPlayerSearch", () => {
     expect(result.embed.title).toBe("Ma Long");
     expect(result.embed.url).toBe("https://tt-reviews.local/players/ma-long");
     expect(result.embed.author?.name).toContain("CHN");
-    const profile = result.embed.fields?.find(f => f.name === "Profile");
-    expect(profile?.value).toContain("Shakehand attacker");
+    // Profile lines now live on the embed description (no "Profile"
+    // field heading anymore).
+    expect(result.embed.description).toContain("Shakehand attacker");
   });
 
   it("returns ambiguity when multiple equally-ranked rows", async () => {

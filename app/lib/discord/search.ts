@@ -102,9 +102,11 @@ interface PlayerDetailRow {
 
 interface PlayerSetupRow {
   year: number | null;
-  blade: { name: string } | null;
-  forehand_rubber: { name: string } | null;
-  backhand_rubber: { name: string } | null;
+  forehand_color: "red" | "black" | null;
+  backhand_color: "red" | "black" | null;
+  blade: { name: string; manufacturer: string } | null;
+  forehand_rubber: { name: string; manufacturer: string } | null;
+  backhand_rubber: { name: string; manufacturer: string } | null;
 }
 
 interface PlayerFootageRow {
@@ -319,9 +321,26 @@ export async function runPlayerSearch(
       activeYears: detail.active_years,
       setup: setup
         ? {
-            bladeName: setup.blade?.name ?? null,
-            forehandRubberName: setup.forehand_rubber?.name ?? null,
-            backhandRubberName: setup.backhand_rubber?.name ?? null,
+            blade: setup.blade
+              ? {
+                  name: setup.blade.name,
+                  manufacturer: setup.blade.manufacturer,
+                }
+              : null,
+            forehandRubber: setup.forehand_rubber
+              ? {
+                  name: setup.forehand_rubber.name,
+                  manufacturer: setup.forehand_rubber.manufacturer,
+                  color: setup.forehand_color,
+                }
+              : null,
+            backhandRubber: setup.backhand_rubber
+              ? {
+                  name: setup.backhand_rubber.name,
+                  manufacturer: setup.backhand_rubber.manufacturer,
+                  color: setup.backhand_color,
+                }
+              : null,
             year: setup.year ?? null,
           }
         : null,
@@ -466,9 +485,11 @@ async function fetchPlayerSetup(
     .from("player_equipment_setups")
     .select(
       `year,
-       blade:blade_id(name),
-       forehand_rubber:forehand_rubber_id(name),
-       backhand_rubber:backhand_rubber_id(name)`
+       forehand_color,
+       backhand_color,
+       blade:blade_id(name, manufacturer),
+       forehand_rubber:forehand_rubber_id(name, manufacturer),
+       backhand_rubber:backhand_rubber_id(name, manufacturer)`
     )
     .eq("player_id", playerId)
     .eq("verified", true)

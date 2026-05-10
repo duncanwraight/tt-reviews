@@ -38,32 +38,68 @@ function renderProfile(input: PlayerEmbedInput): string | null {
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
+const BLADE_EMOJI = "🏓";
+const RUBBER_EMOJI = { red: "🔴", black: "⚫" } as const;
+const RUBBER_EMOJI_FALLBACK = "•";
+
+function rubberEmoji(color: "red" | "black" | null | undefined): string {
+  return color ? RUBBER_EMOJI[color] : RUBBER_EMOJI_FALLBACK;
+}
+
+function fullEquipmentName(eq: { name: string; manufacturer: string }): string {
+  const manufacturer = eq.manufacturer.trim();
+  const name = eq.name.trim();
+  // Some catalogue rows have the manufacturer baked into the name
+  // (e.g. "Butterfly Tenergy 05"). Avoid double-prefixing in that case.
+  if (
+    manufacturer &&
+    !name.toLowerCase().startsWith(manufacturer.toLowerCase())
+  ) {
+    return `${manufacturer} ${name}`;
+  }
+  return name;
+}
+
 function renderSetup(
   setup: PlayerEmbedSetupInput | null | undefined
 ): string | null {
   if (!setup) return null;
-  const blade = setup.bladeName?.trim();
-  const fh = setup.forehandRubberName?.trim();
-  const bh = setup.backhandRubberName?.trim();
+  if (!setup.blade && !setup.forehandRubber && !setup.backhandRubber) {
+    return null;
+  }
 
-  // If every slot is empty, the renderer returns null and the caller
-  // omits the field. A partial setup (only a blade, say) still
-  // renders — placeholder dashes carry the missing-piece signal.
-  if (!blade && !fh && !bh) return null;
-
-  const slot = (v: string | undefined) => (v && v.length > 0 ? v : "—");
-  const base = `${slot(blade)} / ${slot(fh)} / ${slot(bh)}`;
-  return setup.year ? `${base} (since ${setup.year})` : base;
+  const lines: string[] = [];
+  if (setup.blade) {
+    lines.push(`${BLADE_EMOJI} (blade) ${fullEquipmentName(setup.blade)}`);
+  }
+  if (setup.forehandRubber) {
+    lines.push(
+      `${rubberEmoji(setup.forehandRubber.color)} (FH) ${fullEquipmentName(setup.forehandRubber)}`
+    );
+  }
+  if (setup.backhandRubber) {
+    lines.push(
+      `${rubberEmoji(setup.backhandRubber.color)} (BH) ${fullEquipmentName(setup.backhandRubber)}`
+    );
+  }
+  if (setup.year) {
+    lines.push(`*Since ${setup.year}*`);
+  }
+  return lines.join("\n");
 }
 
 function renderVideos(
   videos: PlayerEmbedVideoInput[] | undefined
 ): string | null {
   if (!videos || videos.length === 0) return null;
-  return videos
+  const formatted = videos
     .slice(0, VIDEO_LIMIT)
-    .map(v => `[${truncateTitle(v.title.trim(), VIDEO_TITLE_MAX)}](${v.url})`)
-    .join("\n");
+    .map(v => `[${truncateTitle(v.title.trim(), VIDEO_TITLE_MAX)}](${v.url})`);
+  // Single video reads cleanly as just the link; multiple get bullet
+  // markers so each is visibly distinct.
+  return formatted.length > 1
+    ? formatted.map(line => `- ${line}`).join("\n")
+    : formatted.join("\n");
 }
 
 function authorName(input: PlayerEmbedInput): string | null {
@@ -89,14 +125,18 @@ export function renderPlayerEmbed(input: PlayerEmbedInput): DiscordEmbed {
     };
   }
 
+  // Profile lines (style / active / highest rating) go straight under
+  // the title as the embed `description` — no "Profile" heading. Cleaner
+  // hierarchy: title is the player, three plain lines beneath, then
+  // labelled fields below for the things that need a heading.
   const profile = renderProfile(input);
-  if (profile) fields.push({ name: "Profile", value: profile });
+  if (profile) embed.description = profile;
 
   const setup = renderSetup(input.setup);
   if (setup) fields.push({ name: "Current setup", value: setup });
 
   const videos = renderVideos(input.videos);
-  if (videos) fields.push({ name: "Recent videos", value: videos });
+  if (videos) fields.push({ name: "Videos", value: videos });
 
   if (fields.length > 0) embed.fields = fields;
 

@@ -65,10 +65,22 @@ export interface EquipmentEmbedInput {
   siteUrl: string;
 }
 
+export interface PlayerEmbedEquipmentInput {
+  name: string;
+  manufacturer: string;
+}
+
+export interface PlayerEmbedRubberInput extends PlayerEmbedEquipmentInput {
+  // Color of the sheet on this side. "red" | "black" | null when
+  // unknown — color is captured by player_equipment_setups but isn't
+  // mandatory, so legacy rows can carry only the rubber identity.
+  color?: "red" | "black" | null;
+}
+
 export interface PlayerEmbedSetupInput {
-  bladeName?: string | null;
-  forehandRubberName?: string | null;
-  backhandRubberName?: string | null;
+  blade?: PlayerEmbedEquipmentInput | null;
+  forehandRubber?: PlayerEmbedRubberInput | null;
+  backhandRubber?: PlayerEmbedRubberInput | null;
   year?: number | null;
 }
 
