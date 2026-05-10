@@ -230,8 +230,14 @@ test("admin rejects a single candidate → only that candidate disappears", asyn
         await expect(tileA).toHaveCount(0);
         await expect(tileB).toBeVisible();
 
+        // Scope to the keys this test owns: other parallel workers
+        // may seed candidates on the same `getFirstEquipment()` row,
+        // and asserting the full remaining set flakes when they do.
         const remaining = await getCandidatesForEquipment(equipmentId);
-        expect(remaining.map(r => r.r2_key)).toEqual([FAKE_KEY_B]);
+        const ownKeys = remaining
+          .map(r => r.r2_key)
+          .filter(k => k === FAKE_KEY_A || k === FAKE_KEY_B);
+        expect(ownKeys).toEqual([FAKE_KEY_B]);
       }
     );
   } finally {
