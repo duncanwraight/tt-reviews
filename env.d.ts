@@ -16,6 +16,10 @@ declare namespace Cloudflare {
     DISCORD_CHANNEL_ID?: string;
     DISCORD_GUILD_ID?: string;
     DISCORD_ALLOWED_ROLES?: string;
+    // TT-159: per-command role allowlist for /equipment and /player.
+    // Empty/unset means everyone allowed. Distinct from
+    // DISCORD_ALLOWED_ROLES (which gates moderation buttons).
+    DISCORD_SEARCH_ALLOWED_ROLES?: string;
 
     // R2 bucket binding (alternative name)
     R2_BUCKET?: R2Bucket;
