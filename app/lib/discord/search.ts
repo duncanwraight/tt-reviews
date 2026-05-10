@@ -368,9 +368,13 @@ function emptyMessage(
   query: string,
   siteUrlValue: string
 ): string {
-  const path = kind === "equipment" ? "/equipment" : "/players";
+  // The /search route is the only one that accepts a free-text `q=`
+  // param — /equipment and /players take faceted filters but no
+  // text query. Send users to the unified site search.
+  // The URL is wrapped in <...> so Discord doesn't auto-unfurl it
+  // into an OG-card embed; the link stays clickable, just unpreviewed.
   const safeQuery = encodeURIComponent(query.trim());
-  return `🔍 No ${kind} found for "${query.trim()}". Try the site search: ${siteUrlValue}${path}?q=${safeQuery}`;
+  return `🔍 No ${kind} found for "${query.trim()}". Try the site search: <${siteUrlValue}/search?q=${safeQuery}>`;
 }
 
 function ambiguityMessage(

@@ -242,8 +242,10 @@ describe("search.runEquipmentSearch", () => {
     if (result.kind !== "empty") return;
     expect(result.outcome).toBe("no-match");
     expect(result.content).toContain("ksdjfh");
+    // Fallback uses /search?q= (the only route with a free-text query
+    // param) and wraps the URL in <...> to suppress Discord auto-unfurl.
     expect(result.content).toContain(
-      "https://tt-reviews.local/equipment?q=ksdjfh"
+      "<https://tt-reviews.local/search?q=ksdjfh>"
     );
   });
 
@@ -339,7 +341,7 @@ describe("search.runPlayerSearch", () => {
     expect(result.kind).toBe("empty");
     if (result.kind !== "empty") return;
     expect(result.content).toContain(
-      "https://tt-reviews.local/players?q=nobody"
+      "<https://tt-reviews.local/search?q=nobody>"
     );
   });
 });
