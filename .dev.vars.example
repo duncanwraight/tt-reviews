@@ -24,6 +24,10 @@ SESSION_SECRET=replace-with-a-long-random-value
 DISCORD_BOT_TOKEN=your_dev_discord_bot_token
 DISCORD_CHANNEL_ID=your_dev_discord_channel_id
 DISCORD_GUILD_ID=your_dev_discord_guild_id
+# DISCORD_APP_ID is the application ID (NOT the bot user ID) — only used
+# by scripts/register-discord-commands.ts (TT-160). The runtime Worker
+# doesn't need it; the registration script reads it from process.env.
+DISCORD_APP_ID=your_dev_discord_application_id
 # DISCORD_PUBLIC_KEY accepts a CSV of Ed25519 public keys (Discord
 # verifies against any). Set this to the dev Discord app's real key
 # so real button clicks verify against the dev server. The well-known

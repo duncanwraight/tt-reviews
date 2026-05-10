@@ -20,22 +20,21 @@ When submissions are made, Discord automatically sends embed messages with inter
 
 Moderators simply click the buttons to approve/reject submissions.
 
-### 2. Slash Commands (Alternative Method)
+### 2. Search Commands
 
-- `/approve <id>` - Approve a submission by ID
-- `/reject <id>` - Reject a submission by ID
+- `/equipment <query>` — search the equipment catalogue, returns one strong match as a rich embed (or an ambiguity hint / fallback link)
+- `/player <query>` — same shape for player profiles
 
-### 3. Search Commands
-
-- `/equipment <query>` - Search equipment database
-- `/player <query>` - Search player database
+The slash-command surface is intentionally narrow. Moderation is button-only — `/approve` and `/reject` were dropped in TT-159 because the buttons attached to each moderation embed are the real moderator surface. See "Updating slash commands" below for how the registered command list is kept in sync.
 
 ## Permission System
 
-Only users with configured Discord roles can moderate:
+Two distinct role allowlists, both reading comma-separated Discord role IDs from env:
 
-- Set via `DISCORD_ALLOWED_ROLES` environment variable (comma-separated role IDs)
-- If no roles configured, all users are allowed
+- **`DISCORD_ALLOWED_ROLES`** gates the **moderation button interactions** (Approve/Reject buttons on submission embeds). Empty/unset → everyone. Used by `checkModeratorPermissions`.
+- **`DISCORD_SEARCH_ALLOWED_ROLES`** gates **`/equipment` and `/player` slash commands**. Empty/unset → everyone (TT-159). Distinct from the moderator list so search can be opened to all verified members without granting moderation rights. Used by `checkSearchPermissions`.
+
+In dev (`ENVIRONMENT=development`), the well-known `role_e2e_moderator` ID is auto-allowed for both gates so Playwright Discord click specs pass without each developer adding it to their env vars.
 
 ## Two-Approval Workflow
 
@@ -52,10 +51,12 @@ Only users with configured Discord roles can moderate:
 ## Environment Variables
 
 - `DISCORD_PUBLIC_KEY` — Ed25519 public key(s) for signature verification on `/api/discord/interactions`. Comma-separated; verifies against any. Prod has one entry (the prod Discord app's key). Local dev typically has two (real dev app key + the e2e test public key from `e2e/utils/discord.ts`) so real Discord clicks and Playwright click specs both verify against one running dev server. The test key is rejected at runtime if `ENVIRONMENT=production`.
-- `DISCORD_BOT_TOKEN` — bot token used for REST calls (posting embeds, editing messages)
+- `DISCORD_BOT_TOKEN` — bot token used for REST calls (posting embeds, editing messages, slash-command followup PATCHes)
 - `DISCORD_CHANNEL_ID` — channel where moderation embeds are posted
 - `DISCORD_GUILD_ID` — guild for slash-command registration and member-role lookups
-- `DISCORD_ALLOWED_ROLES` — comma-separated role IDs that can moderate
+- `DISCORD_APP_ID` — application (not bot user) ID. Used **only** by `scripts/register-discord-commands.ts` (TT-160) — the runtime Worker doesn't read it. Set in `.dev.vars` for dev; pass via shell env when running the script against prod.
+- `DISCORD_ALLOWED_ROLES` — comma-separated role IDs that can moderate (button interactions). Empty/unset → everyone.
+- `DISCORD_SEARCH_ALLOWED_ROLES` — comma-separated role IDs that can use `/equipment` and `/player`. Empty/unset → everyone. Separate gate so search can be opened wider than moderation (TT-159).
 
 ## Local development — isolated dev application
 
@@ -84,3 +85,45 @@ Take that hostname and set it as the dev application's **Interactions Endpoint U
 **When the tunnel hostname changes** (every cloudflared restart with `--url`, since quick tunnels are ephemeral), re-paste the new URL in the Discord Developer Portal. For a stable hostname, register a named tunnel under your Cloudflare account and route a subdomain to it — overkill for casual dev.
 
 **Verify isolation.** Submit a review in local dev → embed appears in the _dev_ channel only. Click Approve in the dev channel → the _local_ review's status flips. Prod Discord and prod DB see no traffic.
+
+## Updating slash commands
+
+The registered slash-command list (what shows up in Discord's `/` picker) is decoupled from the runtime code. Run `scripts/register-discord-commands.ts` whenever the array in `app/lib/discord/slash-commands.ts` changes — adding, removing, renaming, changing a description, or touching option types.
+
+Why a script: there's no auto-registration in the Worker startup. Discord requires an explicit PUT to `https://discord.com/api/v10/applications/{appId}/guilds/{guildId}/commands`, and that PUT is the **only** way to delete a stale command. If the registered list drifts from the in-code array (e.g. a command you removed in code is still being shown to users in the picker), it's because nobody re-ran the script — there's nothing in deploy that does it for you.
+
+### Dev guild
+
+```sh
+set -a; source .dev.vars; set +a
+node --experimental-strip-types scripts/register-discord-commands.ts --env dev
+```
+
+The script reads `DISCORD_BOT_TOKEN`, `DISCORD_APP_ID`, `DISCORD_GUILD_ID` from the shell. It prints what it's about to write, waits 2s for Ctrl-C, then PUTs and lists the result.
+
+### Prod guild
+
+```sh
+DISCORD_BOT_TOKEN=... DISCORD_APP_ID=... DISCORD_GUILD_ID=... \
+  node --experimental-strip-types scripts/register-discord-commands.ts --env prod --confirm prod
+```
+
+The `--confirm prod` flag is required for `--env prod` — guards against accidentally writing prod credentials sourced from a misconfigured shell. Refuses to run without it.
+
+### Idempotency
+
+PUT is full-replace. If the in-code array has `[/equipment, /player]` and Discord currently has `[/equipment, /player, /approve, /reject]`, re-running the script removes `/approve` and `/reject` cleanly. There's no need to manually `DELETE` stale commands.
+
+The same applies in reverse: removing a command from `slash-commands.ts` and re-running deletes it from Discord. Don't expect Discord to delete a command on its own.
+
+### Naming dev vs prod
+
+Same names in both (`/equipment`, `/player`). The dev/prod separation comes from running two distinct Discord applications in two distinct guilds — the same names can't collide because users only see commands registered in their guild's bot. Don't add a `/test-` prefix to dev commands; it just creates drift between dev and prod test scripts.
+
+## Caveats
+
+### Discord caches embed images
+
+Any URL passed as `thumbnail.url` or `image.url` is fetched server-side by Discord's CDN and proxied. Discord then serves a cached copy from its own infrastructure for as long as it sees fit.
+
+Practical consequence: if a moderator replaces the photo for a piece of equipment, embeds posted to the channel **before** the change keep showing the old image. New `/equipment` invocations show the new image; historical messages don't update. This is a Discord limitation, not ours, and not fixable from our side.
