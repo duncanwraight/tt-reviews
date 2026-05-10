@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Route } from "./+types/admin._index";
 import { data, redirect, useFetcher } from "react-router";
 import { createSupabaseAdminClient } from "~/lib/database.server";
@@ -5,7 +6,13 @@ import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
 import { issueCSRFToken } from "~/lib/security.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
-import { AlertTriangle, ArrowRight, Package, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Package,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import {
@@ -133,6 +140,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       playerEquipmentSetups: totals.playerEquipmentSetups,
       equipment: totals.equipment,
       players: totals.players,
+      usersTotal: totals.usersTotal,
+      usersLast7Days: totals.usersLast7Days,
+      usersLast30Days: totals.usersLast30Days,
       // Pending = pending + awaiting_second_approval (matches the badge convention).
       equipmentPending: pendingTotal(byStatus.equipmentSubmissions),
       equipmentApproved: byStatus.equipmentSubmissions.approved,
@@ -236,6 +246,8 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
     count: number;
     icon: LucideIcon;
     color: string;
+    testId?: string;
+    subtitle?: ReactNode;
   }> = [
     {
       title: "Total Equipment",
@@ -248,6 +260,25 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
       count: stats.players,
       icon: Users,
       color: "bg-indigo-100 text-indigo-700",
+    },
+    {
+      title: "User Signups",
+      count: stats.usersTotal,
+      icon: UserPlus,
+      color: "bg-emerald-100 text-emerald-700",
+      testId: "content-stats-users-total",
+      subtitle: (
+        <>
+          <span data-testid="content-stats-users-7d">
+            {stats.usersLast7Days}
+          </span>{" "}
+          in 7d ·{" "}
+          <span data-testid="content-stats-users-30d">
+            {stats.usersLast30Days}
+          </span>{" "}
+          in 30d
+        </>
+      ),
     },
   ];
 
@@ -383,17 +414,25 @@ export default function AdminDashboard({ loaderData }: Route.ComponentProps) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Content Statistics
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {contentStats.map((stat, index) => (
                 <div key={index} className="flex items-center">
                   <div className={`${stat.color} rounded-lg p-3 mr-4`}>
                     <stat.icon className="size-6" aria-hidden />
                   </div>
                   <div>
-                    <div className="text-2xl font-semibold text-gray-900">
+                    <div
+                      className="text-2xl font-semibold text-gray-900"
+                      data-testid={stat.testId}
+                    >
                       {stat.count}
                     </div>
                     <div className="text-sm text-gray-600">{stat.title}</div>
+                    {stat.subtitle && (
+                      <div className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                        {stat.subtitle}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

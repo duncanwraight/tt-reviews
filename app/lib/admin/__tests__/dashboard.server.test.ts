@@ -27,6 +27,9 @@ describe("getAdminDashboardCounts", () => {
           playerEquipmentSetups: 0,
           equipment: 100,
           players: 50,
+          usersTotal: 12,
+          usersLast7Days: 3,
+          usersLast30Days: 7,
         },
         byStatus: {
           equipmentSubmissions: {
@@ -48,6 +51,9 @@ describe("getAdminDashboardCounts", () => {
     expect(counts.totals.equipmentSubmissions).toBe(10);
     expect(counts.totals.equipment).toBe(100);
     expect(counts.totals.players).toBe(50);
+    expect(counts.totals.usersTotal).toBe(12);
+    expect(counts.totals.usersLast7Days).toBe(3);
+    expect(counts.totals.usersLast30Days).toBe(7);
     expect(counts.byStatus.equipmentSubmissions.pending).toBe(3);
     expect(counts.byStatus.equipmentSubmissions.awaiting_second_approval).toBe(
       1
@@ -87,6 +93,9 @@ describe("getAdminDashboardCounts", () => {
     expect(counts.totals.equipmentEdits).toBe(0);
     expect(counts.totals.equipment).toBe(0);
     expect(counts.totals.players).toBe(0);
+    expect(counts.totals.usersTotal).toBe(0);
+    expect(counts.totals.usersLast7Days).toBe(0);
+    expect(counts.totals.usersLast30Days).toBe(0);
     // present total comes through.
     expect(counts.totals.equipmentSubmissions).toBe(1);
   });
@@ -105,6 +114,9 @@ describe("getAdminDashboardCounts", () => {
     const stub = rpcStub({ data: null, error: null });
     const counts = await getAdminDashboardCounts(stub.client);
     expect(counts.totals.equipment).toBe(0);
+    expect(counts.totals.usersTotal).toBe(0);
+    expect(counts.totals.usersLast7Days).toBe(0);
+    expect(counts.totals.usersLast30Days).toBe(0);
     expect(counts.byStatus.equipmentSubmissions).toEqual({
       pending: 0,
       awaiting_second_approval: 0,

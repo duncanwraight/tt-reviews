@@ -33,6 +33,9 @@ export interface AdminDashboardCounts {
     playerEquipmentSetups: number;
     equipment: number;
     players: number;
+    usersTotal: number;
+    usersLast7Days: number;
+    usersLast30Days: number;
   };
   byStatus: {
     equipmentSubmissions: StatusCounts;
@@ -57,6 +60,9 @@ export function emptyDashboardCounts(): AdminDashboardCounts {
       playerEquipmentSetups: 0,
       equipment: 0,
       players: 0,
+      usersTotal: 0,
+      usersLast7Days: 0,
+      usersLast30Days: 0,
     },
     byStatus: {
       equipmentSubmissions: emptyStatusCounts(),
