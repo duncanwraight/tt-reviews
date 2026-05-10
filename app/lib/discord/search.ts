@@ -413,12 +413,16 @@ async function fetchEquipmentReviewStats(
   ctx: DiscordContext,
   equipmentId: string
 ): Promise<{ rating: number; count: number } | null> {
-  const { data, error } = await ctx.supabaseAdmin.rpc("get_equipment_stats", {
-    eq_id: equipmentId,
-  });
+  // No dedicated stats RPC exists — the site computes review aggregates
+  // by selecting approved reviews and averaging in JS (see
+  // app/lib/database/equipment.ts:280). Mirror that here. Cheap query;
+  // stays well within the 50-cap subrequest budget per CLAUDE.md.
+  const { data, error } = await ctx.supabaseAdmin
+    .from("equipment_reviews")
+    .select("overall_rating")
+    .eq("equipment_id", equipmentId)
+    .eq("status", "approved");
   if (error) {
-    // Stats RPC failure isn't fatal — render the embed without the
-    // Reviews field rather than blocking the whole response.
     Logger.warn(
       "discord.search.equipment.stats-failed",
       createLogContext("discord-search", {}),
@@ -426,21 +430,12 @@ async function fetchEquipmentReviewStats(
     );
     return null;
   }
-  // get_equipment_stats returns { average_rating, total_reviews, ... }
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | { average_rating?: number; total_reviews?: number }
-    | null
-    | undefined;
-  if (
-    !row ||
-    typeof row.total_reviews !== "number" ||
-    row.total_reviews === 0
-  ) {
-    return null;
-  }
+  const rows = (data ?? []) as Array<{ overall_rating: number }>;
+  if (rows.length === 0) return null;
+  const sum = rows.reduce((acc, r) => acc + r.overall_rating, 0);
   return {
-    rating: typeof row.average_rating === "number" ? row.average_rating : 0,
-    count: row.total_reviews,
+    rating: sum / rows.length,
+    count: rows.length,
   };
 }
 
