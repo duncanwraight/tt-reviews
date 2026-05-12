@@ -29,6 +29,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { label: "Equipment Photos", to: "/admin/equipment-photos" },
       { label: "Manufacturer Specs", to: "/admin/manufacturer-specs" },
       { label: "New Equipment", to: "/admin/import" },
+      { label: "Player Importer", to: "/admin/players-import" },
     ],
   },
   {
