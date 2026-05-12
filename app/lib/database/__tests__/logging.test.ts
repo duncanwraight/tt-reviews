@@ -19,15 +19,18 @@ const ctx: DatabaseContext = {
 
 describe("withLogging", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
   let debugSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     errorSpy = vi.spyOn(Logger, "error").mockImplementation(() => {});
+    warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
     debugSpy = vi.spyOn(Logger, "debug").mockImplementation(() => {});
   });
 
   afterEach(() => {
     errorSpy.mockRestore();
+    warnSpy.mockRestore();
     debugSpy.mockRestore();
   });
 
@@ -75,7 +78,7 @@ describe("withLogging", () => {
     );
   });
 
-  it("throws and logs error when result has an error", async () => {
+  it("throws and logs warn (not error) when result has an error", async () => {
     await expect(
       withLogging(ctx, "bad_op", async () => ({
         data: null,
@@ -83,10 +86,19 @@ describe("withLogging", () => {
       }))
     ).rejects.toThrow("duplicate key");
 
-    expect(errorSpy).toHaveBeenCalledWith(
+    // withLogging itself must NOT emit a `Database operation failed: ...`
+    // error log — that title used to fire alongside the
+    // `Operation failed: db_...` one from withDatabaseCorrelation's
+    // timeOperation catch and the in-memory dedup (keyed on message
+    // string) couldn't collapse the pair. Demoting to warn keeps the
+    // structured detail in prod logs without fanning out to Discord.
+    const dbOpErrorCalls = errorSpy.mock.calls.filter(([msg]) =>
+      String(msg).startsWith("Database operation failed")
+    );
+    expect(dbOpErrorCalls).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(
       "Database operation failed: bad_op",
       expect.objectContaining({ requestId: "test-req-1" }),
-      expect.any(Error),
       expect.objectContaining({
         operation: "bad_op",
         error_details: { message: "duplicate key" },

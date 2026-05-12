@@ -24,12 +24,16 @@ export async function withLogging<T>(
       const result = await fn();
 
       if (result.error) {
-        Logger.error(
-          `Database operation failed: ${operation}`,
-          context,
-          new Error(result.error.message || "Database error"),
-          { operation, ...metadata, error_details: result.error }
-        );
+        // Logged at warn (not error) so the outer Logger.timeOperation
+        // catch is the single Discord-alerting point — otherwise both
+        // layers fire and the dedup map (keyed on message string) can't
+        // collapse them. Warn still appears in prod CF logs, so the full
+        // Supabase error envelope stays visible from wrangler tail.
+        Logger.warn(`Database operation failed: ${operation}`, context, {
+          operation,
+          ...metadata,
+          error_details: result.error,
+        });
         throw new Error(
           result.error.message || `Database operation ${operation} failed`
         );
