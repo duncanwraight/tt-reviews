@@ -20,6 +20,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { label: "Equipment Setups", to: "/admin/player-equipment-setups" },
       { label: "Player Submissions", to: "/admin/player-submissions" },
       { label: "Player Edits", to: "/admin/player-edits" },
+      { label: "Player Proposals", to: "/admin/player-proposals" },
       { label: "Video Submissions", to: "/admin/video-submissions" },
     ],
   },
