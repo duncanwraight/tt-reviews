@@ -444,9 +444,28 @@ describe("Discord Integration Tests", () => {
     let adminSupabase: SupabaseClient | null = null;
     let seededDiscordModeratorId: string | null = null;
     let seededAuthUserId: string | null = null;
+    // Set true only after all fixture rows land. The duplicate-approval
+    // tests skip via ctx.skip() when this is false — "DB not running"
+    // is the one local skip we allow, and without this flag the tests
+    // would assert against incomplete state and emit a misleading
+    // "Failed to create Discord moderator record" failure.
+    let supabaseSeeded = false;
 
     beforeAll(async () => {
       if (!hasSupabaseEnv() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+      // Probe reachability before touching the Supabase client. Without
+      // this, an unreachable local Supabase emits noisy ECONNREFUSED on
+      // every internal call inside auth.admin.createUser / RPC paths.
+      try {
+        const probe = await fetch(`${process.env.SUPABASE_URL}/rest/v1/`, {
+          method: "HEAD",
+          headers: { apikey: process.env.SUPABASE_ANON_KEY! },
+        });
+        if (probe.status >= 500) return;
+      } catch {
+        return;
+      }
 
       adminSupabase = createSupabaseAdminClient(mockContext);
 
@@ -531,6 +550,8 @@ describe("Discord Integration Tests", () => {
           action: "approved",
         },
       ]);
+
+      supabaseSeeded = true;
     });
 
     afterAll(async () => {
@@ -557,7 +578,8 @@ describe("Discord Integration Tests", () => {
 
     it.skipIf(!hasSupabaseEnv())(
       "should handle equipment approval button interaction",
-      async () => {
+      async ctx => {
+        if (!supabaseSeeded) ctx.skip();
         const mockInteraction = {
           type: 3, // Message Component
           data: {
@@ -585,7 +607,8 @@ describe("Discord Integration Tests", () => {
 
     it.skipIf(!hasSupabaseEnv())(
       "should handle player edit approval button interaction",
-      async () => {
+      async ctx => {
+        if (!supabaseSeeded) ctx.skip();
         const mockInteraction = {
           type: 3,
           data: {
