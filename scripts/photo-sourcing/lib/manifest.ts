@@ -6,9 +6,12 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
+// TT-200 added `kind: "new-player"` + `proposed` + `import` to entries.
+// All additions are optional fields / new enum values, so v1 manifests
+// on disk continue to load unchanged.
 export const MANIFEST_VERSION = 1;
 
-export type EntityKind = "player" | "equipment";
+export type EntityKind = "player" | "equipment" | "new-player";
 
 export interface ManifestCandidate {
   source: "wikidata-p18" | "enwiki-pageimage" | "wtt-headshot";
@@ -30,6 +33,22 @@ export interface ManifestCandidate {
   freeLicense: boolean;
 }
 
+// For `kind: "new-player"` entries — the proposed `players` row to
+// INSERT. Existing-player + equipment entries leave this null; their
+// row already exists and only image_* gets touched.
+export interface ProposedPlayer {
+  ittfid: number;
+  represents: string | null;
+  birth_country: string | null;
+  gender: "M" | "F" | null;
+  handedness: "left" | "right" | null;
+  grip: "shakehand" | "penhold" | null;
+  birth_year: number | null;
+  active_years: string | null;
+  highest_rating: string | null;
+  wtt_profile_url: string;
+}
+
 export interface ManifestEntry {
   id: string;
   kind: EntityKind;
@@ -46,6 +65,14 @@ export interface ManifestEntry {
   // True when no candidate could be discovered. Drives reviewer
   // visibility ("show me what's missing").
   unresolved: boolean;
+  // Only set on `kind: "new-player"` entries. Drives the INSERT block
+  // in seed.sql at apply time.
+  proposed?: ProposedPlayer | null;
+  // Reviewer gate for new-player entries: "yes" to insert, "no" to skip
+  // entirely. Default "yes" — scan only adds rows for WTT-ranked
+  // players, so the import bias is already toward yes. Reviewer can
+  // flip to "no" with a note. Ignored for non-new-player entries.
+  import?: "yes" | "no" | null;
 }
 
 export interface Manifest {
@@ -94,12 +121,24 @@ export function mergeEntry(
 ): ManifestEntry {
   if (!prev) return next;
 
+  // Preserve reviewer decisions on new-player rows. `import` is a sticky
+  // decision (yes/no on whether to create the player); we always carry
+  // it forward from the previous manifest so a re-scan doesn't reset
+  // it. `proposed` is overwritten from the fresh scan — handedness/grip
+  // may have been backfilled upstream.
+  const carryImport = prev.import ?? next.import ?? null;
+
   const prevChosenStillPresent =
     prev.chosen !== null &&
     next.candidates.some(c => c.filename === prev.chosen);
 
   if (prevChosenStillPresent) {
-    return { ...next, chosen: prev.chosen, notes: prev.notes };
+    return {
+      ...next,
+      chosen: prev.chosen,
+      notes: prev.notes,
+      import: carryImport,
+    };
   }
 
   if (prev.chosen !== null) {
@@ -109,8 +148,9 @@ export function mergeEntry(
       ...next,
       chosen: null,
       notes: previousNote ? `${previousNote}\n${staleNote}` : staleNote,
+      import: carryImport,
     };
   }
 
-  return { ...next, notes: prev.notes };
+  return { ...next, notes: prev.notes, import: carryImport };
 }

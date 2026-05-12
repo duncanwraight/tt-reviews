@@ -1,16 +1,19 @@
-// Apply step for the photo-sourcing pipeline (TT-36).
+// Apply step for the WTT sync pipeline (TT-36 photos + TT-200 imports).
 //
-// Reads the manifest, downloads each chosen Commons image, normalises
-// it (webp, ≤1024px on the long edge, EXIF stripped) and writes:
-//   - supabase/seed-images/<kind>/<slug>.webp        (committed binary)
-//   - supabase/seed-images/credits.sql               (idempotent UPDATE)
+// Reads the manifest and:
+//   - downloads each chosen image, normalises (webp, ≤1024px on the long
+//     edge, EXIF stripped), writes supabase/seed-images/<kind>/<slug>.webp;
+//   - emits supabase/seed-images/credits.sql with idempotent UPDATE
+//     statements for image_*/credit_* columns;
+//   - splices UPDATEs into supabase/seed.sql between BEGIN/END
+//     PHOTO-SOURCING-CREDITS markers;
+//   - for `kind: "new-player"` entries with `import: "yes"`, splices an
+//     INSERT block into supabase/seed.sql between BEGIN/END PLAYER-IMPORT
+//     markers so `supabase db reset` re-creates the imported players.
 //
-// It also splices the same UPDATE statements into supabase/seed.sql
-// between BEGIN/END PHOTO-SOURCING-CREDITS markers, so a fresh
-// `supabase db reset` re-applies attribution without needing psql
-// `\ir` (which the supabase CLI seed runner does not support). Local
-// R2 contents are loaded by load-fixtures.sh — this script does not
-// talk to R2.
+// We do all of this via seed.sql splicing rather than psql `\ir` because
+// the supabase CLI seed runner does not support `\ir`. Local R2 contents
+// are loaded by load-fixtures.sh — this script does not talk to R2.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -21,6 +24,7 @@ import {
   type Manifest,
   type ManifestCandidate,
   type ManifestEntry,
+  type ProposedPlayer,
 } from "./lib/manifest.ts";
 
 const MANIFEST_PATH = resolve(
@@ -30,16 +34,23 @@ const MANIFEST_PATH = resolve(
 const SEED_IMAGES_DIR = resolve(process.cwd(), "supabase/seed-images");
 const CREDITS_SQL = resolve(SEED_IMAGES_DIR, "credits.sql");
 const SEED_SQL = resolve(process.cwd(), "supabase/seed.sql");
-const SEED_BEGIN_MARKER = "-- BEGIN PHOTO-SOURCING-CREDITS";
-const SEED_END_MARKER = "-- END PHOTO-SOURCING-CREDITS";
+const PHOTOS_BEGIN_MARKER = "-- BEGIN PHOTO-SOURCING-CREDITS";
+const PHOTOS_END_MARKER = "-- END PHOTO-SOURCING-CREDITS";
+const PLAYERS_BEGIN_MARKER = "-- BEGIN PLAYER-IMPORT";
+const PLAYERS_END_MARKER = "-- END PLAYER-IMPORT";
 
 const MAX_DIMENSION = 1024;
 const WEBP_QUALITY = 82;
 const USER_AGENT =
   "tt-reviews-photo-sourcer/0.1 (+https://tabletennis.reviews; duncan@wraight-consulting.co.uk)";
 
+// Storage kind drives both the on-disk path and the target table for
+// the UPDATE block. `new-player` entries materialise as `players` rows
+// once apply runs, so they fold into the same storage bucket.
+type StorageKind = "player" | "equipment";
+
 interface AppliedRow {
-  kind: ManifestEntry["kind"];
+  kind: StorageKind;
   slug: string;
   imageKey: string;
   imageEtag: string;
@@ -50,6 +61,12 @@ interface AppliedRow {
   sourceUrl: string | null;
 }
 
+interface NewPlayerRow {
+  slug: string;
+  name: string;
+  proposed: ProposedPlayer;
+}
+
 async function main(): Promise<void> {
   const manifest = loadManifest(MANIFEST_PATH);
   if (!manifest) {
@@ -57,12 +74,18 @@ async function main(): Promise<void> {
   }
 
   const targets = collectTargets(manifest);
-  if (targets.length === 0) {
-    process.stdout.write("Nothing to apply: no entries with `chosen` set.\n");
+  const newPlayers = collectNewPlayers(manifest);
+
+  if (targets.length === 0 && newPlayers.length === 0) {
+    process.stdout.write(
+      "Nothing to apply: no entries with `chosen` set or `import: yes`.\n"
+    );
     return;
   }
 
-  process.stdout.write(`Applying ${targets.length} entries...\n`);
+  process.stdout.write(
+    `Applying ${targets.length} photo target(s), ${newPlayers.length} new player(s)...\n`
+  );
   mkdirSync(SEED_IMAGES_DIR, { recursive: true });
 
   const applied: AppliedRow[] = [];
@@ -75,9 +98,14 @@ async function main(): Promise<void> {
   writeCreditsSql(applied);
   process.stdout.write(`\nWrote ${applied.length} rows to ${CREDITS_SQL}\n`);
 
-  spliceIntoSeedSql(applied);
+  splicePhotoCreditsIntoSeedSql(applied);
   process.stdout.write(
     `Spliced ${applied.length} rows between PHOTO-SOURCING-CREDITS markers in ${SEED_SQL}\n`
+  );
+
+  splicePlayerImportIntoSeedSql(newPlayers);
+  process.stdout.write(
+    `Spliced ${newPlayers.length} INSERT(s) between PLAYER-IMPORT markers in ${SEED_SQL}\n`
   );
 }
 
@@ -89,6 +117,12 @@ interface Target {
 function collectTargets(manifest: Manifest): Target[] {
   const targets: Target[] = [];
   for (const entry of Object.values(manifest.entries)) {
+    // A new-player entry only contributes a photo target if its row is
+    // actually being inserted (import: yes). Skipping new players with
+    // import: no keeps us from shipping orphan images for rows we don't
+    // create. Existing-player entries always contribute regardless of
+    // import (which is meaningless for them).
+    if (entry.kind === "new-player" && entry.import !== "yes") continue;
     if (!entry.chosen) continue;
     const candidate = entry.candidates.find(c => c.filename === entry.chosen);
     if (!candidate) continue;
@@ -109,12 +143,30 @@ function collectTargets(manifest: Manifest): Target[] {
   return targets;
 }
 
+function collectNewPlayers(manifest: Manifest): NewPlayerRow[] {
+  const rows: NewPlayerRow[] = [];
+  for (const entry of Object.values(manifest.entries)) {
+    if (entry.kind !== "new-player") continue;
+    if (entry.import !== "yes") continue;
+    if (!entry.proposed) continue;
+    rows.push({ slug: entry.slug, name: entry.name, proposed: entry.proposed });
+  }
+  return rows.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
 async function processOne(
   entry: ManifestEntry,
   candidate: ManifestCandidate
 ): Promise<AppliedRow> {
   const buffer = await downloadImage(candidate.url);
-  const kindDir = resolve(SEED_IMAGES_DIR, entry.kind);
+  // New-player rows materialise as regular `players` rows once spliced,
+  // so their image files live under seed-images/player/<slug>.webp (same
+  // place the existing photo flow uses). Keeping them on the same path
+  // means the photo UPDATE block keys off the same image_key and a
+  // future scan of the now-existing player won't relocate the file.
+  const storageKind: StorageKind =
+    entry.kind === "new-player" ? "player" : entry.kind;
+  const kindDir = resolve(SEED_IMAGES_DIR, storageKind);
   mkdirSync(kindDir, { recursive: true });
   const outPath = resolve(kindDir, `${entry.slug}.webp`);
 
@@ -131,7 +183,7 @@ async function processOne(
 
   writeFileSync(outPath, normalised);
 
-  const imageKey = `${entry.kind}/${entry.slug}/seed.webp`;
+  const imageKey = `${storageKind}/${entry.slug}/seed.webp`;
   // Short SHA-1 of the normalised webp. We append this as ?v= on the
   // rendered image URL so the browser cache busts when content changes
   // even though the deterministic R2 key stays the same. 12 hex chars
@@ -143,7 +195,7 @@ async function processOne(
     .slice(0, 12);
 
   return {
-    kind: entry.kind,
+    kind: storageKind,
     slug: entry.slug,
     imageKey,
     imageEtag,
@@ -260,18 +312,18 @@ function sql(value: string | null): string {
 // in supabase/seed.sql with the same UPDATE statements we wrote to
 // credits.sql. The supabase CLI seed runner does not support psql
 // `\ir`, so the credits have to be inlined to survive `db reset`.
-function spliceIntoSeedSql(rows: AppliedRow[]): void {
+function splicePhotoCreditsIntoSeedSql(rows: AppliedRow[]): void {
   const seed = readFileSync(SEED_SQL, "utf8");
-  const begin = seed.indexOf(SEED_BEGIN_MARKER);
-  const end = seed.indexOf(SEED_END_MARKER);
+  const begin = seed.indexOf(PHOTOS_BEGIN_MARKER);
+  const end = seed.indexOf(PHOTOS_END_MARKER);
   if (begin === -1 || end === -1 || end < begin) {
     throw new Error(
-      `Markers not found in ${SEED_SQL}. Add:\n  ${SEED_BEGIN_MARKER}\n  ${SEED_END_MARKER}`
+      `Markers not found in ${SEED_SQL}. Add:\n  ${PHOTOS_BEGIN_MARKER}\n  ${PHOTOS_END_MARKER}`
     );
   }
 
   const block = [
-    SEED_BEGIN_MARKER,
+    PHOTOS_BEGIN_MARKER,
     "-- Auto-generated by scripts/photo-sourcing/apply.ts (TT-36). Do not",
     "-- edit by hand — re-run `npm run sourcing:apply` to refresh this block.",
     "-- Pairs with normalised webps under supabase/seed-images/.",
@@ -292,11 +344,81 @@ function spliceIntoSeedSql(rows: AppliedRow[]): void {
     block.push("");
   }
 
-  block.push(SEED_END_MARKER);
+  block.push(PHOTOS_END_MARKER);
 
   const before = seed.slice(0, begin);
-  const after = seed.slice(end + SEED_END_MARKER.length);
+  const after = seed.slice(end + PHOTOS_END_MARKER.length);
   writeFileSync(SEED_SQL, before + block.join("\n") + after, "utf8");
+}
+
+// Replace the block between BEGIN/END PLAYER-IMPORT markers with one
+// idempotent INSERT per approved new-player entry. Uses ON CONFLICT
+// (ittfid) DO NOTHING so re-applying the same manifest after a partial
+// db reset is a no-op for rows that already landed. ittfid is the
+// upstream canonical key (TT-196 added the column + UNIQUE constraint).
+function splicePlayerImportIntoSeedSql(rows: NewPlayerRow[]): void {
+  const seed = readFileSync(SEED_SQL, "utf8");
+  const begin = seed.indexOf(PLAYERS_BEGIN_MARKER);
+  const end = seed.indexOf(PLAYERS_END_MARKER);
+  if (begin === -1 || end === -1 || end < begin) {
+    throw new Error(
+      `Markers not found in ${SEED_SQL}. Add:\n  ${PLAYERS_BEGIN_MARKER}\n  ${PLAYERS_END_MARKER}`
+    );
+  }
+
+  const block: string[] = [
+    PLAYERS_BEGIN_MARKER,
+    "-- Auto-generated by scripts/photo-sourcing/apply.ts (TT-200). Do not",
+    "-- edit by hand — re-run `npm run sourcing:apply` to refresh this block.",
+    "-- One INSERT per WTT roster entry approved during `scan.ts`.",
+    "",
+  ];
+
+  for (const row of rows) {
+    block.push(buildInsertStatement(row));
+  }
+
+  if (rows.length > 0) block.push("");
+  block.push(PLAYERS_END_MARKER);
+
+  const before = seed.slice(0, begin);
+  const after = seed.slice(end + PLAYERS_END_MARKER.length);
+  writeFileSync(SEED_SQL, before + block.join("\n") + after, "utf8");
+}
+
+function buildInsertStatement(row: NewPlayerRow): string {
+  const p = row.proposed;
+  const cols = [
+    "name",
+    "slug",
+    "ittfid",
+    "represents",
+    "birth_country",
+    "gender",
+    "handedness",
+    "grip",
+    "active_years",
+    "highest_rating",
+    "active",
+  ];
+  const values = [
+    sql(row.name),
+    sql(row.slug),
+    p.ittfid.toString(),
+    sql(p.represents),
+    sql(p.birth_country),
+    sql(p.gender),
+    sql(p.handedness),
+    sql(p.grip),
+    sql(p.active_years),
+    sql(p.highest_rating),
+    "TRUE",
+  ];
+  return [
+    `INSERT INTO players (${cols.join(", ")}) VALUES (`,
+    `  ${values.join(",\n  ")}`,
+    `) ON CONFLICT (ittfid) DO NOTHING;`,
+  ].join("\n");
 }
 
 main().catch(err => {

@@ -59,6 +59,10 @@ export interface SeedPlayer {
   represents: string | null;
   active_years: string | null;
   image_key: string | null;
+  // Populated for players the importer has previously linked to a WTT
+  // roster entry. Null on legacy seeded rows; scan falls back to
+  // name-matching for those.
+  ittfid: number | null;
 }
 
 export async function loadAllPlayers(
@@ -67,7 +71,7 @@ export async function loadAllPlayers(
   const { data, error } = await client
     .from("players")
     .select(
-      "id, slug, name, birth_country, represents, active_years, image_key"
+      "id, slug, name, birth_country, represents, active_years, image_key, ittfid"
     )
     .order("name", { ascending: true });
   if (error) throw new Error(`Failed to load players: ${error.message}`);

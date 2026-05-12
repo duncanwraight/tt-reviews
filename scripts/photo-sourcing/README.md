@@ -1,9 +1,21 @@
-# Photo sourcing pipeline (TT-36)
+# WTT sync pipeline (TT-36 photos + TT-200 player import)
 
-Discovers player headshots from World Table Tennis (preferred for
-consistency) and Wikimedia Commons (fallback), normalises them, and
-writes a reviewable manifest plus SQL UPDATE statements that the local
-and production stacks can replay.
+One CLI workflow that keeps the local players catalog in sync with the
+WTT ranked roster. Two outputs per run:
+
+1. **Headshots** for every player in the local DB — sourced from WTT
+   (preferred for consistency) with Wikidata + Wikimedia Commons as
+   free-licensed fallbacks. Normalised webps go under
+   `supabase/seed-images/player/` and credits land in seed.sql.
+2. **New player rows** for every WTT roster entry the local DB doesn't
+   yet have — enriched with handedness / grip / birth year scraped from
+   the per-player ITTF results page (`results.ittf.link`). These splice
+   into seed.sql as `INSERT INTO players` statements between the
+   `PLAYER-IMPORT` markers, so `supabase db reset` recreates them.
+
+Both outputs share a single `manifest.json` review artifact. The admin
+review UI for player proposals that shipped with TT-198 / TT-199 was
+retired by TT-200 in favour of this offline workflow.
 
 ## Scripts
 
@@ -45,6 +57,26 @@ After `scan.ts`, every entry is one of:
   `wtt:<ittfid>` so the override format stays the same.
 - `chosen: null` after review — explicit reviewer skip. Use `notes`
   to record why (signature scan, group photo, low quality, etc.).
+
+### New-player entries (TT-200)
+
+WTT roster entries with no matching local player land in the manifest
+as `kind: "new-player"` rows. Each carries a `proposed` block
+(ittfid + nationality + gender + handedness + grip + birth year) and
+an `import` field that gates the INSERT:
+
+- `import: "yes"` (default) — apply will INSERT into `players` and
+  splice the row into the `PLAYER-IMPORT` block in seed.sql.
+- `import: "no"` — apply will skip the row. Useful for duplicates the
+  dedupe heuristic didn't catch (e.g. the same person under a
+  different transliteration) or roster entries that are obviously
+  off-scope. Keep a `notes` line explaining why.
+
+`import` is preserved across `scan.ts` re-runs along with `chosen` /
+`notes`, so a reviewer's "no" sticks even if the upstream roster
+republishes the player. Once `apply.ts` has spliced the INSERT and
+`supabase db reset` has been run, the next scan sees the row as an
+existing player and stops emitting a new-player entry for it.
 
 ## Workflow
 
