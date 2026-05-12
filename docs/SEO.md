@@ -174,16 +174,41 @@ Anything else is a regression.
 
 ### Schema-per-page-type matrix
 
-| Page type                                     | Schemas                                                                                  | Notes                                                                     |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| All pages                                     | `Organization`, `WebSite`                                                                | Emitted from `root.tsx` Layout. Do not duplicate per-route.               |
-| `/equipment/:slug`                            | `Product` (with nested `AggregateRating` + up to five `Review` items) + `BreadcrumbList` | Reviews are first-party-eligible per the third-party-review rule below.   |
-| `/equipment/compare/:slugs`                   | `WebPage` + `ItemList` of two `Product`s                                                 | Use `generateComparisonSchema`.                                           |
-| `/equipment` (listing)                        | `BreadcrumbList`                                                                         | No `ItemList` — the listing is too dynamic to keep stable.                |
-| `/players/:slug`                              | `Person` + `BreadcrumbList`                                                              | `Person` only — biographical. **Do not** attach `Review` to player pages. |
-| `/players` (listing)                          | `BreadcrumbList`                                                                         |                                                                           |
-| `/`                                           | None beyond global.                                                                      | The home page isn't a single content entity.                              |
-| `/search`, `/admin/*`, auth, `/submissions/*` | None.                                                                                    | Non-indexable.                                                            |
+| Page type                                     | Schemas                                                                                | Notes                                                                     |
+| --------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| All pages                                     | `Organization`, `WebSite`                                                              | Emitted from `root.tsx` Layout. Do not duplicate per-route.               |
+| `/equipment/:slug`                            | `Product` (conditional — see "Product schema emission rules" below) + `BreadcrumbList` | Reviews are first-party-eligible per the third-party-review rule below.   |
+| `/equipment/compare/:slugs`                   | `WebPage` + `ItemList` of two `Product`s                                               | Use `generateComparisonSchema`.                                           |
+| `/equipment` (listing)                        | `BreadcrumbList`                                                                       | No `ItemList` — the listing is too dynamic to keep stable.                |
+| `/players/:slug`                              | `Person` + `BreadcrumbList`                                                            | `Person` only — biographical. **Do not** attach `Review` to player pages. |
+| `/players` (listing)                          | `BreadcrumbList`                                                                       |                                                                           |
+| `/`                                           | None beyond global.                                                                    | The home page isn't a single content entity.                              |
+| `/search`, `/admin/*`, auth, `/submissions/*` | None.                                                                                  | Non-indexable.                                                            |
+
+### Product schema emission rules
+
+`generateEquipmentSchema` (`app/lib/schema.ts`) returns `SchemaProduct | null`. The route conditionally appends the result to its `multipleSchemas` array — when null, only `BreadcrumbList` is emitted.
+
+A piece of equipment has up to two information sources: manufacturer specifications (`equipment.specifications` JSONB, locked design in `archive/EQUIPMENT-SPECS.md`) and community reviews (`equipment_reviews`). Emit whichever is present:
+
+| Has reviews? | Has specs? | Product schema includes                                                           |
+| ------------ | ---------- | --------------------------------------------------------------------------------- |
+| no           | no         | **null** — route emits only `BreadcrumbList`                                      |
+| no           | yes        | image + `additionalProperty[]` (specs → PropertyValue, range → minValue/maxValue) |
+| yes          | no         | image + `aggregateRating` + `review[]` (top 5)                                    |
+| yes          | yes        | all of the above                                                                  |
+
+Always include `image` (absolute URL, built from `equipment.image_key` via `buildEquipmentImageUrl(key, "full", trimKind)` prefixed with `SITE_URL`) whenever an image_key exists — Google's Product structured-data spec requires `image` for any rich-result eligibility.
+
+`material` (string) and `weight` (int, grams) get lifted to first-class Product fields (`Product.material` and `Product.weight: QuantitativeValue`). Everything else in the JSONB blob becomes a `PropertyValue` in `additionalProperty`. Spec values that are `null` / `undefined` / empty string are skipped.
+
+The pre-TT-193 behaviour emitted a Product with just `name` / `description` / `brand` / `category` / `url` for every equipment item regardless of state. Google's Rich Results validator flagged that as ERROR severity (missing image + missing one of offers/aggregateRating/review), which is the dominant signal that drove the "Crawled — currently not indexed" verdict on most equipment URLs. The TT-193 audit found 0 indexed equipment URLs via the sitemap report despite 251 submitted; the schema fix above is the primary mitigation.
+
+Note that Product **rich-snippet eligibility** still requires at least one of `offers`, `aggregateRating`, or `review` per Google's spec. We never emit `offers` (we don't sell anything), so equipment without approved reviews won't get rich snippets even after this fix — but the schema is now valid and information-rich, which is the indexation signal that matters. Rich snippets follow naturally once an item collects reviews.
+
+### Breadcrumb final-item rule
+
+The current-page entry in a breadcrumb trail typically has no `href`. Google's BreadcrumbList spec allows omitting the `item` field on the final ListItem, and `generateBreadcrumbSchema` now does this when `crumb.href` is undefined. The previous behaviour fell back to `${baseUrl}` (just the site root), which Google's inspector flagged as "Unnamed item" and which created a misleading breadcrumb trail in rich results.
 
 ### Third-party-review eligibility
 

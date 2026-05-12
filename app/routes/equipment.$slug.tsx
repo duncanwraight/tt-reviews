@@ -227,20 +227,35 @@ export const loader = withLoaderCorrelation(
           reviews.length
         : 0;
 
-    // Generate structured data schemas
+    // Generate structured data schemas. Product schema's `image` must
+    // be an absolute URL (Google rejects relative URLs for og:image
+    // and structured-data image fields), so prefix the CDN-resized
+    // path with the canonical site origin. SITE_URL is validateEnv-
+    // gated and the worker 503s without it, so this is never empty.
+    const siteUrl = context.cloudflare.env.SITE_URL;
+    const productImageUrl = equipment.image_key
+      ? `${siteUrl}${buildEquipmentImageUrl(equipment.image_key, "full", equipment.image_trim_kind)}`
+      : undefined;
+
     const equipmentSchema = schemaService.generateEquipmentSchema({
       ...equipment,
+      image: productImageUrl,
       averageRating,
       reviewCount: reviews.length,
       reviews,
     });
 
+    // Breadcrumb's final entry intentionally has no `href` — Google's
+    // BreadcrumbList spec allows omitting `item` on the current page,
+    // which the schema generator now honours.
     const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
       { label: "Home", href: "/" },
       { label: "Equipment", href: "/equipment" },
       { label: displayEquipmentName(equipment) },
     ]);
-    const multipleSchemas = [equipmentSchema, breadcrumbSchema];
+    const multipleSchemas = equipmentSchema
+      ? [equipmentSchema, breadcrumbSchema]
+      : [breadcrumbSchema];
 
     const isAdmin = user?.role === "admin";
     const adminCsrfToken = isAdmin

@@ -28,6 +28,15 @@ export interface SchemaPerson {
   sameAs?: string[];
 }
 
+export interface SchemaPropertyValue {
+  "@type": "PropertyValue";
+  name: string;
+  value?: string | number;
+  minValue?: number;
+  maxValue?: number;
+  unitText?: string;
+}
+
 export interface SchemaProduct {
   "@context": "https://schema.org";
   "@type": "Product";
@@ -39,6 +48,14 @@ export interface SchemaProduct {
   };
   category: string;
   url: string;
+  image?: string;
+  material?: string;
+  weight?: {
+    "@type": "QuantitativeValue";
+    value: number;
+    unitCode: "GRM";
+  };
+  additionalProperty?: SchemaPropertyValue[];
   aggregateRating?: {
     "@type": "AggregateRating";
     ratingValue: number;
@@ -77,7 +94,11 @@ export interface SchemaBreadcrumbList {
     "@type": "ListItem";
     position: number;
     name: string;
-    item: string;
+    // Optional on the last "current page" entry — Google's
+    // BreadcrumbList spec allows omitting `item` there, and we
+    // prefer that to the previous bug of falling back to the
+    // bare baseUrl when href was undefined.
+    item?: string;
   }[];
 }
 
@@ -92,6 +113,20 @@ export interface SchemaWebSite {
     target: string;
     "query-input": string;
   };
+}
+
+// Per `archive/EQUIPMENT-SPECS.md`, `range`-typed spec fields store
+// `{min, max}`. Used by generateEquipmentSchema to map them onto
+// PropertyValue.minValue/maxValue.
+function isRangeValue(value: unknown): value is { min: number; max: number } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "min" in value &&
+    "max" in value &&
+    typeof (value as { min: unknown }).min === "number" &&
+    typeof (value as { max: unknown }).max === "number"
+  );
 }
 
 export class SchemaService {
@@ -165,13 +200,31 @@ export class SchemaService {
     };
   }
 
-  // Equipment schema (Product type)
+  // Equipment schema (Product type).
+  //
+  // A piece of equipment in our model has up to two information
+  // sources: manufacturer specifications (locked in
+  // `archive/EQUIPMENT-SPECS.md`) and community reviews. Both are
+  // optional — emit whichever is present:
+  //
+  //   - reviews only            → Product with image + aggregateRating + review[]
+  //   - specs only              → Product with image + additionalProperty[]
+  //   - both                    → Product with all of the above
+  //   - neither (and no image)  → null (caller renders BreadcrumbList only)
+  //
+  // Returning null lets the route opt out of emitting a Product
+  // schema entirely when there's nothing substantive to say —
+  // emitting a bare Product with just name/brand/url was triggering
+  // Google's Rich Results validator with ERROR severity and was the
+  // dominant signal blocking indexation pre-fix (TT-193 audit).
   generateEquipmentSchema(equipment: {
     name: string;
     slug: string;
     manufacturer: string;
     category: string;
     description?: string;
+    image?: string;
+    specifications?: Record<string, unknown> | null;
     averageRating?: number;
     reviewCount?: number;
     reviews?: Array<{
@@ -181,7 +234,19 @@ export class SchemaService {
       created_at: string;
       user?: { name: string };
     }>;
-  }): SchemaProduct {
+  }): SchemaProduct | null {
+    const hasReviews = (equipment.reviews?.length ?? 0) > 0;
+    const specEntries = equipment.specifications
+      ? Object.entries(equipment.specifications).filter(
+          ([, value]) => value !== null && value !== undefined && value !== ""
+        )
+      : [];
+    const hasSpecs = specEntries.length > 0;
+
+    if (!hasReviews && !hasSpecs) {
+      return null;
+    }
+
     const schema: SchemaProduct = {
       "@context": "https://schema.org",
       "@type": "Product",
@@ -197,8 +262,48 @@ export class SchemaService {
       url: `${this.baseUrl}/equipment/${equipment.slug}`,
     };
 
-    // Add aggregate rating if available
-    if (equipment.averageRating && equipment.reviewCount) {
+    if (equipment.image) {
+      schema.image = equipment.image;
+    }
+
+    // Map typed `equipment.specifications` JSONB (see EQUIPMENT-SPECS.md)
+    // into Product fields. `material` and `weight` get first-class
+    // schema.org slots; everything else becomes additionalProperty
+    // (PropertyValue). Range values use minValue/maxValue.
+    if (hasSpecs) {
+      const extra: SchemaPropertyValue[] = [];
+      for (const [key, value] of specEntries) {
+        if (key === "material" && typeof value === "string") {
+          schema.material = value;
+          continue;
+        }
+        if (key === "weight" && typeof value === "number") {
+          schema.weight = {
+            "@type": "QuantitativeValue",
+            value,
+            unitCode: "GRM",
+          };
+          continue;
+        }
+        if (isRangeValue(value)) {
+          extra.push({
+            "@type": "PropertyValue",
+            name: key,
+            minValue: value.min,
+            maxValue: value.max,
+          });
+          continue;
+        }
+        if (typeof value === "string" || typeof value === "number") {
+          extra.push({ "@type": "PropertyValue", name: key, value });
+        }
+      }
+      if (extra.length > 0) {
+        schema.additionalProperty = extra;
+      }
+    }
+
+    if (hasReviews && equipment.averageRating && equipment.reviewCount) {
       schema.aggregateRating = {
         "@type": "AggregateRating",
         ratingValue: equipment.averageRating,
@@ -208,8 +313,9 @@ export class SchemaService {
       };
     }
 
-    // Add individual reviews if available (limit to top 5 for performance)
-    if (equipment.reviews && equipment.reviews.length > 0) {
+    // Cap at top 5 reviews — both schema.org best practice and a
+    // payload-size guard for pages with hundreds of reviews.
+    if (hasReviews && equipment.reviews) {
       schema.review = equipment.reviews.slice(0, 5).map(review => ({
         "@type": "Review",
         reviewRating: {
@@ -234,19 +340,29 @@ export class SchemaService {
     return schema;
   }
 
-  // Breadcrumb schema
+  // Breadcrumb schema. The final "current page" entry typically has
+  // no `href` — Google's spec allows (and prefers) omitting `item`
+  // there. The previous behaviour fell back to the bare baseUrl,
+  // which made every detail-page breadcrumb's last entry point at
+  // the home page (visible in Rich Results inspector as the
+  // "Unnamed item" warning on /equipment/:slug).
   generateBreadcrumbSchema(
     breadcrumbs: Array<{ label: string; href?: string }>
   ): SchemaBreadcrumbList {
     return {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
-      itemListElement: breadcrumbs.map((crumb, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: crumb.label,
-        item: crumb.href ? `${this.baseUrl}${crumb.href}` : `${this.baseUrl}`,
-      })),
+      itemListElement: breadcrumbs.map((crumb, index) => {
+        const listItem: SchemaBreadcrumbList["itemListElement"][number] = {
+          "@type": "ListItem",
+          position: index + 1,
+          name: crumb.label,
+        };
+        if (crumb.href) {
+          listItem.item = `${this.baseUrl}${crumb.href}`;
+        }
+        return listItem;
+      }),
     };
   }
 
