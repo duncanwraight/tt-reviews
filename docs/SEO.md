@@ -4,6 +4,8 @@ This doc is the contract every user-facing route on this site has to satisfy. If
 
 This is the technical SEO standard. Audience research, content strategy, and keyword targeting are out of scope — they're product calls, not engineering rules.
 
+Live indexation, performance, and crawl-error data is queryable from inside a Claude Code session via the `search-console` MCP server — see `docs/MCP.md`. The per-route checklist at the bottom of this doc becomes verifiable that way, not just aspirational.
+
 The audit underlying TT-134 found the structured-data foundation strong (`app/lib/schema.ts` + `app/components/seo/StructuredData.tsx` ship Product/AggregateRating/Review/BreadcrumbList/Organization/Person correctly) but several systemic gaps. Those gaps had one card each (TT-135 → TT-143); all are now shipped. Where a TT-card is named below, it's a historical reference to the change that introduced the rule, not a marker for pending work.
 
 ---
