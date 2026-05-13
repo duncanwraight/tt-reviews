@@ -23,7 +23,7 @@
 // We map "Unknown ..." segments to null so the orchestrator still
 // records what we DID get (e.g. birth year present, style absent).
 
-import type { IttfProfileCandidate } from "./types";
+import type { IttfProfileCandidate, IttfStyle } from "./types";
 
 const ITTF_PROFILE_BASE =
   "https://results.ittf.link/index.php/player-profile/list/60";
@@ -32,13 +32,14 @@ const USER_AGENT =
   "tt-reviews-importer/0.1 (+https://tabletennis.reviews; duncan@wraight-consulting.co.uk)";
 
 const STYLE_RE =
-  /Style:\s*<span class=['"]notranslate['"]>([^<]+)<\/span>\s*<span class=['"]notranslate['"]>[^<]+<\/span>\s*\(<span class=['"]notranslate['"]>([^<]+)<\/span>\)/i;
+  /Style:\s*<span class=['"]notranslate['"]>([^<]+)<\/span>\s*<span class=['"]notranslate['"]>([^<]+)<\/span>\s*\(<span class=['"]notranslate['"]>([^<]+)<\/span>\)/i;
 
 const BIRTH_YEAR_RE =
   /Birth Year:\s*<span class=['"]notranslate['"]>(\d{4})<\/span>/i;
 
 export interface IttfProfile {
   handedness: "left" | "right" | null;
+  style: IttfStyle | null;
   grip: "shakehand" | "penhold" | null;
   birth_year: number | null;
 }
@@ -50,6 +51,7 @@ export function ittfProfileUrl(ittfid: number): string {
 export function parseIttfProfile(html: string): IttfProfile {
   const profile: IttfProfile = {
     handedness: null,
+    style: null,
     grip: null,
     birth_year: null,
   };
@@ -57,7 +59,8 @@ export function parseIttfProfile(html: string): IttfProfile {
   const styleMatch = html.match(STYLE_RE);
   if (styleMatch) {
     profile.handedness = mapHandedness(styleMatch[1]);
-    profile.grip = mapGrip(styleMatch[2]);
+    profile.style = mapStyle(styleMatch[2]);
+    profile.grip = mapGrip(styleMatch[3]);
   }
 
   const birthMatch = html.match(BIRTH_YEAR_RE);
@@ -79,6 +82,16 @@ function mapHandedness(raw: string): "left" | "right" | null {
   if (v.startsWith("left")) return "left";
   if (v.startsWith("right")) return "right";
   return null;
+}
+
+function mapStyle(raw: string): IttfStyle | null {
+  const v = raw.trim().toLowerCase();
+  if (v.startsWith("unknown")) return null;
+  if (v.startsWith("attack")) return "attack";
+  if (v.startsWith("defen")) return "defence";
+  // Future ITTF additions (chopper, allround, etc) land in "other" so
+  // the orchestrator can log + leave playing_style NULL.
+  return "other";
 }
 
 function mapGrip(raw: string): "shakehand" | "penhold" | null {
@@ -133,6 +146,7 @@ export function toIttfCandidate(
     source: "ittf",
     ittfid,
     handedness: profile.handedness ?? undefined,
+    style: profile.style ?? undefined,
     grip: profile.grip ?? undefined,
     birth_year: profile.birth_year ?? undefined,
     ittf_profile_url: ittfProfileUrl(ittfid),

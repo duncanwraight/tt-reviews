@@ -5,6 +5,21 @@
 // PerSourceCandidate is stored verbatim in player_proposals.candidates
 // JSONB so the detail UI can show "which source said what".
 
+// ITTF Style: block emits a "style" token between handedness and grip:
+// e.g. Right-Hand Attack (ShakeHand). We narrow to attack/defence and
+// surface "other" as a passthrough for surprising values so the
+// orchestrator can log + leave playing_style NULL rather than coerce.
+export type IttfStyle = "attack" | "defence" | "other";
+
+// Subset of players.playing_style. Existing values seen in the DB:
+// shakehand_attacker, penhold_rpb, classical_defender, short_pips_hitter.
+// The importer can only confidently set the first three; short_pips_hitter
+// requires manual classification.
+export type PlayingStyle =
+  | "shakehand_attacker"
+  | "penhold_rpb"
+  | "classical_defender";
+
 export interface WttRosterCandidate {
   source: "wtt";
   ittfid: number;
@@ -12,6 +27,7 @@ export interface WttRosterCandidate {
   raw_name: string;
   represents?: string;
   gender?: "M" | "F";
+  ranking?: number;
   headshot_url?: string;
   wtt_profile_url: string;
   fetched_at: string;
@@ -21,6 +37,7 @@ export interface IttfProfileCandidate {
   source: "ittf";
   ittfid: number;
   handedness?: "left" | "right";
+  style?: IttfStyle;
   grip?: "shakehand" | "penhold";
   birth_year?: number;
   ittf_profile_url: string;
@@ -36,17 +53,35 @@ export interface MergedPlayer {
   gender?: "M" | "F";
   handedness?: "left" | "right";
   grip?: "shakehand" | "penhold";
+  playing_style?: PlayingStyle;
   birth_year?: number;
+  highest_rating?: string;
   headshot_url?: string;
   wtt_profile_url: string;
   ittf_profile_url?: string;
   per_field_source: Record<string, "wtt" | "ittf">;
 }
 
-// Completeness gate: auto-apply when all four enrichments are present.
-// Missing any of them → queue for admin review.
+// Completeness gate: auto-apply when all four required enrichments are
+// present. playing_style + highest_rating are nice-to-have but not gating
+// — admin can fix them later via player_edits.
 export function isComplete(p: MergedPlayer): boolean {
   return Boolean(p.handedness && p.grip && p.birth_year && p.headshot_url);
+}
+
+// (grip, style) → players.playing_style enum. Conservative: only
+// commits to values we know exist in the column; everything else stays
+// NULL so the admin can pick via player_edits.
+export function derivePlayingStyle(
+  grip: "shakehand" | "penhold" | undefined,
+  style: IttfStyle | undefined
+): PlayingStyle | undefined {
+  if (!grip || !style) return undefined;
+  if (style === "attack" && grip === "shakehand") return "shakehand_attacker";
+  if (style === "attack" && grip === "penhold") return "penhold_rpb";
+  if (style === "defence" && grip === "shakehand") return "classical_defender";
+  // (defence, penhold) and any "other" style → leave for admin.
+  return undefined;
 }
 
 export interface ImporterSummary {

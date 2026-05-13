@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseIttfProfile } from "../ittf-profile.server";
+import { derivePlayingStyle } from "../types";
 
 const PROFILE_TEMPLATE = (
   hand: string,
@@ -23,6 +24,7 @@ describe("parseIttfProfile", () => {
     const html = PROFILE_TEMPLATE("Left-Hand", "Attack", "ShakeHand", "2000");
     expect(parseIttfProfile(html)).toEqual({
       handedness: "left",
+      style: "attack",
       grip: "shakehand",
       birth_year: 2000,
     });
@@ -32,6 +34,7 @@ describe("parseIttfProfile", () => {
     const html = PROFILE_TEMPLATE("Right-Hand", "Attack", "ShakeHand", "1995");
     expect(parseIttfProfile(html)).toEqual({
       handedness: "right",
+      style: "attack",
       grip: "shakehand",
       birth_year: 1995,
     });
@@ -41,8 +44,34 @@ describe("parseIttfProfile", () => {
     const html = PROFILE_TEMPLATE("Right-Hand", "Attack", "Penholder", "1988");
     expect(parseIttfProfile(html)).toEqual({
       handedness: "right",
+      style: "attack",
       grip: "penhold",
       birth_year: 1988,
+    });
+  });
+
+  it("parses a shakehand defender", () => {
+    const html = PROFILE_TEMPLATE("Right-Hand", "Defence", "ShakeHand", "1990");
+    expect(parseIttfProfile(html)).toEqual({
+      handedness: "right",
+      style: "defence",
+      grip: "shakehand",
+      birth_year: 1990,
+    });
+  });
+
+  it("flags surprising style tokens as 'other' so the importer leaves playing_style NULL", () => {
+    const html = PROFILE_TEMPLATE(
+      "Right-Hand",
+      "AllRound",
+      "ShakeHand",
+      "1985"
+    );
+    expect(parseIttfProfile(html)).toEqual({
+      handedness: "right",
+      style: "other",
+      grip: "shakehand",
+      birth_year: 1985,
     });
   });
 
@@ -55,6 +84,7 @@ describe("parseIttfProfile", () => {
     );
     expect(parseIttfProfile(html)).toEqual({
       handedness: null,
+      style: null,
       grip: null,
       birth_year: 1973,
     });
@@ -69,6 +99,7 @@ describe("parseIttfProfile", () => {
     `;
     expect(parseIttfProfile(html)).toEqual({
       handedness: null,
+      style: null,
       grip: null,
       birth_year: 2001,
     });
@@ -89,6 +120,7 @@ describe("parseIttfProfile", () => {
     `;
     expect(parseIttfProfile(html)).toEqual({
       handedness: "right",
+      style: "defence",
       grip: "shakehand",
       birth_year: 1990,
     });
@@ -99,8 +131,42 @@ describe("parseIttfProfile", () => {
       parseIttfProfile("<html><body>nothing useful</body></html>")
     ).toEqual({
       handedness: null,
+      style: null,
       grip: null,
       birth_year: null,
     });
+  });
+});
+
+describe("derivePlayingStyle", () => {
+  it("maps (shakehand, attack) → shakehand_attacker", () => {
+    expect(derivePlayingStyle("shakehand", "attack")).toBe(
+      "shakehand_attacker"
+    );
+  });
+
+  it("maps (penhold, attack) → penhold_rpb", () => {
+    expect(derivePlayingStyle("penhold", "attack")).toBe("penhold_rpb");
+  });
+
+  it("maps (shakehand, defence) → classical_defender", () => {
+    expect(derivePlayingStyle("shakehand", "defence")).toBe(
+      "classical_defender"
+    );
+  });
+
+  it("returns undefined for (penhold, defence) — rare, leave to admin", () => {
+    expect(derivePlayingStyle("penhold", "defence")).toBeUndefined();
+  });
+
+  it("returns undefined for any 'other' style", () => {
+    expect(derivePlayingStyle("shakehand", "other")).toBeUndefined();
+    expect(derivePlayingStyle("penhold", "other")).toBeUndefined();
+  });
+
+  it("returns undefined when grip or style is missing", () => {
+    expect(derivePlayingStyle(undefined, "attack")).toBeUndefined();
+    expect(derivePlayingStyle("shakehand", undefined)).toBeUndefined();
+    expect(derivePlayingStyle(undefined, undefined)).toBeUndefined();
   });
 });

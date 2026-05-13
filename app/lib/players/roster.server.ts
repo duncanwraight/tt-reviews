@@ -59,8 +59,9 @@ export function normaliseDisplayName(name: string): string {
 
 // Strip diacritics, collapse whitespace, drop punctuation, lowercase.
 // Order-preserving so "Lin Shidong" stays distinct from "Shidong Lin".
-// findByName falls back to a sorted-tokens key for that naming flip.
-function normaliseForMatch(name: string): string {
+// findByName + the importer dedupe both fall back to a sorted-tokens
+// key for the surname/given-name flip.
+export function normaliseForMatch(name: string): string {
   return name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -70,8 +71,15 @@ function normaliseForMatch(name: string): string {
     .trim();
 }
 
-function tokenSorted(name: string): string {
+export function tokenSorted(name: string): string {
   return normaliseForMatch(name).split(" ").sort().join(" ");
+}
+
+function parseRanking(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const n = parseInt(trimmed, 10);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 function mapRosterEntry(entry: WttRosterEntry): WttRosterCandidate {
@@ -84,6 +92,7 @@ function mapRosterEntry(entry: WttRosterEntry): WttRosterCandidate {
     raw_name: entry.fullName,
     represents: entry.nationality.length === 3 ? entry.nationality : undefined,
     gender,
+    ranking: parseRanking(entry.ranking),
     headshot_url: entry.headShot || undefined,
     wtt_profile_url: wttProfileUrl(entry.ittfid),
     fetched_at: new Date().toISOString(),

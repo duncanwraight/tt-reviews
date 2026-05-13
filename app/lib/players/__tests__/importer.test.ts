@@ -24,6 +24,9 @@ interface FakeDb {
     name: string;
     slug: string;
     ittfid: number | null;
+    playing_style?: string | null;
+    birth_year?: number | null;
+    highest_rating?: string | null;
   }>;
   proposals: Array<{
     id: string;
@@ -47,17 +50,18 @@ function makeSupabase(db: FakeDb): SupabaseClient {
     from(table: string): any {
       if (table === "players") {
         return {
+          // TT-202: importer reads all players (including null ittfid)
+          // so the name-fallback dedupe can match seed rows that pre-
+          // date the ittfid column.
           select(_cols: string) {
-            return {
-              not(_col: string, _op: string, _val: null) {
-                return Promise.resolve({
-                  data: db.players
-                    .filter(p => p.ittfid !== null)
-                    .map(p => ({ ittfid: p.ittfid })),
-                  error: null,
-                });
-              },
-            };
+            return Promise.resolve({
+              data: db.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                ittfid: p.ittfid,
+              })),
+              error: null,
+            });
           },
           insert(row: {
             name: string;
@@ -67,6 +71,9 @@ function makeSupabase(db: FakeDb): SupabaseClient {
             gender: string | null;
             handedness: string | null;
             grip: string | null;
+            playing_style?: string | null;
+            birth_year?: number | null;
+            highest_rating?: string | null;
             image_key: string;
           }) {
             const failNow = failureBudget > 0;
@@ -92,12 +99,30 @@ function makeSupabase(db: FakeDb): SupabaseClient {
                       name: row.name,
                       slug: row.slug,
                       ittfid: row.ittfid,
+                      playing_style: row.playing_style ?? null,
+                      birth_year: row.birth_year ?? null,
+                      highest_rating: row.highest_rating ?? null,
                     };
                     db.players.push(inserted);
                     return Promise.resolve({
                       data: { id: inserted.id, slug: inserted.slug },
                       error: null,
                     });
+                  },
+                };
+              },
+            };
+          },
+          update(patch: { ittfid?: number }) {
+            return {
+              eq(_col1: string, val1: string) {
+                return {
+                  is(_col2: string, _val2: null) {
+                    const row = db.players.find(p => p.id === val1);
+                    if (row && row.ittfid === null && patch.ittfid != null) {
+                      row.ittfid = patch.ittfid;
+                    }
+                    return Promise.resolve({ data: null, error: null });
                   },
                 };
               },
@@ -534,6 +559,188 @@ describe("runImport", () => {
     expect(summary.auto_applied).toBe(1);
     expect(summary.errors).toHaveLength(1);
     expect(summary.errors[0].ittfid).toBe(2);
+  });
+
+  it("backfills ittfid on a legacy seed row when names match (TT-202)", async () => {
+    // Mirrors the prod regression: seed row "Alexis LEBRUN" with NULL
+    // ittfid + WTT roster entry "LEBRUN Alexis" (surname-flipped, ALL-
+    // CAPS). The old importer treated this as a new player; the fixed
+    // version backfills ittfid on the seed row instead.
+    const db: FakeDb = {
+      players: [
+        {
+          id: "p-seed",
+          name: "Alexis LEBRUN",
+          slug: "alexis-lebrun",
+          ittfid: null,
+        },
+      ],
+      proposals: [],
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 132992,
+        fullName: "LEBRUN Alexis",
+        nationality: "FRA",
+        countryName: "France",
+        gender: "M",
+        age: 22,
+        ranking: "11",
+        headShot: "https://wtt.example/lebrun.jpg",
+      },
+    ];
+
+    const summary = await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+
+    expect(summary.auto_applied).toBe(0);
+    expect(summary.queued).toBe(0);
+    expect(summary.skipped_existing).toBe(1);
+    expect(summary.errors).toHaveLength(0);
+    // Only the seed row remains, now linked.
+    expect(db.players).toHaveLength(1);
+    expect(db.players[0]).toMatchObject({
+      id: "p-seed",
+      slug: "alexis-lebrun",
+      ittfid: 132992,
+    });
+    // No upstream fetches for ITTF or the photo — name-match short-
+    // circuits before the per-candidate enrichment pass.
+    expect(bucket.puts).toHaveLength(0);
+  });
+
+  it("re-running after a name backfill is a no-op (ittfid match short-circuits)", async () => {
+    const db: FakeDb = {
+      players: [
+        {
+          id: "p-seed",
+          name: "Alexis LEBRUN",
+          slug: "alexis-lebrun",
+          ittfid: null,
+        },
+      ],
+      proposals: [],
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 132992,
+        fullName: "LEBRUN Alexis",
+        nationality: "FRA",
+        countryName: "France",
+        gender: "M",
+        age: 22,
+        ranking: "11",
+        headShot: "",
+      },
+    ];
+
+    await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+    // Reset the roster cache so the second run re-fetches the roster
+    // (mimics a fresh Worker isolate).
+    __resetRosterCacheForTests();
+
+    const second = await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+    expect(second.skipped_existing).toBe(1);
+    expect(second.auto_applied).toBe(0);
+    expect(second.queued).toBe(0);
+    expect(db.players).toHaveLength(1);
+  });
+
+  it("flags ambiguity when two unlinked seed rows share the normalised name", async () => {
+    const db: FakeDb = {
+      players: [
+        {
+          id: "p-1",
+          name: "Wang Hao",
+          slug: "wang-hao",
+          ittfid: null,
+        },
+        {
+          id: "p-2",
+          name: "WANG Hao",
+          slug: "wang-hao-second",
+          ittfid: null,
+        },
+      ],
+      proposals: [],
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 999,
+        fullName: "WANG Hao",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 40,
+        ranking: "200",
+        headShot: "",
+      },
+    ];
+
+    const summary = await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0].ittfid).toBe(999);
+    expect(summary.errors[0].message).toMatch(/ambiguous/i);
+    expect(summary.auto_applied).toBe(0);
+    expect(summary.queued).toBe(0);
+    // Neither seed row was modified.
+    expect(db.players.every(p => p.ittfid === null)).toBe(true);
+  });
+
+  it("captures WTT ranking → highest_rating and ITTF style+grip → playing_style", async () => {
+    const db: FakeDb = { players: [], proposals: [] };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 132473,
+        fullName: "LIN Shidong",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 21,
+        ranking: "1",
+        headShot: "https://wtt.example/lin.jpg",
+      },
+    ];
+
+    await runImport(supabase, bucket, {
+      deps: {
+        fetchImpl: makeFetch({
+          roster,
+          ittf: { 132473: { html: COMPLETE_ITTF_HTML } },
+          photos: {
+            "https://wtt.example/lin.jpg": {
+              status: 200,
+              bytes: new Uint8Array([0xff, 0xd8, 0xff]),
+            },
+          },
+        }),
+      },
+    });
+
+    expect(db.players).toHaveLength(1);
+    expect(db.players[0]).toMatchObject({
+      slug: "lin-shidong",
+      highest_rating: "WR1",
+      playing_style: "shakehand_attacker",
+      birth_year: 1995,
+    });
   });
 
   it("encodes ITTF profile URL in the merged.ittf_profile_url field", async () => {
