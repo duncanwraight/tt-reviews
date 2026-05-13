@@ -1016,19 +1016,19 @@ INSERT INTO site_content (key, content, description, category) VALUES
 ('equipment.expand_database.title', 'Spotted equipment we don''t have?', 'Title for equipment submission CTA section', 'equipment'),
 ('equipment.expand_database.description', 'Sign in to submit a blade, rubber, or ball you don''t see on the site. We review every submission.', 'Description encouraging equipment submissions', 'equipment'),
 ('equipment.recent_reviews.subtitle', 'Latest reviews from the community.', 'Subtitle for recent reviews section on equipment page', 'equipment'),
-('equipment.submit.description', 'Help expand our equipment database by submitting new table tennis equipment.', 'Description on equipment submission form page', 'equipment'),
+('equipment.submit.description', 'Submit a blade, rubber, or ball that''s missing from the catalogue.', 'Description on equipment submission form page', 'equipment'),
 ('equipment.submit.upload_help', 'Upload a clear photo of the equipment. This helps with identification and moderation.', 'Help text for image upload in equipment form', 'equipment'),
 ('equipment.submit.specifications_placeholder', 'Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)', 'Placeholder text for specifications field', 'equipment'),
-('equipment.submit.loading_message', 'Please wait while we submit your equipment to our database...', 'Loading message during equipment submission', 'equipment'),
-('equipment.submit.success_message', 'Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after equipment submission', 'equipment'),
+('equipment.submit.loading_message', 'Submitting…', 'Loading message during equipment submission', 'equipment'),
+('equipment.submit.success_message', 'Submitted. We''ll review it shortly. Thanks for helping keep the catalogue accurate.', 'Success message after equipment submission', 'equipment'),
 
 -- Player Database
 ('players.page.description', 'Equipment setups and playing styles for professional table tennis players from around the world.', 'Main description for players index page', 'players'),
 ('players.expand_database.title', 'Spotted a player we don''t have?', 'Title for player submission CTA section', 'players'),
 ('players.expand_database.description', 'Sign in to submit a player you don''t see on the site. We review every submission.', 'Description encouraging player submissions', 'players'),
-('players.submit.description', 'Help expand our player database by submitting professional table tennis players.', 'Description on player submission form page', 'players'),
-('players.submit.loading_message', 'Please wait while we submit the player to our database...', 'Loading message during player submission', 'players'),
-('players.submit.success_message', 'Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after player submission', 'players'),
+('players.submit.description', 'Submit a professional player who''s missing from the database.', 'Description on player submission form page', 'players'),
+('players.submit.loading_message', 'Submitting…', 'Loading message during player submission', 'players'),
+('players.submit.success_message', 'Submitted. We''ll review it shortly. Thanks for helping keep the database accurate.', 'Success message after player submission', 'players'),
 
 -- Search & Discovery
 ('search.landing.description', 'Search our comprehensive database of equipment reviews and professional player setups. Find the perfect gear for your playing style.', 'Description on search landing page', 'search'),

@@ -108,11 +108,12 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/equipment-submissions",
     form: {
       title: "Submit New Equipment",
-      description: "Add a new piece of table tennis equipment to our database.",
+      description:
+        "Add a blade, rubber, or ball that's missing from the catalogue.",
       submitButtonText: "Submit Equipment",
-      successTitle: "Equipment Submitted!",
+      successTitle: "Equipment submitted.",
       successMessage:
-        "Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
+        "Submitted. We'll review it shortly. Thanks for helping keep the catalogue accurate.",
       redirectPath: "/profile",
       fields: [
         createNameField("equipment", "e.g., Hurricane 3"),
@@ -192,12 +193,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/player-submissions",
     form: {
       title: "Submit New Player",
-      description:
-        "Add a new professional table tennis player to our database.",
+      description: "Add a professional player who's missing from the database.",
       submitButtonText: "Submit Player",
-      successTitle: "Player Submitted!",
+      successTitle: "Player submitted.",
       successMessage:
-        "Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!",
+        "Submitted. We'll review it shortly. Thanks for helping keep the database accurate.",
       redirectPath: "/profile",
       fields: [
         createNameField("player", "e.g., Ma Long"),
@@ -342,11 +342,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     form: {
       title: "Edit Player Information",
       description:
-        "Suggest updates to player information in our database. Your changes will be reviewed before going live.",
+        "Suggest updates to a player's record. Changes are reviewed before going live.",
       submitButtonText: "Submit Changes",
-      successTitle: "Changes Submitted!",
-      successMessage:
-        "Your suggested changes have been submitted and will be reviewed by our team.",
+      successTitle: "Changes submitted.",
+      successMessage: "Submitted. We'll review your changes shortly.",
       redirectPath: "/profile",
       fields: [
         createSelectField("player_id", "Player", 2, true),
@@ -399,7 +398,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         createTextAreaField(
           "edit_reason",
           "Reason for Changes",
-          "Please explain why these changes should be made...",
+          "Why should these changes be made?",
           true
         ),
       ],
@@ -495,9 +494,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       description:
         "Add training videos, match footage, or other video content for professional table tennis players.",
       submitButtonText: "Submit Videos",
-      successTitle: "Videos Submitted!",
-      successMessage:
-        "Your videos have been successfully submitted and will be reviewed by our team.",
+      successTitle: "Videos submitted.",
+      successMessage: "Submitted. We'll review them shortly.",
       redirectPath: "/profile",
       fields: [
         createSelectField("player_id", "Player", 2, true),
@@ -540,11 +538,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     form: {
       title: "Write Equipment Review",
       description:
-        "Share your experience with table tennis equipment to help other players.",
+        "Share your experience with this equipment to help other players find gear that fits them.",
       submitButtonText: "Submit Review",
-      successTitle: "Review Submitted!",
-      successMessage:
-        "Your review has been submitted and will be reviewed by our team.",
+      successTitle: "Review submitted.",
+      successMessage: "Submitted. We'll review it shortly.",
       redirectPath: "/profile",
       fields: [
         {
@@ -702,11 +699,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     form: {
       title: "Suggest Equipment Changes",
       description:
-        "Suggest updates to existing equipment in our database. Your changes will be reviewed before going live.",
+        "Suggest updates to an equipment record. Changes are reviewed before going live.",
       submitButtonText: "Submit Changes",
-      successTitle: "Changes Submitted!",
-      successMessage:
-        "Your suggested changes have been submitted and will be reviewed by our team.",
+      successTitle: "Changes submitted.",
+      successMessage: "Submitted. We'll review your changes shortly.",
       redirectPath: "/profile",
       fields: [
         {
@@ -911,9 +907,8 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       title: "Submit Player Equipment Setup",
       description: "Add equipment setup information for a professional player.",
       submitButtonText: "Submit Setup",
-      successTitle: "Setup Submitted!",
-      successMessage:
-        "The equipment setup has been submitted and will be verified by our team.",
+      successTitle: "Setup submitted.",
+      successMessage: "Submitted. We'll verify the setup shortly.",
       redirectPath: "/profile",
       fields: [
         createSelectField("player_id", "Player", 2, true),
