@@ -85,9 +85,20 @@ function makeSupabase(db: FakeDb): SupabaseClient {
 
       if (table === "player_proposals") {
         return {
+          // The producer's pre-load now reads id/status/run_log/merged
+          // alongside ittfid so the orphan-recovery pass (TT-206) can
+          // synthesize queue messages for stubs that never reached
+          // the queue. Existing tests with empty proposals still
+          // hit the empty-array branch.
           select(_cols: string) {
             return Promise.resolve({
-              data: db.proposals.map(p => ({ ittfid: p.ittfid })),
+              data: db.proposals.map(p => ({
+                id: p.id,
+                ittfid: p.ittfid,
+                status: p.status,
+                run_log: p.run_log,
+                merged: p.merged,
+              })),
               error: null,
             });
           },
@@ -174,13 +185,26 @@ interface CapturedQueue extends PlayerImportQueueProducer {
   sendBatchError?: string;
 }
 
-function makeQueue(opts: { sendBatchError?: string } = {}): CapturedQueue {
+function makeQueue(
+  opts: {
+    sendBatchError?: string;
+    // TT-206: fail specific chunk indices (zero-based). Used by the
+    // partial-failure test where chunk 1 throws but chunk 0 + 2 land.
+    failChunkIndices?: number[];
+  } = {}
+): CapturedQueue {
   const batches: Array<Array<{ body: PlayerImportMessage }>> = [];
+  let chunkIndex = 0;
   return {
     batches,
     sendBatchError: opts.sendBatchError,
     async sendBatch(messages) {
+      const idx = chunkIndex;
+      chunkIndex += 1;
       if (opts.sendBatchError) throw new Error(opts.sendBatchError);
+      if (opts.failChunkIndices?.includes(idx)) {
+        throw new Error(`Payload Too Large (chunk ${idx})`);
+      }
       batches.push(messages as Array<{ body: PlayerImportMessage }>);
     },
   };
@@ -494,9 +518,13 @@ describe("runImport (producer)", () => {
     expect(db.proposals).toHaveLength(1);
   });
 
-  it("re-running while proposals exist is a no-op", async () => {
-    // First run: enqueues. Second run (same roster, proposals now
-    // exist): dedupe skips them, no new messages.
+  it("re-running while orphaned stubs exist recovers them (TT-206)", async () => {
+    // First run: inserts + enqueues. The consumer never runs (in
+    // tests there's no queue runtime), so the proposal stays in
+    // status=pending_review with a roster_match-only run_log — i.e.
+    // it looks like an orphan to the next click. Second run:
+    // dedupe skips the ittfid (proposal exists), recovery re-enqueues
+    // it. This is exactly the prod recovery flow.
     const db: FakeDb = { players: [], proposals: [] };
     const supabase = makeSupabase(db);
     const queue = makeQueue();
@@ -522,9 +550,13 @@ describe("runImport (producer)", () => {
       deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(second.queued_for_processing).toBe(0);
     expect(second.skipped_existing).toBe(1);
-    expect(queue.batches).toHaveLength(1); // Only the first run.
+    expect(second.queued_for_processing).toBe(1);
+    expect(second.recovered_orphans).toBe(1);
+    // Two sendBatch calls total: one per run. The second carries
+    // the recovered orphan message.
+    expect(queue.batches).toHaveLength(2);
+    expect(queue.batches[1][0].body.ittfid).toBe(132473);
   });
 
   it("surfaces a single summary error when the bulk insert fails atomically (TT-205)", async () => {
@@ -571,6 +603,171 @@ describe("runImport (producer)", () => {
     expect(summary.errors[0].message).toMatch(/bulk proposal insert.*2 rows/i);
     expect(db.proposals).toHaveLength(0);
     expect(queue.batches).toHaveLength(0);
+  });
+
+  it("chunks sendBatch at 100 messages per call (TT-206)", async () => {
+    // Cloudflare caps sendBatch at 100 messages. 250 truly-new
+    // candidates → 3 chunks (100 + 100 + 50). Without chunking the
+    // single batch would 'Payload Too Large' in prod and orphan the
+    // 250 stubs.
+    const db: FakeDb = {
+      players: [],
+      proposals: [],
+      proposalInsertCalls: [],
+    };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue();
+    const roster: RosterEntry[] = Array.from({ length: 250 }, (_, i) => ({
+      ittfid: 300000 + i,
+      fullName: `Chunk Probe ${i}`,
+      nationality: "FRA",
+      countryName: "France",
+      gender: "M",
+      age: 25,
+      ranking: String(i + 1),
+      headShot: "",
+    }));
+
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+
+    expect(summary.queued_for_processing).toBe(250);
+    expect(summary.errors).toHaveLength(0);
+    expect(queue.batches).toHaveLength(3);
+    expect(queue.batches[0]).toHaveLength(100);
+    expect(queue.batches[1]).toHaveLength(100);
+    expect(queue.batches[2]).toHaveLength(50);
+  });
+
+  it("recovers orphaned stubs whose previous sendBatch never landed (TT-206)", async () => {
+    // Seed 3 proposals that have status=pending_review + a single
+    // roster_match run_log entry, mimicking "an earlier click
+    // inserted the stub but Payload Too Large stopped the queue
+    // message from being sent". No truly-new candidates in this
+    // run — the producer must still enqueue the 3 orphans.
+    const db: FakeDb = {
+      players: [],
+      proposals: [
+        {
+          id: "stub-1",
+          ittfid: 400001,
+          status: "pending_review",
+          merged: {
+            ittfid: 400001,
+            name: "Orphan One",
+            raw_name: "ORPHAN One",
+            wtt_profile_url:
+              "https://www.worldtabletennis.com/playerDescription?playerId=400001",
+            headshot_url: "https://wtt.example/orphan1.jpg",
+          },
+          candidates: {},
+          run_log: [
+            {
+              at: "2026-05-13T00:00:00.000Z",
+              step: "roster_match",
+              outcome: "truly_new",
+              ittfid: 400001,
+            },
+          ],
+        },
+        {
+          id: "stub-2",
+          ittfid: 400002,
+          status: "pending_review",
+          merged: {
+            ittfid: 400002,
+            name: "Orphan Two",
+            raw_name: "ORPHAN Two",
+            wtt_profile_url:
+              "https://www.worldtabletennis.com/playerDescription?playerId=400002",
+          },
+          candidates: {},
+          run_log: [
+            {
+              at: "2026-05-13T00:00:00.000Z",
+              step: "roster_match",
+              outcome: "truly_new",
+              ittfid: 400002,
+            },
+          ],
+        },
+        // Negative case: a proposal the consumer has already touched
+        // (last log entry is ittf_fetch). The recovery pass must skip.
+        {
+          id: "stub-3",
+          ittfid: 400003,
+          status: "pending_review",
+          merged: { ittfid: 400003, name: "In Flight" },
+          candidates: {},
+          run_log: [
+            {
+              at: "x",
+              step: "roster_match",
+              outcome: "truly_new",
+              ittfid: 400003,
+            },
+            {
+              at: "y",
+              step: "ittf_fetch",
+              ittfid: 400003,
+              url: "u",
+              status: "ok",
+            },
+          ],
+        },
+      ],
+    };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue();
+    // Empty roster — nothing to insert. Only the orphans drive the
+    // sendBatch payload.
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch([]) },
+    });
+
+    expect(summary.queued_for_processing).toBe(2);
+    expect(summary.recovered_orphans).toBe(2);
+    expect(queue.batches).toHaveLength(1);
+    const ittfids = queue.batches[0].map(m => m.body.ittfid).sort();
+    expect(ittfids).toEqual([400001, 400002]);
+    // Each recovered message carries the proposal_id of the original stub.
+    expect(
+      queue.batches[0].find(m => m.body.ittfid === 400001)?.body.proposal_id
+    ).toBe("stub-1");
+  });
+
+  it("continues remaining chunks when one chunk fails (TT-206)", async () => {
+    // 250 candidates → 3 chunks. Inject failure on chunk index 1
+    // (the middle one). queued_for_processing should be 150
+    // (chunks 0 + 2), and summary.errors should carry the chunk
+    // index so the operator knows what's still stuck.
+    const db: FakeDb = {
+      players: [],
+      proposals: [],
+    };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue({ failChunkIndices: [1] });
+    const roster: RosterEntry[] = Array.from({ length: 250 }, (_, i) => ({
+      ittfid: 500000 + i,
+      fullName: `Partial Probe ${i}`,
+      nationality: "FRA",
+      countryName: "France",
+      gender: "M",
+      age: 25,
+      ranking: String(i + 1),
+      headShot: "",
+    }));
+
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+
+    expect(summary.queued_for_processing).toBe(150);
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0].message).toMatch(/chunk 2\/3/);
+    // Two chunks landed; the failed one didn't.
+    expect(queue.batches).toHaveLength(2);
   });
 
   it("bulk-inserts proposal stubs in one PostgREST call regardless of count (TT-205)", async () => {

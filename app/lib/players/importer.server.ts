@@ -1,4 +1,4 @@
-// Importer producer (TT-201, TT-202, TT-203, TT-204).
+// Importer producer (TT-201, TT-202, TT-203, TT-204, TT-205, TT-206).
 //
 // Walks the WTT roster, diffs against existing players + open
 // proposals, and enqueues one queue message per truly-new ittfid onto
@@ -10,8 +10,10 @@
 // TT-204 moves the per-candidate processing out of the producer
 // because each candidate burns ~4 subrequests (ITTF + photo fetch +
 // R2 PUT + DB write) and a Worker invocation is capped at 50 (Free
-// plan). Inline processing limited us to ~8 candidates per click;
-// queueing puts each one in its own invocation with its own budget.
+// plan). TT-205 collapsed N per-row proposal-stub inserts into one
+// bulk insert. TT-206 added sendBatch chunking (CF caps each call at
+// 100 messages) + orphan recovery for stubs whose previous sendBatch
+// never landed.
 //
 // TT-202 dedupe pass stays inline because it's cheap (one PostgREST
 // read for all players + one for all proposals + one bulk-backfill
@@ -22,11 +24,10 @@
 // ittfid + counts as `skipped_existing`. Ambiguous matches log + skip.
 //
 // Subrequest budget for one producer run: 2 setup reads (WTT roster
-// + existing players+proposals) + 1 bulk-backfill RPC + 1
-// proposal-insert per truly-new candidate + 1 `sendBatch` call
-// regardless of size. The proposal-insert loop dominates; a single
-// "Run import" click is safe up to ~45 truly-new candidates before
-// hitting the cap, and re-runs catch the remainder.
+// + existing players+proposals) + 1 bulk-backfill RPC + 1 bulk
+// proposal-stub insert + ceil(N/100) sendBatch calls. A 700-
+// candidate run is ~12 subrequests total; the cap is no longer the
+// gating constraint.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -348,6 +349,78 @@ function buildQueueMessage(
   };
 }
 
+// One existing-proposal row as it lands from the dedupe pre-load.
+// `merged` is the producer's stub blob — enough fields to reconstruct
+// a queue message for orphan recovery when the original sendBatch
+// never reached the queue.
+interface ProposalIndexRow {
+  id: string;
+  ittfid: number;
+  status: string;
+  run_log: RunLogEntry[] | null;
+  merged: Record<string, unknown> | null;
+}
+
+// Cloudflare Queues caps `sendBatch` at 100 messages per call
+// (https://developers.cloudflare.com/queues/platform/limits/). We
+// chunk producer payloads below this to avoid the "Payload Too
+// Large" failure mode that TT-206 traced: a 697-candidate run
+// inserted all 697 stubs successfully but couldn't ship the single
+// big sendBatch.
+const SEND_BATCH_MAX = 100;
+
+function chunkMessages<T>(messages: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < messages.length; i += size) {
+    out.push(messages.slice(i, i + size));
+  }
+  return out;
+}
+
+// Did the consumer touch this proposal? True when run_log ends with
+// the producer's `roster_match` seed (no consumer-side step appended
+// yet). Used for orphan recovery — these are stubs that were
+// inserted by some previous Run import click but never made it to
+// the queue, so the consumer will never see them without help.
+function isOrphanedStub(row: ProposalIndexRow): boolean {
+  if (row.status !== "pending_review") return false;
+  const log = row.run_log ?? [];
+  const last = log[log.length - 1];
+  return last?.step === "roster_match";
+}
+
+// Synthesize a queue message from a proposal row's stored merged
+// blob + the WTT side of the original candidates JSON. We seed the
+// producer's stub at insert time with enough WTT fields to do this
+// without re-fetching the roster.
+function messageForOrphan(
+  row: ProposalIndexRow,
+  triggeredBy: string
+): PlayerImportMessage | null {
+  const merged = row.merged ?? {};
+  const name = typeof merged.name === "string" ? merged.name : "";
+  const wtt_profile_url =
+    typeof merged.wtt_profile_url === "string" ? merged.wtt_profile_url : "";
+  if (!name || !wtt_profile_url) return null;
+  return {
+    ittfid: row.ittfid,
+    proposal_id: row.id,
+    name,
+    raw_name: typeof merged.raw_name === "string" ? merged.raw_name : name,
+    represents:
+      typeof merged.represents === "string" ? merged.represents : undefined,
+    gender:
+      merged.gender === "M" || merged.gender === "F"
+        ? merged.gender
+        : undefined,
+    headshot_url:
+      typeof merged.headshot_url === "string" ? merged.headshot_url : undefined,
+    wtt_profile_url,
+    triggeredBy,
+    attempts: 0,
+  };
+}
+
 export async function runImport(
   supabase: SupabaseClient,
   // The R2 bucket binding is retained on the signature because the
@@ -375,13 +448,16 @@ export async function runImport(
 
   // Skip ittfids that already have any proposal row — pending_review,
   // applied, auto_applied, rejected, no_results. Re-running shouldn't
-  // create a second proposal for the same upstream entry.
+  // create a second proposal for the same upstream entry. We also
+  // pull `id` + `run_log` + `merged` here so the orphan-recovery
+  // pass below can synthesize queue messages for stubs that the
+  // producer inserted but never enqueued (TT-206 — sendBatch
+  // failed before reaching the queue).
   const { data: existingProposals } = await supabase
     .from("player_proposals")
-    .select("ittfid");
-  const knownProposalIttfids = new Set(
-    ((existingProposals ?? []) as Array<{ ittfid: number }>).map(p => p.ittfid)
-  );
+    .select("id, ittfid, status, run_log, merged");
+  const knownProposalRows = (existingProposals ?? []) as ProposalIndexRow[];
+  const knownProposalIttfids = new Set(knownProposalRows.map(p => p.ittfid));
 
   const summary: ImporterSummary = {
     skipped_existing: 0,
@@ -438,12 +514,11 @@ export async function runImport(
     });
   }
 
-  if (trulyNew.length === 0) return summary;
-
-  // Insert one pending_review stub per truly-new candidate, then
-  // sendBatch a queue message for each successful insert. We don't
-  // enqueue a message for a candidate whose stub insert failed —
-  // there'd be no proposal row for the consumer to update.
+  // Insert one pending_review stub per truly-new candidate (bulk
+  // insert per TT-205). Returned ids feed the per-message
+  // proposal_id; we don't enqueue for a candidate whose stub insert
+  // failed because there'd be no proposal row for the consumer to
+  // update.
   const { inserted, errors: insertErrors } = await insertProposalStubs(
     supabase,
     trulyNew,
@@ -452,19 +527,59 @@ export async function runImport(
   );
   for (const e of insertErrors) summary.errors.push(e);
 
-  if (inserted.length === 0) return summary;
+  // Build messages from the freshly-inserted stubs.
+  const messages: Array<{ body: PlayerImportMessage }> = inserted.map(
+    ({ id, wtt }) => ({ body: buildQueueMessage(id, wtt, triggeredBy) })
+  );
 
-  const messages = inserted.map(({ id, wtt }) => ({
-    body: buildQueueMessage(id, wtt, triggeredBy),
-  }));
-  try {
-    await queue.sendBatch(messages);
-    summary.queued_for_processing = messages.length;
-  } catch (err) {
-    summary.errors.push({
-      ittfid: 0,
-      message: `queue sendBatch (${messages.length} messages): ${err instanceof Error ? err.message : String(err)}`,
-    });
+  // Orphan recovery (TT-206): include queue messages for any earlier
+  // stub that landed in pending_review but never reached the queue
+  // (e.g. a previous Run import click that sent a too-large
+  // sendBatch). Filter to roster_match-only rows so we don't re-
+  // enqueue proposals the consumer is already partway through.
+  // Skip any orphan whose ittfid we just inserted in this same run
+  // (defensive — the dedupe pre-filter should already exclude
+  // those, but a concurrent click race could double up).
+  const freshIttfids = new Set(inserted.map(i => i.wtt.ittfid));
+  let recoveredOrphanCount = 0;
+  for (const row of knownProposalRows) {
+    if (freshIttfids.has(row.ittfid)) continue;
+    if (!isOrphanedStub(row)) continue;
+    const msg = messageForOrphan(row, triggeredBy);
+    if (!msg) continue;
+    messages.push({ body: msg });
+    recoveredOrphanCount += 1;
+  }
+
+  if (messages.length === 0) return summary;
+
+  // Chunk sendBatch (TT-206). Cloudflare Queues caps a single
+  // sendBatch call at 100 messages — 697-message payload threw
+  // "Payload Too Large" in prod. Each chunk is its own subrequest;
+  // even a 697-candidate run is ~7 chunks + ~5 setup subrequests,
+  // well under the 50 cap. We track per-chunk failures so the
+  // operator's next click can pick up only what didn't ship (the
+  // orphan-recovery pass above is the same retry hook).
+  const chunks = chunkMessages(messages, SEND_BATCH_MAX);
+  let successfullySent = 0;
+  for (let i = 0; i < chunks.length; i += 1) {
+    const chunk = chunks[i];
+    try {
+      await queue.sendBatch(chunk);
+      successfullySent += chunk.length;
+    } catch (err) {
+      summary.errors.push({
+        ittfid: 0,
+        message: `queue sendBatch chunk ${i + 1}/${chunks.length} (${chunk.length} messages): ${err instanceof Error ? err.message : String(err)}`,
+      });
+      // Don't break — try the remaining chunks. A "Payload Too
+      // Large" on chunk K shouldn't force chunks K+1.. to wait for
+      // another click.
+    }
+  }
+  summary.queued_for_processing = successfullySent;
+  if (recoveredOrphanCount > 0) {
+    summary.recovered_orphans = recoveredOrphanCount;
   }
 
   return summary;

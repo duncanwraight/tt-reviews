@@ -94,7 +94,13 @@ export function derivePlayingStyle(
 export interface ImporterSummary {
   skipped_existing: number;
   // Number of queue messages successfully enqueued for the consumer
-  // to drain. One message = one ittfid.
+  // to drain. One message = one ittfid. Includes both freshly-
+  // inserted candidates and recovered orphans (TT-206).
   queued_for_processing: number;
+  // TT-206: number of pre-existing proposal stubs whose queue
+  // messages were re-sent because a previous Run import click
+  // inserted the stub but never landed the queue message (e.g. a
+  // too-large sendBatch payload). Optional — undefined when zero.
+  recovered_orphans?: number;
   errors: Array<{ ittfid: number; message: string }>;
 }

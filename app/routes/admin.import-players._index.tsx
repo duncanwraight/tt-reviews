@@ -323,6 +323,13 @@ export default function AdminImportPlayersIndex({
                 value={runSummary.skipped_existing}
                 testId="import-players-skipped-existing"
               />
+              {runSummary.recovered_orphans ? (
+                <SummaryStat
+                  label="Recovered orphans"
+                  value={runSummary.recovered_orphans}
+                  testId="import-players-recovered-orphans"
+                />
+              ) : null}
             </>
           ) : null}
         </dl>
