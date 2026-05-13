@@ -16,10 +16,10 @@ import { getSupabaseConfig } from "~/lib/env.server";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Login - TT Reviews" },
+    { title: "Sign in | TT Reviews" },
     {
       name: "description",
-      content: "Login to your TT Reviews account",
+      content: "Sign in to your TT Reviews account.",
     },
     { name: "robots", content: "noindex, nofollow" },
   ];
@@ -90,10 +90,10 @@ export default function Login({ loaderData }: Route.ComponentProps) {
         loadingMessage: isSignup
           ? "Creating your account, please wait..."
           : "Verifying your credentials...",
-        successTitle: isSignup ? "Check Your Email!" : "Welcome Back!",
+        successTitle: isSignup ? "Check your email" : "Welcome back",
         successMessage: isSignup
-          ? "We've sent you a confirmation email. Please check your inbox and click the confirmation link to activate your account."
-          : "You have been successfully signed in. Redirecting to homepage...",
+          ? "We've sent you a confirmation email. Check your inbox and click the link to activate your account."
+          : "Signed in. Redirecting…",
         errorTitle: "Authentication Failed",
         successRedirect: !isSignup ? () => navigate("/") : undefined,
         successRedirectDelay: 2000,
@@ -140,7 +140,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       {
         loadingTitle: "Sending Reset Email",
         loadingMessage: "Sending password reset instructions...",
-        successTitle: "Reset Email Sent!",
+        successTitle: "Reset email sent.",
         successMessage: "Check your email for password reset instructions.",
         errorTitle: "Reset Failed",
       }
@@ -262,7 +262,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
                   to="/"
                   className="text-purple-600 hover:text-purple-800 font-medium transition-colors"
                 >
-                  Explore our reviews
+                  Browse reviews
                 </Link>
               </p>
             </div>

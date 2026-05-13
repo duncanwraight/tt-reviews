@@ -76,7 +76,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
 
   const title = "Search Table Tennis Equipment & Players | TT Reviews";
   const description =
-    "Search our comprehensive database of table tennis equipment reviews and professional player setups.";
+    "Search the equipment catalogue and player setups across TT Reviews.";
   return [
     { title },
     { name: "description", content: description },

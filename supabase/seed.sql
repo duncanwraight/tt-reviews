@@ -1038,7 +1038,7 @@ INSERT INTO site_content (key, content, description, category) VALUES
 -- Authentication & Onboarding
 ('login.welcome_subtitle', 'Sign in to your account or create a new one', 'Subtitle on login page welcome section', 'auth'),
 ('login.explore_prompt', 'New to table tennis equipment reviews?', 'Text prompting new users to explore on login page', 'auth'),
-('login.explore_description', 'Explore our reviews and discover the gear used by professional players.', 'Description encouraging exploration for new users', 'auth'),
+('login.explore_description', 'Browse reviews and the equipment setups used by pros.', 'Description encouraging exploration for new users', 'auth'),
 
 -- Form Help Text & Guidance
 ('forms.subcategory_help', 'Select subcategory (optional)', 'Help text for subcategory selection in forms', 'forms'),
@@ -1056,16 +1056,16 @@ INSERT INTO site_content (key, content, description, category) VALUES
 
 -- Profile & User Content
 ('profile.page_description', 'Manage your account and review your contribution history', 'Description for user profile page', 'profile'),
-('profile.submissions.empty_state', 'You haven''t submitted any equipment or players yet. Start contributing to help grow our database!', 'Message when user has no submissions', 'profile'),
-('profile.reviews.empty_state', 'You haven''t written any reviews yet. Share your equipment experiences to help other players!', 'Message when user has no reviews', 'profile'),
+('profile.submissions.empty_state', 'No submissions yet. Submit equipment or a player to help keep the database accurate.', 'Message when user has no submissions', 'profile'),
+('profile.reviews.empty_state', 'No reviews yet. Share your experience with the gear you use to help other players.', 'Message when user has no reviews', 'profile'),
 
 -- Comparison System
-('equipment.comparison.description', 'Compare equipment side-by-side to find the perfect gear for your playing style and preferences.', 'Description for equipment comparison feature', 'equipment'),
-('equipment.comparison.empty_state', 'Add equipment to compare their specifications, reviews, and ratings side-by-side.', 'Message when comparison is empty', 'equipment'),
+('equipment.comparison.description', 'Compare equipment side-by-side — specs, community ratings, and pro setups.', 'Description for equipment comparison feature', 'equipment'),
+('equipment.comparison.empty_state', 'Add equipment from any blade, rubber, or ball page to start a comparison.', 'Message when comparison is empty', 'equipment'),
 
 -- Category Landing Pages
-('categories.blade.landing_description', 'Discover professional table tennis blades used by top players. Find the perfect blade for your playing style and skill level.', 'Description for blade category landing pages', 'categories'),
-('categories.rubber.landing_description', 'Explore table tennis rubbers trusted by professionals. Compare different rubber types to enhance your game.', 'Description for rubber category landing pages', 'categories');
+('categories.blade.landing_description', 'Reviews and specs for table tennis blades — from beginners to pros, moderated by the community.', 'Description for blade category landing pages', 'categories'),
+('categories.rubber.landing_description', 'Reviews and specs for table tennis rubbers — from beginners to pros, moderated by the community.', 'Description for rubber category landing pages', 'categories');
 
 -- BEGIN PHOTO-SOURCING-CREDITS
 -- Historical seed (TT-36). New players land in prod via
