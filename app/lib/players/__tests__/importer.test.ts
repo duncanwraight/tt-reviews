@@ -152,13 +152,12 @@ function makeSupabase(db: FakeDb): SupabaseClient {
 
       throw new Error(`unexpected table: ${table}`);
     },
-     
-    rpc(name: string, args: any) {
+    rpc(name: string, args: Record<string, unknown>) {
       if (name === "backfill_player_ittfids") {
         const pairs = (args?.p_pairs ?? []) as Array<{
           player_id: string;
           ittfid: number;
-        }>;
+        }> as Array<{ player_id: string; ittfid: number }>;
         if (db.backfillRpcCalls) db.backfillRpcCalls.push({ pairs });
         if (db.backfillRpcFail) {
           return Promise.resolve({
