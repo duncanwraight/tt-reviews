@@ -29,7 +29,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchIttfProfile, toIttfCandidate } from "./ittf-profile.server";
 import { mergeCandidates, slugForPlayer } from "./importer.server";
-import { downloadAndStoreHeadshot, type R2PutBucket } from "./photo.server";
+import {
+  downloadAndStoreHeadshot,
+  type FetchImageFailure,
+  type R2PutBucket,
+} from "./photo.server";
 import { wttProfileUrl } from "./roster.server";
 import { RunLog, type RunLogEntry } from "./run-log";
 import {
@@ -72,6 +76,24 @@ export type ProcessOutcome =
 export interface ProcessPlayerImportDeps {
   fetchImpl?: typeof fetch;
   now?: () => Date;
+}
+
+// TT-208: human-readable summary of a photo-fetch failure. Short
+// enough to fit on a single run-log line and machine-stable so the
+// admin UI / future automation can pattern-match if needed.
+function describeFetchFailure(f: FetchImageFailure): string {
+  switch (f.reason) {
+    case "http_status":
+      return `HTTP ${f.status}${f.statusText ? ` ${f.statusText}` : ""}`;
+    case "timeout":
+      return `timeout after ${f.afterMs}ms`;
+    case "zero_bytes":
+      return `zero-byte response (HTTP ${f.status})`;
+    case "r2_upload_error":
+      return `R2 upload failed: ${f.message}`;
+    case "fetch_error":
+      return `fetch threw: ${f.message}`;
+  }
 }
 
 // Reconstruct a WTT candidate shape from the queue message so
@@ -316,11 +338,12 @@ export async function processOnePlayerImport(
       : { status: "error", message: reason };
   }
 
-  // Headshot fetch + R2 upload. Both swallow upstream errors and
-  // return null — the importer treats "no image" as a completeness
-  // failure (queued_for_review) rather than a transient retry. The
-  // photo helper exposes only "ok | null" via the Promise so we
-  // synthesise the log status from what we got back.
+  // Headshot fetch + R2 upload. The helper (TT-208) now returns a
+  // discriminated union: {ok:true, headshot} or {ok:false, failure}
+  // with a structured reason (http_status / timeout / zero_bytes /
+  // r2_upload_error / fetch_error). We surface that in the run_log
+  // so the admin UI can show "not_found · 403" instead of generic
+  // "not_found".
   let imageKey: string | null = null;
   if (!wtt.headshot_url) {
     log.record({
@@ -338,66 +361,62 @@ export async function processOnePlayerImport(
       reason: "no source bytes",
     });
   } else {
-    let stored: Awaited<ReturnType<typeof downloadAndStoreHeadshot>> = null;
-    try {
-      stored = await downloadAndStoreHeadshot(
-        wtt.headshot_url,
-        slugForPlayer({ name: wtt.name, ittfid: wtt.ittfid }),
-        bucket,
-        wtt.ittfid,
-        fetchImpl
-      );
-    } catch (err) {
-      // photo.server.ts already wraps fetch + put in try/catch and
-      // returns null on failure, but R2 binding misconfiguration can
-      // still throw. Treat as photo step error, not transient — a
-      // misconfigured binding never self-heals.
-      const reason = err instanceof Error ? err.message : String(err);
-      log.record({
-        step: "photo_fetch",
-        ittfid: message.ittfid,
-        url: wtt.headshot_url,
-        status: "error",
-        reason,
-      });
-      log.record({
-        step: "r2_upload",
-        ittfid: message.ittfid,
-        image_key: null,
-        status: "error",
-        reason,
-      });
-    }
+    const stored = await downloadAndStoreHeadshot(
+      wtt.headshot_url,
+      slugForPlayer({ name: wtt.name, ittfid: wtt.ittfid }),
+      bucket,
+      wtt.ittfid,
+      fetchImpl
+    );
 
-    if (stored) {
+    if (stored.ok) {
       log.record({
         step: "photo_fetch",
         ittfid: message.ittfid,
         url: wtt.headshot_url,
         status: "ok",
-        content_type: stored.content_type,
-        byte_length: stored.byte_length,
+        content_type: stored.headshot.content_type,
+        byte_length: stored.headshot.byte_length,
       });
       log.record({
         step: "r2_upload",
         ittfid: message.ittfid,
-        image_key: stored.image_key,
-        content_type: stored.content_type,
+        image_key: stored.headshot.image_key,
+        content_type: stored.headshot.content_type,
         status: "ok",
       });
-      imageKey = stored.image_key;
-    } else if (!stored && wtt.headshot_url) {
-      // Only emit not_found if we didn't already record an error above.
-      const lastTwo = log.toJSON().slice(-2);
-      const alreadyLogged = lastTwo.some(
-        e => e.step === "photo_fetch" && e.status === "error"
-      );
-      if (!alreadyLogged) {
+      imageKey = stored.headshot.image_key;
+    } else {
+      const f = stored.failure;
+      // r2_upload_error: the photo fetch itself succeeded; the
+      // failure is on the R2 put. Split log entries accordingly.
+      if (f.reason === "r2_upload_error") {
         log.record({
           step: "photo_fetch",
           ittfid: message.ittfid,
           url: wtt.headshot_url,
-          status: "not_found",
+          status: "ok",
+        });
+        log.record({
+          step: "r2_upload",
+          ittfid: message.ittfid,
+          image_key: null,
+          status: "error",
+          reason: f.message,
+        });
+      } else {
+        // All other reasons are upstream-fetch failures. Use
+        // "not_found" for HTTP 4xx/5xx (the upstream said no);
+        // "error" for transport-level throws (timeout / network /
+        // zero_bytes / fetch_error).
+        const isUpstreamHttp = f.reason === "http_status";
+        log.record({
+          step: "photo_fetch",
+          ittfid: message.ittfid,
+          url: wtt.headshot_url,
+          status: isUpstreamHttp ? "not_found" : "error",
+          reason: describeFetchFailure(f),
+          http_status: f.reason === "http_status" ? f.status : undefined,
         });
         log.record({
           step: "r2_upload",
@@ -500,4 +519,228 @@ export async function processOnePlayerImport(
 export function computeRetryDelaySeconds(attempts: number): number {
   const minutes = Math.min(60, 2 ** attempts);
   return minutes * 60;
+}
+
+// TT-208: admin-triggered single-step retry of the photo fetch when
+// a proposal landed in needs_review with photo-only failure. The
+// admin route (/admin/import-players/$id) calls this with the
+// proposal id; on success the proposal flips to auto_applied + a
+// players row materialises, on failure new photo_fetch / r2_upload
+// entries get appended so the operator can see what changed.
+//
+// Different from the full consumer:
+//   - Reads ITTF data from the stored proposal.candidates blob
+//     instead of re-fetching (we already have it from the last run).
+//   - Reads WTT data from the stored proposal.merged blob.
+//   - Skips ITTF / roster_match steps in the run_log; only appends
+//     photo_fetch / r2_upload / merge / terminal.
+export type RetryPhotoOutcome =
+  | {
+      status: "auto_applied";
+      playerId: string;
+      playerSlug: string;
+    }
+  | { status: "still_failing"; reason: string }
+  | { status: "error"; message: string };
+
+interface RetryProposalRow extends ProposalRow {
+  candidates: {
+    wtt?: WttRosterCandidate;
+    ittf?: IttfProfileCandidate;
+  } | null;
+  merged: MergedPlayer | null;
+}
+
+async function loadProposalForRetry(
+  supabase: SupabaseClient,
+  proposalId: string
+): Promise<RetryProposalRow | null> {
+  const { data, error } = await supabase
+    .from("player_proposals")
+    .select("id, ittfid, status, run_log, merged, candidates")
+    .eq("id", proposalId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as RetryProposalRow;
+}
+
+export async function retryPlayerImportPhoto(
+  supabase: SupabaseClient,
+  bucket: R2PutBucket,
+  proposalId: string,
+  deps: ProcessPlayerImportDeps = {}
+): Promise<RetryPhotoOutcome> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const now = deps.now;
+
+  const proposal = await loadProposalForRetry(supabase, proposalId);
+  if (!proposal) {
+    return { status: "error", message: `proposal ${proposalId} not found` };
+  }
+  if (proposal.status !== "pending_review") {
+    return {
+      status: "error",
+      message: `proposal is not pending_review (status=${proposal.status})`,
+    };
+  }
+
+  const wtt = proposal.candidates?.wtt;
+  const ittf = proposal.candidates?.ittf;
+  if (!wtt) {
+    return {
+      status: "error",
+      message: "proposal has no WTT candidate to retry from",
+    };
+  }
+  if (!ittf) {
+    return {
+      status: "error",
+      message:
+        "proposal has no ITTF candidate to retry from — full re-import needed",
+    };
+  }
+  if (!wtt.headshot_url) {
+    return {
+      status: "error",
+      message: "proposal has no headshot URL to retry",
+    };
+  }
+
+  const seed = Array.isArray(proposal.run_log) ? proposal.run_log : [];
+  const log = new RunLog(now ? { now } : {}, seed);
+
+  const stored = await downloadAndStoreHeadshot(
+    wtt.headshot_url,
+    slugForPlayer({ name: wtt.name, ittfid: wtt.ittfid }),
+    bucket,
+    wtt.ittfid,
+    fetchImpl
+  );
+
+  if (!stored.ok) {
+    const f = stored.failure;
+    if (f.reason === "r2_upload_error") {
+      log.record({
+        step: "photo_fetch",
+        ittfid: wtt.ittfid,
+        url: wtt.headshot_url,
+        status: "ok",
+      });
+      log.record({
+        step: "r2_upload",
+        ittfid: wtt.ittfid,
+        image_key: null,
+        status: "error",
+        reason: f.message,
+      });
+    } else {
+      const isUpstreamHttp = f.reason === "http_status";
+      log.record({
+        step: "photo_fetch",
+        ittfid: wtt.ittfid,
+        url: wtt.headshot_url,
+        status: isUpstreamHttp ? "not_found" : "error",
+        reason: describeFetchFailure(f),
+        http_status: f.reason === "http_status" ? f.status : undefined,
+      });
+      log.record({
+        step: "r2_upload",
+        ittfid: wtt.ittfid,
+        image_key: null,
+        status: "skipped",
+        reason: "no source bytes",
+      });
+    }
+    await persistRunLog(supabase, proposal.id, log.toJSON());
+    return { status: "still_failing", reason: describeFetchFailure(f) };
+  }
+
+  // Photo + R2 succeeded. Log the success, re-merge, gate, and
+  // finalise as auto_applied if everything's complete.
+  log.record({
+    step: "photo_fetch",
+    ittfid: wtt.ittfid,
+    url: wtt.headshot_url,
+    status: "ok",
+    content_type: stored.headshot.content_type,
+    byte_length: stored.headshot.byte_length,
+  });
+  log.record({
+    step: "r2_upload",
+    ittfid: wtt.ittfid,
+    image_key: stored.headshot.image_key,
+    content_type: stored.headshot.content_type,
+    status: "ok",
+  });
+
+  const merged = mergeCandidates(wtt, ittf);
+  const missing = missingRequiredFields(merged);
+  const complete = isComplete(merged);
+  log.record({
+    step: "merge",
+    ittfid: wtt.ittfid,
+    field_count: Object.keys(merged).filter(
+      k => k !== "per_field_source" && merged[k as keyof MergedPlayer] != null
+    ).length,
+    complete,
+    missing_fields: missing,
+  });
+
+  if (!complete) {
+    // The retry recovered the photo, but the ITTF side is still
+    // incomplete (handedness / grip / birth_year). Stay in
+    // pending_review so the admin can decide.
+    log.record({
+      step: "terminal",
+      ittfid: wtt.ittfid,
+      status: "queued_for_review",
+      reason: `still incomplete after photo retry: missing ${missing.join(", ")}`,
+    });
+    await persistRunLog(supabase, proposal.id, log.toJSON());
+    return {
+      status: "still_failing",
+      reason: `still incomplete after photo retry: missing ${missing.join(", ")}`,
+    };
+  }
+
+  const { inserted, error: insertError } = await insertPlayerRow(
+    supabase,
+    merged,
+    stored.headshot.image_key
+  );
+  if (!inserted) {
+    log.record({
+      step: "terminal",
+      ittfid: wtt.ittfid,
+      status: "error",
+      reason: insertError ?? "insert failed",
+    });
+    await persistRunLog(supabase, proposal.id, log.toJSON());
+    return { status: "error", message: insertError ?? "insert failed" };
+  }
+
+  log.record({
+    step: "terminal",
+    ittfid: wtt.ittfid,
+    status: "auto_applied",
+    player_id: inserted.id,
+    player_slug: inserted.slug,
+  });
+  const { error: finaliseError } = await finaliseAutoApplied(
+    supabase,
+    proposal.id,
+    merged,
+    ittf,
+    wtt,
+    inserted.id,
+    log.toJSON()
+  );
+  if (finaliseError) {
+    return { status: "error", message: `finalise auto: ${finaliseError}` };
+  }
+  return {
+    status: "auto_applied",
+    playerId: inserted.id,
+    playerSlug: inserted.slug,
+  };
 }

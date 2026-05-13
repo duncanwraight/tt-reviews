@@ -52,7 +52,9 @@ describe("downloadAndStoreHeadshot", () => {
       )
     );
 
-    expect(result).toMatchObject({
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.headshot).toMatchObject({
       image_key: "player/lin-shidong/headshot.jpg",
       content_type: "image/jpeg",
       byte_length: 4,
@@ -71,10 +73,12 @@ describe("downloadAndStoreHeadshot", () => {
       fetchReturning(200, null, new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
     );
 
-    expect(result?.image_key).toBe("player/lin-shidong/headshot.png");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.headshot.image_key).toBe("player/lin-shidong/headshot.png");
   });
 
-  it("returns null on non-OK responses", async () => {
+  it("returns http_status failure on non-OK responses (TT-208)", async () => {
     const bucket = makeBucket();
     const result = await downloadAndStoreHeadshot(
       "https://wtt.example/headshots/missing.jpg",
@@ -84,11 +88,16 @@ describe("downloadAndStoreHeadshot", () => {
       fetchReturning(404, "text/plain", new Uint8Array())
     );
 
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      reason: "http_status",
+      status: 404,
+    });
     expect(bucket.puts).toHaveLength(0);
   });
 
-  it("returns null on empty body", async () => {
+  it("returns zero_bytes failure on empty body (TT-208)", async () => {
     const bucket = makeBucket();
     const result = await downloadAndStoreHeadshot(
       "https://wtt.example/headshots/empty.jpg",
@@ -98,11 +107,16 @@ describe("downloadAndStoreHeadshot", () => {
       fetchReturning(200, "image/jpeg", new Uint8Array())
     );
 
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      reason: "zero_bytes",
+      status: 200,
+    });
     expect(bucket.puts).toHaveLength(0);
   });
 
-  it("returns null and skips R2 PUT when R2 throws", async () => {
+  it("returns r2_upload_error failure when R2 throws (TT-208)", async () => {
     const bucket: R2PutBucket = {
       put: vi.fn(async () => {
         throw new Error("R2 unavailable");
@@ -116,7 +130,12 @@ describe("downloadAndStoreHeadshot", () => {
       fetchReturning(200, "image/jpeg", new Uint8Array([0xff, 0xd8, 0xff]))
     );
 
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      reason: "r2_upload_error",
+      message: expect.stringContaining("R2 unavailable"),
+    });
   });
 
   it("attaches custom metadata (ittfid, slug, source URL)", async () => {

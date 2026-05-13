@@ -72,6 +72,13 @@ export type RunLogEntry =
       content_type?: string;
       byte_length?: number;
       reason?: string;
+      // TT-208: when the upstream returned a non-OK HTTP code, the
+      // numeric status is captured here so the admin UI can render
+      // "not_found · 403" instead of bare "not_found". Populated on
+      // status='not_found' (HTTP 4xx/5xx) and status='error' when
+      // the failure was an upstream HTTP error rather than a
+      // transport-layer throw.
+      http_status?: number;
     })
   | (BaseEntry & {
       step: "r2_upload";

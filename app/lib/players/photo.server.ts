@@ -30,10 +30,23 @@ export interface DownloadedHeadshot {
   byte_length: number;
 }
 
+// TT-208: structured failure shape so the run_log entry can show
+// *why* the fetch failed, not just "not_found". Renders to a short
+// human-readable reason on the proposal detail page.
+export type FetchImageFailure =
+  | { reason: "http_status"; status: number; statusText: string }
+  | { reason: "timeout"; afterMs: number }
+  | { reason: "zero_bytes"; status: number }
+  | { reason: "r2_upload_error"; message: string }
+  | { reason: "fetch_error"; message: string };
+
 async function fetchImageBytes(
   url: string,
   fetchImpl: typeof fetch
-): Promise<{ bytes: ArrayBuffer; contentType: string | null } | null> {
+): Promise<
+  | { ok: true; bytes: ArrayBuffer; contentType: string | null; status: number }
+  | { ok: false; failure: FetchImageFailure }
+> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
   try {
@@ -41,12 +54,46 @@ async function fetchImageBytes(
       headers: { "User-Agent": DOWNLOAD_USER_AGENT, Accept: "image/*" },
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return {
+        ok: false,
+        failure: {
+          reason: "http_status",
+          status: res.status,
+          statusText: res.statusText,
+        },
+      };
+    }
     const bytes = await res.arrayBuffer();
-    if (bytes.byteLength === 0) return null;
-    return { bytes, contentType: res.headers.get("content-type") };
-  } catch {
-    return null;
+    if (bytes.byteLength === 0) {
+      return {
+        ok: false,
+        failure: { reason: "zero_bytes", status: res.status },
+      };
+    }
+    return {
+      ok: true,
+      bytes,
+      contentType: res.headers.get("content-type"),
+      status: res.status,
+    };
+  } catch (err) {
+    const aborted =
+      err instanceof Error &&
+      (err.name === "AbortError" || err.name === "TimeoutError");
+    if (aborted) {
+      return {
+        ok: false,
+        failure: { reason: "timeout", afterMs: DOWNLOAD_TIMEOUT_MS },
+      };
+    }
+    return {
+      ok: false,
+      failure: {
+        reason: "fetch_error",
+        message: err instanceof Error ? err.message : String(err),
+      },
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -71,15 +118,23 @@ function extensionFromContentType(
   return "bin";
 }
 
+// TT-208: structured result. `ok=true` carries the stored headshot
+// metadata (image_key, content_type, byte_length); `ok=false` carries
+// the FetchImageFailure so the caller (queue.server.ts) can log
+// status / timeout / r2_upload_error in the run_log.
+export type StoreHeadshotResult =
+  | { ok: true; headshot: DownloadedHeadshot }
+  | { ok: false; failure: FetchImageFailure };
+
 export async function downloadAndStoreHeadshot(
   url: string,
   slug: string,
   bucket: R2PutBucket,
   ittfid: number,
   fetchImpl: typeof fetch = fetch
-): Promise<DownloadedHeadshot | null> {
+): Promise<StoreHeadshotResult> {
   const downloaded = await fetchImageBytes(url, fetchImpl);
-  if (!downloaded) return null;
+  if (!downloaded.ok) return { ok: false, failure: downloaded.failure };
 
   const ext = extensionFromContentType(downloaded.contentType, url);
   const image_key = `player/${slug}/headshot.${ext}`;
@@ -95,13 +150,22 @@ export async function downloadAndStoreHeadshot(
         uploadedAt: new Date().toISOString(),
       },
     });
-  } catch {
-    return null;
+  } catch (err) {
+    return {
+      ok: false,
+      failure: {
+        reason: "r2_upload_error",
+        message: err instanceof Error ? err.message : String(err),
+      },
+    };
   }
 
   return {
-    image_key,
-    content_type,
-    byte_length: downloaded.bytes.byteLength,
+    ok: true,
+    headshot: {
+      image_key,
+      content_type,
+      byte_length: downloaded.bytes.byteLength,
+    },
   };
 }

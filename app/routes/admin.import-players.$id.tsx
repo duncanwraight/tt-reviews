@@ -18,6 +18,7 @@ import {
   rejectPlayerProposal,
 } from "~/lib/admin/player-proposal-applier.server";
 import type { R2PutBucket } from "~/lib/players/photo.server";
+import { retryPlayerImportPhoto } from "~/lib/players/queue.server";
 import type { RunLogEntry } from "~/lib/players/run-log";
 import type {
   IttfProfileCandidate,
@@ -167,6 +168,44 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     return redirect("/admin/import-players", {
       headers: sbServerClient.headers,
     });
+  }
+
+  // TT-208: single-step photo retry. Re-runs photo fetch + R2
+  // upload; on success the proposal auto-finalises and we redirect
+  // to the live /players/<slug>. On failure we stay on the detail
+  // page so the operator can see the new run-log entry.
+  if (intent === "retry-photo") {
+    const bucket = (
+      context.cloudflare.env as unknown as { IMAGE_BUCKET: R2PutBucket }
+    ).IMAGE_BUCKET;
+    const result = await retryPlayerImportPhoto(
+      supabaseAdmin,
+      bucket,
+      proposalId
+    );
+    if (result.status === "auto_applied") {
+      return redirect(`/players/${result.playerSlug}`, {
+        headers: sbServerClient.headers,
+      });
+    }
+    if (result.status === "still_failing") {
+      // 200 — the action is "complete," it just didn't materialise a
+      // player. The re-loaded detail page will surface the appended
+      // run-log entry so the operator can see what changed.
+      return data(
+        { retried: true, reason: result.reason },
+        { headers: sbServerClient.headers }
+      );
+    }
+    Logger.error(
+      "import-players.retry-photo.failed",
+      createLogContext("admin-import-players-detail", { proposalId }),
+      new Error(result.message)
+    );
+    return data(
+      { error: result.message },
+      { status: 400, headers: sbServerClient.headers }
+    );
   }
 
   return data(
@@ -483,7 +522,16 @@ function TerminalOrReviewActions({
   }
 
   // The actionable case: terminal=queued_for_review. Show the full
-  // approve/reject form.
+  // approve/reject form, plus (TT-208) a Retry photo button when the
+  // merge entry's missing_fields is exactly ["headshot_url"] — that's
+  // the "outlier flake" case where everything else is good and a
+  // single re-fetch should auto-finalise.
+  const merge = proposal.run_log.find(e => e.step === "merge");
+  const missing =
+    merge?.step === "merge" && Array.isArray(merge.missing_fields)
+      ? merge.missing_fields
+      : [];
+  const photoOnlyMiss = missing.length === 1 && missing[0] === "headshot_url";
   return (
     <Form
       method="post"
@@ -500,6 +548,18 @@ function TerminalOrReviewActions({
       >
         Approve
       </button>
+      {photoOnlyMiss ? (
+        <button
+          type="submit"
+          name="intent"
+          value="retry-photo"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+          data-testid="import-player-retry-photo"
+          title="Re-run the headshot fetch + R2 upload. On success the proposal auto-finalises."
+        >
+          Retry photo
+        </button>
+      ) : null}
       <button
         type="submit"
         name="intent"

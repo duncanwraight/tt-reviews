@@ -36,6 +36,10 @@ const PROBE_QUEUE_TILE_C = 999712;
 // status feeds the activity-log pill assertions + the detail-page
 // banner assertion.
 const PROBE_LIFECYCLE_AUTO = 999720;
+// TT-208: probe for the photo-retry button. Seeded with WTT + ITTF
+// candidates so the helper can re-merge, but with run_log shape
+// "photo failed, only headshot_url missing" → button appears.
+const PROBE_RETRY_PHOTO = 999730;
 
 const ALL_PROBES = [
   PROBE_APPROVE,
@@ -45,6 +49,7 @@ const ALL_PROBES = [
   PROBE_QUEUE_TILE_B,
   PROBE_QUEUE_TILE_C,
   PROBE_LIFECYCLE_AUTO,
+  PROBE_RETRY_PHOTO,
 ];
 
 async function clearProbes(ittfids: number[]): Promise<void> {
@@ -459,5 +464,113 @@ test.describe.serial("Admin import-players review lifecycle", () => {
 
     // No review form should render for an already-terminal proposal.
     await expect(page.getByTestId("import-player-review-form")).toHaveCount(0);
+  });
+
+  test("photo-only-missing proposal renders the Retry photo button (TT-208)", async ({
+    page,
+  }) => {
+    // Visibility-only e2e: the unit tests cover retryPlayerImportPhoto's
+    // happy path / still-failing / no-ittf branches. Clicking the
+    // button here would trigger a Worker-side fetch to an external
+    // URL Playwright can't intercept; the button-present assertion
+    // proves the route wires the intent correctly when missing_fields
+    // is exactly ["headshot_url"].
+    const adminEmail = generateTestEmail("impplayers-retry");
+    const { userId: adminId } = await createUser(adminEmail);
+    await setUserRole(adminId, "admin");
+
+    // Hand-seed a needs_review proposal with WTT + ITTF candidates
+    // in `candidates` (the retry helper reads them) and a run_log
+    // ending in terminal=queued_for_review with missing=[headshot_url].
+    const headshotUrl = `https://wtt.example/photos/${PROBE_RETRY_PHOTO}.jpg`;
+    const proposalRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/player_proposals`,
+      {
+        method: "POST",
+        headers: { ...adminHeaders(), Prefer: "return=representation" },
+        body: JSON.stringify({
+          ittfid: PROBE_RETRY_PHOTO,
+          merged: {
+            ittfid: PROBE_RETRY_PHOTO,
+            name: "Photo Retry Probe",
+            wtt_profile_url: `https://www.worldtabletennis.com/playerDescription?playerId=${PROBE_RETRY_PHOTO}`,
+            headshot_url: headshotUrl,
+          },
+          candidates: {
+            wtt: {
+              source: "wtt",
+              ittfid: PROBE_RETRY_PHOTO,
+              name: "Photo Retry Probe",
+              raw_name: "Photo Retry PROBE",
+              represents: "FRA",
+              gender: "M",
+              headshot_url: headshotUrl,
+              wtt_profile_url: `https://www.worldtabletennis.com/playerDescription?playerId=${PROBE_RETRY_PHOTO}`,
+              fetched_at: new Date().toISOString(),
+            },
+            ittf: {
+              source: "ittf",
+              ittfid: PROBE_RETRY_PHOTO,
+              handedness: "right",
+              grip: "shakehand",
+              style: "attack",
+              birth_year: 2000,
+              ittf_profile_url: `https://results.ittf.link/profile/${PROBE_RETRY_PHOTO}`,
+              fetched_at: new Date().toISOString(),
+            },
+          },
+          status: "pending_review",
+          run_log: [
+            {
+              at: new Date().toISOString(),
+              step: "roster_match",
+              outcome: "truly_new",
+              ittfid: PROBE_RETRY_PHOTO,
+            },
+            {
+              at: new Date().toISOString(),
+              step: "photo_fetch",
+              ittfid: PROBE_RETRY_PHOTO,
+              url: headshotUrl,
+              status: "not_found",
+              reason: "HTTP 403 Forbidden",
+              http_status: 403,
+            },
+            {
+              at: new Date().toISOString(),
+              step: "merge",
+              ittfid: PROBE_RETRY_PHOTO,
+              field_count: 11,
+              complete: false,
+              missing_fields: ["headshot_url"],
+            },
+            {
+              at: new Date().toISOString(),
+              step: "terminal",
+              ittfid: PROBE_RETRY_PHOTO,
+              status: "queued_for_review",
+              reason: "missing: headshot_url",
+            },
+          ],
+        }),
+      }
+    );
+    if (!proposalRes.ok) {
+      throw new Error(
+        `seed proposal failed (${proposalRes.status}): ${await proposalRes.text()}`
+      );
+    }
+    const [proposal] = (await proposalRes.json()) as Array<{ id: string }>;
+
+    await login(page, adminEmail);
+    await page.goto(`/admin/import-players/${proposal.id}`);
+
+    // The review form is visible (this is a needs_review proposal),
+    // and the Retry photo button shows because missing_fields is
+    // exactly [headshot_url].
+    await expect(page.getByTestId("import-player-review-form")).toBeVisible();
+    const retryBtn = page.getByTestId("import-player-retry-photo");
+    await expect(retryBtn).toBeVisible();
+    await expect(retryBtn).toHaveAttribute("value", "retry-photo");
   });
 });

@@ -120,7 +120,7 @@ export async function applyPlayerProposal(
       merged.ittfid,
       fetchImpl
     );
-    if (stored) image_key = stored.image_key;
+    if (stored.ok) image_key = stored.headshot.image_key;
   }
 
   const inserted = await insertPlayer(supabase, merged, image_key);

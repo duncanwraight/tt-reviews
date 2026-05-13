@@ -107,6 +107,10 @@ function makeSupabase(db: FakeDb): SupabaseClient {
                 return {
                   maybeSingle() {
                     const row = db.proposals.find(p => p.id === value);
+                    // The retry path (TT-208) selects merged +
+                    // candidates alongside run_log; the consumer
+                    // only reads run_log. Returning both shapes
+                    // keeps the fake compatible with both.
                     return Promise.resolve({
                       data: row
                         ? {
@@ -114,6 +118,8 @@ function makeSupabase(db: FakeDb): SupabaseClient {
                             ittfid: row.ittfid,
                             status: row.status,
                             run_log: row.run_log,
+                            merged: row.merged,
+                            candidates: row.candidates,
                           }
                         : null,
                       error: null,
@@ -533,5 +539,221 @@ describe("processOnePlayerImport", () => {
     expect(outcome.status).toBe("auto_applied");
     if (outcome.status !== "auto_applied") return;
     expect(outcome.playerSlug).toBe("lin-shidong-132473");
+  });
+});
+
+describe("retryPlayerImportPhoto (TT-208)", () => {
+  // Seed a proposal as if the consumer had already run and landed
+  // in needs_review with only the photo missing. The retry helper
+  // pulls WTT/ITTF candidates from proposal.candidates so this seed
+  // populates them.
+  function seedNeedsReviewProposal(
+    db: FakeDb,
+    ittfid: number,
+    opts: { wttHeadshot?: string } = {}
+  ): string {
+    const id = `proposal-retry-${ittfid}`;
+    db.proposals.push({
+      id,
+      ittfid,
+      status: "pending_review",
+      merged: {
+        ittfid,
+        name: "Lin Shidong",
+        wtt_profile_url: "https://wtt.example/profile/lin",
+        headshot_url: opts.wttHeadshot ?? "https://wtt.example/lin.jpg",
+      },
+      candidates: {
+        wtt: {
+          source: "wtt",
+          ittfid,
+          name: "Lin Shidong",
+          raw_name: "LIN Shidong",
+          represents: "CHN",
+          gender: "M",
+          ranking: 1,
+          headshot_url: opts.wttHeadshot ?? "https://wtt.example/lin.jpg",
+          wtt_profile_url: "https://wtt.example/profile/lin",
+          fetched_at: "2026-05-13T00:00:00.000Z",
+        },
+        ittf: {
+          source: "ittf",
+          ittfid,
+          handedness: "right",
+          grip: "shakehand",
+          style: "attack",
+          birth_year: 1995,
+          ittf_profile_url: `https://results.ittf.link/profile/${ittfid}`,
+          fetched_at: "2026-05-13T00:00:00.000Z",
+        },
+      },
+      applied_player_id: null,
+      run_log: [
+        {
+          at: "2026-05-13T00:00:00.000Z",
+          step: "roster_match",
+          outcome: "truly_new",
+          ittfid,
+        },
+        {
+          at: "2026-05-13T00:00:01.000Z",
+          step: "ittf_fetch",
+          ittfid,
+          url: `https://results.ittf.link/profile/${ittfid}`,
+          status: "ok",
+          handedness: "right",
+          grip: "shakehand",
+          style: "attack",
+          birth_year: 1995,
+        },
+        {
+          at: "2026-05-13T00:00:02.000Z",
+          step: "photo_fetch",
+          ittfid,
+          url: opts.wttHeadshot ?? "https://wtt.example/lin.jpg",
+          status: "not_found",
+          reason: "HTTP 403 Forbidden",
+          http_status: 403,
+        },
+        {
+          at: "2026-05-13T00:00:02.000Z",
+          step: "r2_upload",
+          ittfid,
+          image_key: null,
+          status: "skipped",
+          reason: "no source bytes",
+        },
+        {
+          at: "2026-05-13T00:00:02.000Z",
+          step: "merge",
+          ittfid,
+          field_count: 11,
+          complete: false,
+          missing_fields: ["headshot_url"],
+        },
+        {
+          at: "2026-05-13T00:00:02.000Z",
+          step: "terminal",
+          ittfid,
+          status: "queued_for_review",
+          reason: "missing: headshot_url",
+        },
+      ],
+    });
+    return id;
+  }
+
+  it("recovers a needs_review proposal when the photo refetch succeeds", async () => {
+    const db: FakeDb = { players: [], proposals: [] };
+    const proposalId = seedNeedsReviewProposal(db, 132473);
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+
+    const { retryPlayerImportPhoto } = await import("../queue.server");
+    const outcome = await retryPlayerImportPhoto(supabase, bucket, proposalId, {
+      fetchImpl: makeFetch({
+        photos: {
+          "https://wtt.example/lin.jpg": {
+            status: 200,
+            bytes: new Uint8Array([0xff, 0xd8, 0xff]),
+          },
+        },
+      }),
+    });
+
+    expect(outcome.status).toBe("auto_applied");
+    if (outcome.status !== "auto_applied") return;
+    expect(outcome.playerSlug).toBe("lin-shidong");
+
+    expect(db.players).toHaveLength(1);
+    expect(db.players[0]).toMatchObject({
+      slug: "lin-shidong",
+      ittfid: 132473,
+      image_key: "player/lin-shidong/headshot.jpg",
+    });
+
+    const proposal = db.proposals[0];
+    expect(proposal.status).toBe("auto_applied");
+    expect(proposal.applied_player_id).toBe(db.players[0].id);
+    const steps = (proposal.run_log as Array<{ step: string }>).map(
+      e => e.step
+    );
+    // Original 6 entries (roster_match → terminal) + 4 new appended
+    // entries from the retry (photo_fetch ok, r2_upload ok, merge,
+    // terminal auto_applied).
+    expect(steps.slice(-4)).toEqual([
+      "photo_fetch",
+      "r2_upload",
+      "merge",
+      "terminal",
+    ]);
+  });
+
+  it("stays pending_review and appends a failure entry when the photo still 403s", async () => {
+    const db: FakeDb = { players: [], proposals: [] };
+    const proposalId = seedNeedsReviewProposal(db, 132474);
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+
+    const { retryPlayerImportPhoto } = await import("../queue.server");
+    const outcome = await retryPlayerImportPhoto(supabase, bucket, proposalId, {
+      fetchImpl: makeFetch({
+        photos: {
+          "https://wtt.example/lin.jpg": { status: 403 },
+        },
+      }),
+    });
+
+    expect(outcome.status).toBe("still_failing");
+    if (outcome.status !== "still_failing") return;
+    expect(outcome.reason).toMatch(/HTTP 403/);
+
+    expect(db.players).toHaveLength(0);
+    const proposal = db.proposals[0];
+    expect(proposal.status).toBe("pending_review");
+    const log = proposal.run_log as Array<{
+      step: string;
+      status?: string;
+      http_status?: number;
+    }>;
+    // The newly-appended photo_fetch entry carries http_status=403 +
+    // status='not_found'. (The original photo_fetch entry from the
+    // seed also carries 403; the new one is at the end.)
+    const last = log[log.length - 2];
+    expect(last.step).toBe("photo_fetch");
+    expect(last.status).toBe("not_found");
+    expect(last.http_status).toBe(403);
+  });
+
+  it("returns error when the proposal has no ITTF candidate", async () => {
+    const db: FakeDb = {
+      players: [],
+      proposals: [
+        {
+          id: "proposal-no-ittf",
+          ittfid: 132475,
+          status: "pending_review",
+          merged: {},
+          candidates: { wtt: { ittfid: 132475, name: "X" } },
+          applied_player_id: null,
+          run_log: [],
+        },
+      ],
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+
+    const { retryPlayerImportPhoto } = await import("../queue.server");
+    const outcome = await retryPlayerImportPhoto(
+      supabase,
+      bucket,
+      "proposal-no-ittf",
+      { fetchImpl: makeFetch({}) }
+    );
+
+    expect(outcome.status).toBe("error");
+    if (outcome.status === "error") {
+      expect(outcome.message).toMatch(/ITTF/);
+    }
   });
 });

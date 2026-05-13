@@ -114,7 +114,10 @@ function renderEntry(entry: RunLogEntry, idx: number): React.ReactNode {
         <div key={idx} className="flex flex-col gap-1">
           <div className="flex items-baseline gap-2 flex-wrap">
             <StepBadge>Photo fetch</StepBadge>
-            <StatusPill tone={tone}>{entry.status}</StatusPill>
+            <StatusPill tone={tone}>
+              {entry.status}
+              {entry.http_status ? ` · ${entry.http_status}` : ""}
+            </StatusPill>
             {stamp}
           </div>
           {entry.url ? (
