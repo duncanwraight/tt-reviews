@@ -47,15 +47,16 @@ export function meta({ matches, location }: Route.MetaArgs) {
   const siteUrl = getSiteUrl(matches);
   const canonical = buildCanonicalUrl(siteUrl, location.pathname, "");
   const ogImageUrl = buildOgImageUrl(siteUrl, "/og/default.png");
-  const title = "TT Reviews - Table Tennis Equipment Reviews & Player Database";
+  const title =
+    "TT Reviews — Community-moderated table tennis equipment reviews";
   const description =
-    "Discover the best table tennis equipment through professional reviews and explore detailed player setups.";
+    "Honest reviews of every blade, rubber, and ball — from players at every level, moderated by the community. Plus pro player setups.";
   return [
     { title },
     {
       name: "description",
       content:
-        "Discover the best table tennis equipment through professional reviews and explore detailed player setups. Your comprehensive guide to table tennis gear and pro player information.",
+        "Honest reviews of every blade, rubber, and ball — from players at every level, moderated by the community. Plus the equipment setups used by pros around the world.",
     },
     {
       name: "keywords",

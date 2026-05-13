@@ -1000,15 +1000,16 @@ INSERT INTO player_footage (player_id, url, title, platform, active) VALUES
 -- Insert site content (text snippets used across the application)
 INSERT INTO site_content (key, content, description, category) VALUES
 -- Homepage Hero & Main Sections
-('homepage.hero.subtitle', 'Discover the gear that powers professional players', 'Main hero section subtitle on homepage', 'homepage'),
-('homepage.featured_equipment.subtitle', 'Professional-grade equipment trusted by top players', 'Featured Equipment section description', 'homepage'),
-('homepage.popular_players.subtitle', 'Explore setups used by professional players', 'Popular Players section description', 'homepage'),
-('homepage.categories.subtitle', 'Explore different types of table tennis equipment', 'Equipment Categories section description', 'homepage'),
-('homepage.categories.blade.description', 'The foundation of your game. Discover blades for every playing style.', 'Blade category description in homepage categories', 'homepage'),
-('homepage.categories.inverted_rubber.description', 'Most popular rubber type offering great spin and control for all skill levels.', 'Inverted rubber category description', 'homepage'),
-('homepage.categories.long_pips.description', 'Defensive rubber that reverses spin and creates unpredictable effects.', 'Long pips category description', 'homepage'),
-('homepage.categories.short_pips.description', 'Fast attacking rubber with minimal spin for aggressive close-to-table play.', 'Short pips category description', 'homepage'),
-('homepage.categories.anti_spin.description', 'Specialized rubber that neutralizes opponent''s spin for control-based play.', 'Anti-spin category description', 'homepage'),
+('homepage.hero.subtitle', 'Honest reviews of every blade, rubber, and ball — from players at every level, moderated by the community.', 'Main hero section subtitle on homepage', 'homepage'),
+('homepage.featured_equipment.subtitle', 'Reviewed equipment with high community ratings.', 'Featured Equipment section description', 'homepage'),
+('homepage.popular_players.subtitle', 'Equipment setups used by professional players.', 'Popular Players section description', 'homepage'),
+('homepage.categories.subtitle', 'Browse by equipment type.', 'Equipment Categories section description', 'homepage'),
+('homepage.categories.blade.description', 'The foundation of any setup. Blades for every playing style.', 'Blade category description in homepage categories', 'homepage'),
+('homepage.categories.inverted_rubber.description', 'The most common rubber type — also known as pips-in or reverse rubber.', 'Inverted rubber category description', 'homepage'),
+('homepage.categories.long_pips.description', 'The longest pips-out rubber, often able to reverse (or "continue!") incoming spin, forcing opponents to think carefully about what spin they might be receiving.', 'Long pips category description', 'homepage'),
+('homepage.categories.medium_pips.description', 'Not always used by manufacturers as a true category of rubber, medium pips are usually great all-rounders with some spin generation capabilities and great control.', 'Medium pips category description', 'homepage'),
+('homepage.categories.short_pips.description', 'Versatile pips-out rubbers, usually built for close-to-table play but can also be used for defensive chopping strokes.', 'Short pips category description', 'homepage'),
+('homepage.categories.anti_spin.description', 'Specialised rubbers which can control or even reverse incoming spin, making it difficult for opponents to predict where the ball will come.', 'Anti-spin category description', 'homepage'),
 
 -- Equipment Pages
 ('equipment.page.description', 'Comprehensive reviews of professional table tennis equipment', 'Main description for equipment index page', 'equipment'),
@@ -1046,7 +1047,7 @@ INSERT INTO site_content (key, content, description, category) VALUES
 ('forms.image_upload_general_help', 'Upload a clear, high-quality image. This helps with identification and approval.', 'General help text for image uploads', 'forms'),
 
 -- Footer
-('footer.tagline', 'Your trusted source for table tennis equipment reviews and player information', 'Main tagline in footer', 'footer'),
+('footer.tagline', 'Community-moderated table tennis equipment reviews and player setups', 'Main tagline in footer', 'footer'),
 
 -- Equipment Review System
 ('equipment.reviews.empty_state', 'No reviews yet for this equipment. Be the first to share your experience!', 'Message shown when equipment has no reviews', 'equipment'),

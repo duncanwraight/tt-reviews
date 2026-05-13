@@ -50,7 +50,7 @@ function featuredSection(page: import("@playwright/test").Page): Locator {
 
 function featuredCards(page: import("@playwright/test").Page): Locator {
   // Cards in the section are the unified EquipmentCard PlainCard, rendered as
-  // <Link to="/equipment/<slug>">. Exclude the section's "View All Equipment"
+  // <Link to="/equipment/<slug>">. Exclude the section's "Browse all equipment"
   // link (href="/equipment") and any future compare-detail anchors.
   return featuredSection(page).locator(
     'a[href^="/equipment/"]:not([href*="/compare/"]):not([href$="/equipment"])'

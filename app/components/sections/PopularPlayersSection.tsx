@@ -42,7 +42,7 @@ export function PopularPlayersSection({ players }: PopularPlayersSectionProps) {
             to="/players"
             className="inline-flex items-center px-6 py-3 border border-teal-600 text-teal-600 font-semibold rounded-lg hover:bg-teal-600 hover:text-white transition-colors"
           >
-            View All Players
+            Browse all players
           </Link>
         </div>
       </div>

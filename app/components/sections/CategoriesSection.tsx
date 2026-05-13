@@ -1,6 +1,9 @@
 import { Link } from "react-router";
+import { useContent } from "~/hooks/useContent";
 
 export function CategoriesSection() {
+  const { content } = useContent();
+
   return (
     <section className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -9,7 +12,7 @@ export function CategoriesSection() {
             Equipment Categories
           </h2>
           <p className="text-lg text-gray-600">
-            Explore different types of table tennis equipment
+            {content("homepage.categories.subtitle")}
           </p>
         </div>
 
@@ -22,8 +25,7 @@ export function CategoriesSection() {
               Blades
             </h3>
             <p className="text-gray-600">
-              The foundation of your game. Discover blades for every playing
-              style.
+              {content("homepage.categories.blade.description")}
             </p>
           </Link>
 
@@ -35,8 +37,7 @@ export function CategoriesSection() {
               Inverted Rubber
             </h3>
             <p className="text-gray-600">
-              Most popular rubber type offering great spin and control for all
-              skill levels.
+              {content("homepage.categories.inverted_rubber.description")}
             </p>
           </Link>
 
@@ -48,8 +49,19 @@ export function CategoriesSection() {
               Long Pips
             </h3>
             <p className="text-gray-600">
-              Defensive rubber that reverses spin and creates unpredictable
-              effects.
+              {content("homepage.categories.long_pips.description")}
+            </p>
+          </Link>
+
+          <Link
+            to="/equipment?category=rubber&subcategory=medium_pips"
+            className="group bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-teal-200"
+          >
+            <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors">
+              Medium Pips
+            </h3>
+            <p className="text-gray-600">
+              {content("homepage.categories.medium_pips.description")}
             </p>
           </Link>
 
@@ -61,8 +73,7 @@ export function CategoriesSection() {
               Short Pips
             </h3>
             <p className="text-gray-600">
-              Fast attacking rubber with minimal spin for aggressive
-              close-to-table play.
+              {content("homepage.categories.short_pips.description")}
             </p>
           </Link>
 
@@ -74,8 +85,7 @@ export function CategoriesSection() {
               Anti-Spin
             </h3>
             <p className="text-gray-600">
-              Specialized rubber that neutralizes opponent's spin for
-              control-based play.
+              {content("homepage.categories.anti_spin.description")}
             </p>
           </Link>
         </div>

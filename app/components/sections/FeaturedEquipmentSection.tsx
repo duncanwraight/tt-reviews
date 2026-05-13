@@ -45,7 +45,7 @@ export function FeaturedEquipmentSection({
             to="/equipment"
             className="inline-flex items-center px-6 py-3 border border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white transition-colors"
           >
-            View All Equipment
+            Browse all equipment
           </Link>
         </div>
       </div>
