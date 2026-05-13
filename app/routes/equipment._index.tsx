@@ -54,11 +54,9 @@ export function meta({ matches, location }: Route.MetaArgs) {
   );
   const ogImageUrl = buildOgImageUrl(siteUrl, "/og/equipment.png");
 
-  // Enhanced SEO title pattern based on research
-  const title = `Best Table Tennis Equipment ${currentYear} - Professional Reviews & Comparisons | TT Reviews`;
+  const title = `Table Tennis Equipment Reviews ${currentYear} — Community-Moderated | TT Reviews`;
 
-  // Enhanced meta description with current year and value proposition
-  const description = `Discover the best table tennis equipment through hundreds of professional reviews. Compare blades, rubbers, and balls used by pros. Updated ${currentYear}.`;
+  const description = `Honest reviews of table tennis blades, rubbers, and balls — from players at every level, moderated by the community. Plus pro setups. Updated ${currentYear}.`;
 
   // Enhanced keywords targeting high-volume search terms from research
   const keywords = [
@@ -237,13 +235,13 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                 <h3 className="text-xl font-semibold mb-2">
                   {content(
                     "equipment.expand_database.title",
-                    "Help Expand Our Equipment Database"
+                    "Spotted equipment we don't have?"
                   )}
                 </h3>
                 <p className="text-purple-100">
                   {content(
                     "equipment.expand_database.description",
-                    "Create an account or log in to submit new equipment and contribute to our growing community."
+                    "Sign in to submit a blade, rubber, or ball you don't see on the site. We review every submission."
                   )}
                 </p>
               </div>
@@ -251,7 +249,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                 href="/login"
                 className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg whitespace-nowrap"
               >
-                Get Started
+                Sign in
               </a>
             </div>
           </div>
@@ -268,16 +266,16 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
             </h1>
             <p className="text-lg text-gray-600 max-w-3xl">
               {currentSubcategory
-                ? `Discover the best ${getSubcategoryName(
+                ? `Browse ${getSubcategoryName(
                     currentSubcategory
-                  ).toLowerCase()} for your playing style`
+                  ).toLowerCase()} reviewed by players at every level.`
                 : currentCategory
-                  ? `Discover the best ${getCategoryName(
+                  ? `Browse ${getCategoryName(
                       currentCategory
-                    ).toLowerCase()} for your playing style`
+                    ).toLowerCase()} reviewed by players at every level.`
                   : content(
                       "equipment.page.description",
-                      "Comprehensive reviews of professional table tennis equipment"
+                      "Reviews of table tennis blades, rubbers, and balls — from players at every level, moderated by the community."
                     )}
             </p>
             {equipment.length > 0 && (
@@ -492,7 +490,7 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                   to="/equipment"
                   className="inline-flex items-center px-4 py-2 border border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white transition-colors"
                 >
-                  View All Equipment
+                  Browse all equipment
                 </Link>
               </div>
             )}
@@ -508,7 +506,10 @@ export default function Equipment({ loaderData }: Route.ComponentProps) {
                 Recent Reviews
               </h2>
               <p className="text-lg text-gray-600">
-                Latest equipment reviews from our community
+                {content(
+                  "equipment.recent_reviews.subtitle",
+                  "Latest reviews from the community."
+                )}
               </p>
             </div>
 

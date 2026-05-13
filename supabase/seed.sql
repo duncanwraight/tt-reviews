@@ -1012,10 +1012,10 @@ INSERT INTO site_content (key, content, description, category) VALUES
 ('homepage.categories.anti_spin.description', 'Specialised rubbers which can control or even reverse incoming spin, making it difficult for opponents to predict where the ball will come.', 'Anti-spin category description', 'homepage'),
 
 -- Equipment Pages
-('equipment.page.description', 'Comprehensive reviews of professional table tennis equipment', 'Main description for equipment index page', 'equipment'),
-('equipment.expand_database.title', 'Help Expand Our Equipment Database', 'Title for equipment submission CTA section', 'equipment'),
-('equipment.expand_database.description', 'Create an account or log in to submit new equipment and contribute to our growing community.', 'Description encouraging equipment submissions', 'equipment'),
-('equipment.recent_reviews.subtitle', 'Latest equipment reviews from our community', 'Subtitle for recent reviews section on equipment page', 'equipment'),
+('equipment.page.description', 'Reviews of table tennis blades, rubbers, and balls — from players at every level, moderated by the community.', 'Main description for equipment index page', 'equipment'),
+('equipment.expand_database.title', 'Spotted equipment we don''t have?', 'Title for equipment submission CTA section', 'equipment'),
+('equipment.expand_database.description', 'Sign in to submit a blade, rubber, or ball you don''t see on the site. We review every submission.', 'Description encouraging equipment submissions', 'equipment'),
+('equipment.recent_reviews.subtitle', 'Latest reviews from the community.', 'Subtitle for recent reviews section on equipment page', 'equipment'),
 ('equipment.submit.description', 'Help expand our equipment database by submitting new table tennis equipment.', 'Description on equipment submission form page', 'equipment'),
 ('equipment.submit.upload_help', 'Upload a clear photo of the equipment. This helps with identification and moderation.', 'Help text for image upload in equipment form', 'equipment'),
 ('equipment.submit.specifications_placeholder', 'Any additional details about the equipment (e.g., speed, spin, control ratings, weight, etc.)', 'Placeholder text for specifications field', 'equipment'),
@@ -1050,9 +1050,9 @@ INSERT INTO site_content (key, content, description, category) VALUES
 ('footer.tagline', 'Community-moderated table tennis equipment reviews and player setups', 'Main tagline in footer', 'footer'),
 
 -- Equipment Review System
-('equipment.reviews.empty_state', 'No reviews yet for this equipment. Be the first to share your experience!', 'Message shown when equipment has no reviews', 'equipment'),
-('equipment.reviews.section_subtitle', 'Read what players think about this equipment', 'Subtitle for reviews section on equipment detail pages', 'equipment'),
-('equipment.write_review.description', 'Share your experience with this equipment to help other players make informed decisions.', 'Description encouraging users to write reviews', 'equipment'),
+('equipment.reviews.empty_state', 'No reviews yet. Be the first to share your experience.', 'Message shown when equipment has no reviews', 'equipment'),
+('equipment.reviews.section_subtitle', 'What players think — from beginners to pros.', 'Subtitle for reviews section on equipment detail pages', 'equipment'),
+('equipment.write_review.description', 'Share your experience to help other players find equipment that fits them.', 'Description encouraging users to write reviews', 'equipment'),
 
 -- Profile & User Content
 ('profile.page_description', 'Manage your account and review your contribution history', 'Description for user profile page', 'profile'),

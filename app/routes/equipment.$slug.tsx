@@ -59,7 +59,7 @@ export function meta({ data, matches, location }: Route.MetaArgs) {
   const reviewCount = reviews.length;
   const ratingText = averageRating
     ? `avg ${averageRating.toFixed(1)} rating`
-    : "professional reviews";
+    : "community reviews";
   const playerUsage =
     usedByPlayers.length > 0
       ? ` Used by ${usedByPlayers

@@ -146,7 +146,7 @@ function NoReviewsState({
         No Reviews Yet
       </h3>
       <p className="text-gray-600 mb-6">
-        Be the first to review the {equipmentName}!
+        Be the first to review the {equipmentName}.
       </p>
       <NoReviewsAction user={user} equipmentSlug={equipmentSlug} />
     </div>
