@@ -175,16 +175,24 @@ function findExistingMatch(
   return { kind: "ambiguous", count: linkable.length };
 }
 
-async function backfillIttfid(
+interface BackfillPair {
+  player_id: string;
+  ittfid: number;
+}
+
+// Single-RPC bulk backfill — collapses N per-row UPDATEs into one
+// PostgREST round-trip so the importer stays under Cloudflare's
+// 50-subrequest cap (TT-203). Returns null on success, an error
+// message on failure. The RPC is idempotent: it skips rows whose
+// ittfid is already non-null, so a partial-success retry is safe.
+async function bulkBackfillIttfids(
   supabase: SupabaseClient,
-  playerId: string,
-  ittfid: number
+  pairs: BackfillPair[]
 ): Promise<string | null> {
-  const { error } = await supabase
-    .from("players")
-    .update({ ittfid })
-    .eq("id", playerId)
-    .is("ittfid", null);
+  if (pairs.length === 0) return null;
+  const { error } = await supabase.rpc("backfill_player_ittfids", {
+    p_pairs: pairs,
+  });
   return error ? error.message : null;
 }
 
@@ -272,10 +280,12 @@ export async function runImport(
     errors: [],
   };
 
-  // First pass: handle every candidate that matches an existing row
-  // (by ittfid or by name). These are free — no upstream fetches —
-  // so we don't count them against maxPerRun.
+  // First pass: classify every candidate against the in-memory index.
+  // No DB writes here — we collect backfill pairs to flush in one
+  // batched RPC call after the loop so subrequest usage stays bounded
+  // (TT-203: 50-subrequest cap on Workers Free plan).
   const trulyNew: WttRosterCandidate[] = [];
+  const backfillPairs: BackfillPair[] = [];
   for (const wtt of rosterCandidates) {
     if (knownProposalIttfids.has(wtt.ittfid)) {
       summary.skipped_existing += 1;
@@ -287,17 +297,11 @@ export async function runImport(
       continue;
     }
     if (match.kind === "name") {
-      const err = await backfillIttfid(supabase, match.playerId, wtt.ittfid);
-      if (err) {
-        summary.errors.push({
-          ittfid: wtt.ittfid,
-          message: `ittfid backfill: ${err}`,
-        });
-      } else {
-        // Update our in-memory index so a re-run within the same
-        // request short-circuits via ittfid match.
-        index.byIttfid.set(wtt.ittfid, match.playerId);
-      }
+      backfillPairs.push({ player_id: match.playerId, ittfid: wtt.ittfid });
+      // Pre-emptively update the in-memory index so any subsequent
+      // candidate sharing the same ittfid (shouldn't happen, but
+      // defensive) short-circuits cleanly.
+      index.byIttfid.set(wtt.ittfid, match.playerId);
       summary.skipped_existing += 1;
       continue;
     }
@@ -309,6 +313,26 @@ export async function runImport(
       continue;
     }
     trulyNew.push(wtt);
+  }
+
+  // Flush all backfills in one RPC call. On failure we roll back the
+  // skipped_existing increment for those pairs (so the next run will
+  // retry them) and surface a single summary error rather than N.
+  const backfillError = await bulkBackfillIttfids(supabase, backfillPairs);
+  if (backfillError) {
+    summary.skipped_existing -= backfillPairs.length;
+    for (const pair of backfillPairs) {
+      // Roll back the in-memory index update too so the retry path
+      // (truly-new processing below) doesn't accidentally think this
+      // ittfid is already linked.
+      if (index.byIttfid.get(pair.ittfid) === pair.player_id) {
+        index.byIttfid.delete(pair.ittfid);
+      }
+    }
+    summary.errors.push({
+      ittfid: 0,
+      message: `bulk ittfid backfill (${backfillPairs.length} pairs): ${backfillError}`,
+    });
   }
 
   // Second pass: process the genuinely-new candidates up to maxPerRun.

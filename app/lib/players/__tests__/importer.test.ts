@@ -37,6 +37,12 @@ interface FakeDb {
     applied_player_id: string | null;
   }>;
   playerInsertFail?: { times: number; code?: string; message?: string };
+  // TT-203: if set, the backfill RPC returns this error message on
+  // every call (one-shot test for the batched-backfill failure path).
+  backfillRpcFail?: string;
+  backfillRpcCalls?: Array<{
+    pairs: Array<{ player_id: string; ittfid: number }>;
+  }>;
 }
 
 function makeSupabase(db: FakeDb): SupabaseClient {
@@ -113,21 +119,6 @@ function makeSupabase(db: FakeDb): SupabaseClient {
               },
             };
           },
-          update(patch: { ittfid?: number }) {
-            return {
-              eq(_col1: string, val1: string) {
-                return {
-                  is(_col2: string, _val2: null) {
-                    const row = db.players.find(p => p.id === val1);
-                    if (row && row.ittfid === null && patch.ittfid != null) {
-                      row.ittfid = patch.ittfid;
-                    }
-                    return Promise.resolve({ data: null, error: null });
-                  },
-                };
-              },
-            };
-          },
         };
       }
 
@@ -160,6 +151,32 @@ function makeSupabase(db: FakeDb): SupabaseClient {
       }
 
       throw new Error(`unexpected table: ${table}`);
+    },
+     
+    rpc(name: string, args: any) {
+      if (name === "backfill_player_ittfids") {
+        const pairs = (args?.p_pairs ?? []) as Array<{
+          player_id: string;
+          ittfid: number;
+        }>;
+        if (db.backfillRpcCalls) db.backfillRpcCalls.push({ pairs });
+        if (db.backfillRpcFail) {
+          return Promise.resolve({
+            data: null,
+            error: { message: db.backfillRpcFail },
+          });
+        }
+        let updated = 0;
+        for (const pair of pairs) {
+          const row = db.players.find(p => p.id === pair.player_id);
+          if (row && row.ittfid === null) {
+            row.ittfid = pair.ittfid;
+            updated += 1;
+          }
+        }
+        return Promise.resolve({ data: updated, error: null });
+      }
+      throw new Error(`unexpected rpc: ${name}`);
     },
   } as unknown as SupabaseClient;
 }
@@ -699,6 +716,113 @@ describe("runImport", () => {
     expect(summary.auto_applied).toBe(0);
     expect(summary.queued).toBe(0);
     // Neither seed row was modified.
+    expect(db.players.every(p => p.ittfid === null)).toBe(true);
+  });
+
+  it("batches all ittfid backfills into one RPC call (TT-203)", async () => {
+    const db: FakeDb = {
+      players: [
+        { id: "p-1", name: "Wang Chuqin", slug: "wang-chuqin", ittfid: null },
+        { id: "p-2", name: "Sun Yingsha", slug: "sun-yingsha", ittfid: null },
+        { id: "p-3", name: "Felix Lebrun", slug: "felix-lebrun", ittfid: null },
+      ],
+      proposals: [],
+      backfillRpcCalls: [],
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 121558,
+        fullName: "WANG Chuqin",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 25,
+        ranking: "2",
+        headShot: "",
+      },
+      {
+        ittfid: 131163,
+        fullName: "SUN Yingsha",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "F",
+        age: 25,
+        ranking: "1",
+        headShot: "",
+      },
+      {
+        ittfid: 135977,
+        fullName: "Felix LEBRUN",
+        nationality: "FRA",
+        countryName: "France",
+        gender: "M",
+        age: 19,
+        ranking: "7",
+        headShot: "",
+      },
+    ];
+
+    const summary = await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+
+    expect(summary.skipped_existing).toBe(3);
+    expect(summary.errors).toHaveLength(0);
+    // One RPC call carrying all three pairs — not three separate calls.
+    expect(db.backfillRpcCalls).toHaveLength(1);
+    expect(db.backfillRpcCalls?.[0].pairs).toHaveLength(3);
+    // And the rows landed.
+    expect(db.players.find(p => p.id === "p-1")?.ittfid).toBe(121558);
+    expect(db.players.find(p => p.id === "p-2")?.ittfid).toBe(131163);
+    expect(db.players.find(p => p.id === "p-3")?.ittfid).toBe(135977);
+  });
+
+  it("rolls back skipped_existing + in-memory index when the backfill RPC fails (TT-203)", async () => {
+    const db: FakeDb = {
+      players: [
+        { id: "p-1", name: "Wang Chuqin", slug: "wang-chuqin", ittfid: null },
+        { id: "p-2", name: "Sun Yingsha", slug: "sun-yingsha", ittfid: null },
+      ],
+      proposals: [],
+      backfillRpcFail: "Too many subrequests by single Worker invocation",
+    };
+    const supabase = makeSupabase(db);
+    const bucket = makeBucket();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 121558,
+        fullName: "WANG Chuqin",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 25,
+        ranking: "2",
+        headShot: "",
+      },
+      {
+        ittfid: 131163,
+        fullName: "SUN Yingsha",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "F",
+        age: 25,
+        ranking: "1",
+        headShot: "",
+      },
+    ];
+
+    const summary = await runImport(supabase, bucket, {
+      deps: { fetchImpl: makeFetch({ roster }) },
+    });
+
+    // skipped_existing decremented for the failed batch — next run retries.
+    expect(summary.skipped_existing).toBe(0);
+    // Single summary error rather than one per pair.
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0].message).toMatch(/bulk ittfid backfill.*2 pairs/i);
+    // Rows still unlinked.
     expect(db.players.every(p => p.ittfid === null)).toBe(true);
   });
 
