@@ -2,9 +2,10 @@
 //
 // One GET per player. The page is a public results.ittf.link profile
 // and returns HTML with a "Style:" string we parse for handedness +
-// grip, plus a "Birth Year:" line. Used only for new-player enrichment
-// during the importer run; existing players keep whatever they already
-// have in the local DB.
+// grip, a "Birth Year:" line, and a "Career Best**:" line carrying the
+// player's peak ITTF world ranking (rank + ISO-week / year). Used only
+// for new-player enrichment during the importer run; existing players
+// keep whatever they already have in the local DB.
 //
 // Lifted verbatim from scripts/photo-sourcing/lib/ittf.ts (TT-200).
 // The parser stays pure so unit tests can drive it with HTML fixtures
@@ -37,11 +38,23 @@ const STYLE_RE =
 const BIRTH_YEAR_RE =
   /Birth Year:\s*<span class=['"]notranslate['"]>(\d{4})<\/span>/i;
 
+// "Career Best**: <span ...>32</span> | Week: <span ...>11/2022</span>"
+// The asterisks are page-foot annotations ("Based on Seniors Singles
+// ITTF World Ranking since January 2001"). Week format is ISO week
+// "WW/YYYY" — we only keep the year for the display string.
+const CAREER_BEST_RE =
+  /Career Best\*{0,2}:\s*<span class=['"]notranslate['"]>(\d+)<\/span>\s*\|\s*Week:\s*<span class=['"]notranslate['"]>\d{1,2}\/(\d{4})<\/span>/i;
+
 export interface IttfProfile {
   handedness: "left" | "right" | null;
   style: IttfStyle | null;
   grip: "shakehand" | "penhold" | null;
   birth_year: number | null;
+  // Career-high world ranking (peak ITTF Seniors Singles rank) and
+  // the year in which it was achieved. Both null when the profile
+  // line is absent or unparseable.
+  peak_world_rank: number | null;
+  peak_rank_year: number | null;
 }
 
 export function ittfProfileUrl(ittfid: number): string {
@@ -54,6 +67,8 @@ export function parseIttfProfile(html: string): IttfProfile {
     style: null,
     grip: null,
     birth_year: null,
+    peak_world_rank: null,
+    peak_rank_year: null,
   };
 
   const styleMatch = html.match(STYLE_RE);
@@ -71,6 +86,26 @@ export function parseIttfProfile(html: string): IttfProfile {
     // field null than splice garbage downstream.
     if (year >= 1900 && year <= new Date().getFullYear()) {
       profile.birth_year = year;
+    }
+  }
+
+  const careerBestMatch = html.match(CAREER_BEST_RE);
+  if (careerBestMatch) {
+    const rank = Number(careerBestMatch[1]);
+    const year = Number(careerBestMatch[2]);
+    // World ranks are positive ints; ITTF's published series goes back
+    // to Jan 2001 per the page footer. Reject anything outside sane
+    // bounds rather than persisting garbage.
+    if (
+      Number.isFinite(rank) &&
+      rank >= 1 &&
+      rank <= 10000 &&
+      Number.isFinite(year) &&
+      year >= 2001 &&
+      year <= new Date().getFullYear()
+    ) {
+      profile.peak_world_rank = rank;
+      profile.peak_rank_year = year;
     }
   }
 
@@ -142,6 +177,10 @@ export function toIttfCandidate(
   ittfid: number,
   profile: IttfProfile
 ): IttfProfileCandidate {
+  const highest_rating =
+    profile.peak_world_rank != null && profile.peak_rank_year != null
+      ? `WR${profile.peak_world_rank} (${profile.peak_rank_year})`
+      : undefined;
   return {
     source: "ittf",
     ittfid,
@@ -149,6 +188,7 @@ export function toIttfCandidate(
     style: profile.style ?? undefined,
     grip: profile.grip ?? undefined,
     birth_year: profile.birth_year ?? undefined,
+    highest_rating,
     ittf_profile_url: ittfProfileUrl(ittfid),
     fetched_at: new Date().toISOString(),
   };

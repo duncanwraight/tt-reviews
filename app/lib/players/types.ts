@@ -40,6 +40,11 @@ export interface IttfProfileCandidate {
   style?: IttfStyle;
   grip?: "shakehand" | "penhold";
   birth_year?: number;
+  // Career-best world ranking formatted "WR<n> (<year>)", parsed from
+  // the ITTF profile's "Career Best**:" line. The "year" is the year
+  // of the ISO week the peak was achieved. Undefined when the line
+  // is absent or fails the sanity bounds in parseIttfProfile.
+  highest_rating?: string;
   ittf_profile_url: string;
   fetched_at: string;
 }

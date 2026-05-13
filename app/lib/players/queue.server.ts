@@ -301,6 +301,7 @@ export async function processOnePlayerImport(
       grip: ittf.grip,
       style: ittf.style,
       birth_year: ittf.birth_year,
+      highest_rating: ittf.highest_rating,
     });
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);

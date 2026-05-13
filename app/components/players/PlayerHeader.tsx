@@ -42,6 +42,18 @@ function getPlayingStyleLabel(style: string | undefined): string {
   return style.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 }
 
+// Year-only birth date → approximate age. ITTF only publishes the
+// year, so the result is "currentYear - birthYear" and can be off by
+// up to a year depending on the player's birthday; that's the same
+// precision the WTT/ITTF profile pages display.
+function getAgeFromBirthYear(birthYear: number | undefined): number | null {
+  if (!birthYear) return null;
+  const now = new Date().getUTCFullYear();
+  const age = now - birthYear;
+  if (age < 0 || age > 120) return null;
+  return age;
+}
+
 interface PhotoCreditProps {
   creditText: string;
   creditLink?: string;
@@ -186,6 +198,16 @@ export function PlayerHeader({
                   {player.highest_rating}
                 </span>
               )}
+              {(() => {
+                const age = getAgeFromBirthYear(player.birth_year);
+                if (age == null) return null;
+                return (
+                  <span>
+                    <span className="font-medium text-gray-700">Age:</span>{" "}
+                    {age}
+                  </span>
+                );
+              })()}
               {player.active_years && (
                 <span>
                   <span className="font-medium text-gray-700">Active:</span>{" "}

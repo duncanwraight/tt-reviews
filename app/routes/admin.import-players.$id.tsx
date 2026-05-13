@@ -332,6 +332,12 @@ export default function AdminImportPlayerDetail({
             merged.ittf_profile_url
           )}
           {fieldRow(
+            "Highest rating",
+            merged.highest_rating,
+            "ittf",
+            merged.ittf_profile_url
+          )}
+          {fieldRow(
             "Headshot URL",
             merged.headshot_url,
             "wtt",

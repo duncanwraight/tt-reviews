@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { parseIttfProfile } from "../ittf-profile.server";
+import { parseIttfProfile, toIttfCandidate } from "../ittf-profile.server";
 import { derivePlayingStyle } from "../types";
 
 const PROFILE_TEMPLATE = (
   hand: string,
   style: string,
   grip: string,
-  birthYear: string
+  birthYear: string,
+  careerBestRank: string = "1",
+  careerBestWeek: string = "11/2022"
 ): string => `
 <td>
   <img src='flag.png'><br/><span class='notranslate'>CHINA</span><br/>
@@ -15,7 +17,8 @@ const PROFILE_TEMPLATE = (
   Birth Year: <span class='notranslate'>${birthYear}</span><br/>
   Age: 26<br/>
   Style: <span class='notranslate'>${hand}</span> <span class='notranslate'>${style}</span> (<span class='notranslate'>${grip}</span>)<br/>
-  Ranking: <span class='notranslate'>1</span>
+  Ranking: <span class='notranslate'>1</span> | Week: <span class='notranslate'>20/2026</span><br/>
+  Career Best**: <span class='notranslate'>${careerBestRank}</span> | Week: <span class='notranslate'>${careerBestWeek}</span>
 </td>
 `;
 
@@ -27,6 +30,8 @@ describe("parseIttfProfile", () => {
       style: "attack",
       grip: "shakehand",
       birth_year: 2000,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -37,6 +42,8 @@ describe("parseIttfProfile", () => {
       style: "attack",
       grip: "shakehand",
       birth_year: 1995,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -47,6 +54,8 @@ describe("parseIttfProfile", () => {
       style: "attack",
       grip: "penhold",
       birth_year: 1988,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -57,6 +66,8 @@ describe("parseIttfProfile", () => {
       style: "defence",
       grip: "shakehand",
       birth_year: 1990,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -72,6 +83,8 @@ describe("parseIttfProfile", () => {
       style: "other",
       grip: "shakehand",
       birth_year: 1985,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -87,6 +100,8 @@ describe("parseIttfProfile", () => {
       style: null,
       grip: null,
       birth_year: 1973,
+      peak_world_rank: 1,
+      peak_rank_year: 2022,
     });
   });
 
@@ -102,6 +117,8 @@ describe("parseIttfProfile", () => {
       style: null,
       grip: null,
       birth_year: 2001,
+      peak_world_rank: null,
+      peak_rank_year: null,
     });
   });
 
@@ -123,6 +140,8 @@ describe("parseIttfProfile", () => {
       style: "defence",
       grip: "shakehand",
       birth_year: 1990,
+      peak_world_rank: null,
+      peak_rank_year: null,
     });
   });
 
@@ -134,7 +153,75 @@ describe("parseIttfProfile", () => {
       style: null,
       grip: null,
       birth_year: null,
+      peak_world_rank: null,
+      peak_rank_year: null,
     });
+  });
+
+  it("parses Career Best rank + year (the WANG Yang exemplar)", () => {
+    const html = PROFILE_TEMPLATE(
+      "Right-Hand",
+      "Defence",
+      "ShakeHand",
+      "1994",
+      "32",
+      "11/2022"
+    );
+    const profile = parseIttfProfile(html);
+    expect(profile.peak_world_rank).toBe(32);
+    expect(profile.peak_rank_year).toBe(2022);
+  });
+
+  it("leaves peak fields null when the Career Best line is absent", () => {
+    const html = `
+      <td>
+        Birth Year: <span class='notranslate'>1995</span><br/>
+        Style: <span class='notranslate'>Right-Hand</span> <span class='notranslate'>Attack</span> (<span class='notranslate'>ShakeHand</span>)<br/>
+        Ranking: <span class='notranslate'>5</span> | Week: <span class='notranslate'>20/2026</span>
+      </td>
+    `;
+    const profile = parseIttfProfile(html);
+    expect(profile.peak_world_rank).toBeNull();
+    expect(profile.peak_rank_year).toBeNull();
+  });
+
+  it("rejects peak rank years before ITTF's published series start (Jan 2001)", () => {
+    const html = PROFILE_TEMPLATE(
+      "Right-Hand",
+      "Attack",
+      "ShakeHand",
+      "1980",
+      "5",
+      "10/1999"
+    );
+    const profile = parseIttfProfile(html);
+    expect(profile.peak_world_rank).toBeNull();
+    expect(profile.peak_rank_year).toBeNull();
+  });
+});
+
+describe("toIttfCandidate", () => {
+  it("formats highest_rating as 'WR<n> (<year>)' when peak data is present", () => {
+    const profile = parseIttfProfile(
+      PROFILE_TEMPLATE(
+        "Right-Hand",
+        "Defence",
+        "ShakeHand",
+        "1994",
+        "32",
+        "11/2022"
+      )
+    );
+    const candidate = toIttfCandidate(112735, profile);
+    expect(candidate.highest_rating).toBe("WR32 (2022)");
+  });
+
+  it("leaves highest_rating undefined when ITTF didn't publish a Career Best", () => {
+    const profile = parseIttfProfile(
+      `Birth Year: <span class='notranslate'>1995</span>`
+    );
+    const candidate = toIttfCandidate(99999, profile);
+    expect(candidate.highest_rating).toBeUndefined();
   });
 });
 

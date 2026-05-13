@@ -67,6 +67,7 @@ export interface Player {
   birth_country?: string; // ISO 3166-1 alpha-3 country code for birth country
   represents?: string; // ISO 3166-1 alpha-3 country code for represented country
   gender?: "male" | "female";
+  birth_year?: number; // Four-digit birth year (TT-202). Sourced from ITTF profile.
   image_key?: string; // R2 storage key for player photo
   image_etag?: string;
   image_credit_text?: string;

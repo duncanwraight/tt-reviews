@@ -59,6 +59,7 @@ export type RunLogEntry =
       grip?: "shakehand" | "penhold";
       style?: "attack" | "defence" | "other";
       birth_year?: number;
+      highest_rating?: string;
       // Populated on `transient` or `error`.
       reason?: string;
     })
