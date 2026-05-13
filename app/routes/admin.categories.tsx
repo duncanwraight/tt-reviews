@@ -406,7 +406,7 @@ export default function AdminCategories({
           csrfToken={csrfToken}
           type="review_rating_category"
           title="Review Rating Categories"
-          description="Rating aspects for equipment reviews (e.g., Speed, Control, Feel). These are organized by equipment subcategory."
+          description="Rating aspects for equipment reviews (e.g., Speed, Control, Feel). These are organised by equipment subcategory."
           showFlags={false}
           allowSubcategories={true}
           parentCategories={[...equipmentCategories, ...equipmentSubcategories]}

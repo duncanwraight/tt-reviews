@@ -507,7 +507,7 @@ export default function AdminImportPlayersIndex({
 
       <section data-testid="import-players-activity">
         <header className="mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Activity log</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Activity Log</h2>
           <p className="text-xs text-gray-500">
             Latest 50 proposals across every status. Click a row for the
             importer run log.

@@ -4,6 +4,12 @@
 
 **Before any change to `app/` or `workers/`, read `docs/CODING-STANDARDS.md`.** It is the single source of truth for TypeScript, components, routes, loader/action shape, logging, env access, tests, imports, and comments. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
 
+## UK English spelling
+
+User-facing copy on this site uses **UK English spelling** — `catalogue`, `colour`, `centre`, `organise`, `realise`, `favourite`, `behaviour`, `licence` (noun) / `license` (verb), `specialised`, etc. Applies to every human-readable string: route templates (titles, descriptions, button text, validation messages, empty states), `site_content` rows in `supabase/seed.sql`, error messages, meta tags, alt text.
+
+Do not change Tailwind class names (`text-center`, `text-gray-900`, `bg-red-100`, `mx-auto`) or other code identifiers — those stay US-spelt. Only user-visible text is in scope. Tests that quote UI copy update alongside the copy change.
+
 ## SEO
 
 **Before adding or modifying any user-facing route in `app/routes/`, read `docs/SEO.md`.** It is the single source of truth for meta tags, structured data, canonical URLs, indexability, sitemap inclusion, and the performance requirements that affect SEO. New user-facing routes ship with the per-route checklist at the bottom of that doc green. Don't repeat or re-derive those rules here — fix them in the standards doc instead.
