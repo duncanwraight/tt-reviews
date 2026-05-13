@@ -1,6 +1,6 @@
 // Round-trip the applied manufacturer-spec data from the local DB
 // into the SPEC-SOURCING block of supabase/seed.sql (TT-151, closes
-// TT-78). Mirrors scripts/photo-sourcing/export-seed.ts in shape.
+// TT-78).
 //
 // What gets exported: equipment rows whose specs_source_status =
 // 'fresh' (i.e. an admin-applied proposal landed). Each row's
@@ -24,7 +24,7 @@ import {
   spliceBlock,
   type SpecSeedRow,
 } from "../../app/lib/spec-sourcing/seed-block.ts";
-import { createServiceClient } from "../photo-sourcing/lib/db.ts";
+import { createServiceClient } from "../lib/service-client.ts";
 
 const SEED_SQL = resolve(process.cwd(), "supabase/seed.sql");
 

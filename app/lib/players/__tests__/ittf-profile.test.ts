@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { parseIttfProfile } from "../lib/ittf.ts";
+import { parseIttfProfile } from "../ittf-profile.server";
 
-// Fixtures mirror the exact HTML structure on results.ittf.link profile
-// pages. Each <span class='notranslate'> wraps a single token; we treat
-// "Unknown ..." as null rather than a parse failure.
 const PROFILE_TEMPLATE = (
   hand: string,
   style: string,

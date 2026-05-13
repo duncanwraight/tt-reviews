@@ -1,7 +1,6 @@
 // Pure helpers for the spec-sourcing seed.sql roundtrip (TT-151,
-// closes TT-78). Mirrors app/lib/photo-sourcing/seed-block.ts in
-// shape — kept under app/ rather than scripts/ so vitest can cover
-// the splice + build logic.
+// closes TT-78). Kept under app/ rather than scripts/ so vitest can
+// cover the splice + build logic.
 //
 // The SPEC-SOURCING markers are the contract between
 // scripts/spec-sourcing/export-seed.ts and supabase/seed.sql. Both

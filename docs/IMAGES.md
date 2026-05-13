@@ -3,10 +3,10 @@
 All site images live in **Cloudflare R2** under the `IMAGE_BUCKET`
 binding. Two key shapes share the bucket:
 
-| Prefix          | Source                                          | Pipeline                                 |
-| --------------- | ----------------------------------------------- | ---------------------------------------- |
-| `player/...`    | Wikimedia Commons / World Table Tennis (TT-36)  | `scripts/photo-sourcing/{scan,apply}.ts` |
-| `equipment/...` | Manufacturer / retailer pages via Brave (TT-48) | `/admin/equipment-photos` queue          |
+| Prefix          | Source                                                  | Pipeline                                  |
+| --------------- | ------------------------------------------------------- | ----------------------------------------- |
+| `player/...`    | World Table Tennis roster headshots + ITTF profile data | `/admin/import-players` admin UI (TT-201) |
+| `equipment/...` | Manufacturer / retailer pages via Brave (TT-48)         | `/admin/equipment-photos` queue           |
 
 ## Reads
 
@@ -32,12 +32,16 @@ already normalised to a single size by the TT-36 pipeline).
 
 ## Writes
 
-### Player photos (TT-36)
+### Player photos (TT-201)
 
-Driven by manifest review locally, then `npm run sourcing:apply`
-normalises with sharp on the developer's machine and writes the
-seed-images directory + a SQL-update block. See
-`scripts/photo-sourcing/README.md` for the full flow.
+Admin-driven via `/admin/import-players`. The unified importer walks
+the WTT roster, enriches each new entry via ITTF (handedness, grip,
+birth year), downloads the headshot bytes straight to R2 under
+`player/<slug>/headshot.<ext>`, and either auto-applies (complete
+upstream data) or queues for manual approval. Cloudflare Image
+Resizing handles WebP/AVIF transforms on read; the Worker stores
+source-format bytes as-is. See `app/lib/players/` for the helpers
+(roster fetcher, ITTF parser, photo uploader, importer).
 
 ### Equipment photos (TT-48)
 
@@ -55,9 +59,10 @@ Live admin flow only — no committed binaries.
 3. Candidates show up in `/admin/equipment-photos` for human pick.
 4. On Pick: `equipment.image_key` is set to the chosen R2 key, the
    losers are deleted from R2 + DB.
-5. `npm run images:export-seed` writes `equipment.image_*` columns
-   into `supabase/seed.sql`'s PHOTO-SOURCING-CREDITS block so a
-   `supabase db reset` survives the change.
+5. The equipment `image_*` columns live in the prod DB; refreshing
+   `supabase/seed.sql` so a `supabase db reset` survives them is
+   covered by the prod→local seed wrapper (TT-167) / full data refresh
+   (TT-191), not a standalone export script.
 
 ## Pricing
 

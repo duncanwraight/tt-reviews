@@ -38,7 +38,7 @@ import {
   parseArgs,
   wipeSpecSourcingState,
 } from "../../app/lib/spec-sourcing/wipe-and-requeue.ts";
-import { createServiceClient } from "../photo-sourcing/lib/db.ts";
+import { createServiceClient } from "../lib/service-client.ts";
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
