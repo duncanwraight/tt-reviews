@@ -269,28 +269,61 @@ async function insertProposalStubs(
   inserted: Array<{ id: string; wtt: WttRosterCandidate }>;
   errors: Array<{ ittfid: number; message: string }>;
 }> {
+  if (candidates.length === 0) return { inserted: [], errors: [] };
+
+  // Single PostgREST bulk insert (TT-205). Collapses N per-row
+  // subrequests into one — without this, the Worker hits the 50-
+  // subrequest cap at ~45 truly-new candidates per click (4 setup +
+  // N inserts + 1 sendBatch) and the operator has to re-click to
+  // drain the rest. With the pre-filter (knownProposalIttfids)
+  // already excluding existing ittfids, the bulk insert is safe; a
+  // concurrent click could still race in a duplicate, so we surface
+  // the whole-batch error rather than silently dropping rows. The
+  // caller (the /admin action) can re-trigger and the pre-filter
+  // catches the now-existing rows on the next pass.
+  const rows = candidates.map(wtt => ({
+    ittfid: wtt.ittfid,
+    merged: stubMergedFromWtt(wtt) as unknown as Record<string, unknown>,
+    candidates: { wtt },
+    status: "pending_review",
+    run_log: [rosterMatchSeed(wtt, triggeredBy, now)],
+  }));
+
+  const { data, error } = await supabase
+    .from("player_proposals")
+    .insert(rows)
+    .select("id, ittfid");
+
+  if (error || !data) {
+    return {
+      inserted: [],
+      errors: [
+        {
+          ittfid: 0,
+          message: `bulk proposal insert (${rows.length} rows): ${error?.message ?? "no data returned"}`,
+        },
+      ],
+    };
+  }
+
+  // PostgREST preserves insert order in the returned select, so we
+  // can pair returned rows with the source candidate by index. Match
+  // by ittfid as a safety belt in case the server reorders.
+  const byIttfid = new Map(
+    (data as Array<{ id: string; ittfid: number }>).map(r => [r.ittfid, r.id])
+  );
   const inserted: Array<{ id: string; wtt: WttRosterCandidate }> = [];
   const errors: Array<{ ittfid: number; message: string }> = [];
   for (const wtt of candidates) {
-    const { data, error } = await supabase
-      .from("player_proposals")
-      .insert({
-        ittfid: wtt.ittfid,
-        merged: stubMergedFromWtt(wtt) as unknown as Record<string, unknown>,
-        candidates: { wtt },
-        status: "pending_review",
-        run_log: [rosterMatchSeed(wtt, triggeredBy, now)],
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
+    const id = byIttfid.get(wtt.ittfid);
+    if (id) {
+      inserted.push({ id, wtt });
+    } else {
       errors.push({
         ittfid: wtt.ittfid,
-        message: error?.message ?? "proposal insert failed",
+        message: "proposal insert returned no id",
       });
-      continue;
     }
-    inserted.push({ id: data.id as string, wtt });
   }
   return { inserted, errors };
 }

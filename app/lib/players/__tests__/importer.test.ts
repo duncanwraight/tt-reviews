@@ -49,7 +49,14 @@ interface FakeDb {
     candidates: Record<string, unknown>;
     run_log: unknown[];
   }>;
-  proposalInsertFail?: { ittfid: number; message: string };
+  // TT-205: bulk insert is one PostgREST call. proposalInsertFail
+  // injects a whole-batch failure (message returned from the fake);
+  // proposalInsertFailIttfid keeps the per-row hook around for the
+  // "stub failed, sibling enqueued" test (simulated by erroring the
+  // whole batch + asserting nothing landed). proposalInsertCalls
+  // counts the batches so we can assert "one call, not N".
+  proposalInsertFail?: string;
+  proposalInsertCalls?: Array<{ count: number }>;
   backfillRpcFail?: string;
   backfillRpcCalls?: Array<{
     pairs: Array<{ player_id: string; ittfid: number }>;
@@ -84,45 +91,42 @@ function makeSupabase(db: FakeDb): SupabaseClient {
               error: null,
             });
           },
-          insert(row: {
-            ittfid: number;
-            merged: Record<string, unknown>;
-            candidates: Record<string, unknown>;
-            status: string;
-            run_log: unknown[];
-          }) {
-            const shouldFail =
-              db.proposalInsertFail?.ittfid === row.ittfid
-                ? db.proposalInsertFail
-                : null;
-            const responseFn = () => {
-              if (shouldFail) {
-                return Promise.resolve({
-                  data: null,
-                  error: { message: shouldFail.message },
-                });
-              }
-              const inserted = {
-                id: `proposal-${nextProposalId++}`,
-                ittfid: row.ittfid,
-                status: row.status,
-                merged: row.merged,
-                candidates: row.candidates,
-                run_log: row.run_log,
-              };
-              db.proposals.push(inserted);
-              return Promise.resolve({
-                data: { id: inserted.id },
-                error: null,
-              });
-            };
+          // TT-205: producer now bulk-inserts; the chain is
+          // .insert(rows).select("id, ittfid") returning a Promise<{
+          // data, error }>. No more .single() wrap.
+          insert(
+            rows: Array<{
+              ittfid: number;
+              merged: Record<string, unknown>;
+              candidates: Record<string, unknown>;
+              status: string;
+              run_log: unknown[];
+            }>
+          ) {
+            if (db.proposalInsertCalls) {
+              db.proposalInsertCalls.push({ count: rows.length });
+            }
             return {
               select(_cols: string) {
-                return {
-                  single() {
-                    return responseFn();
-                  },
-                };
+                if (db.proposalInsertFail) {
+                  return Promise.resolve({
+                    data: null,
+                    error: { message: db.proposalInsertFail },
+                  });
+                }
+                const inserted = rows.map(row => {
+                  const r = {
+                    id: `proposal-${nextProposalId++}`,
+                    ittfid: row.ittfid,
+                    status: row.status,
+                    merged: row.merged,
+                    candidates: row.candidates,
+                    run_log: row.run_log,
+                  };
+                  db.proposals.push(r);
+                  return { id: r.id, ittfid: r.ittfid };
+                });
+                return Promise.resolve({ data: inserted, error: null });
               },
             };
           },
@@ -523,16 +527,15 @@ describe("runImport (producer)", () => {
     expect(queue.batches).toHaveLength(1); // Only the first run.
   });
 
-  it("skips enqueuing for a candidate whose stub insert failed", async () => {
-    // Two candidates; the first proposal-insert fails. The producer
-    // surfaces the error but still enqueues the second candidate.
+  it("surfaces a single summary error when the bulk insert fails atomically (TT-205)", async () => {
+    // Whole-batch failure (concurrent click raced in a duplicate
+    // ittfid, server-side validation, etc.). Producer returns the
+    // batch error in summary.errors and does NOT call sendBatch —
+    // there'd be no proposal rows for the consumer to update.
     const db: FakeDb = {
       players: [],
       proposals: [],
-      proposalInsertFail: {
-        ittfid: 132473,
-        message: "unique constraint violation",
-      },
+      proposalInsertFail: "duplicate key value violates unique constraint",
     };
     const supabase = makeSupabase(db);
     const queue = makeQueue();
@@ -563,11 +566,44 @@ describe("runImport (producer)", () => {
       deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(summary.queued_for_processing).toBe(1);
+    expect(summary.queued_for_processing).toBe(0);
     expect(summary.errors).toHaveLength(1);
-    expect(summary.errors[0].ittfid).toBe(132473);
+    expect(summary.errors[0].message).toMatch(/bulk proposal insert.*2 rows/i);
+    expect(db.proposals).toHaveLength(0);
+    expect(queue.batches).toHaveLength(0);
+  });
+
+  it("bulk-inserts proposal stubs in one PostgREST call regardless of count (TT-205)", async () => {
+    // 60 truly-new candidates should land via ONE bulk insert — not
+    // 60 per-row inserts. With the old per-row shape this would burn
+    // 60 subrequests and the Worker would hit the 50 cap.
+    const db: FakeDb = {
+      players: [],
+      proposals: [],
+      proposalInsertCalls: [],
+    };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue();
+    const roster: RosterEntry[] = Array.from({ length: 60 }, (_, i) => ({
+      ittfid: 200000 + i,
+      fullName: `Probe ${i}`,
+      nationality: "FRA",
+      countryName: "France",
+      gender: "M",
+      age: 25,
+      ranking: String(i + 1),
+      headShot: "",
+    }));
+
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+
+    expect(summary.queued_for_processing).toBe(60);
+    expect(summary.errors).toHaveLength(0);
+    expect(db.proposalInsertCalls).toHaveLength(1);
+    expect(db.proposalInsertCalls?.[0].count).toBe(60);
     expect(queue.batches).toHaveLength(1);
-    expect(queue.batches[0]).toHaveLength(1);
-    expect(queue.batches[0][0].body.ittfid).toBe(100200);
+    expect(queue.batches[0]).toHaveLength(60);
   });
 });
