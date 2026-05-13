@@ -84,10 +84,17 @@ export function derivePlayingStyle(
   return undefined;
 }
 
+// TT-204: producer-side summary. The action no longer processes
+// candidates inline — each truly-new ittfid is enqueued onto
+// `player-import-queue` and drained asynchronously by the queue
+// consumer (processOnePlayerImport). `auto_applied` / `queued` /
+// `remaining` from the pre-TT-204 inline shape are gone; the operator
+// reads consumer outcomes from `recent` (auto-applied) and the
+// pending-review queue on /admin/import-players.
 export interface ImporterSummary {
-  auto_applied: number;
-  queued: number;
   skipped_existing: number;
-  remaining: number;
+  // Number of queue messages successfully enqueued for the consumer
+  // to drain. One message = one ittfid.
+  queued_for_processing: number;
   errors: Array<{ ittfid: number; message: string }>;
 }

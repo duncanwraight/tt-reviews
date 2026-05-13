@@ -1,34 +1,44 @@
-// Importer orchestrator (TT-201, TT-202).
+// Importer producer (TT-201, TT-202, TT-203, TT-204).
 //
-// Walks the WTT roster, diffs against existing players + open proposals,
-// enriches each new candidate via ITTF, downloads the headshot, and
-// decides per-candidate: auto-apply straight into `players`, or queue
-// to `player_proposals` for admin review.
+// Walks the WTT roster, diffs against existing players + open
+// proposals, and enqueues one queue message per truly-new ittfid onto
+// `player-import-queue`. The queue consumer
+// (app/lib/players/queue.server.ts → processOnePlayerImport) does
+// the heavy lifting: ITTF enrich, headshot download, R2 upload,
+// completeness gate, auto-apply or queue-for-review.
 //
-// TT-202 fixes a dedupe regression: seed rows pre-date the `ittfid`
-// column so legacy players carry NULL there. Matching ittfid-only let
-// every seeded player look "new" to the importer, and slug-collision
-// retry happily materialised `<slug>-<ittfid>` duplicates next to the
-// seeds. The dedupe now also matches by normalised name + a sorted-
-// tokens fallback (for the WTT "LEBRUN Alexis" vs seed "Alexis LEBRUN"
-// flip). A unique name match backfills the existing row's ittfid +
-// counts as `skipped_existing`. Ambiguous matches log + skip.
+// TT-204 moves the per-candidate processing out of the producer
+// because each candidate burns ~4 subrequests (ITTF + photo fetch +
+// R2 PUT + DB write) and a Worker invocation is capped at 50 (Free
+// plan). Inline processing limited us to ~8 candidates per click;
+// queueing puts each one in its own invocation with its own budget.
 //
-// Subrequest budget (Cloudflare Workers Free plan: 50/req): 2 setup
-// reads (WTT roster + existing players+proposals) + 4 per candidate
-// (ITTF profile, photo fetch, R2 PUT, DB write). MAX_PER_RUN_DEFAULT=8
-// caps us at ~34 subrequests. Excess candidates → summary.remaining.
+// TT-202 dedupe pass stays inline because it's cheap (one PostgREST
+// read for all players + one for all proposals + one bulk-backfill
+// RPC, regardless of how many candidates are queued). The pass also
+// matches by normalised name + sorted-tokens fallback for legacy
+// seed rows that pre-date the ittfid column ("LEBRUN Alexis" vs seed
+// "Alexis LEBRUN"); a unique name match backfills the existing row's
+// ittfid + counts as `skipped_existing`. Ambiguous matches log + skip.
+//
+// Subrequest budget for one producer run: 2 setup reads (WTT roster
+// + existing players+proposals) + 1 bulk-backfill RPC + 1
+// proposal-insert per truly-new candidate + 1 `sendBatch` call
+// regardless of size. The proposal-insert loop dominates; a single
+// "Run import" click is safe up to ~45 truly-new candidates before
+// hitting the cap, and re-runs catch the remainder.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { fetchIttfProfile, toIttfCandidate } from "./ittf-profile.server";
-import { downloadAndStoreHeadshot, type R2PutBucket } from "./photo.server";
+import type { R2PutBucket } from "./photo.server";
+import type { PlayerImportMessage } from "./queue.server";
 import {
   deriveSlug,
   loadRosterCandidates,
   normaliseForMatch,
   tokenSorted,
 } from "./roster.server";
+import { type RunLogEntry } from "./run-log";
 import {
   derivePlayingStyle,
   isComplete,
@@ -38,15 +48,22 @@ import {
   type WttRosterCandidate,
 } from "./types";
 
-export const MAX_PER_RUN_DEFAULT = 8;
+// Producer surface for the player-import-queue. Cloudflare's
+// Queue<T> binding exposes both `send` and `sendBatch`; we only need
+// the batch path so the producer adds one subrequest regardless of
+// queue size.
+export interface PlayerImportQueueProducer {
+  sendBatch(messages: Array<{ body: PlayerImportMessage }>): Promise<unknown>;
+}
 
 export interface ImporterDeps {
   fetchImpl?: typeof fetch;
 }
 
 export interface RunImportOptions {
-  maxPerRun?: number;
   deps?: ImporterDeps;
+  // Caller-stamped trigger source for the run_log roster_match entry.
+  triggeredBy?: string;
 }
 
 export function mergeCandidates(
@@ -91,10 +108,6 @@ export function mergeCandidates(
 export function slugForPlayer(p: { name: string; ittfid: number }): string {
   const base = deriveSlug(p.name);
   return base || `player-${p.ittfid}`;
-}
-
-function fallbackSlug(p: { ittfid: number }): string {
-  return `player-${p.ittfid}`;
 }
 
 interface ExistingPlayerRow {
@@ -196,61 +209,126 @@ async function bulkBackfillIttfids(
   return error ? error.message : null;
 }
 
-async function insertPlayerRow(
+// Producer-side stub merged blob — the minimum we have at enqueue
+// time before ITTF enrichment. The consumer overwrites this on
+// success (with the full merged record). We carry enough WTT fields
+// to render the proposal row in the admin queue even if the consumer
+// never gets to it (e.g. queue stuck, DLQ).
+function stubMergedFromWtt(wtt: WttRosterCandidate): MergedPlayer {
+  const highest_rating =
+    typeof wtt.ranking === "number" ? `WR${wtt.ranking}` : undefined;
+  return {
+    ittfid: wtt.ittfid,
+    name: wtt.name,
+    represents: wtt.represents,
+    gender: wtt.gender,
+    highest_rating,
+    headshot_url: wtt.headshot_url,
+    wtt_profile_url: wtt.wtt_profile_url,
+    per_field_source: {
+      name: "wtt",
+      represents: "wtt",
+      gender: "wtt",
+      highest_rating: "wtt",
+      headshot_url: "wtt",
+      wtt_profile_url: "wtt",
+    },
+  };
+}
+
+function rosterMatchSeed(
+  wtt: WttRosterCandidate,
+  triggeredBy: string,
+  now: () => Date
+): RunLogEntry {
+  return {
+    at: now().toISOString(),
+    step: "roster_match",
+    outcome: "truly_new",
+    ittfid: wtt.ittfid,
+    wtt_name: wtt.name,
+    wtt_headshot_url: wtt.headshot_url,
+    wtt_profile_url: wtt.wtt_profile_url,
+    triggered_by: triggeredBy,
+  };
+}
+
+// Insert one pending_review stub per truly-new ittfid. Each insert
+// is its own subrequest — that's deliberate. The alternative
+// (server-side bulk insert RPC) would save subrequests but couples
+// the producer to a Postgres function that has to evolve with the
+// proposal schema. With the producer no longer doing per-candidate
+// network work (TT-204), the budget can spare ~45 inserts per click
+// before hitting the 50-cap. Beyond that the operator re-clicks.
+async function insertProposalStubs(
   supabase: SupabaseClient,
-  merged: MergedPlayer,
-  image_key: string
-): Promise<{ id: string; slug: string; error: string | null }> {
-  const baseSlug = slugForPlayer(merged);
-
-  // Slug-collision retry is now scoped to genuine same-name-different-
-  // people cases — the legacy-dedupe pass in runImport short-circuits
-  // before we get here when the seeded row is the same person.
-  for (const slug of [baseSlug, `${baseSlug}-${merged.ittfid}`]) {
+  candidates: WttRosterCandidate[],
+  triggeredBy: string,
+  now: () => Date
+): Promise<{
+  inserted: Array<{ id: string; wtt: WttRosterCandidate }>;
+  errors: Array<{ ittfid: number; message: string }>;
+}> {
+  const inserted: Array<{ id: string; wtt: WttRosterCandidate }> = [];
+  const errors: Array<{ ittfid: number; message: string }> = [];
+  for (const wtt of candidates) {
     const { data, error } = await supabase
-      .from("players")
+      .from("player_proposals")
       .insert({
-        name: merged.name,
-        slug,
-        ittfid: merged.ittfid,
-        represents: merged.represents ?? null,
-        gender: merged.gender ?? null,
-        handedness: merged.handedness ?? null,
-        grip: merged.grip ?? null,
-        playing_style: merged.playing_style ?? null,
-        birth_year: merged.birth_year ?? null,
-        highest_rating: merged.highest_rating ?? null,
-        image_key,
-        image_source_url: merged.headshot_url ?? null,
-        active: true,
+        ittfid: wtt.ittfid,
+        merged: stubMergedFromWtt(wtt) as unknown as Record<string, unknown>,
+        candidates: { wtt },
+        status: "pending_review",
+        run_log: [rosterMatchSeed(wtt, triggeredBy, now)],
       })
-      .select("id, slug")
+      .select("id")
       .single();
-
-    if (!error && data) {
-      return { id: data.id as string, slug: data.slug as string, error: null };
+    if (error || !data) {
+      errors.push({
+        ittfid: wtt.ittfid,
+        message: error?.message ?? "proposal insert failed",
+      });
+      continue;
     }
-
-    const code = (error as { code?: string } | null)?.code;
-    if (code !== "23505") {
-      return {
-        id: "",
-        slug: "",
-        error: error?.message ?? "insert failed",
-      };
-    }
+    inserted.push({ id: data.id as string, wtt });
   }
+  return { inserted, errors };
+}
 
-  return { id: "", slug: "", error: "slug conflict after suffix retry" };
+function buildQueueMessage(
+  proposalId: string,
+  wtt: WttRosterCandidate,
+  triggeredBy: string
+): PlayerImportMessage {
+  return {
+    ittfid: wtt.ittfid,
+    proposal_id: proposalId,
+    name: wtt.name,
+    raw_name: wtt.raw_name,
+    represents: wtt.represents,
+    gender: wtt.gender,
+    ranking: wtt.ranking,
+    headshot_url: wtt.headshot_url,
+    wtt_profile_url: wtt.wtt_profile_url,
+    triggeredBy,
+    attempts: 0,
+  };
 }
 
 export async function runImport(
   supabase: SupabaseClient,
-  bucket: R2PutBucket,
+  // The R2 bucket binding is retained on the signature because the
+  // caller (the /admin/import-players action) still passes it for
+  // future direct-apply flows. The producer no longer uses it — kept
+  // here as a typed seam so the action doesn't need a second code
+  // path for the queue migration.
+  _bucket: R2PutBucket,
+  queue: PlayerImportQueueProducer,
   options: RunImportOptions = {}
 ): Promise<ImporterSummary> {
-  const maxPerRun = options.maxPerRun ?? MAX_PER_RUN_DEFAULT;
   const fetchImpl = options.deps?.fetchImpl ?? fetch;
+  const triggeredBy = options.triggeredBy ?? "admin";
+  const now = () => new Date();
 
   const rosterCandidates = await loadRosterCandidates(fetchImpl);
 
@@ -273,17 +351,15 @@ export async function runImport(
   );
 
   const summary: ImporterSummary = {
-    auto_applied: 0,
-    queued: 0,
     skipped_existing: 0,
-    remaining: 0,
+    queued_for_processing: 0,
     errors: [],
   };
 
-  // First pass: classify every candidate against the in-memory index.
-  // No DB writes here — we collect backfill pairs to flush in one
-  // batched RPC call after the loop so subrequest usage stays bounded
-  // (TT-203: 50-subrequest cap on Workers Free plan).
+  // Dedupe pass: classify every candidate against the in-memory
+  // index. No DB writes here — backfill pairs are flushed in one
+  // batched RPC call after the loop, then truly-new candidates feed
+  // the queue-enqueue pass below.
   const trulyNew: WttRosterCandidate[] = [];
   const backfillPairs: BackfillPair[] = [];
   for (const wtt of rosterCandidates) {
@@ -298,9 +374,6 @@ export async function runImport(
     }
     if (match.kind === "name") {
       backfillPairs.push({ player_id: match.playerId, ittfid: wtt.ittfid });
-      // Pre-emptively update the in-memory index so any subsequent
-      // candidate sharing the same ittfid (shouldn't happen, but
-      // defensive) short-circuits cleanly.
       index.byIttfid.set(wtt.ittfid, match.playerId);
       summary.skipped_existing += 1;
       continue;
@@ -322,9 +395,6 @@ export async function runImport(
   if (backfillError) {
     summary.skipped_existing -= backfillPairs.length;
     for (const pair of backfillPairs) {
-      // Roll back the in-memory index update too so the retry path
-      // (truly-new processing below) doesn't accidentally think this
-      // ittfid is already linked.
       if (index.byIttfid.get(pair.ittfid) === pair.player_id) {
         index.byIttfid.delete(pair.ittfid);
       }
@@ -335,82 +405,33 @@ export async function runImport(
     });
   }
 
-  // Second pass: process the genuinely-new candidates up to maxPerRun.
-  // Each one costs ITTF fetch + photo fetch + R2 PUT + DB write.
-  const toProcess = trulyNew.slice(0, maxPerRun);
-  summary.remaining = Math.max(0, trulyNew.length - toProcess.length);
+  if (trulyNew.length === 0) return summary;
 
-  for (const wtt of toProcess) {
-    try {
-      const profile = await fetchIttfProfile(wtt.ittfid, fetchImpl);
-      const ittf = toIttfCandidate(wtt.ittfid, profile);
-      const merged = mergeCandidates(wtt, ittf);
+  // Insert one pending_review stub per truly-new candidate, then
+  // sendBatch a queue message for each successful insert. We don't
+  // enqueue a message for a candidate whose stub insert failed —
+  // there'd be no proposal row for the consumer to update.
+  const { inserted, errors: insertErrors } = await insertProposalStubs(
+    supabase,
+    trulyNew,
+    triggeredBy,
+    now
+  );
+  for (const e of insertErrors) summary.errors.push(e);
 
-      let image_key: string | null = null;
-      if (wtt.headshot_url) {
-        const stored = await downloadAndStoreHeadshot(
-          wtt.headshot_url,
-          slugForPlayer(merged) || fallbackSlug(wtt),
-          bucket,
-          wtt.ittfid,
-          fetchImpl
-        );
-        if (stored) image_key = stored.image_key;
-      }
+  if (inserted.length === 0) return summary;
 
-      const complete = isComplete(merged) && image_key !== null;
-
-      if (complete && image_key) {
-        const inserted = await insertPlayerRow(supabase, merged, image_key);
-        if (inserted.error) {
-          summary.errors.push({
-            ittfid: wtt.ittfid,
-            message: inserted.error,
-          });
-          continue;
-        }
-
-        const { error: auditError } = await supabase
-          .from("player_proposals")
-          .insert({
-            ittfid: wtt.ittfid,
-            merged: merged as unknown as Record<string, unknown>,
-            candidates: { wtt, ittf },
-            status: "auto_applied",
-            applied_player_id: inserted.id,
-          });
-        if (auditError) {
-          summary.errors.push({
-            ittfid: wtt.ittfid,
-            message: `audit insert: ${auditError.message}`,
-          });
-        }
-        summary.auto_applied += 1;
-        continue;
-      }
-
-      const { error: queueError } = await supabase
-        .from("player_proposals")
-        .insert({
-          ittfid: wtt.ittfid,
-          merged: merged as unknown as Record<string, unknown>,
-          candidates: { wtt, ittf },
-          status: "pending_review",
-        });
-      if (queueError) {
-        summary.errors.push({
-          ittfid: wtt.ittfid,
-          message: queueError.message,
-        });
-        continue;
-      }
-      summary.queued += 1;
-    } catch (err) {
-      summary.errors.push({
-        ittfid: wtt.ittfid,
-        message: err instanceof Error ? err.message : String(err),
-      });
-    }
+  const messages = inserted.map(({ id, wtt }) => ({
+    body: buildQueueMessage(id, wtt, triggeredBy),
+  }));
+  try {
+    await queue.sendBatch(messages);
+    summary.queued_for_processing = messages.length;
+  } catch (err) {
+    summary.errors.push({
+      ittfid: 0,
+      message: `queue sendBatch (${messages.length} messages): ${err instanceof Error ? err.message : String(err)}`,
+    });
   }
 
   return summary;

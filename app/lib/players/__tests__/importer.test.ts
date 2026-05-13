@@ -1,21 +1,37 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// Producer-side tests for runImport (TT-204).
+//
+// Producer no longer processes candidates inline — it dedupes against
+// existing players + proposals, optionally backfills legacy seed-row
+// ittfids via a single RPC, inserts one `pending_review` proposal
+// stub per truly-new ittfid, and `sendBatch`-es queue messages onto
+// `player-import-queue`. The consumer (processOnePlayerImport, tested
+// separately) does ITTF enrich / R2 upload / completeness gate.
+//
+// What's covered here:
+//   - happy-path enqueue with the right summary shape
+//   - dedupe paths: ittfid match, existing proposal, ambiguous name
+//   - bulk ittfid backfill RPC (success + failure rollback)
+//   - sendBatch failure surfaces a summary error without spuriously
+//     dropping skipped_existing
+//   - re-running while a proposal exists is a no-op (zero messages
+//     enqueued)
+//
+// What's NOT covered here (lives in queue.server.test.ts):
+//   - auto_apply / queued_for_review terminal outcomes
+//   - ITTF fetch / R2 upload / merge / slug-collision retry
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { runImport } from "../importer.server";
-import {
-  __resetIttfRateLimitForTests,
-  ittfProfileUrl,
-} from "../ittf-profile.server";
+import { runImport, type PlayerImportQueueProducer } from "../importer.server";
+import { __resetIttfRateLimitForTests } from "../ittf-profile.server";
 import { __resetRosterCacheForTests } from "../roster.server";
 import type { R2PutBucket } from "../photo.server";
+import type { PlayerImportMessage } from "../queue.server";
 
 beforeEach(() => {
   __resetRosterCacheForTests();
   __resetIttfRateLimitForTests();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
 });
 
 interface FakeDb {
@@ -24,9 +40,6 @@ interface FakeDb {
     name: string;
     slug: string;
     ittfid: number | null;
-    playing_style?: string | null;
-    birth_year?: number | null;
-    highest_rating?: string | null;
   }>;
   proposals: Array<{
     id: string;
@@ -34,11 +47,9 @@ interface FakeDb {
     status: string;
     merged: Record<string, unknown>;
     candidates: Record<string, unknown>;
-    applied_player_id: string | null;
+    run_log: unknown[];
   }>;
-  playerInsertFail?: { times: number; code?: string; message?: string };
-  // TT-203: if set, the backfill RPC returns this error message on
-  // every call (one-shot test for the batched-backfill failure path).
+  proposalInsertFail?: { ittfid: number; message: string };
   backfillRpcFail?: string;
   backfillRpcCalls?: Array<{
     pairs: Array<{ player_id: string; ittfid: number }>;
@@ -46,19 +57,12 @@ interface FakeDb {
 }
 
 function makeSupabase(db: FakeDb): SupabaseClient {
-  let nextPlayerId = 1;
   let nextProposalId = 1;
-  let failureBudget = db.playerInsertFail?.times ?? 0;
-  const failureCode = db.playerInsertFail?.code ?? "23505";
-  const failureMessage = db.playerInsertFail?.message ?? "duplicate slug";
 
   return {
     from(table: string): any {
       if (table === "players") {
         return {
-          // TT-202: importer reads all players (including null ittfid)
-          // so the name-fallback dedupe can match seed rows that pre-
-          // date the ittfid column.
           select(_cols: string) {
             return Promise.resolve({
               data: db.players.map(p => ({
@@ -68,56 +72,6 @@ function makeSupabase(db: FakeDb): SupabaseClient {
               })),
               error: null,
             });
-          },
-          insert(row: {
-            name: string;
-            slug: string;
-            ittfid: number;
-            represents: string | null;
-            gender: string | null;
-            handedness: string | null;
-            grip: string | null;
-            playing_style?: string | null;
-            birth_year?: number | null;
-            highest_rating?: string | null;
-            image_key: string;
-          }) {
-            const failNow = failureBudget > 0;
-            return {
-              select(_cols: string) {
-                return {
-                  single() {
-                    if (failNow) {
-                      failureBudget -= 1;
-                      return Promise.resolve({
-                        data: null,
-                        error: { code: failureCode, message: failureMessage },
-                      });
-                    }
-                    if (db.players.some(p => p.slug === row.slug)) {
-                      return Promise.resolve({
-                        data: null,
-                        error: { code: "23505", message: "slug exists" },
-                      });
-                    }
-                    const inserted = {
-                      id: `player-${nextPlayerId++}`,
-                      name: row.name,
-                      slug: row.slug,
-                      ittfid: row.ittfid,
-                      playing_style: row.playing_style ?? null,
-                      birth_year: row.birth_year ?? null,
-                      highest_rating: row.highest_rating ?? null,
-                    };
-                    db.players.push(inserted);
-                    return Promise.resolve({
-                      data: { id: inserted.id, slug: inserted.slug },
-                      error: null,
-                    });
-                  },
-                };
-              },
-            };
           },
         };
       }
@@ -135,17 +89,42 @@ function makeSupabase(db: FakeDb): SupabaseClient {
             merged: Record<string, unknown>;
             candidates: Record<string, unknown>;
             status: string;
-            applied_player_id?: string | null;
+            run_log: unknown[];
           }) {
-            db.proposals.push({
-              id: `proposal-${nextProposalId++}`,
-              ittfid: row.ittfid,
-              status: row.status,
-              merged: row.merged,
-              candidates: row.candidates,
-              applied_player_id: row.applied_player_id ?? null,
-            });
-            return Promise.resolve({ data: null, error: null });
+            const shouldFail =
+              db.proposalInsertFail?.ittfid === row.ittfid
+                ? db.proposalInsertFail
+                : null;
+            const responseFn = () => {
+              if (shouldFail) {
+                return Promise.resolve({
+                  data: null,
+                  error: { message: shouldFail.message },
+                });
+              }
+              const inserted = {
+                id: `proposal-${nextProposalId++}`,
+                ittfid: row.ittfid,
+                status: row.status,
+                merged: row.merged,
+                candidates: row.candidates,
+                run_log: row.run_log,
+              };
+              db.proposals.push(inserted);
+              return Promise.resolve({
+                data: { id: inserted.id },
+                error: null,
+              });
+            };
+            return {
+              select(_cols: string) {
+                return {
+                  single() {
+                    return responseFn();
+                  },
+                };
+              },
+            };
           },
         };
       }
@@ -157,7 +136,7 @@ function makeSupabase(db: FakeDb): SupabaseClient {
         const pairs = (args?.p_pairs ?? []) as Array<{
           player_id: string;
           ittfid: number;
-        }> as Array<{ player_id: string; ittfid: number }>;
+        }>;
         if (db.backfillRpcCalls) db.backfillRpcCalls.push({ pairs });
         if (db.backfillRpcFail) {
           return Promise.resolve({
@@ -165,43 +144,43 @@ function makeSupabase(db: FakeDb): SupabaseClient {
             error: { message: db.backfillRpcFail },
           });
         }
-        let updated = 0;
         for (const pair of pairs) {
           const row = db.players.find(p => p.id === pair.player_id);
-          if (row && row.ittfid === null) {
-            row.ittfid = pair.ittfid;
-            updated += 1;
-          }
+          if (row && row.ittfid === null) row.ittfid = pair.ittfid;
         }
-        return Promise.resolve({ data: updated, error: null });
+        return Promise.resolve({ data: pairs.length, error: null });
       }
       throw new Error(`unexpected rpc: ${name}`);
     },
   } as unknown as SupabaseClient;
 }
 
-function makeBucket(): R2PutBucket & { puts: Array<{ key: string }> } {
-  const puts: Array<{ key: string }> = [];
+function makeBucket(): R2PutBucket {
   return {
-    puts,
-    async put(key) {
-      puts.push({ key });
+    async put() {
+      // Producer never touches R2 — only the consumer does. Any call
+      // here is a regression.
+      throw new Error("producer should not write to R2");
     },
   };
 }
 
-const COMPLETE_ITTF_HTML = `
-<td>
-  Birth Year: <span class='notranslate'>1995</span><br/>
-  Style: <span class='notranslate'>Right-Hand</span> <span class='notranslate'>Attack</span> (<span class='notranslate'>ShakeHand</span>)<br/>
-</td>
-`;
+interface CapturedQueue extends PlayerImportQueueProducer {
+  batches: Array<Array<{ body: PlayerImportMessage }>>;
+  sendBatchError?: string;
+}
 
-const UNKNOWN_ITTF_HTML = `
-<td>
-  Style: <span class='notranslate'>Unknown Handness</span> <span class='notranslate'>Unknown Style</span> (<span class='notranslate'>Unknown Grip</span>)<br/>
-</td>
-`;
+function makeQueue(opts: { sendBatchError?: string } = {}): CapturedQueue {
+  const batches: Array<Array<{ body: PlayerImportMessage }>> = [];
+  return {
+    batches,
+    sendBatchError: opts.sendBatchError,
+    async sendBatch(messages) {
+      if (opts.sendBatchError) throw new Error(opts.sendBatchError);
+      batches.push(messages as Array<{ body: PlayerImportMessage }>);
+    },
+  };
+}
 
 interface RosterEntry {
   ittfid: number;
@@ -214,50 +193,25 @@ interface RosterEntry {
   headShot: string;
 }
 
-interface FetchScenario {
-  roster: RosterEntry[];
-  ittf?: Record<number, { html: string; status?: number }>;
-  photos?: Record<string, { status: number; bytes?: Uint8Array }>;
-}
-
-function makeFetch(scenario: FetchScenario): typeof fetch {
+function makeFetch(roster: RosterEntry[]): typeof fetch {
   return vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
     const url = typeof input === "string" ? input : input.toString();
-
     if (url.includes("GetPlayersListByFilters")) {
-      return new Response(JSON.stringify(scenario.roster), {
+      return new Response(JSON.stringify(roster), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
-
-    if (url.startsWith("https://results.ittf.link/")) {
-      const match = url.match(/vw_profiles___player_id_raw=(\d+)/);
-      const id = match ? Number(match[1]) : -1;
-      const profile = scenario.ittf?.[id];
-      if (!profile) {
-        return new Response("not found", { status: 404 });
-      }
-      return new Response(profile.html, { status: profile.status ?? 200 });
-    }
-
-    const photo = scenario.photos?.[url];
-    if (photo) {
-      return new Response(photo.bytes ?? null, {
-        status: photo.status,
-        headers: { "content-type": "image/jpeg" },
-      });
-    }
-
     return new Response("unmatched fetch", { status: 500 });
   }) as unknown as typeof fetch;
 }
 
-describe("runImport", () => {
-  it("auto-applies a complete candidate (handedness + grip + birth year + photo)", async () => {
+describe("runImport (producer)", () => {
+  it("enqueues one message per truly-new ittfid and inserts proposal stubs", async () => {
     const db: FakeDb = { players: [], proposals: [] };
     const supabase = makeSupabase(db);
     const bucket = makeBucket();
+    const queue = makeQueue();
 
     const roster: RosterEntry[] = [
       {
@@ -270,44 +224,6 @@ describe("runImport", () => {
         ranking: "1",
         headShot: "https://wtt.example/lin.jpg",
       },
-    ];
-
-    const summary = await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 132473: { html: COMPLETE_ITTF_HTML } },
-          photos: {
-            "https://wtt.example/lin.jpg": {
-              status: 200,
-              bytes: new Uint8Array([0xff, 0xd8, 0xff]),
-            },
-          },
-        }),
-      },
-    });
-
-    expect(summary.auto_applied).toBe(1);
-    expect(summary.queued).toBe(0);
-    expect(db.players).toHaveLength(1);
-    expect(db.players[0]).toMatchObject({
-      name: "Lin Shidong",
-      slug: "lin-shidong",
-      ittfid: 132473,
-    });
-    expect(db.proposals).toHaveLength(1);
-    expect(db.proposals[0].status).toBe("auto_applied");
-    expect(db.proposals[0].applied_player_id).toBe(db.players[0].id);
-    expect(bucket.puts).toHaveLength(1);
-    expect(bucket.puts[0].key).toBe("player/lin-shidong/headshot.jpg");
-  });
-
-  it("queues a candidate when ITTF returns Unknown handedness/grip", async () => {
-    const db: FakeDb = { players: [], proposals: [] };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = [
       {
         ittfid: 100200,
         fullName: "JANE Doe",
@@ -320,64 +236,38 @@ describe("runImport", () => {
       },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 100200: { html: UNKNOWN_ITTF_HTML } },
-          photos: {
-            "https://wtt.example/doe.jpg": {
-              status: 200,
-              bytes: new Uint8Array([0xff, 0xd8]),
-            },
-          },
-        }),
-      },
+    const summary = await runImport(supabase, bucket, queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(1);
-    expect(db.players).toHaveLength(0);
-    expect(db.proposals).toHaveLength(1);
-    expect(db.proposals[0].status).toBe("pending_review");
+    expect(summary.queued_for_processing).toBe(2);
+    expect(summary.skipped_existing).toBe(0);
+    expect(summary.errors).toHaveLength(0);
+
+    // Two proposal stubs inserted, status=pending_review, run_log
+    // seeded with a roster_match entry per stub.
+    expect(db.proposals).toHaveLength(2);
+    for (const p of db.proposals) {
+      expect(p.status).toBe("pending_review");
+      expect(p.run_log).toHaveLength(1);
+      expect((p.run_log[0] as { step: string }).step).toBe("roster_match");
+    }
+
+    // sendBatch called once with both messages.
+    expect(queue.batches).toHaveLength(1);
+    expect(queue.batches[0]).toHaveLength(2);
+    const ittfids = queue.batches[0].map(m => m.body.ittfid).sort();
+    expect(ittfids).toEqual([100200, 132473]);
+    // Each message carries the proposal_id so the consumer can update
+    // by primary key without re-resolving by ittfid.
+    for (const msg of queue.batches[0]) {
+      expect(msg.body.proposal_id).toBeTruthy();
+      expect(msg.body.name).toBeTruthy();
+      expect(msg.body.wtt_profile_url).toContain("worldtabletennis");
+    }
   });
 
-  it("queues a candidate when the headshot URL 404s", async () => {
-    const db: FakeDb = { players: [], proposals: [] };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 200300,
-        fullName: "Sam SMITH",
-        nationality: "GBR",
-        countryName: "Great Britain",
-        gender: "M",
-        age: 25,
-        ranking: "100",
-        headShot: "https://wtt.example/smith.jpg",
-      },
-    ];
-
-    const summary = await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 200300: { html: COMPLETE_ITTF_HTML } },
-          photos: {
-            "https://wtt.example/smith.jpg": { status: 404 },
-          },
-        }),
-      },
-    });
-
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(1);
-    expect(bucket.puts).toHaveLength(0);
-  });
-
-  it("skips candidates already in players (matched by ittfid)", async () => {
+  it("skips candidates already linked to a player by ittfid", async () => {
     const db: FakeDb = {
       players: [
         { id: "p-1", name: "Lin Shidong", slug: "lin-shidong", ittfid: 132473 },
@@ -385,7 +275,7 @@ describe("runImport", () => {
       proposals: [],
     };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue();
 
     const roster: RosterEntry[] = [
       {
@@ -396,22 +286,21 @@ describe("runImport", () => {
         gender: "M",
         age: 21,
         ranking: "1",
-        headShot: "https://wtt.example/lin.jpg",
+        headShot: "",
       },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(0);
+    expect(summary.queued_for_processing).toBe(0);
     expect(summary.skipped_existing).toBe(1);
-    expect(db.players).toHaveLength(1);
-    expect(bucket.puts).toHaveLength(0);
+    expect(queue.batches).toHaveLength(0);
+    expect(db.proposals).toHaveLength(0);
   });
 
-  it("skips candidates that already have a proposal in any status", async () => {
+  it("skips candidates that already have any proposal", async () => {
     const db: FakeDb = {
       players: [],
       proposals: [
@@ -421,12 +310,12 @@ describe("runImport", () => {
           status: "rejected",
           merged: {},
           candidates: {},
-          applied_player_id: null,
+          run_log: [],
         },
       ],
     };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue();
 
     const roster: RosterEntry[] = [
       {
@@ -441,257 +330,26 @@ describe("runImport", () => {
       },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(0);
+    expect(summary.queued_for_processing).toBe(0);
     expect(summary.skipped_existing).toBe(1);
-  });
-
-  it("respects maxPerRun and surfaces remaining count", async () => {
-    const db: FakeDb = { players: [], proposals: [] };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = Array.from({ length: 5 }, (_, i) => ({
-      ittfid: 1000 + i,
-      fullName: `Player ${i}`,
-      nationality: "FRA",
-      countryName: "France",
-      gender: "M",
-      age: 25,
-      ranking: String(i + 1),
-      headShot: "",
-    }));
-
-    const summary = await runImport(supabase, bucket, {
-      maxPerRun: 2,
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: Object.fromEntries(
-            roster.map(r => [r.ittfid, { html: UNKNOWN_ITTF_HTML }])
-          ),
-        }),
-      },
-    });
-
-    expect(summary.queued).toBe(2);
-    expect(summary.remaining).toBe(3);
-  });
-
-  it("retries with ittfid-suffixed slug on slug collision", async () => {
-    const db: FakeDb = {
-      players: [
-        { id: "p-old", name: "Wang Hao", slug: "wang-hao", ittfid: 99 },
-      ],
-      proposals: [],
-    };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 132473,
-        fullName: "WANG Hao",
-        nationality: "CHN",
-        countryName: "China",
-        gender: "M",
-        age: 30,
-        ranking: "10",
-        headShot: "https://wtt.example/wang.jpg",
-      },
-    ];
-
-    const summary = await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 132473: { html: COMPLETE_ITTF_HTML } },
-          photos: {
-            "https://wtt.example/wang.jpg": {
-              status: 200,
-              bytes: new Uint8Array([0xff]),
-            },
-          },
-        }),
-      },
-    });
-
-    expect(summary.auto_applied).toBe(1);
-    expect(summary.errors).toHaveLength(0);
-    const inserted = db.players.find(p => p.ittfid === 132473);
-    expect(inserted?.slug).toBe("wang-hao-132473");
-  });
-
-  it("captures per-candidate errors without aborting the run", async () => {
-    const db: FakeDb = { players: [], proposals: [] };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 1,
-        fullName: "OK Player",
-        nationality: "FRA",
-        countryName: "France",
-        gender: "M",
-        age: 25,
-        ranking: "1",
-        headShot: "https://wtt.example/ok.jpg",
-      },
-      {
-        ittfid: 2,
-        fullName: "BROKEN Player",
-        nationality: "FRA",
-        countryName: "France",
-        gender: "M",
-        age: 25,
-        ranking: "2",
-        headShot: "https://wtt.example/broken.jpg",
-      },
-    ];
-
-    const summary = await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: {
-            1: { html: COMPLETE_ITTF_HTML },
-            // 2 is missing → 404 → throws
-          },
-          photos: {
-            "https://wtt.example/ok.jpg": {
-              status: 200,
-              bytes: new Uint8Array([0xff]),
-            },
-          },
-        }),
-      },
-    });
-
-    expect(summary.auto_applied).toBe(1);
-    expect(summary.errors).toHaveLength(1);
-    expect(summary.errors[0].ittfid).toBe(2);
-  });
-
-  it("backfills ittfid on a legacy seed row when names match (TT-202)", async () => {
-    // Mirrors the prod regression: seed row "Alexis LEBRUN" with NULL
-    // ittfid + WTT roster entry "LEBRUN Alexis" (surname-flipped, ALL-
-    // CAPS). The old importer treated this as a new player; the fixed
-    // version backfills ittfid on the seed row instead.
-    const db: FakeDb = {
-      players: [
-        {
-          id: "p-seed",
-          name: "Alexis LEBRUN",
-          slug: "alexis-lebrun",
-          ittfid: null,
-        },
-      ],
-      proposals: [],
-    };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 132992,
-        fullName: "LEBRUN Alexis",
-        nationality: "FRA",
-        countryName: "France",
-        gender: "M",
-        age: 22,
-        ranking: "11",
-        headShot: "https://wtt.example/lebrun.jpg",
-      },
-    ];
-
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
-    });
-
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(0);
-    expect(summary.skipped_existing).toBe(1);
-    expect(summary.errors).toHaveLength(0);
-    // Only the seed row remains, now linked.
-    expect(db.players).toHaveLength(1);
-    expect(db.players[0]).toMatchObject({
-      id: "p-seed",
-      slug: "alexis-lebrun",
-      ittfid: 132992,
-    });
-    // No upstream fetches for ITTF or the photo — name-match short-
-    // circuits before the per-candidate enrichment pass.
-    expect(bucket.puts).toHaveLength(0);
-  });
-
-  it("re-running after a name backfill is a no-op (ittfid match short-circuits)", async () => {
-    const db: FakeDb = {
-      players: [
-        {
-          id: "p-seed",
-          name: "Alexis LEBRUN",
-          slug: "alexis-lebrun",
-          ittfid: null,
-        },
-      ],
-      proposals: [],
-    };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 132992,
-        fullName: "LEBRUN Alexis",
-        nationality: "FRA",
-        countryName: "France",
-        gender: "M",
-        age: 22,
-        ranking: "11",
-        headShot: "",
-      },
-    ];
-
-    await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
-    });
-    // Reset the roster cache so the second run re-fetches the roster
-    // (mimics a fresh Worker isolate).
-    __resetRosterCacheForTests();
-
-    const second = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
-    });
-    expect(second.skipped_existing).toBe(1);
-    expect(second.auto_applied).toBe(0);
-    expect(second.queued).toBe(0);
-    expect(db.players).toHaveLength(1);
+    expect(queue.batches).toHaveLength(0);
   });
 
   it("flags ambiguity when two unlinked seed rows share the normalised name", async () => {
     const db: FakeDb = {
       players: [
-        {
-          id: "p-1",
-          name: "Wang Hao",
-          slug: "wang-hao",
-          ittfid: null,
-        },
-        {
-          id: "p-2",
-          name: "WANG Hao",
-          slug: "wang-hao-second",
-          ittfid: null,
-        },
+        { id: "p-1", name: "Wang Hao", slug: "wang-hao", ittfid: null },
+        { id: "p-2", name: "WANG Hao", slug: "wang-hao-second", ittfid: null },
       ],
       proposals: [],
     };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue();
+
     const roster: RosterEntry[] = [
       {
         ittfid: 999,
@@ -705,31 +363,30 @@ describe("runImport", () => {
       },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
     expect(summary.errors).toHaveLength(1);
-    expect(summary.errors[0].ittfid).toBe(999);
     expect(summary.errors[0].message).toMatch(/ambiguous/i);
-    expect(summary.auto_applied).toBe(0);
-    expect(summary.queued).toBe(0);
+    expect(summary.queued_for_processing).toBe(0);
+    expect(queue.batches).toHaveLength(0);
     // Neither seed row was modified.
     expect(db.players.every(p => p.ittfid === null)).toBe(true);
   });
 
-  it("batches all ittfid backfills into one RPC call (TT-203)", async () => {
+  it("backfills legacy seed-row ittfids via one RPC call (TT-203)", async () => {
     const db: FakeDb = {
       players: [
         { id: "p-1", name: "Wang Chuqin", slug: "wang-chuqin", ittfid: null },
         { id: "p-2", name: "Sun Yingsha", slug: "sun-yingsha", ittfid: null },
-        { id: "p-3", name: "Felix Lebrun", slug: "felix-lebrun", ittfid: null },
       ],
       proposals: [],
       backfillRpcCalls: [],
     };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue();
+
     const roster: RosterEntry[] = [
       {
         ittfid: 121558,
@@ -751,44 +408,33 @@ describe("runImport", () => {
         ranking: "1",
         headShot: "",
       },
-      {
-        ittfid: 135977,
-        fullName: "Felix LEBRUN",
-        nationality: "FRA",
-        countryName: "France",
-        gender: "M",
-        age: 19,
-        ranking: "7",
-        headShot: "",
-      },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(summary.skipped_existing).toBe(3);
+    expect(summary.skipped_existing).toBe(2);
+    expect(summary.queued_for_processing).toBe(0);
     expect(summary.errors).toHaveLength(0);
-    // One RPC call carrying all three pairs — not three separate calls.
     expect(db.backfillRpcCalls).toHaveLength(1);
-    expect(db.backfillRpcCalls?.[0].pairs).toHaveLength(3);
-    // And the rows landed.
+    expect(db.backfillRpcCalls?.[0].pairs).toHaveLength(2);
     expect(db.players.find(p => p.id === "p-1")?.ittfid).toBe(121558);
     expect(db.players.find(p => p.id === "p-2")?.ittfid).toBe(131163);
-    expect(db.players.find(p => p.id === "p-3")?.ittfid).toBe(135977);
+    // Nothing enqueued — those candidates are now linked, not new.
+    expect(queue.batches).toHaveLength(0);
   });
 
-  it("rolls back skipped_existing + in-memory index when the backfill RPC fails (TT-203)", async () => {
+  it("rolls back skipped_existing when the backfill RPC fails", async () => {
     const db: FakeDb = {
       players: [
         { id: "p-1", name: "Wang Chuqin", slug: "wang-chuqin", ittfid: null },
-        { id: "p-2", name: "Sun Yingsha", slug: "sun-yingsha", ittfid: null },
       ],
       proposals: [],
       backfillRpcFail: "Too many subrequests by single Worker invocation",
     };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue();
     const roster: RosterEntry[] = [
       {
         ittfid: 121558,
@@ -800,76 +446,22 @@ describe("runImport", () => {
         ranking: "2",
         headShot: "",
       },
-      {
-        ittfid: 131163,
-        fullName: "SUN Yingsha",
-        nationality: "CHN",
-        countryName: "China",
-        gender: "F",
-        age: 25,
-        ranking: "1",
-        headShot: "",
-      },
     ];
 
-    const summary = await runImport(supabase, bucket, {
-      deps: { fetchImpl: makeFetch({ roster }) },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    // skipped_existing decremented for the failed batch — next run retries.
     expect(summary.skipped_existing).toBe(0);
-    // Single summary error rather than one per pair.
     expect(summary.errors).toHaveLength(1);
-    expect(summary.errors[0].message).toMatch(/bulk ittfid backfill.*2 pairs/i);
-    // Rows still unlinked.
-    expect(db.players.every(p => p.ittfid === null)).toBe(true);
+    expect(summary.errors[0].message).toMatch(/bulk ittfid backfill.*1 pairs/i);
+    expect(queue.batches).toHaveLength(0);
   });
 
-  it("captures WTT ranking → highest_rating and ITTF style+grip → playing_style", async () => {
+  it("surfaces a single summary error when sendBatch throws (no spurious queued_for_processing)", async () => {
     const db: FakeDb = { players: [], proposals: [] };
     const supabase = makeSupabase(db);
-    const bucket = makeBucket();
-    const roster: RosterEntry[] = [
-      {
-        ittfid: 132473,
-        fullName: "LIN Shidong",
-        nationality: "CHN",
-        countryName: "China",
-        gender: "M",
-        age: 21,
-        ranking: "1",
-        headShot: "https://wtt.example/lin.jpg",
-      },
-    ];
-
-    await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 132473: { html: COMPLETE_ITTF_HTML } },
-          photos: {
-            "https://wtt.example/lin.jpg": {
-              status: 200,
-              bytes: new Uint8Array([0xff, 0xd8, 0xff]),
-            },
-          },
-        }),
-      },
-    });
-
-    expect(db.players).toHaveLength(1);
-    expect(db.players[0]).toMatchObject({
-      slug: "lin-shidong",
-      highest_rating: "WR1",
-      playing_style: "shakehand_attacker",
-      birth_year: 1995,
-    });
-  });
-
-  it("encodes ITTF profile URL in the merged.ittf_profile_url field", async () => {
-    const db: FakeDb = { players: [], proposals: [] };
-    const supabase = makeSupabase(db);
-    const bucket = makeBucket();
+    const queue = makeQueue({ sendBatchError: "Queue is full" });
 
     const roster: RosterEntry[] = [
       {
@@ -884,17 +476,98 @@ describe("runImport", () => {
       },
     ];
 
-    await runImport(supabase, bucket, {
-      deps: {
-        fetchImpl: makeFetch({
-          roster,
-          ittf: { 132473: { html: UNKNOWN_ITTF_HTML } },
-        }),
-      },
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
     });
 
-    expect(db.proposals[0].merged.ittf_profile_url).toBe(
-      ittfProfileUrl(132473)
-    );
+    expect(summary.queued_for_processing).toBe(0);
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0].message).toMatch(/sendBatch/i);
+    // Proposal stub was already inserted before the sendBatch — that's
+    // intentional, the consumer can still pick the row up if the queue
+    // recovers + a future re-run re-attempts the same ittfid. (The
+    // dedupe pass blocks re-enqueue while the stub exists.)
+    expect(db.proposals).toHaveLength(1);
+  });
+
+  it("re-running while proposals exist is a no-op", async () => {
+    // First run: enqueues. Second run (same roster, proposals now
+    // exist): dedupe skips them, no new messages.
+    const db: FakeDb = { players: [], proposals: [] };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 132473,
+        fullName: "LIN Shidong",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 21,
+        ranking: "1",
+        headShot: "",
+      },
+    ];
+
+    await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+    __resetRosterCacheForTests();
+
+    const second = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+
+    expect(second.queued_for_processing).toBe(0);
+    expect(second.skipped_existing).toBe(1);
+    expect(queue.batches).toHaveLength(1); // Only the first run.
+  });
+
+  it("skips enqueuing for a candidate whose stub insert failed", async () => {
+    // Two candidates; the first proposal-insert fails. The producer
+    // surfaces the error but still enqueues the second candidate.
+    const db: FakeDb = {
+      players: [],
+      proposals: [],
+      proposalInsertFail: {
+        ittfid: 132473,
+        message: "unique constraint violation",
+      },
+    };
+    const supabase = makeSupabase(db);
+    const queue = makeQueue();
+    const roster: RosterEntry[] = [
+      {
+        ittfid: 132473,
+        fullName: "LIN Shidong",
+        nationality: "CHN",
+        countryName: "China",
+        gender: "M",
+        age: 21,
+        ranking: "1",
+        headShot: "",
+      },
+      {
+        ittfid: 100200,
+        fullName: "JANE Doe",
+        nationality: "USA",
+        countryName: "United States",
+        gender: "F",
+        age: 30,
+        ranking: "50",
+        headShot: "",
+      },
+    ];
+
+    const summary = await runImport(supabase, makeBucket(), queue, {
+      deps: { fetchImpl: makeFetch(roster) },
+    });
+
+    expect(summary.queued_for_processing).toBe(1);
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0].ittfid).toBe(132473);
+    expect(queue.batches).toHaveLength(1);
+    expect(queue.batches[0]).toHaveLength(1);
+    expect(queue.batches[0][0].body.ittfid).toBe(100200);
   });
 });

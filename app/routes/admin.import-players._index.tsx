@@ -7,11 +7,14 @@
 // (Detail view still exists as admin.import-players.$id.tsx — this
 // route is the run trigger + inline queue.)
 //
-// Run import action: walks the WTT roster, enriches via ITTF, and
-// either auto-applies (complete data) or queues for review (incomplete).
-// Inline queue shows pending proposals with Review (→ detail) + Reject
-// shortcut buttons. Auto-applied + applied rows are listed under
-// "Recent imports" as a confirmation breadcrumb.
+// Run import action (TT-204): walks the WTT roster, dedupes against
+// existing players + open proposals (cheap, inline), and enqueues one
+// `player-import-queue` message per truly-new ittfid. The queue
+// consumer (app/lib/players/queue.server.ts) drains each in its own
+// Worker invocation, enriches via ITTF, downloads the headshot, and
+// either auto-applies or leaves the proposal in pending_review. The
+// "Pending in queue" tile counts proposals whose last run_log entry
+// is still `roster_match` (enqueued, not yet picked up).
 
 import type { Route } from "./+types/admin.import-players._index";
 import { data, Form, Link, useNavigation } from "react-router";
@@ -61,7 +64,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, supabaseAdmin, csrfToken } = gate;
 
-  const [pendingRes, recentRes] = await Promise.all([
+  // TT-204 "Pending in queue" count: proposals whose last run_log
+  // entry is still the producer's `roster_match` seed (the consumer
+  // hasn't appended ittf_fetch yet). Uses the JSONB path `run_log->-1
+  // ->>'step'` so the read is one PostgREST round-trip.
+  const [pendingRes, recentRes, queuedRes] = await Promise.all([
     supabaseAdmin
       .from("player_proposals")
       .select("id, ittfid, created_at, merged")
@@ -76,7 +83,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       .in("status", ["applied", "auto_applied"])
       .order("created_at", { ascending: false })
       .limit(20),
+    supabaseAdmin
+      .from("player_proposals")
+      .select("ittfid", { count: "exact", head: true })
+      .eq("status", "pending_review")
+      .filter("run_log->-1->>step", "eq", "roster_match"),
   ]);
+  const queuedInPipeline = queuedRes.count ?? 0;
 
   if (pendingRes.error) {
     Logger.error(
@@ -129,6 +142,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     {
       pending: (pendingRes.data ?? []) as PendingProposalRow[],
       recent,
+      queuedInPipeline,
       csrfToken,
     },
     { headers: sbServerClient.headers }
@@ -157,13 +171,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = formData.get("intent");
 
   if (intent === "run-import") {
-    const bucket = (
-      context.cloudflare.env as unknown as {
-        IMAGE_BUCKET: import("~/lib/players/photo.server").R2PutBucket;
-      }
-    ).IMAGE_BUCKET;
+    const env = context.cloudflare.env as unknown as {
+      IMAGE_BUCKET: import("~/lib/players/photo.server").R2PutBucket;
+      PLAYER_IMPORT_QUEUE: import("~/lib/players/importer.server").PlayerImportQueueProducer;
+    };
     try {
-      const summary = await runImport(supabaseAdmin, bucket);
+      const summary = await runImport(
+        supabaseAdmin,
+        env.IMAGE_BUCKET,
+        env.PLAYER_IMPORT_QUEUE
+      );
       return data<ActionResult>(
         { kind: "run", summary },
         { headers: sbServerClient.headers }
@@ -179,10 +196,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         {
           kind: "run",
           summary: {
-            auto_applied: 0,
-            queued: 0,
             skipped_existing: 0,
-            remaining: 0,
+            queued_for_processing: 0,
             errors: [],
           },
           error: message,
@@ -243,7 +258,7 @@ export default function AdminImportPlayersIndex({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { pending, recent, csrfToken } = loaderData;
+  const { pending, recent, queuedInPipeline, csrfToken } = loaderData;
   const navigation = useNavigation();
   const isRunning =
     navigation.state === "submitting" &&
@@ -287,6 +302,31 @@ export default function AdminImportPlayersIndex({
           </button>
         </Form>
 
+        <dl
+          className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm"
+          data-testid="import-players-queue-stats"
+        >
+          <SummaryStat
+            label="Pending in queue"
+            value={queuedInPipeline}
+            testId="import-players-queue-pending"
+          />
+          {runSummary ? (
+            <>
+              <SummaryStat
+                label="Queued this run"
+                value={runSummary.queued_for_processing}
+                testId="import-players-queued-for-processing"
+              />
+              <SummaryStat
+                label="Skipped (already known)"
+                value={runSummary.skipped_existing}
+                testId="import-players-skipped-existing"
+              />
+            </>
+          ) : null}
+        </dl>
+
         {runError ? (
           <div
             className="mt-4 bg-red-50 border border-red-200 text-red-700 rounded-md p-3 text-sm"
@@ -297,30 +337,14 @@ export default function AdminImportPlayersIndex({
           </div>
         ) : null}
 
-        {runSummary && !runError ? (
-          <dl
-            className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm"
-            data-testid="import-players-run-summary"
+        {runSummary && !runError && runSummary.errors.length > 0 ? (
+          <div
+            className="mt-4 text-xs text-red-700"
+            data-testid="import-players-run-errors"
           >
-            <SummaryStat label="Auto-applied" value={runSummary.auto_applied} />
-            <SummaryStat label="Queued" value={runSummary.queued} />
-            <SummaryStat
-              label="Skipped (already known)"
-              value={runSummary.skipped_existing}
-            />
-            <SummaryStat
-              label="Remaining (next run)"
-              value={runSummary.remaining}
-            />
-            {runSummary.errors.length > 0 ? (
-              <div className="col-span-full text-xs text-red-700">
-                Errors:{" "}
-                {runSummary.errors
-                  .map(e => `${e.ittfid}: ${e.message}`)
-                  .join("; ")}
-              </div>
-            ) : null}
-          </dl>
+            Errors:{" "}
+            {runSummary.errors.map(e => `${e.ittfid}: ${e.message}`).join("; ")}
+          </div>
         ) : null}
       </section>
 
@@ -470,11 +494,22 @@ export default function AdminImportPlayersIndex({
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: number }) {
+function SummaryStat({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: number;
+  testId?: string;
+}) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="text-2xl font-semibold text-gray-900 tabular-nums">
+      <dd
+        className="text-2xl font-semibold text-gray-900 tabular-nums"
+        data-testid={testId}
+      >
         {value}
       </dd>
     </div>

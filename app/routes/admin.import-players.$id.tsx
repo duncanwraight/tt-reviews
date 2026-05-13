@@ -18,12 +18,14 @@ import {
   rejectPlayerProposal,
 } from "~/lib/admin/player-proposal-applier.server";
 import type { R2PutBucket } from "~/lib/players/photo.server";
+import type { RunLogEntry } from "~/lib/players/run-log";
 import type {
   IttfProfileCandidate,
   MergedPlayer,
   WttRosterCandidate,
 } from "~/lib/players/types";
 import { Logger, createLogContext } from "~/lib/logger.server";
+import { PlayerImportRunLog } from "~/components/admin/PlayerImportRunLog";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -46,6 +48,7 @@ interface ProposalDetail {
     wtt?: WttRosterCandidate;
     ittf?: IttfProfileCandidate;
   };
+  run_log: RunLogEntry[];
 }
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
@@ -55,7 +58,7 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 
   const { data: proposal, error } = await supabaseAdmin
     .from("player_proposals")
-    .select("id, ittfid, status, created_at, merged, candidates")
+    .select("id, ittfid, status, created_at, merged, candidates, run_log")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -63,9 +66,18 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
+  // run_log defaults to '[]'::jsonb in the migration; the cast keeps
+  // older rows (pre-TT-204) safe — they come back with run_log=[].
+  const detail: ProposalDetail = {
+    ...(proposal as ProposalDetail),
+    run_log: Array.isArray((proposal as ProposalDetail).run_log)
+      ? (proposal as ProposalDetail).run_log
+      : [],
+  };
+
   return data(
     {
-      proposal: proposal as ProposalDetail,
+      proposal: detail,
       csrfToken,
     },
     { headers: sbServerClient.headers }
@@ -274,6 +286,10 @@ export default function AdminImportPlayerDetail({
           </div>
         ) : null}
       </section>
+
+      <div className="mb-6">
+        <PlayerImportRunLog entries={proposal.run_log} />
+      </div>
 
       <section
         className="bg-white rounded-lg shadow p-6 mb-6 text-xs"

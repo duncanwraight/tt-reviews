@@ -67,6 +67,25 @@ max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "spec-source-dlq"
 
+# TT-204 — player importer queue. Same producer+consumer Worker
+# pattern as the photo + spec queues. ITTF rate-limits at 1 req/sec
+# (the inner fetchIttfProfile politeness loop) so we keep
+# max_concurrency=1 to avoid two isolates colliding on the shared
+# wait clock. max_batch_size=1 keeps retry semantics simple: each
+# ittfid is its own Worker invocation and gets its own 50-subrequest
+# budget.
+[[queues.producers]]
+queue = "player-import-queue"
+binding = "PLAYER_IMPORT_QUEUE"
+
+[[queues.consumers]]
+queue = "player-import-queue"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 1
+max_retries = 5
+dead_letter_queue = "player-import-dlq"
+
 # Rate limiting bindings — SECURITY.md Phase 8 (TT-17). The in-memory
 # Map in security.server.ts cannot share state across Worker isolates,
 # so without these bindings a 5-per-minute cap is enforced only
@@ -164,6 +183,18 @@ max_batch_timeout = 5
 max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "spec-source-dlq-dev"
+
+[[env.dev.queues.producers]]
+queue = "player-import-queue-dev"
+binding = "PLAYER_IMPORT_QUEUE"
+
+[[env.dev.queues.consumers]]
+queue = "player-import-queue-dev"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 1
+max_retries = 5
+dead_letter_queue = "player-import-dlq-dev"
 
 [[env.dev.ratelimits]]
 name = "FORM_RATE_LIMITER"

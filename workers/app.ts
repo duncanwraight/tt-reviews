@@ -18,11 +18,19 @@ import {
 } from "../app/lib/spec-sourcing/queue.server";
 import { buildSpecSourcingFromEnv } from "../app/lib/spec-sourcing/factory";
 import type { SpecSourceMessage } from "../app/lib/spec-sourcing/types";
+import {
+  processOnePlayerImport,
+  computeRetryDelaySeconds as computePlayerRetryDelaySeconds,
+  type PlayerImportMessage,
+} from "../app/lib/players/queue.server";
 
 // Union of every queue-message shape the Worker consumes. The
 // queue() handler switches on batch.queue to dispatch to the right
 // processor.
-type WorkerQueueMessage = PhotoSourceMessage | SpecSourceMessage;
+type WorkerQueueMessage =
+  | PhotoSourceMessage
+  | SpecSourceMessage
+  | PlayerImportMessage;
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -203,10 +211,11 @@ export default {
     ctx.waitUntil(job);
   },
 
-  // Queue consumer. Two queues land here:
+  // Queue consumer. Three queues land here:
   //   * equipment-photo-source — TT-91 photo sourcing pipeline.
   //   * spec-source-queue      — TT-149 spec sourcing pipeline.
-  // Both keep max_batch_size=1 for simple retry semantics; the
+  //   * player-import-queue    — TT-204 player importer pipeline.
+  // All three keep max_batch_size=1 for simple retry semantics; the
   // `attempts` counter on each message body drives our app-level
   // exponential backoff (distinct from Cloudflare's max_retries which
   // resets on every ack and is reserved for thrown errors).
@@ -351,6 +360,64 @@ export default {
         }
 
         Logger.info("queue.spec.message.processed", ctxLog, { outcome });
+        msg.ack();
+      }
+      return;
+    }
+
+    if (
+      batch.queue === "player-import-queue" ||
+      batch.queue === "player-import-queue-dev"
+    ) {
+      const queueEnv = env as unknown as {
+        IMAGE_BUCKET: R2Bucket;
+        PLAYER_IMPORT_QUEUE: Queue<PlayerImportMessage>;
+      };
+
+      for (const msg of batch.messages) {
+        const body = msg.body as PlayerImportMessage;
+        const ctxLog = createLogContext("queue", {
+          queue: batch.queue,
+          ittfid: body.ittfid,
+          proposalId: body.proposal_id,
+          attempts: body.attempts ?? 0,
+        });
+
+        const outcome = await processOnePlayerImport(
+          supabase,
+          queueEnv.IMAGE_BUCKET,
+          body
+        );
+
+        if (outcome.status === "transient") {
+          const attempts = (body.attempts ?? 0) + 1;
+          const delaySeconds = computePlayerRetryDelaySeconds(attempts);
+          Logger.info("queue.player-import.transient.requeue", ctxLog, {
+            reason: outcome.reason,
+            delaySeconds,
+            attempts,
+          });
+          await queueEnv.PLAYER_IMPORT_QUEUE.send(
+            { ...body, attempts },
+            { delaySeconds }
+          );
+          msg.ack();
+          continue;
+        }
+
+        if (outcome.status === "error") {
+          Logger.error(
+            "queue.player-import.message.error",
+            ctxLog,
+            new Error(outcome.message)
+          );
+          msg.retry();
+          continue;
+        }
+
+        Logger.info("queue.player-import.message.processed", ctxLog, {
+          outcome,
+        });
         msg.ack();
       }
       return;
