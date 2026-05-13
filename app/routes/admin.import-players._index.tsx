@@ -41,22 +41,42 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-interface PendingProposalRow {
+// TT-207: the page now drives off lifecycle status derived from
+// (proposal.status, last run_log step), not just proposal.status.
+// "Enqueued" / "Processing" / "Needs review" all share status=
+// 'pending_review' on the row — what separates them is whether the
+// consumer has appended any log entries past `roster_match` and
+// whether it terminated.
+type LifecycleStatus =
+  | "enqueued" // producer inserted stub; consumer hasn't run
+  | "processing" // consumer started but didn't terminate yet
+  | "needs_review" // consumer terminated, incomplete data
+  | "auto_applied"
+  | "applied"
+  | "rejected"
+  | "no_results";
+
+interface NeedsReviewRow {
   id: string;
   ittfid: number;
   created_at: string;
   merged: MergedPlayer;
+  // Fields the merge entry flagged missing — drives the inline
+  // "needs: handedness, grip" hint so the moderator can see what
+  // they're being asked to fill in before clicking through.
+  missing_fields: string[];
 }
 
-interface RecentImportRow {
+interface ActivityRow {
   id: string;
   ittfid: number;
   created_at: string;
-  status: "applied" | "auto_applied";
-  applied_player_id: string | null;
+  lifecycle: LifecycleStatus;
+  merged: MergedPlayer;
+  // Set when the proposal materialised a players row (auto_applied
+  // or applied). The activity feed links straight to the live page.
   applied_slug: string | null;
   applied_name: string | null;
-  merged: MergedPlayer;
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -64,25 +84,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (gate instanceof Response) return gate;
   const { sbServerClient, supabaseAdmin, csrfToken } = gate;
 
-  // TT-204 "Pending in queue" count: proposals whose last run_log
-  // entry is still the producer's `roster_match` seed (the consumer
-  // hasn't appended ittf_fetch yet). Uses the JSONB path `run_log->-1
-  // ->>'step'` so the read is one PostgREST round-trip.
-  const [pendingRes, recentRes, queuedRes] = await Promise.all([
-    supabaseAdmin
-      .from("player_proposals")
-      .select("id, ittfid, created_at, merged")
-      .eq("status", "pending_review")
-      .order("created_at", { ascending: true })
-      .limit(50),
+  // TT-207: pull a single ordered slice of proposals + classify each
+  // by lifecycle (status + last run_log step). Splits in-memory into
+  // "needs review" (actionable) vs. "activity log" (everything).
+  // One PostgREST read for all rows on the page + one head-only
+  // count for the queue tile.
+  const ACTIVITY_LIMIT = 50;
+  const [proposalsRes, queuedRes] = await Promise.all([
     supabaseAdmin
       .from("player_proposals")
       .select(
-        "id, ittfid, created_at, status, applied_player_id, merged, applied_player:applied_player_id(slug, name)"
+        "id, ittfid, created_at, status, applied_player_id, merged, run_log, applied_player:applied_player_id(slug, name)"
       )
-      .in("status", ["applied", "auto_applied"])
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(ACTIVITY_LIMIT),
     supabaseAdmin
       .from("player_proposals")
       .select("ittfid", { count: "exact", head: true })
@@ -91,62 +106,103 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   ]);
   const queuedInPipeline = queuedRes.count ?? 0;
 
-  if (pendingRes.error) {
+  if (proposalsRes.error) {
     Logger.error(
-      "import-players.pending.failed",
+      "import-players.proposals.failed",
       createLogContext("admin-import-players"),
-      new Error(pendingRes.error.message)
-    );
-  }
-  if (recentRes.error) {
-    Logger.error(
-      "import-players.recent.failed",
-      createLogContext("admin-import-players"),
-      new Error(recentRes.error.message)
+      new Error(proposalsRes.error.message)
     );
   }
 
   // PostgREST's typed output models nested FK embeds as arrays even
   // when the relationship is many-to-one, so unwrap via `unknown` and
   // accept either shape at runtime.
-  type RecentRaw = {
+  type ProposalRaw = {
     id: string;
     ittfid: number;
     created_at: string;
-    status: "applied" | "auto_applied";
+    status: string;
     applied_player_id: string | null;
     merged: MergedPlayer;
+    run_log: Array<{
+      step: string;
+      status?: string;
+      missing_fields?: string[];
+    }>;
     applied_player:
       | { slug: string; name: string }
       | Array<{ slug: string; name: string }>
       | null;
   };
-  const rawRecent = (recentRes.data ?? []) as unknown as RecentRaw[];
-  const recent: RecentImportRow[] = rawRecent.map(r => {
+
+  const raw = (proposalsRes.data ?? []) as unknown as ProposalRaw[];
+
+  const activity: ActivityRow[] = [];
+  const needsReview: NeedsReviewRow[] = [];
+
+  for (const r of raw) {
     const player = Array.isArray(r.applied_player)
       ? (r.applied_player[0] ?? null)
       : r.applied_player;
-    return {
+    const lifecycle = classifyLifecycle(r.status, r.run_log ?? []);
+    activity.push({
       id: r.id,
       ittfid: r.ittfid,
       created_at: r.created_at,
-      status: r.status,
-      applied_player_id: r.applied_player_id,
+      lifecycle,
+      merged: r.merged,
       applied_slug: player?.slug ?? null,
       applied_name: player?.name ?? null,
-      merged: r.merged,
-    };
-  });
+    });
+    if (lifecycle === "needs_review") {
+      // Pull missing-field hints from the merge entry so the row
+      // tells the moderator at a glance what's incomplete.
+      const merge = (r.run_log ?? []).find(e => e.step === "merge");
+      const missing = Array.isArray(merge?.missing_fields)
+        ? (merge!.missing_fields as string[])
+        : [];
+      needsReview.push({
+        id: r.id,
+        ittfid: r.ittfid,
+        created_at: r.created_at,
+        merged: r.merged,
+        missing_fields: missing,
+      });
+    }
+  }
 
   return data(
     {
-      pending: (pendingRes.data ?? []) as PendingProposalRow[],
-      recent,
+      needsReview,
+      activity,
       queuedInPipeline,
       csrfToken,
     },
     { headers: sbServerClient.headers }
   );
+}
+
+// In-memory lifecycle classifier — mirrors LifecycleStatus.
+// pending_review splits three ways depending on consumer progress;
+// terminal statuses pass through unchanged.
+function classifyLifecycle(
+  status: string,
+  runLog: Array<{ step: string; status?: string }>
+): LifecycleStatus {
+  if (status === "auto_applied") return "auto_applied";
+  if (status === "applied") return "applied";
+  if (status === "rejected") return "rejected";
+  if (status === "no_results") return "no_results";
+  // pending_review fan-out
+  const last = runLog[runLog.length - 1];
+  if (!last || last.step === "roster_match") return "enqueued";
+  if (last.step === "terminal") {
+    if (last.status === "queued_for_review") return "needs_review";
+    // terminal + retry / error: still pending until consumer succeeds
+    return "processing";
+  }
+  // mid-pipeline (ittf_fetch / photo_fetch / r2_upload / merge)
+  return "processing";
 }
 
 interface RunResult {
@@ -258,7 +314,7 @@ export default function AdminImportPlayersIndex({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { pending, recent, queuedInPipeline, csrfToken } = loaderData;
+  const { needsReview, activity, queuedInPipeline, csrfToken } = loaderData;
   const navigation = useNavigation();
   const isRunning =
     navigation.state === "submitting" &&
@@ -355,20 +411,22 @@ export default function AdminImportPlayersIndex({
         ) : null}
       </section>
 
-      <section className="mb-10" data-testid="import-players-pending">
+      <section className="mb-10" data-testid="import-players-needs-review">
         <header className="mb-3 flex items-baseline justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
-            Pending review ({pending.length})
+            Needs your review ({needsReview.length})
           </h2>
-          <p className="text-xs text-gray-500">Oldest first.</p>
+          <p className="text-xs text-gray-500">
+            Importer finished but data was incomplete.
+          </p>
         </header>
-        {pending.length === 0 ? (
+        {needsReview.length === 0 ? (
           <div
             className="bg-white rounded-lg shadow p-6 text-center text-gray-500"
-            data-testid="import-players-pending-empty"
+            data-testid="import-players-needs-review-empty"
           >
             <Inbox className="size-6 mx-auto mb-2 text-gray-400" aria-hidden />
-            <p className="text-sm">No pending proposals.</p>
+            <p className="text-sm">Nothing waiting on you.</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -379,7 +437,7 @@ export default function AdminImportPlayersIndex({
                     Player
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
+                    Missing
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Queued
@@ -390,19 +448,24 @@ export default function AdminImportPlayersIndex({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {pending.map(p => (
+                {needsReview.map(p => (
                   <tr
                     key={p.id}
-                    data-testid={`import-players-pending-row-${p.id}`}
+                    data-testid={`import-players-needs-review-row-${p.id}`}
                   >
                     <td className="px-4 py-3 text-sm text-gray-900">
                       <div className="font-medium">{p.merged.name}</div>
                       <div className="text-xs text-gray-500">
                         ittfid {p.ittfid}
+                        {describeMerged(p.merged)
+                          ? ` · ${describeMerged(p.merged)}`
+                          : ""}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {describeMerged(p.merged) || "—"}
+                    <td className="px-4 py-3 text-sm text-amber-700">
+                      {p.missing_fields.length > 0
+                        ? p.missing_fields.join(", ")
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {formatRelativeTime(p.created_at)}
@@ -442,55 +505,56 @@ export default function AdminImportPlayersIndex({
         )}
       </section>
 
-      <section data-testid="import-players-recent">
+      <section data-testid="import-players-activity">
         <header className="mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Recent imports
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Activity log</h2>
           <p className="text-xs text-gray-500">
-            Last 20 auto-applied or admin-approved.
+            Latest 50 proposals across every status. Click a row for the
+            importer run log.
           </p>
         </header>
-        {recent.length === 0 ? (
+        {activity.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-            <p className="text-sm">No imports yet.</p>
+            <p className="text-sm">No proposals yet.</p>
           </div>
         ) : (
           <ul className="bg-white rounded-lg shadow divide-y divide-gray-200">
-            {recent.map(r => (
+            {activity.map(r => (
               <li
                 key={r.id}
-                className="px-4 py-3 flex items-baseline justify-between text-sm"
-                data-testid={`import-players-recent-row-${r.id}`}
+                className="px-4 py-3 flex items-baseline justify-between gap-3 text-sm"
+                data-testid={`import-players-activity-row-${r.id}`}
               >
-                <div>
-                  {r.applied_slug ? (
-                    <Link
-                      to={`/players/${r.applied_slug}`}
-                      className="font-medium text-purple-700 hover:underline"
-                    >
-                      {r.applied_name ?? r.merged.name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-gray-900">
-                      {r.merged.name}
-                    </span>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <Link
+                    to={`/admin/import-players/${r.id}`}
+                    className="font-medium text-gray-900 hover:text-purple-700"
+                  >
+                    {r.merged.name}
+                  </Link>
                   <span className="ml-2 text-xs text-gray-500">
                     ittfid {r.ittfid}
                   </span>
+                  {r.applied_slug ? (
+                    <>
+                      {" · "}
+                      <Link
+                        to={`/players/${r.applied_slug}`}
+                        className="text-xs text-purple-700 hover:underline"
+                      >
+                        view player
+                      </Link>
+                    </>
+                  ) : null}
                 </div>
-                <div className="text-xs text-gray-500">
-                  <span
-                    className={
-                      r.status === "auto_applied"
-                        ? "text-green-700 mr-2"
-                        : "text-blue-700 mr-2"
-                    }
-                  >
-                    {r.status === "auto_applied" ? "auto" : "approved"}
+                <div className="flex items-baseline gap-3 shrink-0">
+                  <LifecyclePill
+                    status={r.lifecycle}
+                    testId={`import-players-activity-pill-${r.id}`}
+                  />
+                  <span className="text-xs text-gray-500 tabular-nums">
+                    {formatRelativeTime(r.created_at)}
                   </span>
-                  {formatRelativeTime(r.created_at)}
                 </div>
               </li>
             ))}
@@ -500,6 +564,48 @@ export default function AdminImportPlayersIndex({
     </div>
   );
 }
+
+// Per-lifecycle visual pill. Colors mirror the run-log component's
+// status tones (ok → green, warn → amber, fail → red, neutral → gray)
+// so the page reads consistently.
+function LifecyclePill({
+  status,
+  testId,
+}: {
+  status: LifecycleStatus;
+  testId?: string;
+}) {
+  const { label, tone } = LIFECYCLE_DISPLAY[status];
+  const cls =
+    tone === "ok"
+      ? "bg-green-100 text-green-800"
+      : tone === "warn"
+        ? "bg-amber-100 text-amber-800"
+        : tone === "fail"
+          ? "bg-red-100 text-red-800"
+          : "bg-gray-100 text-gray-700";
+  return (
+    <span
+      className={`inline-block text-[10px] uppercase tracking-wider font-semibold rounded px-1.5 py-0.5 ${cls}`}
+      data-testid={testId}
+    >
+      {label}
+    </span>
+  );
+}
+
+const LIFECYCLE_DISPLAY: Record<
+  LifecycleStatus,
+  { label: string; tone: "ok" | "warn" | "fail" | "neutral" }
+> = {
+  enqueued: { label: "Enqueued", tone: "neutral" },
+  processing: { label: "Processing", tone: "neutral" },
+  needs_review: { label: "Needs review", tone: "warn" },
+  auto_applied: { label: "Auto-applied", tone: "ok" },
+  applied: { label: "Approved", tone: "ok" },
+  rejected: { label: "Rejected", tone: "fail" },
+  no_results: { label: "No results", tone: "warn" },
+};
 
 function SummaryStat({
   label,

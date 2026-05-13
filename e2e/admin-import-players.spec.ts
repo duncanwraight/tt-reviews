@@ -32,6 +32,10 @@ const PROBE_REJECT_INLINE = 999702;
 const PROBE_QUEUE_TILE_A = 999710;
 const PROBE_QUEUE_TILE_B = 999711;
 const PROBE_QUEUE_TILE_C = 999712;
+// TT-207: lifecycle classifier coverage. One proposal per terminal
+// status feeds the activity-log pill assertions + the detail-page
+// banner assertion.
+const PROBE_LIFECYCLE_AUTO = 999720;
 
 const ALL_PROBES = [
   PROBE_APPROVE,
@@ -40,6 +44,7 @@ const ALL_PROBES = [
   PROBE_QUEUE_TILE_A,
   PROBE_QUEUE_TILE_B,
   PROBE_QUEUE_TILE_C,
+  PROBE_LIFECYCLE_AUTO,
 ];
 
 async function clearProbes(ittfids: number[]): Promise<void> {
@@ -65,19 +70,48 @@ async function seedPendingProposal(args: {
   // seed entry, mimicking "enqueued but not yet processed by the
   // consumer". The "Pending in queue" tile counts these.
   rosterMatchOnly?: boolean;
+  // TT-207: when set, also append a terminal=queued_for_review entry
+  // so the lifecycle classifier (in admin.import-players._index.tsx)
+  // labels the row "Needs review" and the detail page shows the
+  // Approve/Reject form. Default for existing tests that exercise
+  // the review/reject flow.
+  lifecycle?: "enqueued" | "needs_review";
 }): Promise<string> {
-  const runLog = args.rosterMatchOnly
-    ? [
-        {
-          at: new Date().toISOString(),
-          step: "roster_match",
-          outcome: "truly_new",
-          ittfid: args.ittfid,
-          wtt_name: args.name,
-          triggered_by: "admin",
-        },
-      ]
-    : [];
+  // rosterMatchOnly is the TT-204 shape (last entry = roster_match,
+  // counted by the "Pending in queue" tile). Otherwise default to
+  // the TT-207 needs_review shape so the review form renders on
+  // the detail page.
+  const effectiveLifecycle: "enqueued" | "needs_review" = args.rosterMatchOnly
+    ? "enqueued"
+    : (args.lifecycle ?? "needs_review");
+  const seed: Array<Record<string, unknown>> = [
+    {
+      at: new Date().toISOString(),
+      step: "roster_match",
+      outcome: "truly_new",
+      ittfid: args.ittfid,
+      wtt_name: args.name,
+      triggered_by: "admin",
+    },
+  ];
+  if (effectiveLifecycle === "needs_review") {
+    seed.push({
+      at: new Date().toISOString(),
+      step: "merge",
+      ittfid: args.ittfid,
+      field_count: 5,
+      complete: false,
+      missing_fields: ["handedness", "grip", "birth_year"],
+    });
+    seed.push({
+      at: new Date().toISOString(),
+      step: "terminal",
+      ittfid: args.ittfid,
+      status: "queued_for_review",
+      reason: "missing: handedness, grip, birth_year",
+    });
+  }
+  const runLog = seed;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/player_proposals`, {
     method: "POST",
     headers: { ...adminHeaders(), Prefer: "return=representation" },
@@ -188,9 +222,9 @@ test.describe.serial("Admin import-players review lifecycle", () => {
     await login(page, adminEmail);
     await page.goto("/admin/import-players");
 
-    // The queued row appears in the pending section.
+    // The needs-review row appears in the actionable section.
     await expect(
-      page.getByTestId(`import-players-pending-row-${proposalId}`)
+      page.getByTestId(`import-players-needs-review-row-${proposalId}`)
     ).toBeVisible();
 
     // Drill into the detail view.
@@ -325,18 +359,105 @@ test.describe.serial("Admin import-players review lifecycle", () => {
     await page.goto("/admin/import-players");
 
     await expect(
-      page.getByTestId(`import-players-pending-row-${proposalId}`)
+      page.getByTestId(`import-players-needs-review-row-${proposalId}`)
     ).toBeVisible();
     await page.getByTestId(`import-players-reject-${proposalId}`).click();
 
     // Action completes — the row drops out of the pending list.
     await expect(
-      page.getByTestId(`import-players-pending-row-${proposalId}`)
+      page.getByTestId(`import-players-needs-review-row-${proposalId}`)
     ).toHaveCount(0);
 
     const proposalAfter = await fetchProposal(proposalId);
     expect(proposalAfter.status).toBe("rejected");
 
     expect(await countPlayersByIttfid(PROBE_REJECT_INLINE)).toBe(0);
+  });
+
+  test("auto_applied proposal renders the success banner with a view-player link (TT-207)", async ({
+    page,
+  }) => {
+    const adminEmail = generateTestEmail("impplayers-life");
+    const { userId: adminId } = await createUser(adminEmail);
+    await setUserRole(adminId, "admin");
+
+    // Materialise a players row + an auto_applied proposal that
+    // points at it. The detail page should show the green banner +
+    // a "view player" link to /players/<slug>; the index page's
+    // activity log should show the Auto-applied pill.
+    const slug = `probe-lifecycle-${PROBE_LIFECYCLE_AUTO}`;
+    const playerRes = await fetch(`${SUPABASE_URL}/rest/v1/players`, {
+      method: "POST",
+      headers: { ...adminHeaders(), Prefer: "return=representation" },
+      body: JSON.stringify({
+        name: "Probe Lifecycle Auto",
+        slug,
+        ittfid: PROBE_LIFECYCLE_AUTO,
+        active: true,
+      }),
+    });
+    if (!playerRes.ok) {
+      throw new Error(
+        `seed player failed (${playerRes.status}): ${await playerRes.text()}`
+      );
+    }
+    const [player] = (await playerRes.json()) as Array<{ id: string }>;
+
+    const proposalRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/player_proposals`,
+      {
+        method: "POST",
+        headers: { ...adminHeaders(), Prefer: "return=representation" },
+        body: JSON.stringify({
+          ittfid: PROBE_LIFECYCLE_AUTO,
+          merged: {
+            ittfid: PROBE_LIFECYCLE_AUTO,
+            name: "Probe Lifecycle Auto",
+            wtt_profile_url: `https://www.worldtabletennis.com/playerDescription?playerId=${PROBE_LIFECYCLE_AUTO}`,
+          },
+          candidates: { wtt: {} },
+          status: "auto_applied",
+          applied_player_id: player.id,
+          run_log: [
+            {
+              at: new Date().toISOString(),
+              step: "terminal",
+              ittfid: PROBE_LIFECYCLE_AUTO,
+              status: "auto_applied",
+              player_id: player.id,
+              player_slug: slug,
+            },
+          ],
+        }),
+      }
+    );
+    if (!proposalRes.ok) {
+      throw new Error(
+        `seed proposal failed (${proposalRes.status}): ${await proposalRes.text()}`
+      );
+    }
+    const [proposal] = (await proposalRes.json()) as Array<{ id: string }>;
+
+    await login(page, adminEmail);
+    await page.goto("/admin/import-players");
+
+    // The activity log shows the row with an "Auto-applied" pill.
+    const pill = page.getByTestId(
+      `import-players-activity-pill-${proposal.id}`
+    );
+    await expect(pill).toBeVisible();
+    await expect(pill).toContainText(/auto-applied/i);
+
+    // Detail page shows the success banner + view-player link.
+    await page.goto(`/admin/import-players/${proposal.id}`);
+    await expect(
+      page.getByTestId("import-player-banner-applied")
+    ).toBeVisible();
+    const viewLink = page.getByTestId("import-player-banner-view");
+    await expect(viewLink).toBeVisible();
+    await expect(viewLink).toHaveAttribute("href", `/players/${slug}`);
+
+    // No review form should render for an already-terminal proposal.
+    await expect(page.getByTestId("import-player-review-form")).toHaveCount(0);
   });
 });

@@ -49,6 +49,10 @@ interface ProposalDetail {
     ittf?: IttfProfileCandidate;
   };
   run_log: RunLogEntry[];
+  // TT-207: when applied / auto_applied, the linked players row's
+  // slug + name drive the "view player" CTA on the page banner.
+  applied_slug: string | null;
+  applied_name: string | null;
 }
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
@@ -58,7 +62,9 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 
   const { data: proposal, error } = await supabaseAdmin
     .from("player_proposals")
-    .select("id, ittfid, status, created_at, merged, candidates, run_log")
+    .select(
+      "id, ittfid, status, created_at, merged, candidates, run_log, applied_player:applied_player_id(slug, name)"
+    )
     .eq("id", params.id)
     .maybeSingle();
 
@@ -66,13 +72,35 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  // run_log defaults to '[]'::jsonb in the migration; the cast keeps
-  // older rows (pre-TT-204) safe — they come back with run_log=[].
+  // PostgREST embeds resolve as either { ... } or [{...}] depending
+  // on the typed schema; unwrap via `unknown`.
+  const raw = proposal as unknown as {
+    id: string;
+    ittfid: number;
+    status: string;
+    created_at: string;
+    merged: MergedPlayer;
+    candidates: ProposalDetail["candidates"];
+    run_log: RunLogEntry[] | null;
+    applied_player:
+      | { slug: string; name: string }
+      | Array<{ slug: string; name: string }>
+      | null;
+  };
+  const player = Array.isArray(raw.applied_player)
+    ? (raw.applied_player[0] ?? null)
+    : raw.applied_player;
+
   const detail: ProposalDetail = {
-    ...(proposal as ProposalDetail),
-    run_log: Array.isArray((proposal as ProposalDetail).run_log)
-      ? (proposal as ProposalDetail).run_log
-      : [],
+    id: raw.id,
+    ittfid: raw.ittfid,
+    status: raw.status,
+    created_at: raw.created_at,
+    merged: raw.merged,
+    candidates: raw.candidates,
+    run_log: Array.isArray(raw.run_log) ? raw.run_log : [],
+    applied_slug: player?.slug ?? null,
+    applied_name: player?.name ?? null,
   };
 
   return data(
@@ -314,34 +342,173 @@ export default function AdminImportPlayerDetail({
         </div>
       </section>
 
-      <Form method="post" className="flex items-center gap-3">
-        <input type="hidden" name="_csrf" value={csrfToken} />
-        <button
-          type="submit"
-          name="intent"
-          value="approve"
-          disabled={proposal.status !== "pending_review"}
-          className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed"
-          data-testid="import-player-approve"
-        >
-          Approve
-        </button>
-        <button
-          type="submit"
-          name="intent"
-          value="reject"
-          disabled={proposal.status !== "pending_review"}
-          className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          data-testid="import-player-reject"
-        >
-          Reject
-        </button>
-        {proposal.status !== "pending_review" ? (
-          <span className="text-xs text-gray-500">
-            Already {proposal.status.replace("_", " ")}.
-          </span>
-        ) : null}
-      </Form>
+      <TerminalOrReviewActions proposal={proposal} csrfToken={csrfToken} />
     </div>
+  );
+}
+
+// TT-207: replace the always-rendered Approve/Reject form with a
+// status-aware banner. Only pending_review proposals that the
+// consumer terminated as queued_for_review should still show the
+// review form. Everything else gets a banner explaining what
+// happened + (where relevant) a link to the live player page.
+function TerminalOrReviewActions({
+  proposal,
+  csrfToken,
+}: {
+  proposal: {
+    id: string;
+    status: string;
+    run_log: RunLogEntry[];
+    applied_slug: string | null;
+    applied_name: string | null;
+  };
+  csrfToken: string;
+}) {
+  // Mirror admin.import-players._index.tsx's classifier — terminal
+  // statuses pass through, pending_review fans out by last run_log
+  // step.
+  const last = proposal.run_log[proposal.run_log.length - 1];
+
+  if (proposal.status === "auto_applied" || proposal.status === "applied") {
+    const label =
+      proposal.status === "auto_applied" ? "Auto-applied" : "Approved";
+    return (
+      <section
+        className="bg-green-50 border border-green-200 rounded-md p-4 flex items-baseline justify-between gap-3"
+        data-testid="import-player-banner-applied"
+      >
+        <div>
+          <p className="text-sm font-semibold text-green-900">
+            ✓ {label} — this player is live
+          </p>
+          <p className="text-xs text-green-800 mt-1">
+            No further action needed. The proposal stays here as an audit trail.
+          </p>
+        </div>
+        {proposal.applied_slug ? (
+          <Link
+            to={`/players/${proposal.applied_slug}`}
+            className="inline-flex items-center shrink-0 px-3 py-1.5 bg-green-700 text-white text-xs font-medium rounded-md hover:bg-green-800"
+            data-testid="import-player-banner-view"
+          >
+            View player →
+          </Link>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (proposal.status === "rejected") {
+    return (
+      <section
+        className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-700"
+        data-testid="import-player-banner-rejected"
+      >
+        <p className="font-semibold">Rejected</p>
+        <p className="text-xs mt-1 text-gray-600">
+          No player row was materialised. The proposal stays here as an audit
+          trail.
+        </p>
+      </section>
+    );
+  }
+
+  // pending_review — distinguish "still working" from "needs you".
+  if (!last || last.step === "roster_match") {
+    return (
+      <section
+        className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-900"
+        data-testid="import-player-banner-enqueued"
+      >
+        <p className="font-semibold">Enqueued — waiting for the importer</p>
+        <p className="text-xs mt-1 text-blue-800">
+          The consumer hasn't picked this message up yet. Refresh in a minute or
+          two; if it's still here later, check Worker logs.
+        </p>
+      </section>
+    );
+  }
+
+  if (last.step !== "terminal") {
+    return (
+      <section
+        className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-900"
+        data-testid="import-player-banner-processing"
+      >
+        <p className="font-semibold">
+          Processing — partway through the pipeline
+        </p>
+        <p className="text-xs mt-1 text-blue-800">
+          The consumer started but didn't reach a terminal verdict. This is
+          rare; refresh shortly.
+        </p>
+      </section>
+    );
+  }
+
+  if (last.status !== "queued_for_review") {
+    // terminal: retry / error — still pending_review on the row but the
+    // last consumer pass didn't terminate cleanly. Show a banner that
+    // makes the failure obvious; reject is still allowed.
+    return (
+      <section
+        className="space-y-3"
+        data-testid="import-player-banner-terminal-failed"
+      >
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-4 text-sm text-amber-900">
+          <p className="font-semibold">
+            Consumer hit a {last.status === "retry" ? "transient" : "hard"}{" "}
+            error
+          </p>
+          <p className="text-xs mt-1 text-amber-800">
+            See the run log above for the cause. The proposal will retry
+            automatically; you can also reject it manually.
+          </p>
+        </div>
+        <Form method="post" className="flex items-center gap-3">
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <button
+            type="submit"
+            name="intent"
+            value="reject"
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50"
+            data-testid="import-player-reject"
+          >
+            Reject
+          </button>
+        </Form>
+      </section>
+    );
+  }
+
+  // The actionable case: terminal=queued_for_review. Show the full
+  // approve/reject form.
+  return (
+    <Form
+      method="post"
+      className="flex items-center gap-3"
+      data-testid="import-player-review-form"
+    >
+      <input type="hidden" name="_csrf" value={csrfToken} />
+      <button
+        type="submit"
+        name="intent"
+        value="approve"
+        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700"
+        data-testid="import-player-approve"
+      >
+        Approve
+      </button>
+      <button
+        type="submit"
+        name="intent"
+        value="reject"
+        className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50"
+        data-testid="import-player-reject"
+      >
+        Reject
+      </button>
+    </Form>
   );
 }
