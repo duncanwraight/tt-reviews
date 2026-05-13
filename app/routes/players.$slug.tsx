@@ -29,18 +29,15 @@ export function meta({ params, data, matches, location }: Route.MetaArgs) {
   const ogTitle = `${player.name} Equipment & Setup`;
   const ogImageUrl = buildOgImageUrl(siteUrl, `/og/players/${player.slug}.png`);
 
-  // Enhanced SEO title pattern based on research
-  const titleSuffix =
-    "Equipment Setup & History | Professional Table Tennis Reviews";
+  const titleSuffix = "Equipment Setup & History | TT Reviews";
   const title = `${player.name} ${titleSuffix}`;
 
-  // Enhanced meta description with current equipment details
   const currentSetup = data?.equipmentSetups?.[0];
   const setupDetails = currentSetup
-    ? "Current professional equipment setup with blade and rubbers."
-    : "Professional equipment setup.";
+    ? "Current setup with blade and rubbers."
+    : "Equipment setup.";
 
-  const description = `Complete equipment history for ${player.name}. ${setupDetails} Historical changes with sources and tournament usage.`;
+  const description = `Equipment history for ${player.name}. ${setupDetails} Historical changes with sources and tournament usage.`;
 
   // Enhanced keywords targeting high-value search terms
   const keywords = [

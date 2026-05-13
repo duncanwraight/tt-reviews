@@ -95,7 +95,7 @@ export function PlayersHeader({
           <p className="text-lg text-gray-600 max-w-3xl">
             {content(
               "players.page.description",
-              "Discover the equipment setups and playing styles of professional table tennis players from around the world. Learn what gear the pros use to dominate at the highest level."
+              "Equipment setups and playing styles for professional table tennis players from around the world."
             )}
           </p>
           {totalPlayers > 0 && (

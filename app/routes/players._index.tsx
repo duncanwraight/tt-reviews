@@ -39,11 +39,9 @@ export function meta({ matches, location }: Route.MetaArgs) {
   );
   const ogImageUrl = buildOgImageUrl(siteUrl, "/og/players.png");
 
-  // Enhanced SEO title pattern based on research
-  const title = `Professional Table Tennis Players Database ${currentYear} | Equipment & Rankings | TT Reviews`;
+  const title = `Table Tennis Player Setups ${currentYear} — Blade, Rubbers & Style | TT Reviews`;
 
-  // Enhanced meta description with player count and value proposition
-  const description = `Explore hundreds of professional table tennis players. Discover equipment setups and playing styles. Updated ${currentYear}.`;
+  const description = `Equipment setups and playing styles for professional table tennis players. Sourced from interviews, tournaments, and the wider community. Updated ${currentYear}.`;
 
   // Enhanced keywords targeting player searches from research
   const keywords = [
@@ -195,13 +193,13 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
                 <h3 className="text-xl font-semibold mb-2">
                   {content(
                     "players.expand_database.title",
-                    "Help Expand Our Player Database"
+                    "Spotted a player we don't have?"
                   )}
                 </h3>
                 <p className="text-purple-100">
                   {content(
                     "players.expand_database.description",
-                    "Create an account or log in to submit a new player and contribute to our growing community."
+                    "Sign in to submit a player you don't see on the site. We review every submission."
                   )}
                 </p>
               </div>
@@ -209,7 +207,7 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
                 href="/login"
                 className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:scale-105 shadow-lg whitespace-nowrap"
               >
-                Get Started
+                Sign in
               </a>
             </div>
           </div>

@@ -1023,9 +1023,9 @@ INSERT INTO site_content (key, content, description, category) VALUES
 ('equipment.submit.success_message', 'Your equipment has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after equipment submission', 'equipment'),
 
 -- Player Database
-('players.page.description', 'Discover the equipment setups and playing styles of professional table tennis players from around the world. Learn what gear the pros use to dominate at the highest level.', 'Main description for players index page', 'players'),
-('players.expand_database.title', 'Help Expand Our Player Database', 'Title for player submission CTA section', 'players'),
-('players.expand_database.description', 'Create an account or log in to submit a new player and contribute to our growing community.', 'Description encouraging player submissions', 'players'),
+('players.page.description', 'Equipment setups and playing styles for professional table tennis players from around the world.', 'Main description for players index page', 'players'),
+('players.expand_database.title', 'Spotted a player we don''t have?', 'Title for player submission CTA section', 'players'),
+('players.expand_database.description', 'Sign in to submit a player you don''t see on the site. We review every submission.', 'Description encouraging player submissions', 'players'),
 ('players.submit.description', 'Help expand our player database by submitting professional table tennis players.', 'Description on player submission form page', 'players'),
 ('players.submit.loading_message', 'Please wait while we submit the player to our database...', 'Loading message during player submission', 'players'),
 ('players.submit.success_message', 'Your player has been successfully submitted and will be reviewed by our team. Thank you for contributing to our database!', 'Success message after player submission', 'players'),
