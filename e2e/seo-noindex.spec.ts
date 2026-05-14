@@ -29,3 +29,44 @@ test("seo: /login renders meta robots noindex,nofollow", async ({ page }) => {
     .getAttribute("content");
   expect(robots).toBe("noindex, nofollow");
 });
+
+// TT-215. Slug-route 404s (`throw redirect("/players", { status: 404 })`)
+// emit an empty body, so the catch-all $.tsx meta robots tag can't run.
+// The Worker entry sets X-Robots-Tag: noindex, follow on every 404
+// response so the slug-404 case is still de-indexable.
+test("seo: /players/<missing> responds with X-Robots-Tag noindex on 404", async ({
+  request,
+}) => {
+  const response = await request.get("/players/this-slug-does-not-exist", {
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(404);
+  const robots = response.headers()["x-robots-tag"];
+  expect(robots).toBe("noindex, follow");
+});
+
+test("seo: /equipment/<missing> responds with X-Robots-Tag noindex on 404", async ({
+  request,
+}) => {
+  const response = await request.get("/equipment/this-slug-does-not-exist", {
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(404);
+  const robots = response.headers()["x-robots-tag"];
+  expect(robots).toBe("noindex, follow");
+});
+
+test("seo: catch-all 404 also carries X-Robots-Tag noindex", async ({
+  request,
+}) => {
+  // The catch-all $.tsx already sets `<meta name="robots" content="noindex">`
+  // in the rendered HTML, but the Worker-layer header is the
+  // defense-in-depth that protects the slug-404 case where no body
+  // renders. Assert it lands on the catch-all path too.
+  const response = await request.get("/totally-made-up-page", {
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(404);
+  const robots = response.headers()["x-robots-tag"];
+  expect(robots).toBe("noindex, follow");
+});

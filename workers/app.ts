@@ -112,6 +112,23 @@ export default {
         });
       }
 
+      // TT-215: slug-route 404s (`throw redirect("/players", { status: 404 })`
+      // from app/routes/players.$slug.tsx + equipment.$slug.tsx) ship an
+      // empty body, so the catch-all $.tsx meta robots tag never runs.
+      // Apply the noindex header at the Worker layer so every 404 — slug
+      // routes, the catch-all, anything future — is opted out of indexing.
+      // `follow` (not `nofollow`) so crawlers still discover outbound
+      // links in any rendered 404 body that does have content.
+      if (response.status === 404) {
+        const headers = new Headers(response.headers);
+        headers.set("X-Robots-Tag", "noindex, follow");
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+
       return response;
     } catch (err) {
       // Top-level safety net: anything that escapes the router is logged
