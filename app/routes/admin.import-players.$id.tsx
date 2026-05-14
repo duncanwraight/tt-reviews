@@ -332,8 +332,10 @@ export default function AdminImportPlayerDetail({
             merged.ittf_profile_url
           )}
           {fieldRow(
-            "Highest rating",
-            merged.highest_rating,
+            "Career-best ranking",
+            merged.peak_world_rank != null && merged.peak_rank_year != null
+              ? `World #${merged.peak_world_rank} (${merged.peak_rank_year})`
+              : undefined,
             "ittf",
             merged.ittf_profile_url
           )}

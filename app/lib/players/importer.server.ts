@@ -72,10 +72,10 @@ export function mergeCandidates(
   ittf: IttfProfileCandidate
 ): MergedPlayer {
   const playing_style = derivePlayingStyle(ittf.grip, ittf.style);
-  // highest_rating is sourced from ITTF "Career Best**:" — that's the
-  // player's peak ranking. wtt.ranking is the *current* rank, which
-  // would mislabel a faded veteran's current WR300 as their "highest"
-  // rating. Leave the field undefined when ITTF doesn't carry it.
+  // Peak rank is sourced from ITTF "Career Best**:" — that's the
+  // player's peak. wtt.ranking is the *current* rank, which would
+  // mislabel a faded veteran's WR300 as their peak; leave undefined
+  // when ITTF doesn't carry it.
   return {
     ittfid: wtt.ittfid,
     name: wtt.name,
@@ -85,9 +85,9 @@ export function mergeCandidates(
     grip: ittf.grip,
     playing_style,
     birth_year: ittf.birth_year,
-    highest_rating: ittf.highest_rating,
     peak_world_rank: ittf.peak_world_rank,
     peak_rank_year: ittf.peak_rank_year,
+    player_kind: "professional",
     headshot_url: wtt.headshot_url,
     wtt_profile_url: wtt.wtt_profile_url,
     ittf_profile_url: ittf.ittf_profile_url,
@@ -99,7 +99,6 @@ export function mergeCandidates(
       grip: "ittf",
       playing_style: "ittf",
       birth_year: "ittf",
-      highest_rating: "ittf",
       peak_world_rank: "ittf",
       peak_rank_year: "ittf",
       headshot_url: "wtt",
@@ -222,15 +221,16 @@ async function bulkBackfillIttfids(
 // to render the proposal row in the admin queue even if the consumer
 // never gets to it (e.g. queue stuck, DLQ).
 function stubMergedFromWtt(wtt: WttRosterCandidate): MergedPlayer {
-  // No highest_rating in the producer stub: WTT only exposes the
-  // player's *current* world ranking, and that's not what the field
-  // represents. The consumer overwrites the stub with the full merged
+  // No peak rank in the producer stub: WTT only exposes the player's
+  // *current* world ranking, and that's not what the peak fields
+  // represent. The consumer overwrites the stub with the full merged
   // record once ITTF "Career Best**:" has been parsed.
   return {
     ittfid: wtt.ittfid,
     name: wtt.name,
     represents: wtt.represents,
     gender: wtt.gender,
+    player_kind: "professional",
     headshot_url: wtt.headshot_url,
     wtt_profile_url: wtt.wtt_profile_url,
     per_field_source: {

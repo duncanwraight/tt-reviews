@@ -59,11 +59,8 @@ export type RunLogEntry =
       grip?: "shakehand" | "penhold";
       style?: "attack" | "defence" | "other";
       birth_year?: number;
-      highest_rating?: string;
-      // TT-219: the numeric peak captured alongside the display
-      // string. Both undefined when the Career Best line didn't
-      // parse; otherwise both set so the admin UI can spot a
-      // legacy text-only entry.
+      // TT-219: typed peak captured from ITTF "Career Best**:".
+      // Both undefined when the line didn't parse.
       peak_world_rank?: number;
       peak_rank_year?: number;
       // Populated on `transient` or `error`.

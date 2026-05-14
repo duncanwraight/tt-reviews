@@ -180,10 +180,6 @@ export function toIttfCandidate(
   ittfid: number,
   profile: IttfProfile
 ): IttfProfileCandidate {
-  const highest_rating =
-    profile.peak_world_rank != null && profile.peak_rank_year != null
-      ? `WR${profile.peak_world_rank} (${profile.peak_rank_year})`
-      : undefined;
   return {
     source: "ittf",
     ittfid,
@@ -191,7 +187,6 @@ export function toIttfCandidate(
     style: profile.style ?? undefined,
     grip: profile.grip ?? undefined,
     birth_year: profile.birth_year ?? undefined,
-    highest_rating,
     peak_world_rank: profile.peak_world_rank ?? undefined,
     peak_rank_year: profile.peak_rank_year ?? undefined,
     ittf_profile_url: ittfProfileUrl(ittfid),

@@ -40,15 +40,9 @@ export interface IttfProfileCandidate {
   style?: IttfStyle;
   grip?: "shakehand" | "penhold";
   birth_year?: number;
-  // Career-best world ranking formatted "WR<n> (<year>)", parsed from
-  // the ITTF profile's "Career Best**:" line. The "year" is the year
-  // of the ISO week the peak was achieved. Undefined when the line
-  // is absent or fails the sanity bounds in parseIttfProfile.
-  highest_rating?: string;
-  // TT-219: the same peak captured as typed numerics for sortability.
-  // `highest_rating` stays as the display string; these feed the new
-  // players.peak_world_rank / peak_rank_year columns. Both undefined
-  // when highest_rating is undefined (they share a parse pass).
+  // Career-best world ranking parsed from the ITTF profile's "Career
+  // Best**:" line. Both undefined when the line is absent or fails the
+  // sanity bounds in parseIttfProfile (they share a parse pass).
   peak_world_rank?: number;
   peak_rank_year?: number;
   ittf_profile_url: string;
@@ -66,9 +60,12 @@ export interface MergedPlayer {
   grip?: "shakehand" | "penhold";
   playing_style?: PlayingStyle;
   birth_year?: number;
-  highest_rating?: string;
   peak_world_rank?: number;
   peak_rank_year?: number;
+  // TT-221: importer is pro-only by definition; this stays
+  // 'professional' on every importer-merged row. Amateurs only enter
+  // the database via the submission flow, never via WTT/ITTF scrape.
+  player_kind: "professional";
   headshot_url?: string;
   wtt_profile_url: string;
   ittf_profile_url?: string;
@@ -76,7 +73,7 @@ export interface MergedPlayer {
 }
 
 // Completeness gate: auto-apply when all four required enrichments are
-// present. playing_style + highest_rating are nice-to-have but not gating
+// present. playing_style + peak ranking are nice-to-have but not gating
 // — admin can fix them later via player_edits.
 export function isComplete(p: MergedPlayer): boolean {
   return Boolean(p.handedness && p.grip && p.birth_year && p.headshot_url);

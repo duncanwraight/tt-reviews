@@ -134,6 +134,7 @@ function makeMerged(overrides: Partial<MergedPlayer> = {}): MergedPlayer {
     handedness: "right",
     grip: "shakehand",
     birth_year: 2003,
+    player_kind: "professional",
     headshot_url: "https://wtt.example/lin.jpg",
     wtt_profile_url:
       "https://www.worldtabletennis.com/playerDescription?playerId=132473",

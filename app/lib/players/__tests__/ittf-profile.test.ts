@@ -217,7 +217,7 @@ describe("parseIttfProfile", () => {
 });
 
 describe("toIttfCandidate", () => {
-  it("formats highest_rating as 'WR<n> (<year>)' when peak data is present", () => {
+  it("captures peak_world_rank + peak_rank_year when the Career Best line is present", () => {
     const profile = parseIttfProfile(
       PROFILE_TEMPLATE(
         "Right-Hand",
@@ -229,17 +229,15 @@ describe("toIttfCandidate", () => {
       )
     );
     const candidate = toIttfCandidate(112735, profile);
-    expect(candidate.highest_rating).toBe("WR32 (2022)");
     expect(candidate.peak_world_rank).toBe(32);
     expect(candidate.peak_rank_year).toBe(2022);
   });
 
-  it("leaves highest_rating undefined when ITTF didn't publish a Career Best", () => {
+  it("leaves peak fields undefined when ITTF didn't publish a Career Best", () => {
     const profile = parseIttfProfile(
       `Birth Year: <span class='notranslate'>1995</span>`
     );
     const candidate = toIttfCandidate(99999, profile);
-    expect(candidate.highest_rating).toBeUndefined();
     expect(candidate.peak_world_rank).toBeUndefined();
     expect(candidate.peak_rank_year).toBeUndefined();
   });
