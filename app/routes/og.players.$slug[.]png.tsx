@@ -6,6 +6,7 @@ import { DatabaseService } from "~/lib/database.server";
 import { fetchImageAsDataUrl, renderOgImage } from "~/lib/og/render.server";
 import { createLogContext } from "~/lib/logger.server";
 import { getServerClient } from "~/lib/supabase.server";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const ctx = createLogContext(
@@ -40,12 +41,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   }
 
   const country = player.represents ?? player.birth_country ?? null;
+  const careerBest = renderCareerBest(player);
+  const displayName =
+    player.player_kind === "amateur" ? `${player.name} (Amateur)` : player.name;
 
   const html = renderPlayerCard({
-    name: player.name,
+    name: displayName,
     country,
     style: humanizeStyle(player.playing_style),
-    rating: player.highest_rating ?? null,
+    rating: careerBest?.value ?? null,
     heroDataUrl,
     setupSummary: currentSetup ? summarizeSetup(currentSetup) : null,
   });

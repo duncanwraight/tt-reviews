@@ -3,6 +3,7 @@ import { LazyImage } from "../ui/LazyImage";
 import { ImagePlaceholder } from "../ui/ImagePlaceholder";
 import { buildPlayerImageUrl, buildPlayerImageSrcSet } from "~/lib/imageUrl";
 import { formatRelativeTime } from "~/lib/date";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 
 interface PlayerHeaderProps {
   player: Player;
@@ -171,8 +172,16 @@ export function PlayerHeader({
           </div>
 
           <div className="player-details lg:col-span-4 text-center lg:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">
-              {player.name}
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex flex-wrap items-center justify-center lg:justify-start gap-2">
+              <span>{player.name}</span>
+              {player.player_kind === "amateur" && (
+                <span
+                  className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+                  data-testid="amateur-pill"
+                >
+                  Amateur
+                </span>
+              )}
             </h1>
             {player.updated_at && (
               <p className="mb-3 text-sm text-gray-500">
@@ -190,14 +199,18 @@ export function PlayerHeader({
                   {player.represents || player.birth_country}
                 </span>
               )}
-              {player.highest_rating && (
-                <span>
-                  <span className="font-medium text-gray-700">
-                    Highest Rating:
-                  </span>{" "}
-                  {player.highest_rating}
-                </span>
-              )}
+              {(() => {
+                const careerBest = renderCareerBest(player);
+                if (!careerBest) return null;
+                return (
+                  <span>
+                    <span className="font-medium text-gray-700">
+                      {careerBest.label}:
+                    </span>{" "}
+                    {careerBest.value}
+                  </span>
+                );
+              })()}
               {(() => {
                 const age = getAgeFromBirthYear(player.birth_year);
                 if (age == null) return null;

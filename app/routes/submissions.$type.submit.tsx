@@ -618,7 +618,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
       const { data: current } = await sbServerClient.client
         .from("players")
-        .select("name, highest_rating, active_years, playing_style, active")
+        .select("name, active_years, playing_style, active")
         .eq("id", playerId)
         .single();
 
@@ -632,9 +632,11 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editData: Record<string, any> = {};
 
+      // TT-225 will re-add player_kind + peak fields to this diff loop.
+      // For now `highest_rating` is gone and the new typed fields aren't
+      // wired into the form yet, so we only diff free-form text columns.
       for (const fieldName of [
         "name",
-        "highest_rating",
         "active_years",
         "playing_style",
       ] as const) {
@@ -686,7 +688,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
       // Reshape submissionData to the player_edits row schema. The
       // generic field loop above wrote scalar columns onto submissionData
-      // that don't exist on player_edits (name, highest_rating, …);
+      // that don't exist on player_edits (name, active_years, …);
       // strip them so the INSERT sees only player_id + edit_data
       // (image_key is added by the image-upload block below if present).
       Object.keys(submissionData).forEach(key => {

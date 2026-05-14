@@ -36,7 +36,6 @@ interface CreatedPlayer {
 }
 
 interface PlayerSeedOverrides {
-  highest_rating?: string | null;
   active_years?: string | null;
   active?: boolean;
 }
@@ -80,7 +79,6 @@ test("player_edit: form pre-fills from the current player row", async ({
   await setUserRole(submitterId, "admin");
 
   const player = await createTestPlayer({
-    highest_rating: "2980",
     active_years: "2010-present",
   });
 
@@ -89,9 +87,6 @@ test("player_edit: form pre-fills from the current player row", async ({
     await page.goto(`/submissions/player_edit/submit?player_id=${player.id}`);
 
     await expect(page.locator('input[name="name"]')).toHaveValue(player.name);
-    await expect(page.locator('input[name="highest_rating"]')).toHaveValue(
-      "2980"
-    );
     await expect(page.locator('input[name="active_years"]')).toHaveValue(
       "2010-present"
     );
@@ -114,7 +109,7 @@ test("player_edit: empty submission rejected with 'No changes detected' banner",
   // suite docstring above.
   await setUserRole(submitterId, "admin");
 
-  const player = await createTestPlayer({ highest_rating: "2980" });
+  const player = await createTestPlayer({ active_years: "2010-2020" });
 
   try {
     await login(page, submitterEmail);
@@ -153,7 +148,7 @@ test("player_edit: real field change submits and lands in the moderation queue",
   await setUserRole(submitterId, "admin");
 
   const player = await createTestPlayer();
-  const newRating = "3050+";
+  const newActiveYears = "2005-2025";
 
   try {
     await login(page, submitterEmail);
@@ -162,18 +157,21 @@ test("player_edit: real field change submits and lands in the moderation queue",
     // Fill at least one editable field. Playwright fill() on a
     // controlled React input pre-filled by the loader leaves the
     // original value in place — clear explicitly before typing.
-    const ratingField = page.getByLabel(/^Highest Rating/i);
-    await ratingField.click();
-    await ratingField.press("Control+a");
-    await ratingField.fill(newRating);
+    // TT-225 will re-introduce the typed peak-rating inputs; for now
+    // the edit form's free-form text fields are name + active_years +
+    // playing_style. Drive the diff via active_years.
+    const activeField = page.getByLabel(/^Active Years/i);
+    await activeField.click();
+    await activeField.press("Control+a");
+    await activeField.fill(newActiveYears);
     await page.getByLabel(/^Reason for Changes/i).fill("e2e real edit");
     await page.getByRole("button", { name: /Submit Changes/i }).click();
 
     await page.waitForURL("/profile", { timeout: 20000 });
 
-    // Pending player_edit row exists and carries ONLY the rating diff
-    // — pre-filled name/active_years that the user didn't touch must
-    // not appear in edit_data.
+    // Pending player_edit row exists and carries ONLY the active_years
+    // diff — pre-filled name that the user didn't touch must not appear
+    // in edit_data.
     const editsRes = await fetch(
       `${SUPABASE_URL}/rest/v1/player_edits?user_id=eq.${submitterId}&select=id,edit_data,status`,
       { headers: adminHeaders() }
@@ -185,10 +183,9 @@ test("player_edit: real field change submits and lands in the moderation queue",
     }>;
     expect(edits).toHaveLength(1);
     expect(edits[0].status).toBe("pending");
-    expect(edits[0].edit_data.highest_rating).toBe(newRating);
+    expect(edits[0].edit_data.active_years).toBe(newActiveYears);
     expect(edits[0].edit_data.edit_reason).toBe("e2e real edit");
     expect(edits[0].edit_data).not.toHaveProperty("name");
-    expect(edits[0].edit_data).not.toHaveProperty("active_years");
 
     // Cleanup the edit row so the test is self-contained.
     await fetch(`${SUPABASE_URL}/rest/v1/player_edits?id=eq.${edits[0].id}`, {
@@ -216,7 +213,7 @@ test("player_edit: clearing a pre-filled optional field nulls the column on appr
   await setUserRole(adminId, "admin");
   await setUserRole(submitterId, "admin");
 
-  const player = await createTestPlayer({ highest_rating: "2980" });
+  const player = await createTestPlayer({ active_years: "2010-2020" });
 
   try {
     await login(page, submitterEmail);
@@ -225,19 +222,22 @@ test("player_edit: clearing a pre-filled optional field nulls the column on appr
     // Confirm pre-fill landed, then clear the field. Use Control+a +
     // empty fill rather than fill("") which Playwright treats as a
     // no-op on controlled inputs that already carry text.
-    const ratingField = page.locator('input[name="highest_rating"]');
-    await expect(ratingField).toHaveValue("2980");
-    await ratingField.click();
-    await ratingField.press("Control+a");
-    await ratingField.press("Delete");
-    await expect(ratingField).toHaveValue("");
+    // TT-225 will swap this back to a peak-rating field once the typed
+    // kind toggle ships; for now the optional pre-filled text field is
+    // active_years.
+    const activeField = page.locator('input[name="active_years"]');
+    await expect(activeField).toHaveValue("2010-2020");
+    await activeField.click();
+    await activeField.press("Control+a");
+    await activeField.press("Delete");
+    await expect(activeField).toHaveValue("");
 
     await page.getByLabel(/^Reason for Changes/i).fill("e2e clear edit");
     await page.getByRole("button", { name: /Submit Changes/i }).click();
 
     await page.waitForURL("/profile", { timeout: 20000 });
 
-    // edit_data carries an explicit `highest_rating: null` (the diff
+    // edit_data carries an explicit `active_years: null` (the diff
     // signal for "user cleared this field").
     const editsRes = await fetch(
       `${SUPABASE_URL}/rest/v1/player_edits?user_id=eq.${submitterId}&select=id,edit_data,status`,
@@ -249,7 +249,7 @@ test("player_edit: clearing a pre-filled optional field nulls the column on appr
       status: string;
     }>;
     expect(edits).toHaveLength(1);
-    expect(edits[0].edit_data).toHaveProperty("highest_rating", null);
+    expect(edits[0].edit_data).toHaveProperty("active_years", null);
 
     // Admin approves via the moderation queue. Column ends up null.
     await page
@@ -267,13 +267,13 @@ test("player_edit: clearing a pre-filled optional field nulls the column on appr
       .poll(
         async () => {
           const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/players?id=eq.${player.id}&select=highest_rating`,
+            `${SUPABASE_URL}/rest/v1/players?id=eq.${player.id}&select=active_years`,
             { headers: adminHeaders() }
           );
           const rows = (await res.json()) as Array<{
-            highest_rating: string | null;
+            active_years: string | null;
           }>;
-          return rows[0]?.highest_rating;
+          return rows[0]?.active_years;
         },
         { timeout: 15000 }
       )

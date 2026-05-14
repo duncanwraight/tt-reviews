@@ -13,7 +13,9 @@ function baseInput(over: Partial<PlayerEmbedInput> = {}): PlayerEmbedInput {
     represents: "CHN",
     flagEmoji: "🇨🇳",
     activeYears: "2003-2024",
-    highestRating: "WR1",
+    playerKind: "professional",
+    peakWorldRank: 1,
+    peakRankYear: 2017,
     playingStyleLabel: "Shakehand attacker",
     ...over,
   };
@@ -40,7 +42,9 @@ describe("renderPlayerEmbed — header + profile (description)", () => {
     // field — there's no "Profile" heading anywhere in the output.
     expect(embed.description).toContain("**Style:** Shakehand attacker");
     expect(embed.description).toContain("**Retired:** 2003-2024");
-    expect(embed.description).toContain("**Highest rating:** WR1");
+    expect(embed.description).toContain(
+      "**Career-best ranking:** World #1 (2017)"
+    );
     expect(embed.fields?.find(f => f.name === "Profile")).toBeUndefined();
   });
 
@@ -79,6 +83,28 @@ describe("renderPlayerEmbed — header + profile (description)", () => {
   it("omits thumbnail when image_key is null", () => {
     const embed = renderPlayerEmbed(baseInput({ imageKey: null }));
     expect(embed.thumbnail).toBeUndefined();
+  });
+
+  it("renders amateur title with '(Amateur)' suffix + Peak rating line", () => {
+    const embed = renderPlayerEmbed(
+      baseInput({
+        name: "Florian Bluhm",
+        slug: "florian-bluhm",
+        active: true,
+        activeYears: "2010-present",
+        represents: "GER",
+        flagEmoji: "🇩🇪",
+        playerKind: "amateur",
+        peakWorldRank: null,
+        peakRankYear: null,
+        peakRatingValue: 2350,
+        peakRatingYear: 2023,
+        ratingCountry: "GER",
+      })
+    );
+    expect(embed.title).toBe("Florian Bluhm (Amateur)");
+    expect(embed.description).toContain("**Peak rating:** 2350 TTR (2023)");
+    expect(embed.description).not.toContain("Career-best ranking");
   });
 });
 

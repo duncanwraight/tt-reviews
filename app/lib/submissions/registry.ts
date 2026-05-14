@@ -201,14 +201,9 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       redirectPath: "/profile",
       fields: [
         createNameField("player", "e.g., Ma Long"),
-        {
-          name: "highest_rating",
-          label: "Highest Rating",
-          type: "text",
-          required: false,
-          placeholder: "e.g., 3000+",
-          layout: { colSpan: 1 },
-        },
+        // TT-225 re-adds peak-rating inputs here — kind toggle plus the
+        // pro / amateur peak fields. Removed in TT-223 with the schema
+        // drop of `highest_rating`.
         {
           name: "active_years",
           label: "Active Years",
@@ -308,7 +303,6 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         submitterEmail: data.submitter_email,
         fields: [
           createDiscordField("Player", data.name || "Unknown Player"),
-          ...createOptionalDiscordField("Highest Rating", data.highest_rating),
           ...createOptionalDiscordField("Playing Style", data.playing_style),
           ...createOptionalDiscordField(
             "Birth Country",
@@ -361,13 +355,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           required: true,
           layout: { colSpan: 2 },
         },
-        {
-          name: "highest_rating",
-          label: "Highest Rating",
-          type: "text",
-          required: false,
-          layout: { colSpan: 1 },
-        },
+        // TT-225 re-adds kind toggle + peak fields on this form too.
         {
           name: "active_years",
           label: "Active Years",
@@ -429,7 +417,6 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       const diffLines: string[] = [];
       for (const field of [
         "name",
-        "highest_rating",
         "active_years",
         "playing_style",
         "active",

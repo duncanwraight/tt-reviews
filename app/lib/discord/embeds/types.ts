@@ -102,7 +102,19 @@ export interface PlayerEmbedInput {
   // attacker"), resolved by C3 from the categories table.
   playingStyleLabel?: string | null;
   active: boolean;
-  highestRating?: string | null;
+  // TT-221: kind discriminator drives the embed's title suffix and
+  // the description's career-best line. Pros render "Career-best
+  // ranking: World #N (YYYY)"; amateurs render
+  // "Peak rating: VALUE LABEL (YYYY)" alongside an "(Amateur)" suffix
+  // in the title.
+  playerKind?: "professional" | "amateur" | null;
+  peakWorldRank?: number | null;
+  peakRankYear?: number | null;
+  peakRatingValue?: number | null;
+  peakRatingYear?: number | null;
+  // Country backing the amateur rating-system label. Falls back to
+  // `represents` when not supplied. May be a 2- or 3-letter ISO code.
+  ratingCountry?: string | null;
   activeYears?: string | null;
   // Latest verified setup with rubber/blade names already joined in.
   // Pass null / undefined when the player has no verified setup —

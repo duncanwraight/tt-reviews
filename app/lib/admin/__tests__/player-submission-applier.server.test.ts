@@ -119,7 +119,9 @@ describe("applyPlayerSubmission", () => {
       submission: {
         id: "ps1",
         name: "Ma Long",
-        highest_rating: "2900",
+        player_kind: "professional",
+        peak_world_rank: 1,
+        peak_rank_year: 2017,
         active_years: "2003-",
         playing_style: "shakehand offensive",
         birth_country: "CHN",
@@ -136,7 +138,11 @@ describe("applyPlayerSubmission", () => {
     expect(stub.inserts[0].payload).toEqual({
       name: "Ma Long",
       slug: "ma-long",
-      highest_rating: "2900",
+      player_kind: "professional",
+      peak_world_rank: 1,
+      peak_rank_year: 2017,
+      peak_rating_value: null,
+      peak_rating_year: null,
       active_years: "2003-",
       playing_style: "shakehand offensive",
       birth_country: "CHN",
@@ -164,7 +170,11 @@ describe("applyPlayerSubmission", () => {
       submission: {
         id: "ps1",
         name: "Test Player",
-        highest_rating: null,
+        player_kind: null,
+        peak_world_rank: null,
+        peak_rank_year: null,
+        peak_rating_value: null,
+        peak_rating_year: null,
         active_years: null,
         playing_style: null,
         birth_country: null,
@@ -177,7 +187,12 @@ describe("applyPlayerSubmission", () => {
 
     expect(res.success).toBe(true);
     const payload = stub.inserts[0].payload as Record<string, unknown>;
-    expect(payload.highest_rating).toBeNull();
+    expect(payload.peak_world_rank).toBeNull();
+    expect(payload.peak_rating_value).toBeNull();
+    // Default kind for an omitted player_kind is professional so the
+    // CHECK constraint still accepts the row when peak_world_rank fills
+    // in later via an edit.
+    expect(payload.player_kind).toBe("professional");
     expect(payload.image_key).toBeNull();
     expect(payload.active).toBe(true);
   });

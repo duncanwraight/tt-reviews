@@ -62,23 +62,9 @@ export function PlayerBasicInfo({ isSubmitting }: PlayerBasicInfoProps) {
           />
         </div>
 
-        {/* Highest Rating */}
-        <div>
-          <label
-            htmlFor="highest_rating"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Highest Rating
-          </label>
-          <input
-            type="text"
-            id="highest_rating"
-            name="highest_rating"
-            disabled={isSubmitting}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-            placeholder="e.g., 3000+"
-          />
-        </div>
+        {/* TT-225 will re-introduce the player_kind toggle + peak-rating
+            inputs here. The legacy `highest_rating` free-form text input
+            was removed in TT-223 with the schema drop. */}
 
         {/* Active Years */}
         <div>

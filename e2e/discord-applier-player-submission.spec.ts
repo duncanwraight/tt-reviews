@@ -44,7 +44,9 @@ async function getPlayerSubmissionStatus(
 async function getPlayerBySlug(slug: string): Promise<{
   id: string;
   name: string;
-  highest_rating: string | null;
+  peak_world_rank: number | null;
+  peak_rank_year: number | null;
+  player_kind: string;
   active_years: string | null;
   playing_style: string | null;
   birth_country: string | null;
@@ -52,13 +54,15 @@ async function getPlayerBySlug(slug: string): Promise<{
   active: boolean;
 } | null> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/players?slug=eq.${slug}&select=id,name,highest_rating,active_years,playing_style,birth_country,represents,active`,
+    `${SUPABASE_URL}/rest/v1/players?slug=eq.${slug}&select=id,name,player_kind,peak_world_rank,peak_rank_year,active_years,playing_style,birth_country,represents,active`,
     { headers: adminHeaders() }
   );
   const rows = (await res.json()) as Array<{
     id: string;
     name: string;
-    highest_rating: string | null;
+    player_kind: string;
+    peak_world_rank: number | null;
+    peak_rank_year: number | null;
     active_years: string | null;
     playing_style: string | null;
     birth_country: string | null;
@@ -121,7 +125,9 @@ test("Discord 2× approval applies player submission to the players table", asyn
       body: JSON.stringify({
         user_id: submitterId,
         name: submittedName,
-        highest_rating: "2750",
+        player_kind: "professional",
+        peak_world_rank: 5,
+        peak_rank_year: 2018,
         active_years: "2010-",
         playing_style: "shakehand offensive",
         birth_country: "GBR",
@@ -185,7 +191,9 @@ test("Discord 2× approval applies player submission to the players table", asyn
     const player = await new Promise<{
       id: string;
       name: string;
-      highest_rating: string | null;
+      player_kind: string;
+      peak_world_rank: number | null;
+      peak_rank_year: number | null;
       active_years: string | null;
       playing_style: string | null;
       birth_country: string | null;
@@ -205,7 +213,9 @@ test("Discord 2× approval applies player submission to the players table", asyn
     createdPlayerId = player.id;
 
     expect(player.name).toBe(submittedName);
-    expect(player.highest_rating).toBe("2750");
+    expect(player.player_kind).toBe("professional");
+    expect(player.peak_world_rank).toBe(5);
+    expect(player.peak_rank_year).toBe(2018);
     expect(player.active_years).toBe("2010-");
     expect(player.playing_style).toBe("shakehand offensive");
     expect(player.birth_country).toBe("GBR");
@@ -260,7 +270,9 @@ test("Discord 2× approval cascades equipment_setup + videos to canonical rows",
       body: JSON.stringify({
         user_id: submitterId,
         name: submittedName,
-        highest_rating: "2700",
+        player_kind: "professional",
+        peak_world_rank: 50,
+        peak_rank_year: 2020,
         equipment_setup: {
           year: 2024,
           blade_id: blade.id,

@@ -31,7 +31,7 @@ import { SUPABASE_URL, adminHeaders } from "./utils/supabase";
 interface PlayerSubmissionRow {
   id: string;
   name: string;
-  highest_rating: string | null;
+  player_kind: string | null;
   equipment_setup: Record<string, unknown>;
   videos: unknown;
 }
@@ -40,7 +40,7 @@ async function getPlayerSubmissionsForUser(
   userId: string
 ): Promise<PlayerSubmissionRow[]> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/player_submissions?user_id=eq.${userId}&select=id,name,highest_rating,equipment_setup,videos&order=created_at.desc`,
+    `${SUPABASE_URL}/rest/v1/player_submissions?user_id=eq.${userId}&select=id,name,player_kind,equipment_setup,videos&order=created_at.desc`,
     { headers: adminHeaders() }
   );
   return res.json();
@@ -92,7 +92,10 @@ test.describe("Player submission flow", () => {
     ).toBeVisible();
 
     await page.getByLabel(/^Player Name/i).fill(playerName);
-    await page.getByLabel(/^Highest Rating/i).fill("2700");
+    // TT-225 re-adds peak-rating inputs to this form (kind toggle +
+    // typed values). For TT-223 we just exercise the rest of the flow
+    // without a rating value; the row defaults `player_kind` to
+    // 'professional' via the schema default.
 
     // Tick the toggle and fill the simple fields exposed by
     // PlayerEquipmentSetup. blade/rubber comboboxes are skipped here
@@ -122,7 +125,7 @@ test.describe("Player submission flow", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.name).toBe(playerName);
-    expect(row.highest_rating).toBe("2700");
+    expect(row.player_kind).toBe("professional");
     // include_equipment toggle no longer 500s — the row exists at all.
     // equipment_setup carries the year + source_url even though the
     // combobox-driven fields were left blank.

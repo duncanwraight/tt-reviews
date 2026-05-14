@@ -64,7 +64,16 @@ export async function applyPlayerSubmission(
     .insert({
       name: submission.name,
       slug,
-      highest_rating: submission.highest_rating,
+      // TT-221: kind discriminator + typed peak fields. The applier
+      // trusts the submission row's player_kind because the public
+      // submission form (TT-225) + server-side validator enforce the
+      // mutual-exclusion rule before the row reaches this point, and
+      // the DB CHECK constraint backstops any path that bypasses it.
+      player_kind: submission.player_kind ?? "professional",
+      peak_world_rank: submission.peak_world_rank ?? null,
+      peak_rank_year: submission.peak_rank_year ?? null,
+      peak_rating_value: submission.peak_rating_value ?? null,
+      peak_rating_year: submission.peak_rating_year ?? null,
       active_years: submission.active_years,
       playing_style: submission.playing_style,
       birth_country: submission.birth_country,

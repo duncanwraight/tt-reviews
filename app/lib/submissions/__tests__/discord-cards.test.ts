@@ -135,25 +135,25 @@ describe("formatForDiscord — player_edit", () => {
       player_current: {
         name: "Ma Long",
         slug: "ma-long",
-        highest_rating: "3000",
+        active_years: "2003-2024",
         active: true,
       },
       submitter_email: "u@example.com",
       edit_data: {
-        highest_rating: "3050",
+        active_years: "2003-2025",
         active: false,
-        edit_reason: "rating bump after world tour",
+        edit_reason: "post-retirement record cleanup",
       },
     });
 
     expect(card.fields[0]).toMatchObject({ name: "Player", value: "Ma Long" });
     expect(findField(card.fields, "Slug")?.value).toBe("ma-long");
     const changes = findField(card.fields, "Changes")?.value || "";
-    expect(changes).toContain("**highest_rating**: 3000 → 3050");
+    expect(changes).toContain("**active_years**: 2003-2024 → 2003-2025");
     // Boolean rendered as Active/Inactive, not "true → false".
     expect(changes).toContain("**active**: Active → Inactive");
     expect(findField(card.fields, "Reason")?.value).toBe(
-      "rating bump after world tour"
+      "post-retirement record cleanup"
     );
   });
 

@@ -83,7 +83,11 @@ export interface PlayerSubmission {
   id: string;
   user_id: string;
   name: string;
-  highest_rating?: string;
+  player_kind?: "professional" | "amateur";
+  peak_world_rank?: number;
+  peak_rank_year?: number;
+  peak_rating_value?: number;
+  peak_rating_year?: number;
   active_years?: string;
   playing_style?: string;
   birth_country?: string;

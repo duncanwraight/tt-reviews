@@ -192,7 +192,7 @@ const enrichmentHandlers: Partial<Record<SubmissionType, EnrichmentHandler>> = {
     if (!submission.player_id) return {};
     const { data: player } = (await adminClient
       .from("players")
-      .select("name, slug, highest_rating, active_years, playing_style, active")
+      .select("name, slug, active_years, playing_style, active")
       .eq("id", submission.player_id as string)
       .single()) as { data: Record<string, unknown> | null };
     if (!player) return {};

@@ -448,16 +448,15 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       handler: async (playerId, _fieldOptions, sbClient) => {
         const { data: player } = await sbClient
           .from("players")
-          .select(
-            "id, name, highest_rating, active_years, playing_style, active"
-          )
+          .select("id, name, active_years, playing_style, active")
           .eq("id", playerId)
           .single();
         if (!player) return {};
         return {
           player_id: player.id,
           name: player.name ?? "",
-          highest_rating: player.highest_rating ?? "",
+          // TT-225 re-adds peak-rating pre-fills here once the typed
+          // kind toggle lands on the edit form.
           active_years: player.active_years ?? "",
           playing_style: player.playing_style ?? "",
           active: player.active === false ? "false" : "true",

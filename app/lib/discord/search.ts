@@ -93,8 +93,13 @@ interface PlayerDetailRow {
   slug: string;
   active: boolean;
   represents: string | null;
+  birth_country: string | null;
   playing_style: string | null;
-  highest_rating: string | null;
+  player_kind: "professional" | "amateur" | null;
+  peak_world_rank: number | null;
+  peak_rank_year: number | null;
+  peak_rating_value: number | null;
+  peak_rating_year: number | null;
   active_years: string | null;
   image_key: string | null;
   image_etag: string | null;
@@ -317,7 +322,12 @@ export async function runPlayerSearch(
       imageEtag: detail.image_etag,
       playingStyleLabel,
       active: detail.active,
-      highestRating: detail.highest_rating,
+      playerKind: detail.player_kind,
+      peakWorldRank: detail.peak_world_rank,
+      peakRankYear: detail.peak_rank_year,
+      peakRatingValue: detail.peak_rating_value,
+      peakRatingYear: detail.peak_rating_year,
+      ratingCountry: detail.represents ?? detail.birth_country,
       activeYears: detail.active_years,
       setup: setup
         ? {
@@ -469,7 +479,7 @@ async function fetchPlayerDetail(
   const { data, error } = await ctx.supabaseAdmin
     .from("players")
     .select(
-      "id, name, slug, active, represents, playing_style, highest_rating, active_years, image_key, image_etag"
+      "id, name, slug, active, represents, birth_country, playing_style, player_kind, peak_world_rank, peak_rank_year, peak_rating_value, peak_rating_year, active_years, image_key, image_etag"
     )
     .eq("id", id)
     .single();

@@ -38,7 +38,13 @@ interface PlayerDisplay {
   id: string;
   name: string;
   slug: string;
-  highest_rating?: string;
+  player_kind?: "professional" | "amateur";
+  peak_world_rank?: number;
+  peak_rank_year?: number;
+  peak_rating_value?: number;
+  peak_rating_year?: number;
+  represents?: string;
+  birth_country?: string;
   playing_style?: string;
   currentSetup?: string;
 }

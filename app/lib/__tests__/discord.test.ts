@@ -289,13 +289,13 @@ describe("Discord Integration Tests", () => {
           player_current: {
             name: "Test Player",
             slug: "test-player",
-            highest_rating: "2900",
+            active_years: "2005-present",
             playing_style: "defender",
             active: true,
           },
           edit_data: {
             name: "Updated Player Name",
-            highest_rating: "3000+",
+            active_years: "2005-2024",
             playing_style: "attacker",
           },
           submitter_email: "test@example.com",
@@ -341,7 +341,7 @@ describe("Discord Integration Tests", () => {
             "**name**: Test Player → Updated Player Name"
           );
           expect(changesField.value).toContain(
-            "**highest_rating**: 2900 → 3000+"
+            "**active_years**: 2005-present → 2005-2024"
           );
 
           // Validate action buttons with correct custom_id format

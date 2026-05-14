@@ -54,7 +54,10 @@ const SUBMISSION_CONSTRAINTS: Record<
 
   player: {
     name: { required: true, spec: { kind: "text", maxLength: 200 } },
-    highest_rating: { spec: { kind: "text", maxLength: 50 } },
+    // TT-225 will re-add peak fields (kind toggle + peak_world_rank /
+    // peak_rank_year / peak_rating_value / peak_rating_year) plus the
+    // server-side mutual-exclusion guard. Removed in TT-223 with the
+    // schema drop.
     active_years: { spec: { kind: "text", maxLength: 50 } },
     playing_style: { spec: { kind: "text", maxLength: 50 } },
     birth_country: { spec: { kind: "text", maxLength: 10 } },
@@ -67,7 +70,6 @@ const SUBMISSION_CONSTRAINTS: Record<
     // `name` mirrors the players.name NOT NULL constraint — pre-fill +
     // required-on-the-form (TT-129) means submitters can't clear it.
     name: { required: true, spec: { kind: "text", maxLength: 200 } },
-    highest_rating: { spec: { kind: "text", maxLength: 50 } },
     active_years: { spec: { kind: "text", maxLength: 50 } },
     playing_style: { spec: { kind: "text", maxLength: 50 } },
     active: { spec: { kind: "enum", values: ["true", "false"] } },

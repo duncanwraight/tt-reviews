@@ -15,6 +15,7 @@ import { sanitizeAdminContent } from "~/lib/sanitize";
 import { formatDate } from "~/lib/date";
 import { CheckCircle2, XCircle, Clock, ListChecks, User } from "lucide-react";
 import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 import { Logger, createLogContext } from "~/lib/logger.server";
 import {
   ensureAdminAction,
@@ -341,14 +342,18 @@ export default function AdminPlayerSubmissions({
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          {submission.highest_rating && (
-            <div>
-              <span className="font-medium text-gray-700">Highest Rating:</span>
-              <span className="ml-2 text-gray-900">
-                {submission.highest_rating}
-              </span>
-            </div>
-          )}
+          {(() => {
+            const careerBest = renderCareerBest(submission);
+            if (!careerBest) return null;
+            return (
+              <div>
+                <span className="font-medium text-gray-700">
+                  {careerBest.label}:
+                </span>
+                <span className="ml-2 text-gray-900">{careerBest.value}</span>
+              </div>
+            );
+          })()}
           {submission.active_years && (
             <div>
               <span className="font-medium text-gray-700">Active Years:</span>

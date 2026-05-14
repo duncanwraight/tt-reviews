@@ -3,6 +3,7 @@ import type { Equipment, Player } from "~/lib/database.server";
 import { LazyImage } from "~/components/ui/LazyImage";
 import { ImagePlaceholder } from "~/components/ui/ImagePlaceholder";
 import { EquipmentCard } from "~/components/ui/EquipmentCard";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 
 interface ResultCardProps {
   item: Equipment | Player;
@@ -10,7 +11,7 @@ interface ResultCardProps {
 }
 
 function isPlayer(item: Equipment | Player): item is Player {
-  return "highest_rating" in item || "playing_style" in item;
+  return "playing_style" in item || "peak_world_rank" in item;
 }
 
 export function ResultCard({ item, type }: ResultCardProps) {
@@ -56,13 +57,27 @@ export function ResultCard({ item, type }: ResultCardProps) {
           </div>
 
           <div className="item-content flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
-              {player.name}
+            <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate flex items-center gap-2">
+              <span className="truncate">{player.name}</span>
+              {player.player_kind === "amateur" && (
+                <span
+                  className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 flex-shrink-0"
+                  data-testid="amateur-pill"
+                >
+                  Amateur
+                </span>
+              )}
             </h3>
             <div className="text-sm text-gray-600">
-              {player.highest_rating && (
-                <span className="mr-3">Rating: {player.highest_rating}</span>
-              )}
+              {(() => {
+                const careerBest = renderCareerBest(player);
+                if (!careerBest) return null;
+                return (
+                  <span className="mr-3">
+                    {careerBest.label}: {careerBest.value}
+                  </span>
+                );
+              })()}
               {player.active_years && (
                 <span>Active: {player.active_years}</span>
               )}

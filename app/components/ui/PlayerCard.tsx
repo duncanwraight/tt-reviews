@@ -4,13 +4,20 @@ import { LazyImage } from "./LazyImage";
 import { ImagePlaceholder } from "./ImagePlaceholder";
 import { formatDate } from "~/lib/date";
 import { buildImageUrl } from "~/lib/imageUrl";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 
 // Minimum fields required for PlayerCard display
 interface PlayerCardPlayer {
   id: string;
   name: string;
   slug: string;
-  highest_rating?: string;
+  player_kind?: "professional" | "amateur";
+  peak_world_rank?: number;
+  peak_rank_year?: number;
+  peak_rating_value?: number;
+  peak_rating_year?: number;
+  represents?: string;
+  birth_country?: string;
   active_years?: string;
   active?: boolean;
   playing_style?: string;
@@ -61,14 +68,24 @@ export const PlayerCard = memo(function PlayerCard({
     [player.image_key, player.image_etag]
   );
 
+  const careerBest = useMemo(() => renderCareerBest(player), [player]);
+
   return (
     <Link
       to={`/players/${player.slug}`}
       className="player-card group block bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-teal-400"
     >
       <div className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 group-hover:text-teal-700 transition-colors">
-          {player.name}
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 group-hover:text-teal-700 transition-colors flex flex-wrap items-center gap-2">
+          <span>{player.name}</span>
+          {player.player_kind === "amateur" && (
+            <span
+              className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800"
+              data-testid="amateur-pill"
+            >
+              Amateur
+            </span>
+          )}
         </h3>
         <div className="flex items-start gap-4 mb-4">
           {/* Player Photo + status badge */}
@@ -101,9 +118,9 @@ export const PlayerCard = memo(function PlayerCard({
           </div>
 
           <div className="flex-1 min-w-0">
-            {player.highest_rating && (
+            {careerBest && (
               <p className="text-sm text-gray-600 mb-2">
-                Peak Rating: {player.highest_rating}
+                {careerBest.label}: {careerBest.value}
               </p>
             )}
             {player.active_years && (

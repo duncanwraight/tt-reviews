@@ -1,6 +1,7 @@
 // TT-158: pure player embed renderer.
 
 import { buildPlayerImageUrl } from "~/lib/imageUrl";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 import type {
   DiscordEmbed,
   DiscordEmbedField,
@@ -32,8 +33,16 @@ function renderProfile(input: PlayerEmbedInput): string | null {
   } else {
     lines.push(`**Status:** ${status}`);
   }
-  if (input.highestRating) {
-    lines.push(`**Highest rating:** ${input.highestRating}`);
+  const careerBest = renderCareerBest({
+    player_kind: input.playerKind ?? "professional",
+    peak_world_rank: input.peakWorldRank ?? undefined,
+    peak_rank_year: input.peakRankYear ?? undefined,
+    peak_rating_value: input.peakRatingValue ?? undefined,
+    peak_rating_year: input.peakRatingYear ?? undefined,
+    represents: input.ratingCountry ?? input.represents ?? undefined,
+  });
+  if (careerBest) {
+    lines.push(`**${careerBest.label}:** ${careerBest.value}`);
   }
   return lines.length > 0 ? lines.join("\n") : null;
 }
@@ -111,8 +120,13 @@ function authorName(input: PlayerEmbedInput): string | null {
 
 export function renderPlayerEmbed(input: PlayerEmbedInput): DiscordEmbed {
   const fields: DiscordEmbedField[] = [];
+  // TT-221: inline "(Amateur)" suffix in the title so Discord embeds
+  // and OG cards mark amateur players without needing a separate
+  // pill-style element (Discord doesn't render rich inline chips).
+  const title =
+    input.playerKind === "amateur" ? `${input.name} (Amateur)` : input.name;
   const embed: DiscordEmbed = {
-    title: input.name,
+    title,
     url: `${input.siteUrl}/players/${input.slug}`,
   };
 

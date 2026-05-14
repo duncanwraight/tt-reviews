@@ -3,6 +3,7 @@ import { RouterFormModalWrapper } from "~/components/ui/RouterFormModalWrapper";
 import { CSRFToken } from "~/components/ui/CSRFToken";
 import type { Player } from "~/lib/database.server";
 import type { CategoryOption } from "~/lib/categories.server";
+import { renderCareerBest } from "~/lib/players/rating-systems";
 
 // Client-side helper function to format country options
 function formatCountryOption(country: CategoryOption): string {
@@ -52,16 +53,20 @@ export function PlayerEditForm({
                   <span className="font-medium text-gray-700">Name:</span>
                   <span className="ml-2 text-gray-900">{player.name}</span>
                 </div>
-                {player.highest_rating && (
-                  <div>
-                    <span className="font-medium text-gray-700">
-                      Highest Rating:
-                    </span>
-                    <span className="ml-2 text-gray-900">
-                      {player.highest_rating}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const careerBest = renderCareerBest(player);
+                  if (!careerBest) return null;
+                  return (
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        {careerBest.label}:
+                      </span>
+                      <span className="ml-2 text-gray-900">
+                        {careerBest.value}
+                      </span>
+                    </div>
+                  );
+                })()}
                 {player.active_years && (
                   <div>
                     <span className="font-medium text-gray-700">
@@ -165,24 +170,10 @@ export function PlayerEditForm({
                     />
                   </div>
 
-                  {/* Highest Rating */}
-                  <div>
-                    <label
-                      htmlFor="highest_rating"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Highest Rating
-                    </label>
-                    <input
-                      type="text"
-                      id="highest_rating"
-                      name="highest_rating"
-                      defaultValue={player.highest_rating || ""}
-                      disabled={false}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                      placeholder="e.g., 3000+"
-                    />
-                  </div>
+                  {/* TT-225 will re-introduce kind-aware peak rating
+                      inputs here. The legacy free-form `highest_rating`
+                      text input was removed in TT-223 alongside the
+                      schema drop. */}
 
                   {/* Active Years */}
                   <div>

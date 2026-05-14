@@ -80,7 +80,7 @@ describe("applyPlayerEdit", () => {
         player_id: "p1",
         edit_data: {
           name: "Ma Long",
-          highest_rating: 2900,
+          peak_world_rank: 1,
           edit_reason: "ranking update",
         },
       },
@@ -94,7 +94,7 @@ describe("applyPlayerEdit", () => {
     expect(stub.captured[0].filter).toEqual({ col: "id", value: "p1" });
     expect(stub.captured[0].updates).toEqual({
       name: "Ma Long",
-      highest_rating: 2900,
+      peak_world_rank: 1,
     });
     // edit_reason must be stripped — it lives on the edit row, not the
     // player row.

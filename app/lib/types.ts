@@ -60,7 +60,16 @@ export interface Player {
   id: string;
   name: string;
   slug: string;
-  highest_rating?: string;
+  // TT-221: kind discriminator + typed peak fields. Pros carry
+  // peak_world_rank / peak_rank_year (from ITTF Career Best); amateurs
+  // carry peak_rating_value / peak_rating_year (country-specific
+  // rating). Enforced mutually exclusive by DB CHECK. Default is
+  // "professional" so callers that omit player_kind keep working.
+  player_kind?: "professional" | "amateur";
+  peak_world_rank?: number;
+  peak_rank_year?: number;
+  peak_rating_value?: number;
+  peak_rating_year?: number;
   active_years?: string;
   active: boolean;
   playing_style?: string; // Now uses configurable categories instead of hardcoded values
