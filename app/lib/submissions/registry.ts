@@ -201,9 +201,76 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       redirectPath: "/profile",
       fields: [
         createNameField("player", "e.g., Ma Long"),
-        // TT-225 re-adds peak-rating inputs here — kind toggle plus the
-        // pro / amateur peak fields. Removed in TT-223 with the schema
-        // drop of `highest_rating`.
+        // TT-225: kind toggle + per-kind peak inputs. The `select`
+        // type renders the dropdown; the dependencies system gates
+        // each peak field on the matching kind, and the unmounted
+        // side's value gets cleared from formValues by
+        // UnifiedSubmissionForm's effect so only one side submits.
+        // Server-side guard in validate.server.ts mirrors the DB
+        // CHECK constraint as a belt-and-braces defence against
+        // tampered posts.
+        {
+          name: "player_kind",
+          label: "Player type",
+          type: "select",
+          required: false,
+          // Not required because the DB column defaults to
+          // 'professional' on omitted kind; this keeps the bare
+          // happy-path flow unchanged (no need to pick a radio just
+          // to submit a pro). The Amateur option opts a submitter
+          // into the country-rated path with its own peak inputs.
+          placeholder: "Professional (default)",
+          options: [
+            { value: "professional", label: "Professional (world-ranked)" },
+            { value: "amateur", label: "Amateur (country-rated)" },
+          ],
+          layout: { colSpan: 2 },
+        },
+        {
+          name: "peak_world_rank",
+          label: "Peak World Rank",
+          type: "number",
+          required: false,
+          placeholder: "e.g., 1",
+          validation: { min: 1, max: 10000 },
+          // No `showWhen` here: peak_world_rank is the pro side and
+          // we want it visible by default (when the kind select is
+          // unset, the row defaults to pro). The amateur side only
+          // shows when the submitter explicitly picks "amateur".
+          // hideWhen flips it off for amateurs.
+          dependencies: { field: "player_kind", hideWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rank_year",
+          label: "Peak Rank Year",
+          type: "number",
+          required: false,
+          placeholder: "e.g., 2019",
+          validation: { min: 2001, max: 2200 },
+          dependencies: { field: "player_kind", hideWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rating_value",
+          label: "Peak Rating",
+          type: "number",
+          required: false,
+          placeholder: "e.g., 2350",
+          validation: { min: 1, max: 9999 },
+          dependencies: { field: "player_kind", showWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rating_year",
+          label: "Peak Rating Year",
+          type: "number",
+          required: false,
+          placeholder: "e.g., 2023",
+          validation: { min: 1900, max: 2200 },
+          dependencies: { field: "player_kind", showWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
         {
           name: "active_years",
           label: "Active Years",
@@ -355,7 +422,59 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           required: true,
           layout: { colSpan: 2 },
         },
-        // TT-225 re-adds kind toggle + peak fields on this form too.
+        // TT-225: kind toggle + peak inputs available on edits too.
+        // Admin can flip player_kind on the moderation approval; the
+        // edit_data diff captures the kind change alongside the peak
+        // values and the applier writes both sides correctly. The DB
+        // CHECK constraint backstops a flipped-kind edit that leaves
+        // stale peak fields populated.
+        {
+          name: "player_kind",
+          label: "Player type",
+          type: "select",
+          required: false,
+          options: [
+            { value: "professional", label: "Professional (world-ranked)" },
+            { value: "amateur", label: "Amateur (country-rated)" },
+          ],
+          layout: { colSpan: 2 },
+        },
+        {
+          name: "peak_world_rank",
+          label: "Peak World Rank",
+          type: "number",
+          required: false,
+          validation: { min: 1, max: 10000 },
+          dependencies: { field: "player_kind", showWhen: "professional" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rank_year",
+          label: "Peak Rank Year",
+          type: "number",
+          required: false,
+          validation: { min: 2001, max: 2200 },
+          dependencies: { field: "player_kind", showWhen: "professional" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rating_value",
+          label: "Peak Rating",
+          type: "number",
+          required: false,
+          validation: { min: 1, max: 9999 },
+          dependencies: { field: "player_kind", showWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
+        {
+          name: "peak_rating_year",
+          label: "Peak Rating Year",
+          type: "number",
+          required: false,
+          validation: { min: 1900, max: 2200 },
+          dependencies: { field: "player_kind", showWhen: "amateur" },
+          layout: { colSpan: 1 },
+        },
         {
           name: "active_years",
           label: "Active Years",
@@ -417,6 +536,11 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       const diffLines: string[] = [];
       for (const field of [
         "name",
+        "player_kind",
+        "peak_world_rank",
+        "peak_rank_year",
+        "peak_rating_value",
+        "peak_rating_year",
         "active_years",
         "playing_style",
         "active",

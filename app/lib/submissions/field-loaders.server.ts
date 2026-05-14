@@ -448,15 +448,35 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       handler: async (playerId, _fieldOptions, sbClient) => {
         const { data: player } = await sbClient
           .from("players")
-          .select("id, name, active_years, playing_style, active")
+          .select(
+            "id, name, player_kind, peak_world_rank, peak_rank_year, peak_rating_value, peak_rating_year, active_years, playing_style, active"
+          )
           .eq("id", playerId)
           .single();
         if (!player) return {};
         return {
           player_id: player.id,
           name: player.name ?? "",
-          // TT-225 re-adds peak-rating pre-fills here once the typed
-          // kind toggle lands on the edit form.
+          // TT-225: pre-fill the typed peak inputs so an admin sees
+          // the current values and can suggest deltas. The form's
+          // kind toggle (select + dependencies) gates which side
+          // renders; only the visible side submits, the rest stay
+          // cleared by UnifiedSubmissionForm's hidden-field effect.
+          player_kind: player.player_kind ?? "professional",
+          peak_world_rank:
+            player.peak_world_rank != null
+              ? String(player.peak_world_rank)
+              : "",
+          peak_rank_year:
+            player.peak_rank_year != null ? String(player.peak_rank_year) : "",
+          peak_rating_value:
+            player.peak_rating_value != null
+              ? String(player.peak_rating_value)
+              : "",
+          peak_rating_year:
+            player.peak_rating_year != null
+              ? String(player.peak_rating_year)
+              : "",
           active_years: player.active_years ?? "",
           playing_style: player.playing_style ?? "",
           active: player.active === false ? "false" : "true",

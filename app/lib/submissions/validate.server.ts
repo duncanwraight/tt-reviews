@@ -54,10 +54,19 @@ const SUBMISSION_CONSTRAINTS: Record<
 
   player: {
     name: { required: true, spec: { kind: "text", maxLength: 200 } },
-    // TT-225 will re-add peak fields (kind toggle + peak_world_rank /
-    // peak_rank_year / peak_rating_value / peak_rating_year) plus the
-    // server-side mutual-exclusion guard. Removed in TT-223 with the
-    // schema drop.
+    // TT-225: kind discriminator + the four typed peak columns. The
+    // form mounts pro fields OR amateur fields based on the radio
+    // selection so only one side ever ships; the mutual-exclusion
+    // check in submissions.$type.submit.tsx rejects writes that
+    // somehow carry both (defends against a tampered form post). The
+    // DB CHECK constraint added in TT-221 backstops both layers.
+    player_kind: {
+      spec: { kind: "enum", values: ["professional", "amateur"] },
+    },
+    peak_world_rank: { spec: { kind: "integer", min: 1, max: 10000 } },
+    peak_rank_year: { spec: { kind: "integer", min: 2001, max: 2200 } },
+    peak_rating_value: { spec: { kind: "integer", min: 1, max: 9999 } },
+    peak_rating_year: { spec: { kind: "integer", min: 1900, max: 2200 } },
     active_years: { spec: { kind: "text", maxLength: 50 } },
     playing_style: { spec: { kind: "text", maxLength: 50 } },
     birth_country: { spec: { kind: "text", maxLength: 10 } },
@@ -70,6 +79,15 @@ const SUBMISSION_CONSTRAINTS: Record<
     // `name` mirrors the players.name NOT NULL constraint — pre-fill +
     // required-on-the-form (TT-129) means submitters can't clear it.
     name: { required: true, spec: { kind: "text", maxLength: 200 } },
+    // TT-225: same peak fields available on edits. The kind toggle on
+    // the edit form lets an admin flip an existing row pro↔amateur.
+    player_kind: {
+      spec: { kind: "enum", values: ["professional", "amateur"] },
+    },
+    peak_world_rank: { spec: { kind: "integer", min: 1, max: 10000 } },
+    peak_rank_year: { spec: { kind: "integer", min: 2001, max: 2200 } },
+    peak_rating_value: { spec: { kind: "integer", min: 1, max: 9999 } },
+    peak_rating_year: { spec: { kind: "integer", min: 1900, max: 2200 } },
     active_years: { spec: { kind: "text", maxLength: 50 } },
     playing_style: { spec: { kind: "text", maxLength: 50 } },
     active: { spec: { kind: "enum", values: ["true", "false"] } },
@@ -178,6 +196,32 @@ export function validateSubmission(
     const fieldError = validateField(value, constraint.spec);
     if (fieldError) {
       errors[fieldName] = fieldError;
+    }
+  }
+
+  // TT-225: pro / amateur peak fields are mutually exclusive. Mirror
+  // the DB CHECK constraint added in TT-221 at the boundary so a
+  // tampered submission gets a clean 400 with field-targeted errors
+  // instead of a Postgres CHECK violation. The public form mounts
+  // only the kind-matching side so a legitimate submission can't
+  // trip this; it's belt-and-braces for tampered posts.
+  if (type === "player" || type === "player_edit") {
+    const kind = (formData.get("player_kind") as string | null) ?? null;
+    const hasProField =
+      typeof formData.get("peak_world_rank") === "string" ||
+      typeof formData.get("peak_rank_year") === "string";
+    const hasAmateurField =
+      typeof formData.get("peak_rating_value") === "string" ||
+      typeof formData.get("peak_rating_year") === "string";
+    if (hasProField && hasAmateurField) {
+      errors._form =
+        "Submission carries both professional and amateur peak fields. Pick one player type.";
+    } else if (kind === "amateur" && hasProField) {
+      errors._form =
+        "Amateur submissions cannot carry peak_world_rank or peak_rank_year.";
+    } else if (kind === "professional" && hasAmateurField) {
+      errors._form =
+        "Professional submissions cannot carry peak_rating_value or peak_rating_year.";
     }
   }
 

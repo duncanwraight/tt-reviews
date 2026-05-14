@@ -272,6 +272,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         ) {
           // Will be processed below in review-specific section
           continue;
+        } else if (
+          submissionType === "player" &&
+          (field.name === "peak_world_rank" ||
+            field.name === "peak_rank_year" ||
+            field.name === "peak_rating_value" ||
+            field.name === "peak_rating_year")
+        ) {
+          // TT-225: typed INT columns. The FormField number input
+          // sends a string; Postgres handles the cast but be explicit
+          // so a bad-cast surfaces at the validator boundary, not as
+          // an opaque PG error downstream.
+          const parsed = parseInt(value as string, 10);
+          if (Number.isFinite(parsed)) submissionData[field.name] = parsed;
         } else {
           submissionData[field.name] = value;
         }
@@ -618,7 +631,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
 
       const { data: current } = await sbServerClient.client
         .from("players")
-        .select("name, active_years, playing_style, active")
+        .select(
+          "name, player_kind, peak_world_rank, peak_rank_year, peak_rating_value, peak_rating_year, active_years, playing_style, active"
+        )
         .eq("id", playerId)
         .single();
 
@@ -632,9 +647,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editData: Record<string, any> = {};
 
-      // TT-225 will re-add player_kind + peak fields to this diff loop.
-      // For now `highest_rating` is gone and the new typed fields aren't
-      // wired into the form yet, so we only diff free-form text columns.
+      // Free-form text columns: empty → null encodes "clear this".
       for (const fieldName of [
         "name",
         "active_years",
@@ -648,6 +661,43 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           (current as Record<string, unknown>)[fieldName] ?? null;
         if (submittedValue !== currentValue) {
           editData[fieldName] = submittedValue;
+        }
+      }
+
+      // TT-225: player_kind (enum) + typed peak columns. Each peak
+      // column only submits when its kind branch is currently
+      // mounted (UnifiedSubmissionForm clears values for hidden
+      // fields), so a kind flip from pro→amateur naturally produces
+      // an edit_data shape that nulls the previous side's columns.
+      // We mirror that here: a missing kind-matching field for the
+      // submitted kind encodes null.
+      const submittedKind = formData.get("player_kind");
+      if (typeof submittedKind === "string" && submittedKind !== "") {
+        const currentKind =
+          (current as Record<string, unknown>).player_kind ?? null;
+        if (submittedKind !== currentKind) {
+          editData.player_kind = submittedKind;
+        }
+      }
+      const peakColumns = [
+        "peak_world_rank",
+        "peak_rank_year",
+        "peak_rating_value",
+        "peak_rating_year",
+      ] as const;
+      for (const col of peakColumns) {
+        const raw = formData.get(col);
+        const currentValue = (current as Record<string, unknown>)[col] ?? null;
+        let submittedValue: number | null;
+        if (typeof raw === "string" && raw.trim() !== "") {
+          const parsed = Number(raw);
+          if (!Number.isFinite(parsed)) continue;
+          submittedValue = parsed;
+        } else {
+          submittedValue = null;
+        }
+        if (submittedValue !== currentValue) {
+          editData[col] = submittedValue;
         }
       }
 

@@ -342,6 +342,14 @@ export default function AdminPlayerSubmissions({
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          {submission.player_kind && (
+            <div>
+              <span className="font-medium text-gray-700">Player type:</span>
+              <span className="ml-2 text-gray-900 capitalize">
+                {submission.player_kind}
+              </span>
+            </div>
+          )}
           {(() => {
             const careerBest = renderCareerBest(submission);
             if (!careerBest) return null;
