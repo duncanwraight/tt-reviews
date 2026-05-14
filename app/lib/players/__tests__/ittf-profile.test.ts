@@ -9,7 +9,8 @@ const PROFILE_TEMPLATE = (
   grip: string,
   birthYear: string,
   careerBestRank: string = "1",
-  careerBestWeek: string = "11/2022"
+  careerBestDate: string = "11/2022",
+  careerBestLabel: "Week" | "Month" = "Month"
 ): string => `
 <td>
   <img src='flag.png'><br/><span class='notranslate'>CHINA</span><br/>
@@ -18,7 +19,7 @@ const PROFILE_TEMPLATE = (
   Age: 26<br/>
   Style: <span class='notranslate'>${hand}</span> <span class='notranslate'>${style}</span> (<span class='notranslate'>${grip}</span>)<br/>
   Ranking: <span class='notranslate'>1</span> | Week: <span class='notranslate'>20/2026</span><br/>
-  Career Best**: <span class='notranslate'>${careerBestRank}</span> | Week: <span class='notranslate'>${careerBestWeek}</span>
+  Career Best**: <span class='notranslate'>${careerBestRank}</span> | ${careerBestLabel}: <span class='notranslate'>${careerBestDate}</span>
 </td>
 `;
 
@@ -166,6 +167,21 @@ describe("parseIttfProfile", () => {
       "1994",
       "32",
       "11/2022"
+    );
+    const profile = parseIttfProfile(html);
+    expect(profile.peak_world_rank).toBe(32);
+    expect(profile.peak_rank_year).toBe(2022);
+  });
+
+  it("parses Career Best when ITTF emits the legacy 'Week:' label", () => {
+    const html = PROFILE_TEMPLATE(
+      "Right-Hand",
+      "Defence",
+      "ShakeHand",
+      "1994",
+      "32",
+      "11/2022",
+      "Week"
     );
     const profile = parseIttfProfile(html);
     expect(profile.peak_world_rank).toBe(32);

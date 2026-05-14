@@ -38,12 +38,15 @@ const STYLE_RE =
 const BIRTH_YEAR_RE =
   /Birth Year:\s*<span class=['"]notranslate['"]>(\d{4})<\/span>/i;
 
-// "Career Best**: <span ...>32</span> | Week: <span ...>11/2022</span>"
+// "Career Best**: <span ...>32</span> | Month: <span ...>11/2022</span>"
 // The asterisks are page-foot annotations ("Based on Seniors Singles
-// ITTF World Ranking since January 2001"). Week format is ISO week
-// "WW/YYYY" — we only keep the year for the display string.
+// ITTF World Ranking since January 2001"). The second token is
+// "MM/YYYY" or (historically) ISO week "WW/YYYY" — accept either and
+// keep only the year for the display string. ITTF flipped the public
+// page from Week to Month some time before 2026-05; we keep Week
+// accepted in case some legacy pages still render it.
 const CAREER_BEST_RE =
-  /Career Best\*{0,2}:\s*<span class=['"]notranslate['"]>(\d+)<\/span>\s*\|\s*Week:\s*<span class=['"]notranslate['"]>\d{1,2}\/(\d{4})<\/span>/i;
+  /Career Best\*{0,2}:\s*<span class=['"]notranslate['"]>(\d+)<\/span>\s*\|\s*(?:Week|Month):\s*<span class=['"]notranslate['"]>\d{1,2}\/(\d{4})<\/span>/i;
 
 export interface IttfProfile {
   handedness: "left" | "right" | null;
