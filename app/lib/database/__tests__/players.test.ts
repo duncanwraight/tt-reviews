@@ -67,7 +67,7 @@ describe("players.getAllPlayers", () => {
     });
   });
 
-  it("sortBy=highest_rating orders by peak_world_rank asc nulls last (TT-219)", async () => {
+  it("sortBy=highest_rating orders pros by peak_world_rank asc nulls last (TT-219)", async () => {
     const supabase = makeSupabase({ tables: { players: { data: [] } } });
     await players.getAllPlayers(makeCtx(supabase), {
       sortBy: "highest_rating",
@@ -84,6 +84,42 @@ describe("players.getAllPlayers", () => {
     expect(b.calls).not.toContainEqual({
       method: "order",
       args: ["highest_rating", { ascending: false }],
+    });
+  });
+
+  it("sortBy=highest_rating orders amateurs by peak_rating_value desc nulls last (TT-224)", async () => {
+    const supabase = makeSupabase({ tables: { players: { data: [] } } });
+    await players.getAllPlayers(makeCtx(supabase), {
+      playerKind: "amateur",
+      sortBy: "highest_rating",
+      sortOrder: "desc",
+    });
+    const b = supabase._builders.get("players")!;
+    expect(b.calls).toContainEqual({
+      method: "eq",
+      args: ["player_kind", "amateur"],
+    });
+    // Amateur ratings: higher value = better, so the typed sort flips
+    // direction relative to the pro path. NULLs still last.
+    expect(b.calls).toContainEqual({
+      method: "order",
+      args: ["peak_rating_value", { ascending: false, nullsFirst: false }],
+    });
+    expect(b.calls).not.toContainEqual({
+      method: "order",
+      args: ["peak_world_rank", { ascending: true, nullsFirst: false }],
+    });
+  });
+
+  it("playerKind filters select to one kind (TT-224)", async () => {
+    const supabase = makeSupabase({ tables: { players: { data: [] } } });
+    await players.getAllPlayers(makeCtx(supabase), {
+      playerKind: "professional",
+    });
+    const b = supabase._builders.get("players")!;
+    expect(b.calls).toContainEqual({
+      method: "eq",
+      args: ["player_kind", "professional"],
     });
   });
 

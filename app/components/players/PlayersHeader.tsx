@@ -14,7 +14,6 @@ interface CategoryOption {
 }
 
 interface PlayersHeaderProps {
-  totalPlayers: number;
   user?: { id: string; email?: string } | null;
   countries: string[];
   playingStyles: CategoryOption[];
@@ -23,6 +22,7 @@ interface PlayersHeaderProps {
     playingStyle?: string;
     gender?: string;
     activeOnly?: boolean;
+    kind: "pro" | "amateur" | "all";
     sortBy: string;
     sortOrder: string;
   };
@@ -32,7 +32,10 @@ interface PlayersHeaderProps {
     totalCount: number;
     limit: number;
   };
-  players: Player[];
+  pros: Player[];
+  amateurs: Player[];
+  proCount: number;
+  amateurCount: number;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -55,13 +58,15 @@ const COUNTRY_NAMES: Record<string, string> = {
 };
 
 export function PlayersHeader({
-  totalPlayers,
   user,
   countries,
   playingStyles,
   filters,
   pagination,
-  players,
+  pros,
+  amateurs,
+  proCount,
+  amateurCount,
 }: PlayersHeaderProps) {
   const { content } = useContent();
   const buildFilterUrl = (newFilters: Partial<typeof filters>) => {
@@ -74,10 +79,13 @@ export function PlayersHeader({
     if (combined.gender) params.set("gender", combined.gender);
     if (combined.activeOnly !== undefined)
       params.set("active", combined.activeOnly.toString());
+    if (combined.kind && combined.kind !== "all")
+      params.set("kind", combined.kind);
     if (combined.sortBy !== "created_at") params.set("sort", combined.sortBy);
     if (combined.sortOrder !== "desc") params.set("order", combined.sortOrder);
 
-    return `/players?${params.toString()}`;
+    const qs = params.toString();
+    return qs ? `/players?${qs}` : "/players";
   };
 
   const getPlayingStyleName = (styleValue: string) => {
@@ -85,12 +93,27 @@ export function PlayersHeader({
     return style ? style.name : styleValue;
   };
 
+  // TT-224: sort-label semantics depend on the visible section. When
+  // both sections render (`kind=all`), default to the pro framing
+  // since that's where most rows live; when filtered to amateurs,
+  // reflect "Peak rating" instead. The dropdown's data-attribute lets
+  // the e2e spec assert the label without sharing the string.
+  const careerBestLabel =
+    filters.kind === "amateur" ? "Peak rating" : "Career-best ranking";
+
+  const showPros = filters.kind !== "amateur";
+  const showAmateurs = filters.kind !== "pro";
+
   return (
     <>
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Professional Players
+            {filters.kind === "amateur"
+              ? "Amateur Players"
+              : filters.kind === "pro"
+                ? "Professional Players"
+                : "Players"}
           </h1>
           <p className="text-lg text-gray-600 max-w-3xl">
             {content(
@@ -98,12 +121,10 @@ export function PlayersHeader({
               "Equipment setups and playing styles for professional table tennis players from around the world."
             )}
           </p>
-          {totalPlayers > 0 && (
-            <p className="text-sm text-gray-500 mt-2">
-              {totalPlayers} player{totalPlayers !== 1 ? "s" : ""} in our
-              database
-            </p>
-          )}
+          <p className="text-sm text-gray-500 mt-2">
+            {proCount} professional{proCount !== 1 ? "s" : ""} · {amateurCount}{" "}
+            amateur{amateurCount !== 1 ? "s" : ""}
+          </p>
         </div>
         {user && (
           <div className="flex space-x-3">
@@ -115,6 +136,32 @@ export function PlayersHeader({
             </a>
           </div>
         )}
+      </div>
+
+      {/* TT-224: kind filter pill row. Default `?kind=all` shows both
+          sections; `?kind=pro` or `?kind=amateur` drills into one. */}
+      <div
+        className="mb-6 flex flex-wrap gap-2"
+        data-testid="players-kind-filter"
+      >
+        {[
+          { value: "all" as const, label: "All players" },
+          { value: "pro" as const, label: "Pros" },
+          { value: "amateur" as const, label: "Amateurs" },
+        ].map(opt => (
+          <Link
+            key={opt.value}
+            to={buildFilterUrl({ kind: opt.value })}
+            data-testid={`players-kind-${opt.value}`}
+            className={`px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
+              filters.kind === opt.value
+                ? "bg-purple-600 border-purple-600 text-white"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {opt.label}
+          </Link>
+        ))}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 mb-8">
@@ -228,6 +275,7 @@ export function PlayersHeader({
                   sortBy: "highest_rating",
                   sortOrder: "desc",
                 })}
+                data-testid="players-sort-peak"
                 className={`block p-3 rounded-lg transition-colors ${
                   filters.sortBy === "highest_rating" &&
                   filters.sortOrder === "desc"
@@ -235,7 +283,7 @@ export function PlayersHeader({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                Highest Rating
+                {careerBestLabel}
               </Link>
             </div>
           </div>
@@ -244,13 +292,17 @@ export function PlayersHeader({
         <div className="flex-1">
           <div className="mb-6 flex items-center justify-between">
             <p className="text-gray-600">
-              Showing{" "}
-              {Math.min(
-                pagination.limit,
-                pagination.totalCount -
-                  (pagination.currentPage - 1) * pagination.limit
-              )}{" "}
-              of {pagination.totalCount} players
+              {filters.kind === "all"
+                ? `${proCount + amateurCount} player${
+                    proCount + amateurCount !== 1 ? "s" : ""
+                  } total`
+                : `Showing ${Math.min(
+                    pagination.limit,
+                    pagination.totalCount -
+                      (pagination.currentPage - 1) * pagination.limit
+                  )} of ${pagination.totalCount} ${
+                    filters.kind === "pro" ? "professionals" : "amateurs"
+                  }`}
               {filters.gender &&
                 ` (${filters.gender === "M" ? "Men" : "Women"})`}
               {filters.country &&
@@ -259,8 +311,63 @@ export function PlayersHeader({
                 ` (${getPlayingStyleName(filters.playingStyle)})`}
             </p>
           </div>
-          <PlayersGrid players={players} />
-          <PlayersPagination pagination={pagination} filters={filters} />
+
+          {showPros && (
+            <section
+              data-testid="players-pro-section"
+              className={showAmateurs ? "mb-12" : undefined}
+            >
+              {filters.kind === "all" && (
+                <h2
+                  className="text-2xl font-semibold text-gray-900 mb-4"
+                  data-testid="players-pro-heading"
+                >
+                  Professional players
+                </h2>
+              )}
+              <PlayersGrid players={pros} />
+              {filters.kind === "all" && proCount > pros.length && (
+                <div className="mt-4 text-right">
+                  <Link
+                    to={buildFilterUrl({ kind: "pro" })}
+                    className="text-purple-700 font-medium hover:underline"
+                  >
+                    See all {proCount} professionals →
+                  </Link>
+                </div>
+              )}
+              {filters.kind === "pro" && (
+                <PlayersPagination pagination={pagination} filters={filters} />
+              )}
+            </section>
+          )}
+
+          {showAmateurs && (
+            <section data-testid="players-amateur-section">
+              {filters.kind === "all" && (
+                <h2
+                  className="text-2xl font-semibold text-gray-900 mb-4"
+                  data-testid="players-amateur-heading"
+                >
+                  Notable amateur players
+                </h2>
+              )}
+              <PlayersGrid players={amateurs} emptyKind="amateur" />
+              {filters.kind === "all" && amateurCount > amateurs.length && (
+                <div className="mt-4 text-right">
+                  <Link
+                    to={buildFilterUrl({ kind: "amateur" })}
+                    className="text-purple-700 font-medium hover:underline"
+                  >
+                    See all {amateurCount} amateurs →
+                  </Link>
+                </div>
+              )}
+              {filters.kind === "amateur" && (
+                <PlayersPagination pagination={pagination} filters={filters} />
+              )}
+            </section>
+          )}
         </div>
       </div>
     </>

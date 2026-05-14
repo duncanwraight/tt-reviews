@@ -21,8 +21,16 @@ export interface GetAllPlayersOptions {
   playingStyle?: string;
   gender?: string;
   active?: boolean;
+  // TT-224: kind discriminator filters /players by professional vs
+  // amateur. Undefined means "no kind filter" (legacy behaviour).
+  playerKind?: "professional" | "amateur";
   limit?: number;
   offset?: number;
+  // The `highest_rating` sortBy is preserved as the URL contract from
+  // TT-219; for professionals it maps to peak_world_rank asc nulls
+  // last, and for amateurs to peak_rating_value desc nulls last. When
+  // no `playerKind` filter is supplied it defaults to the pro path
+  // (matching TT-219 behaviour).
   sortBy?: "name" | "created_at" | "highest_rating";
   sortOrder?: "asc" | "desc";
 }
@@ -51,20 +59,30 @@ export async function getAllPlayers(
       if (options?.active !== undefined) {
         query = query.eq("active", options.active);
       }
+      if (options?.playerKind) {
+        query = query.eq("player_kind", options.playerKind);
+      }
 
       const sortBy = options?.sortBy || "created_at";
       const sortOrder = options?.sortOrder || "desc";
       if (sortBy === "highest_rating") {
-        // TT-219: the display field highest_rating is a formatted
-        // "WR<n> (<year>)" string so a lexicographic sort puts WR99
-        // ahead of WR1. Order by the typed numeric column instead.
-        // The intent of "Highest Rating" is single-directional ("best
-        // player first"), so we ignore sortOrder and always go
-        // ascending — and push unrated players (NULL) to the bottom.
-        query = query.order("peak_world_rank", {
-          ascending: true,
-          nullsFirst: false,
-        });
+        // TT-219 / TT-224: the URL-visible "highest_rating" sortBy is
+        // a stable contract for "best player first". The underlying
+        // column depends on the kind: pros order by peak_world_rank
+        // ascending (lower rank = better); amateurs by
+        // peak_rating_value descending (higher = better). Unrated
+        // rows (NULL on the relevant column) always sort last.
+        if (options?.playerKind === "amateur") {
+          query = query.order("peak_rating_value", {
+            ascending: false,
+            nullsFirst: false,
+          });
+        } else {
+          query = query.order("peak_world_rank", {
+            ascending: true,
+            nullsFirst: false,
+          });
+        }
       } else {
         query = query.order(sortBy, { ascending: sortOrder === "asc" });
       }
@@ -100,6 +118,7 @@ export interface GetPlayersCountOptions {
   playingStyle?: string;
   gender?: string;
   active?: boolean;
+  playerKind?: "professional" | "amateur";
 }
 
 export async function getPlayersCount(
@@ -127,6 +146,9 @@ export async function getPlayersCount(
     }
     if (options?.active !== undefined) {
       query = query.eq("active", options.active);
+    }
+    if (options?.playerKind) {
+      query = query.eq("player_kind", options.playerKind);
     }
 
     const { count, error } = await query;

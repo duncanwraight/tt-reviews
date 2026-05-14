@@ -23,10 +23,18 @@ const PLAYERS_LISTING_PARAMS = [
   "style",
   "gender",
   "active",
+  "kind",
   "sort",
   "order",
   "page",
 ] as const;
+
+type KindFilter = "pro" | "amateur" | "all";
+
+function parseKindParam(raw: string | null): KindFilter {
+  if (raw === "pro" || raw === "amateur" || raw === "all") return raw;
+  return "all";
+}
 
 export function meta({ matches, location }: Route.MetaArgs) {
   const currentYear = new Date().getFullYear();
@@ -89,9 +97,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       : url.searchParams.get("active") === "false"
         ? false
         : undefined;
-  // TT-219: "Highest Rating" (peak ITTF world rank, asc) is the
-  // default — that's the sort users care about on the catalogue.
-  // "Newest First" / "Name A-Z" stay available in the sidebar.
+  const kind = parseKindParam(url.searchParams.get("kind"));
+  // TT-219 / TT-224: "Highest Rating" maps to the typed peak column
+  // for whichever kind is in scope (pros: peak_world_rank asc;
+  // amateurs: peak_rating_value desc). URL param name stays
+  // `highest_rating` for back-compat with TT-219 bookmarks.
   const sortBy =
     (url.searchParams.get("sort") as
       | "name"
@@ -99,41 +109,83 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       | "highest_rating") || "highest_rating";
   const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
   const page = parseInt(url.searchParams.get("page") || "1", 10);
-  const limit = 12; // Players per page
+  const limit = 12;
   const offset = (page - 1) * limit;
 
   const sbServerClient = getServerClient(request, context);
   const db = new DatabaseService(context);
   const categoryService = createCategoryService(sbServerClient.client);
 
-  const [players, totalCount, countries, playingStyles] = await Promise.all([
-    db.getAllPlayers({
-      country,
-      playingStyle,
-      gender,
-      active: activeOnly,
-      sortBy,
-      sortOrder,
-      limit,
-      offset,
-    }),
-    db.getPlayersCount({
-      country,
-      playingStyle,
-      gender,
-      active: activeOnly,
-    }),
-    db.getPlayerCountries(),
-    categoryService.getPlayingStyles(),
-  ]);
+  // TT-224: when `kind=all` we render two sections (pros + amateurs)
+  // side-by-side. Each section is its own paginated grid in theory,
+  // but with the current seed (~52 pros, 2 amateurs) we keep the
+  // "all" view non-paginated and capped at LIMIT_ALL_SECTION rows
+  // per section. Drill into `?kind=pro` / `?kind=amateur` for full
+  // pagination on the single section. Two queries here is still well
+  // under the 50-subrequest cap.
+  const LIMIT_ALL_SECTION = 24;
 
-  const totalPages = Math.ceil(totalCount / limit);
+  const [pros, amateurs, proCount, amateurCount, countries, playingStyles] =
+    await Promise.all([
+      kind === "amateur"
+        ? Promise.resolve([])
+        : db.getAllPlayers({
+            country,
+            playingStyle,
+            gender,
+            active: activeOnly,
+            playerKind: "professional",
+            sortBy,
+            sortOrder,
+            limit: kind === "pro" ? limit : LIMIT_ALL_SECTION,
+            offset: kind === "pro" ? offset : 0,
+          }),
+      kind === "pro"
+        ? Promise.resolve([])
+        : db.getAllPlayers({
+            country,
+            playingStyle,
+            gender,
+            active: activeOnly,
+            playerKind: "amateur",
+            sortBy,
+            sortOrder,
+            limit: kind === "amateur" ? limit : LIMIT_ALL_SECTION,
+            offset: kind === "amateur" ? offset : 0,
+          }),
+      kind === "amateur"
+        ? Promise.resolve(0)
+        : db.getPlayersCount({
+            country,
+            playingStyle,
+            gender,
+            active: activeOnly,
+            playerKind: "professional",
+          }),
+      kind === "pro"
+        ? Promise.resolve(0)
+        : db.getPlayersCount({
+            country,
+            playingStyle,
+            gender,
+            active: activeOnly,
+            playerKind: "amateur",
+          }),
+      db.getPlayerCountries(),
+      categoryService.getPlayingStyles(),
+    ]);
 
-  // Check if user is logged in
+  // Pagination is per-section; only meaningful when a single kind is
+  // selected. When kind=all we still emit a pagination shape so the
+  // existing PlayersPagination component renders nothing
+  // (totalPages=1).
+  const activeTotal =
+    kind === "pro" ? proCount : kind === "amateur" ? amateurCount : 0;
+  const totalPages = kind === "all" ? 1 : Math.ceil(activeTotal / limit);
+
   const userResponse = await sbServerClient.client.auth.getUser();
   const user = userResponse.data.user;
 
-  // Generate breadcrumb schema
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
@@ -141,14 +193,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return data(
     {
-      players,
+      pros,
+      amateurs,
+      proCount,
+      amateurCount,
       user,
       countries,
       playingStyles,
       pagination: {
         currentPage: page,
         totalPages,
-        totalCount,
+        totalCount: activeTotal,
         limit,
       },
       filters: {
@@ -156,6 +211,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         playingStyle,
         gender,
         activeOnly,
+        kind,
         sortBy,
         sortOrder,
       },
@@ -167,7 +223,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
   const {
-    players,
+    pros,
+    amateurs,
+    proCount,
+    amateurCount,
     user,
     countries,
     playingStyles,
@@ -216,13 +275,15 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
           </div>
         )}
         <PlayersHeader
-          totalPlayers={pagination.totalCount}
           user={user}
           countries={countries}
           playingStyles={playingStyles}
           filters={filters}
           pagination={pagination}
-          players={players}
+          pros={pros}
+          amateurs={amateurs}
+          proCount={proCount}
+          amateurCount={amateurCount}
         />
       </PageSection>
     </div>

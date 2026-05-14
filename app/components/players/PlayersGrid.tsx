@@ -4,10 +4,29 @@ import { Users } from "lucide-react";
 
 interface PlayersGridProps {
   players: Player[];
+  // TT-224: kind context drives the "empty state" copy so the
+  // amateur section doesn't show "Submit First Player" when it's
+  // simply unpopulated (placeholder seeds were still expected during
+  // the rollout).
+  emptyKind?: "professional" | "amateur";
 }
 
-export function PlayersGrid({ players }: PlayersGridProps) {
+export function PlayersGrid({ players, emptyKind }: PlayersGridProps) {
   if (players.length === 0) {
+    if (emptyKind === "amateur") {
+      return (
+        <div className="text-center py-12 border border-dashed border-gray-300 rounded-lg">
+          <Users
+            className="size-12 text-gray-300 mx-auto mb-3"
+            aria-hidden
+            strokeWidth={1.5}
+          />
+          <p className="text-gray-600">
+            No amateur players matching the current filters.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-12">
         <Users
