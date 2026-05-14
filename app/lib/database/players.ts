@@ -54,7 +54,20 @@ export async function getAllPlayers(
 
       const sortBy = options?.sortBy || "created_at";
       const sortOrder = options?.sortOrder || "desc";
-      query = query.order(sortBy, { ascending: sortOrder === "asc" });
+      if (sortBy === "highest_rating") {
+        // TT-219: the display field highest_rating is a formatted
+        // "WR<n> (<year>)" string so a lexicographic sort puts WR99
+        // ahead of WR1. Order by the typed numeric column instead.
+        // The intent of "Highest Rating" is single-directional ("best
+        // player first"), so we ignore sortOrder and always go
+        // ascending — and push unrated players (NULL) to the bottom.
+        query = query.order("peak_world_rank", {
+          ascending: true,
+          nullsFirst: false,
+        });
+      } else {
+        query = query.order(sortBy, { ascending: sortOrder === "asc" });
+      }
 
       if (options?.limit) {
         query = query.limit(options.limit);

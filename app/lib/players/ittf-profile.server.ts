@@ -192,6 +192,8 @@ export function toIttfCandidate(
     grip: profile.grip ?? undefined,
     birth_year: profile.birth_year ?? undefined,
     highest_rating,
+    peak_world_rank: profile.peak_world_rank ?? undefined,
+    peak_rank_year: profile.peak_rank_year ?? undefined,
     ittf_profile_url: ittfProfileUrl(ittfid),
     fetched_at: new Date().toISOString(),
   };

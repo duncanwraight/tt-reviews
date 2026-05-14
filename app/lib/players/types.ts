@@ -45,6 +45,12 @@ export interface IttfProfileCandidate {
   // of the ISO week the peak was achieved. Undefined when the line
   // is absent or fails the sanity bounds in parseIttfProfile.
   highest_rating?: string;
+  // TT-219: the same peak captured as typed numerics for sortability.
+  // `highest_rating` stays as the display string; these feed the new
+  // players.peak_world_rank / peak_rank_year columns. Both undefined
+  // when highest_rating is undefined (they share a parse pass).
+  peak_world_rank?: number;
+  peak_rank_year?: number;
   ittf_profile_url: string;
   fetched_at: string;
 }
@@ -61,6 +67,8 @@ export interface MergedPlayer {
   playing_style?: PlayingStyle;
   birth_year?: number;
   highest_rating?: string;
+  peak_world_rank?: number;
+  peak_rank_year?: number;
   headshot_url?: string;
   wtt_profile_url: string;
   ittf_profile_url?: string;

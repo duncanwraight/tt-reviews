@@ -89,11 +89,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       : url.searchParams.get("active") === "false"
         ? false
         : undefined;
+  // TT-219: "Highest Rating" (peak ITTF world rank, asc) is the
+  // default — that's the sort users care about on the catalogue.
+  // "Newest First" / "Name A-Z" stay available in the sidebar.
   const sortBy =
     (url.searchParams.get("sort") as
       | "name"
       | "created_at"
-      | "highest_rating") || "created_at";
+      | "highest_rating") || "highest_rating";
   const sortOrder = (url.searchParams.get("order") as "asc" | "desc") || "desc";
   const page = parseInt(url.searchParams.get("page") || "1", 10);
   const limit = 12; // Players per page

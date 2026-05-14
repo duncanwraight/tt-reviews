@@ -30,7 +30,7 @@ describe("players.getAllPlayers", () => {
       playingStyle: "shakehand",
       gender: "male",
       active: true,
-      sortBy: "highest_rating",
+      sortBy: "name",
       sortOrder: "asc",
       limit: 10,
       offset: 20,
@@ -51,7 +51,7 @@ describe("players.getAllPlayers", () => {
     expect(b.calls).toContainEqual({ method: "eq", args: ["active", true] });
     expect(b.calls).toContainEqual({
       method: "order",
-      args: ["highest_rating", { ascending: true }],
+      args: ["name", { ascending: true }],
     });
     expect(b.calls).toContainEqual({ method: "limit", args: [10] });
     expect(b.calls).toContainEqual({ method: "range", args: [20, 29] });
@@ -64,6 +64,26 @@ describe("players.getAllPlayers", () => {
     expect(b.calls).toContainEqual({
       method: "order",
       args: ["created_at", { ascending: false }],
+    });
+  });
+
+  it("sortBy=highest_rating orders by peak_world_rank asc nulls last (TT-219)", async () => {
+    const supabase = makeSupabase({ tables: { players: { data: [] } } });
+    await players.getAllPlayers(makeCtx(supabase), {
+      sortBy: "highest_rating",
+      // sortOrder is ignored for highest_rating — best-player-first is
+      // always asc on the numeric rank. Pass "desc" to prove that.
+      sortOrder: "desc",
+    });
+    const b = supabase._builders.get("players")!;
+    expect(b.calls).toContainEqual({
+      method: "order",
+      args: ["peak_world_rank", { ascending: true, nullsFirst: false }],
+    });
+    // The legacy lex-sort on the display string must NOT happen.
+    expect(b.calls).not.toContainEqual({
+      method: "order",
+      args: ["highest_rating", { ascending: false }],
     });
   });
 

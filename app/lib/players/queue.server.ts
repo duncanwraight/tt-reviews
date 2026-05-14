@@ -186,6 +186,8 @@ async function insertPlayerRow(
         playing_style: merged.playing_style ?? null,
         birth_year: merged.birth_year ?? null,
         highest_rating: merged.highest_rating ?? null,
+        peak_world_rank: merged.peak_world_rank ?? null,
+        peak_rank_year: merged.peak_rank_year ?? null,
         image_key: imageKey,
         image_source_url: merged.headshot_url ?? null,
         active: true,
@@ -302,6 +304,8 @@ export async function processOnePlayerImport(
       style: ittf.style,
       birth_year: ittf.birth_year,
       highest_rating: ittf.highest_rating,
+      peak_world_rank: ittf.peak_world_rank,
+      peak_rank_year: ittf.peak_rank_year,
     });
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);

@@ -60,6 +60,12 @@ export type RunLogEntry =
       style?: "attack" | "defence" | "other";
       birth_year?: number;
       highest_rating?: string;
+      // TT-219: the numeric peak captured alongside the display
+      // string. Both undefined when the Career Best line didn't
+      // parse; otherwise both set so the admin UI can spot a
+      // legacy text-only entry.
+      peak_world_rank?: number;
+      peak_rank_year?: number;
       // Populated on `transient` or `error`.
       reason?: string;
     })
