@@ -95,3 +95,44 @@ test("seo: /players listing emits BreadcrumbList JSON-LD", async ({ page }) => {
   expect(names).toContain("Home");
   expect(names).toContain("Players");
 });
+
+// TT-214. Regression: the player slug route was passing `href` for
+// the final breadcrumb entry, so the generator emitted `item:
+// .../players/<slug>` on the current-page ListItem, which Rich Results
+// flags as "Unnamed item". The fix drops the href; the schema
+// generator already honours the no-href branch (TT-193 +
+// schema.test.ts:238). The route-level assertion is what catches the
+// caller-side regression.
+test("seo: /players/:slug breadcrumb final ListItem omits `item`", async ({
+  page,
+}) => {
+  await page.goto("/players/truls-moregard");
+  const crumbs = await findBreadcrumbJsonLd(page);
+  expect(crumbs.length).toBeGreaterThan(0);
+  const items = crumbs[0].itemListElement as Array<{
+    name: string;
+    position: number;
+    item?: string;
+  }>;
+  const last = items[items.length - 1];
+  expect(last.name).toBe("Truls MOREGARD");
+  expect(last.item).toBeUndefined();
+});
+
+test("seo: /equipment/:slug breadcrumb final ListItem omits `item`", async ({
+  page,
+}) => {
+  // Same guarantee for the equipment slug route. TT-193 originally
+  // fixed this one; co-locating with the players assertion keeps the
+  // pair grouped so future audits don't drift.
+  await page.goto("/equipment/butterfly-tenergy-05");
+  const crumbs = await findBreadcrumbJsonLd(page);
+  expect(crumbs.length).toBeGreaterThan(0);
+  const items = crumbs[0].itemListElement as Array<{
+    name: string;
+    position: number;
+    item?: string;
+  }>;
+  const last = items[items.length - 1];
+  expect(last.item).toBeUndefined();
+});

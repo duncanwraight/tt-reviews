@@ -112,10 +112,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // Generate structured data schemas
   const playerSchema = schemaService.generatePlayerSchema(player);
+  // Breadcrumb's final entry intentionally has no `href` — Google's
+  // BreadcrumbList spec allows omitting `item` on the current page,
+  // which the schema generator now honours.
   const breadcrumbSchema = schemaService.generateBreadcrumbSchema([
     { label: "Home", href: "/" },
     { label: "Players", href: "/players" },
-    { label: player.name, href: `/players/${player.slug}` },
+    { label: player.name },
   ]);
   const multipleSchemas = [playerSchema, breadcrumbSchema];
 
