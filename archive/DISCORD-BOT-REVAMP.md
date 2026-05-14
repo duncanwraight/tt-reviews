@@ -109,14 +109,14 @@ Title / link / thumbnail / fields, in this order:
 
 ### Embed contents — player
 
-| Slot                  | Source                                                                                        | Notes                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `title`               | `name`                                                                                        | Linked via embed `url` to `/players/<slug>`                                        |
-| `author.name`         | flag emoji + country code from `represents`                                                   | e.g. "🇨🇳 CHN"                                                                      |
-| `thumbnail.url`       | derived from `players.image_key`                                                              |                                                                                    |
-| field "Profile"       | `playing_style`, `active`/`retired`, `highest_rating`, `active_years`                         | Two-column compact layout                                                          |
-| field "Current setup" | latest _verified_ row from `player_equipment_setups` formatted "Blade / FH / BH (since YYYY)" | "since YYYY" = the `year` column on the latest setup                               |
-| field "Recent videos" | up to 3 from `player_footage` where `active=true`, ordered by `created_at desc`               | Format `[Title](url)` per line; titles are user-submitted so cap each at ~80 chars |
+| Slot                  | Source                                                                                               | Notes                                                                                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`               | `name`                                                                                               | Linked via embed `url` to `/players/<slug>`                                                                                                                    |
+| `author.name`         | flag emoji + country code from `represents`                                                          | e.g. "🇨🇳 CHN"                                                                                                                                                  |
+| `thumbnail.url`       | derived from `players.image_key`                                                                     |                                                                                                                                                                |
+| field "Profile"       | `playing_style`, `active`/`retired`, career-best (kind-aware via `renderCareerBest`), `active_years` | Two-column compact layout. Career-best line reads "Career-best ranking: World #N (YYYY)" for pros and "Peak rating: VALUE LABEL (YYYY)" for amateurs (TT-220). |
+| field "Current setup" | latest _verified_ row from `player_equipment_setups` formatted "Blade / FH / BH (since YYYY)"        | "since YYYY" = the `year` column on the latest setup                                                                                                           |
+| field "Recent videos" | up to 3 from `player_footage` where `active=true`, ordered by `created_at desc`                      | Format `[Title](url)` per line; titles are user-submitted so cap each at ~80 chars                                                                             |
 
 ### Rating display
 

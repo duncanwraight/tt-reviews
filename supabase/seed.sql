@@ -937,13 +937,22 @@ INSERT INTO players (name, slug, ittfid, peak_world_rank, peak_rank_year, active
 ('Ma Long', 'ma-long', 105649, 1, 2017, '2003-2024', false, 'CHN', 1988, 'CHN', 'shakehand_attacker', 'M'),
 ('Vladimír Sámsonov', 'vladimir-samsonov', 108246, 2, 2001, '1995-2024', false, 'BLR', 1976, 'BLR', 'shakehand_attacker', 'M');
 
--- TT-221: amateur seed rows so downstream display / list work (TT-C,
--- TT-D) has data to test against. Placeholder values — TT-F replaces
--- with real numbers. `player_kind = 'amateur'` is set explicitly so
--- the CHECK constraint accepts the peak_rating_value/year pair.
+-- TT-226: amateur seed rows with real-world peak ratings sourced
+-- from myTischtennis (German pair) and the French Points ranking
+-- (Zhang Qihan). Three distinct rating systems exercised so the
+-- country-derived label map renders TTR / Points across one
+-- /players page.
+--   - Florian Bluhm: career-high TTR 2434, plays 3. Bundesliga Süd.
+--   - Daniel Kleinert: Q-TTR 2215, plays Oberliga BW for TTC 95
+--     Odenheim.
+--   - Zhang Qihan: peak FFTT Points 2680 (currently No. 104 with
+--     ~2594), plays in France.
+-- `player_kind = 'amateur'` is set explicitly so the CHECK constraint
+-- accepts the peak_rating_value/year pair.
 INSERT INTO players (name, slug, player_kind, peak_rating_value, peak_rating_year, active_years, active, birth_country, birth_year, represents, playing_style, gender) VALUES
-('Florian Bluhm', 'florian-bluhm', 'amateur', 2350, 2023, '2010-present', true, 'GER', 1990, 'GER', 'classical_defender', 'M'),
-('Daniel Kleinert', 'daniel-kleinert', 'amateur', 2300, 2022, '2008-present', true, 'GER', 1988, 'GER', 'classical_defender', 'M');
+('Florian Bluhm', 'florian-bluhm', 'amateur', 2434, 2024, '2010-present', true, 'GER', 1990, 'GER', 'classical_defender', 'M'),
+('Daniel Kleinert', 'daniel-kleinert', 'amateur', 2215, 2025, '2008-present', true, 'GER', 1988, 'GER', 'classical_defender', 'M'),
+('Zhang Qihan', 'zhang-qihan', 'amateur', 2680, 2024, '2015-present', true, 'CHN', 1995, 'FRA', 'shakehand_attacker', 'M');
 
 -- Get IDs for equipment setups (we'll use these in the next inserts)
 -- Note: In a real seed script, you'd typically handle this differently, but for simplicity we'll use subqueries

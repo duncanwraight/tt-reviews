@@ -14,6 +14,12 @@ This document outlines key meanings for this application, with examples where ne
 
 - Reversal: Some rubbers are capable of "reversing" the spin. This isn't actually what happens - the incoming shot has topspin on, and low-friction rubbers don't grip the ball and override the spin, so the spin continues. However, from the opponent's perspective, the ball will now be backspin so it feels like their topspin has been "reversed" into backspin, rather than a topspin loop being blocked back with topspin from a grippy inverted rubber
 
+## Players
+
+- **Player kind**: discriminates a professional player (world-ranked, with an ITTF peak) from an amateur (country-rated, with a federation rating like German TTR or USATT). Stored as the `player_kind` enum on the `players` and `player_submissions` tables. A mutual-exclusion CHECK constraint enforces that a professional row only carries `peak_world_rank` / `peak_rank_year` and an amateur row only carries `peak_rating_value` / `peak_rating_year`.
+- **Career-best ranking** (professionals only): the player's peak ITTF Seniors Singles world ranking, rendered as "World #N (YYYY)". Sourced from the ITTF profile's "Career Best\*\*:" line via the importer (TT-204) or admin entry.
+- **Peak rating** (amateurs only): the player's peak country-specific federation rating, rendered as "VALUE LABEL (YYYY)" where the LABEL is derived at render time from `represents ?? birth_country` via `app/lib/players/rating-systems.ts`. Examples: `2434 TTR (2024)`, `2200 Points (2023)`, `1800 USATT (2024)`. Unmapped countries fall back to the literal "Rating" label.
+
 ## Strokes
 
 - Topspin loop: A fast attacking stroke where the player brushes the ball to generate spin

@@ -134,7 +134,10 @@ echo "→ Checking for hard-coded compound submission-type literals..."
 # File paths allowed to reference the compound literals directly.
 # Renames land as a phantom violation here + an allow-list diff; keep them
 # in lockstep.
-ALLOWED_SUBMISSION_LITERAL_FILES='^(app/components/profile/UserSubmissions\.tsx|app/lib/database/submissions\.ts|app/lib/discord/messages\.ts|app/lib/discord/moderation\.ts|app/lib/discord/notifications\.ts|app/lib/discord/types\.ts|app/lib/moderation\.server\.ts|app/lib/submissions/discord-format\.ts|app/lib/submissions/field-loaders\.server\.ts|app/lib/submissions/registry\.ts|app/lib/submissions/types\.ts|app/routes/admin\.player-edits\.tsx|app/routes/admin\.player-equipment-setups\.tsx|app/routes/submissions\.\$type\.submit\.tsx):'
+ALLOWED_SUBMISSION_LITERAL_FILES='^(app/components/profile/UserSubmissions\.tsx|app/lib/database/submissions\.ts|app/lib/discord/messages\.ts|app/lib/discord/moderation\.ts|app/lib/discord/notifications\.ts|app/lib/discord/types\.ts|app/lib/moderation\.server\.ts|app/lib/submissions/discord-format\.ts|app/lib/submissions/field-loaders\.server\.ts|app/lib/submissions/registry\.ts|app/lib/submissions/types\.ts|app/lib/submissions/validate\.server\.ts|app/routes/admin\.player-edits\.tsx|app/routes/admin\.player-equipment-setups\.tsx|app/routes/submissions\.\$type\.submit\.tsx):'
+# Added validate.server.ts (TT-225): cross-field player/player_edit
+# guard narrows on the SubmissionType union via === literals — same
+# pattern the other allow-listed files use.
 
 SUBMISSION_LITERAL_HITS=$(grep -rnE '"(player_edit|player_equipment_setup)"' \
   app/ workers/ \
