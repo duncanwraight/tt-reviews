@@ -228,11 +228,12 @@ export function validateSubmission(
 
   // TT-228: amateur new-player submissions need a photo + at least one
   // video so the moderator can verify the notability bar (the same bar
-  // surfaced inline on the public form). Mirrors the client-side
-  // requiredWhen plumbing on player.image / player.videos so a tampered
-  // post can't slip a media-less amateur row past the validator.
-  // Scoped to type === "player": player_edit doesn't carry videos and
-  // its image is "update existing", not "first capture".
+  // surfaced inline on the public form via per-option helpText on the
+  // player_kind radio). Mirrors the client-side requiredWhen plumbing on
+  // player.image / player.videos so a tampered post can't slip a
+  // media-less amateur row past the validator. Scoped to type === "player":
+  // player_edit doesn't carry videos and its image field is "update
+  // existing", not "first capture".
   if (type === "player") {
     const kind = (formData.get("player_kind") as string | null) ?? null;
     if (kind === "amateur") {
