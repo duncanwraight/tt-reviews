@@ -27,6 +27,7 @@ export type FieldType =
   | "text"
   | "textarea"
   | "select"
+  | "radio"
   | "number"
   | "email"
   | "image"
@@ -48,7 +49,10 @@ export interface FormField {
   required?: boolean;
   placeholder?: string;
   disabled?: boolean;
-  options?: Array<{ value: string; label: string }>;
+  // `helpText` on an option is rendered as a subtitle beneath that
+  // option's label — used by `radio` to surface per-option guidance
+  // (e.g., notability caveat under "Amateur"). `select` ignores it.
+  options?: Array<{ value: string; label: string; helpText?: string }>;
   validation?: {
     min?: number;
     max?: number;
@@ -59,6 +63,25 @@ export interface FormField {
     field: string;
     showWhen?: string | string[];
     hideWhen?: string | string[];
+  };
+  // Conditional label override: when the named field's value matches
+  // `equals`, render `label` instead of the field's default label.
+  // UI-only — the column / form name doesn't change. Used for the
+  // "Represents" → "Country (where they compete)" flip when the
+  // submitter picks Amateur on the player form.
+  labelWhen?: {
+    field: string;
+    equals: string | string[];
+    label: string;
+  };
+  // Conditional required: when the named field's value matches
+  // `equals`, treat this field as required even if `required` is
+  // false. Mirrors `dependencies` shape. The client validator and
+  // the rendered `*` marker both honour it. Server-side checks live
+  // in `validate.server.ts`.
+  requiredWhen?: {
+    field: string;
+    equals: string | string[];
   };
   // When `dependencies` hides this field, opt in to keeping the value
   // in the submitted form data via a `<input type="hidden">` bridge.

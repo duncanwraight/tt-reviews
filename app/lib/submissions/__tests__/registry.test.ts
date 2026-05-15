@@ -92,6 +92,60 @@ describe("form-UX consistency", () => {
     expect(offenders).toEqual([]);
   });
 
+  // TT-228: registry-shape lints for the player_kind radio + amateur
+  // gates so a future select-vs-radio regression or a missing
+  // requiredWhen rule fails the unit suite, not a moderator's eye.
+  it("player_kind on player + player_edit is a radio with the notability caveat under Amateur", () => {
+    for (const type of ["player", "player_edit"] as const) {
+      const field = SUBMISSION_REGISTRY[type].form.fields.find(
+        f => f.name === "player_kind"
+      );
+      expect(field, `${type}.player_kind missing`).toBeDefined();
+      expect(field!.type).toBe("radio");
+      const opts = field!.options ?? [];
+      const values = opts.map(o => o.value).sort();
+      expect(values).toEqual(["amateur", "professional"]);
+      const amateur = opts.find(o => o.value === "amateur");
+      expect(amateur?.helpText, `${type}.amateur helpText missing`).toMatch(
+        /notable/i
+      );
+      const pro = opts.find(o => o.value === "professional");
+      expect(pro?.helpText).toBeUndefined();
+    }
+  });
+
+  it("player.represents flips its label when player_kind=amateur", () => {
+    const represents = SUBMISSION_REGISTRY.player.form.fields.find(
+      f => f.name === "represents"
+    );
+    expect(represents?.labelWhen).toEqual({
+      field: "player_kind",
+      equals: "amateur",
+      label: "Country (where they compete)",
+    });
+  });
+
+  it("player.image and player.videos are requiredWhen player_kind=amateur", () => {
+    for (const name of ["image", "videos"] as const) {
+      const field = SUBMISSION_REGISTRY.player.form.fields.find(
+        f => f.name === name
+      );
+      expect(field?.requiredWhen).toEqual({
+        field: "player_kind",
+        equals: "amateur",
+      });
+      // Must remain optional in the base case so pro submissions
+      // aren't forced to upload media.
+      expect(field?.required).toBeFalsy();
+    }
+  });
+
+  it("player form description no longer pushes a 'professional' framing", () => {
+    expect(SUBMISSION_REGISTRY.player.form.description).not.toMatch(
+      /professional/i
+    );
+  });
+
   it("edit-form text fields don't carry 'Leave blank to keep current' placeholders", () => {
     // TT-129: both edit-style submissions (equipment_edit, player_edit)
     // pre-fill from the current row and diff submitted-vs-current —

@@ -222,6 +222,86 @@ describe("validateSubmission — player_edit", () => {
   });
 });
 
+// TT-228: amateur new-player submissions need a photo + at least one
+// video. Mirrors the requiredWhen plumbing on the public form so a
+// tampered post can't slip a media-less amateur row past the boundary.
+describe("validateSubmission — player (amateur media gate)", () => {
+  function amateurFormData(opts: {
+    withImage?: boolean;
+    videoCount?: number;
+  }): FormData {
+    const f = new FormData();
+    f.set("name", "E2E Amateur");
+    f.set("player_kind", "amateur");
+    f.set("peak_rating_value", "2350");
+    f.set("peak_rating_year", "2023");
+    if (opts.withImage) {
+      const blob = new Blob(["x"], { type: "image/png" });
+      f.set("image", new File([blob], "photo.png", { type: "image/png" }));
+    }
+    for (let i = 0; i < (opts.videoCount ?? 0); i++) {
+      f.set(`videos[${i}][url]`, `https://example.com/v${i}.mp4`);
+      f.set(`videos[${i}][title]`, `Clip ${i}`);
+      f.set(`videos[${i}][platform]`, "other");
+    }
+    return f;
+  }
+
+  it("rejects amateur without an image", () => {
+    const result = validateSubmission(
+      "player",
+      amateurFormData({ videoCount: 1 })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.image).toMatch(/required/i);
+    expect(result.errors?.videos).toBeUndefined();
+  });
+
+  it("rejects amateur without any videos", () => {
+    const result = validateSubmission(
+      "player",
+      amateurFormData({ withImage: true })
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors?.videos).toMatch(/required/i);
+    expect(result.errors?.image).toBeUndefined();
+  });
+
+  it("rejects amateur missing both image and videos", () => {
+    const result = validateSubmission("player", amateurFormData({}));
+    expect(result.valid).toBe(false);
+    expect(result.errors?.image).toMatch(/required/i);
+    expect(result.errors?.videos).toMatch(/required/i);
+  });
+
+  it("accepts amateur with both image and at least one video", () => {
+    const result = validateSubmission(
+      "player",
+      amateurFormData({ withImage: true, videoCount: 1 })
+    );
+    expect(result.valid).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+
+  it("does not require image/videos for professional submissions", () => {
+    const f = new FormData();
+    f.set("name", "Pro Player");
+    f.set("player_kind", "professional");
+    const result = validateSubmission("player", f);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+
+  it("does not require image/videos when player_kind is omitted", () => {
+    // Bare submission — DB defaults the column to professional.
+    const f = new FormData();
+    f.set("name", "Default Pro");
+    const result = validateSubmission("player", f);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+});
+
 describe("validateSubmission — equipment", () => {
   it("rejects a missing name", () => {
     const result = validateSubmission(

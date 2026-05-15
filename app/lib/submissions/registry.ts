@@ -193,7 +193,7 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
     adminPath: "/admin/player-submissions",
     form: {
       title: "Submit New Player",
-      description: "Add a professional player who's missing from the database.",
+      description: "Add a player who's missing from the database.",
       submitButtonText: "Submit Player",
       successTitle: "Player submitted.",
       successMessage:
@@ -201,28 +201,33 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
       redirectPath: "/profile",
       fields: [
         createNameField("player", "e.g., Ma Long"),
-        // TT-225: kind toggle + per-kind peak inputs. The `select`
-        // type renders the dropdown; the dependencies system gates
-        // each peak field on the matching kind, and the unmounted
-        // side's value gets cleared from formValues by
-        // UnifiedSubmissionForm's effect so only one side submits.
-        // Server-side guard in validate.server.ts mirrors the DB
-        // CHECK constraint as a belt-and-braces defence against
-        // tampered posts.
+        // TT-228: radio with explicit Pro / Amateur options replaces
+        // the previous select that re-rendered "Professional (default)"
+        // alongside the real Professional option. Per-option helpText
+        // surfaces the amateur notability bar inline so submitters see
+        // it before picking the Amateur path. The dependencies system
+        // still gates each peak field on the matching kind (TT-225),
+        // and validate.server.ts mirrors the kind-vs-peak-fields cross
+        // -check + the new amateur media gate as belt-and-braces
+        // defences against tampered posts.
         {
           name: "player_kind",
           label: "Player type",
-          type: "select",
+          type: "radio",
           required: false,
           // Not required because the DB column defaults to
           // 'professional' on omitted kind; this keeps the bare
           // happy-path flow unchanged (no need to pick a radio just
           // to submit a pro). The Amateur option opts a submitter
           // into the country-rated path with its own peak inputs.
-          placeholder: "Professional (default)",
           options: [
             { value: "professional", label: "Professional (world-ranked)" },
-            { value: "amateur", label: "Amateur (country-rated)" },
+            {
+              value: "amateur",
+              label: "Amateur (country-rated)",
+              helpText:
+                "Must be notable — e.g. YouTube content creators or high-rated amateurs with watchable videos that lower-rated players would be interested in.",
+            },
           ],
           layout: { colSpan: 2 },
         },
@@ -281,7 +286,19 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
         },
         createSelectField("playing_style", "Playing Style"),
         createSelectField("birth_country", "Birth Country"),
-        createSelectField("represents", "Represents"),
+        {
+          ...createSelectField("represents", "Represents"),
+          // TT-228: when the submitter picks Amateur, the column still
+          // stores a country code but the displayed label flips to
+          // "Country (where they compete)" so it reads naturally in
+          // the amateur context (an amateur isn't "represented by" a
+          // national federation).
+          labelWhen: {
+            field: "player_kind",
+            equals: "amateur",
+            label: "Country (where they compete)",
+          },
+        },
         {
           name: "image",
           label: "Player Photo",
@@ -289,6 +306,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           required: false,
           placeholder: "Upload an upper-body photo of the player",
           layout: { colSpan: 2 },
+          // TT-228: amateur submissions need a photo to be useful —
+          // requiredWhen flips the gate on without affecting the pro
+          // path, where a photo can be added later via player_edit.
+          requiredWhen: { field: "player_kind", equals: "amateur" },
         },
         {
           name: "include_equipment",
@@ -318,6 +339,10 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           type: "video_list",
           required: false,
           layout: { colSpan: 2 },
+          // TT-228: amateur submissions need at least one video so
+          // moderators can verify the player is the kind of "watchable
+          // amateur" the notability bar implies.
+          requiredWhen: { field: "player_kind", equals: "amateur" },
         },
       ],
     },
@@ -422,20 +447,27 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           required: true,
           layout: { colSpan: 2 },
         },
-        // TT-225: kind toggle + peak inputs available on edits too.
-        // Admin can flip player_kind on the moderation approval; the
-        // edit_data diff captures the kind change alongside the peak
-        // values and the applier writes both sides correctly. The DB
-        // CHECK constraint backstops a flipped-kind edit that leaves
-        // stale peak fields populated.
+        // TT-225/TT-228: kind toggle + peak inputs available on edits.
+        // Radio (not select) for the same UX reasons as the new-player
+        // form: the per-option helpText surfaces the amateur notability
+        // bar inline. Admin can flip player_kind on the moderation
+        // approval; the edit_data diff captures the kind change
+        // alongside the peak values and the applier writes both sides
+        // correctly. The DB CHECK constraint backstops a flipped-kind
+        // edit that leaves stale peak fields populated.
         {
           name: "player_kind",
           label: "Player type",
-          type: "select",
+          type: "radio",
           required: false,
           options: [
             { value: "professional", label: "Professional (world-ranked)" },
-            { value: "amateur", label: "Amateur (country-rated)" },
+            {
+              value: "amateur",
+              label: "Amateur (country-rated)",
+              helpText:
+                "Must be notable — e.g. YouTube content creators or high-rated amateurs with watchable videos that lower-rated players would be interested in.",
+            },
           ],
           layout: { colSpan: 2 },
         },

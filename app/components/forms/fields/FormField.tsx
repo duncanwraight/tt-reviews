@@ -18,7 +18,7 @@ interface FormFieldProps {
   onChange: (name: string, value: any) => void;
   error?: string;
   disabled?: boolean;
-  options?: Array<{ value: string; label: string }>;
+  options?: Array<{ value: string; label: string; helpText?: string }>;
   env?: {
     SUPABASE_URL: string;
     SUPABASE_ANON_KEY: string;
@@ -220,6 +220,53 @@ export function FormField({
           />
         );
 
+      case "radio": {
+        // Distinct from `select`: radios surface per-option help text
+        // and force the submitter to make a visible choice. Currently
+        // used for player_kind to expose the amateur-only notability
+        // caveat next to the option label.
+        const radioOptions = field.options || options;
+        return (
+          <fieldset className="space-y-3">
+            <legend className="sr-only">{field.label}</legend>
+            {radioOptions.map(option => {
+              const checked = String(value ?? "") === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${
+                    checked
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={field.name}
+                    value={option.value}
+                    checked={checked}
+                    onChange={e => onChange(field.name, e.target.value)}
+                    required={field.required}
+                    disabled={disabled}
+                    className="mt-1 h-4 w-4 border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium text-gray-900">
+                      {option.label}
+                    </span>
+                    {option.helpText && (
+                      <span className="mt-1 block text-xs text-gray-600">
+                        {option.helpText}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
+        );
+      }
+
       case "select":
         const selectOptions = field.options || options;
         // Suppress the empty placeholder option once a required select
@@ -396,6 +443,31 @@ export function FormField({
     }
   };
 
+  // labelWhen: swap the rendered label when a sibling field's value
+  // matches. UI-only (form name unchanged). Used so "Represents" reads
+  // "Country (where they compete)" when the player_kind radio is set
+  // to amateur.
+  const matchesValueRule = (
+    fieldName: string,
+    equals: string | string[]
+  ): boolean => {
+    const target = String(allValues[fieldName] ?? "");
+    return Array.isArray(equals) ? equals.includes(target) : target === equals;
+  };
+  const renderedLabel =
+    field.labelWhen &&
+    matchesValueRule(field.labelWhen.field, field.labelWhen.equals)
+      ? field.labelWhen.label
+      : field.label;
+  // requiredWhen: render the asterisk when the conditional rule is
+  // active too. The validator in UnifiedSubmissionForm honours the
+  // same rule so the marker and the actual gate stay in sync.
+  const isConditionallyRequired = Boolean(
+    field.requiredWhen &&
+    matchesValueRule(field.requiredWhen.field, field.requiredWhen.equals)
+  );
+  const showRequiredMark = Boolean(field.required) || isConditionallyRequired;
+
   return (
     <div className={colSpanClass}>
       {field.type !== "checkbox" &&
@@ -407,8 +479,8 @@ export function FormField({
             htmlFor={field.name}
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            {field.label}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
+            {renderedLabel}
+            {showRequiredMark && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
 

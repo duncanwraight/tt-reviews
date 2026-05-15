@@ -114,6 +114,30 @@ export function UnifiedSubmissionForm({
     // We intentionally re-run only when formValues changes.
   }, [formValues, config.form.fields]);
 
+  // requiredWhen: a field can be required conditionally on another
+  // field's value (e.g., player image + videos required only when
+  // player_kind=amateur). Mirrors `dependencies`: equals can be a
+  // single string or an array.
+  const matchesRequiredWhen = (field: FormFieldConfig): boolean => {
+    if (!field.requiredWhen) return false;
+    const target = String(formValues[field.requiredWhen.field] ?? "");
+    return Array.isArray(field.requiredWhen.equals)
+      ? field.requiredWhen.equals.includes(target)
+      : field.requiredWhen.equals === target;
+  };
+
+  // The video_list field stores its value as an array of objects in
+  // formValues, while a "no upload" image keeps the value undefined.
+  // Both cases are handled by !value, but a video_list with [] also
+  // counts as empty.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isEmptyValue = (field: FormFieldConfig, value: any): boolean => {
+    if (field.type === "video_list") {
+      return !Array.isArray(value) || value.length === 0;
+    }
+    return !value;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -130,7 +154,9 @@ export function UnifiedSubmissionForm({
         return;
       }
 
-      if (field.required && !formValues[field.name]) {
+      const effectivelyRequired =
+        Boolean(field.required) || matchesRequiredWhen(field);
+      if (effectivelyRequired && isEmptyValue(field, formValues[field.name])) {
         newErrors[field.name] = `${field.label} is required`;
       }
 
