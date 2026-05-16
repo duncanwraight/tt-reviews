@@ -107,6 +107,54 @@ function TextInput({
   );
 }
 
+function TextListInput({
+  field,
+  values,
+  onChange,
+  disabled,
+  error,
+}: {
+  field: CategoryOption;
+  values: Record<string, unknown>;
+  onChange: EquipmentSpecsFieldProps["onChange"];
+  disabled?: boolean;
+  error?: string;
+}) {
+  const inputName = `spec_${field.value}`;
+  // The stored shape is a JSON array; the input shows it as comma-separated
+  // text. Round-trip is lossy on whitespace but stable on value identity.
+  const current = values[inputName];
+  const displayValue = Array.isArray(current)
+    ? current.join(", ")
+    : typeof current === "string"
+      ? current
+      : "";
+  return (
+    <div>
+      <label
+        htmlFor={inputName}
+        className="block text-sm font-medium text-gray-700 mb-1"
+      >
+        {fieldLabel(field)}
+      </label>
+      <input
+        type="text"
+        id={inputName}
+        name={inputName}
+        value={displayValue}
+        onChange={e => onChange(inputName, e.target.value)}
+        placeholder="e.g. 1.7, 1.9, 2.1"
+        disabled={disabled}
+        className={`${inputClasses} ${error ? errorBorder : ""}`}
+      />
+      <p className="mt-1 text-xs text-gray-500">
+        Comma-separated list of available values.
+      </p>
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function EnumInput({
   field,
   values,
@@ -344,6 +392,17 @@ export function EquipmentSpecsField({
             case "enum":
               return (
                 <EnumInput
+                  key={field.id}
+                  field={field}
+                  values={values}
+                  onChange={onChange}
+                  disabled={disabled}
+                  error={error}
+                />
+              );
+            case "text_list":
+              return (
+                <TextListInput
                   key={field.id}
                   field={field}
                   values={values}

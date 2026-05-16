@@ -53,6 +53,15 @@ function renderEnum(field: CategoryOption, raw: unknown): string {
   return match ? match.label : slug;
 }
 
+function renderTextList(raw: unknown, unit?: string): string {
+  if (!Array.isArray(raw) || raw.length === 0) return "—";
+  // Each entry joined with " / ". Unit (e.g. "mm") suffixes the whole
+  // list rather than each entry — "1.7 / 1.9 / 2.1 mm" reads better
+  // than "1.7mm / 1.9mm / 2.1mm".
+  const joined = raw.map(v => String(v)).join(" / ");
+  return unit ? `${joined} ${unit}` : joined;
+}
+
 function renderCell(field: CategoryOption, raw: unknown): string {
   switch (field.field_type) {
     case "range":
@@ -62,6 +71,8 @@ function renderCell(field: CategoryOption, raw: unknown): string {
       return renderScalar(raw, field.unit);
     case "enum":
       return renderEnum(field, raw);
+    case "text_list":
+      return renderTextList(raw, field.unit);
     case "text":
     default:
       return renderScalar(raw);

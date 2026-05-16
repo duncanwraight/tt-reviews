@@ -693,6 +693,15 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           type: "hidden",
           required: true,
         },
+        // TT-191: hidden field carrying equipment.category so dependent
+        // fields (sponge_thickness) can conditionally render. Filled by
+        // the review preSelectionHandler from the equipment row.
+        {
+          name: "equipment_category",
+          label: "Equipment category",
+          type: "hidden",
+          required: false,
+        },
         {
           name: "equipment_display",
           label: "Reviewing",
@@ -728,6 +737,22 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
             { value: "6_months_to_year", label: "6 months to 1 year" },
             { value: "over_year", label: "Over a year" },
           ],
+        },
+        // TT-191: sponge thickness the reviewer used. Only rendered for
+        // rubber equipment. Options come from fieldOptions.sponge_thickness,
+        // sourced from equipment.specifications.sponge_thickness — so the
+        // dropdown lists exactly what the manufacturer publishes for this
+        // sheet (1.7/1.9/2.1mm, OX/0.5/1.0/1.4, etc.).
+        {
+          name: "sponge_thickness",
+          label: "Sponge thickness you used",
+          type: "select",
+          required: false,
+          layout: { colSpan: 2 },
+          dependencies: {
+            field: "equipment_category",
+            showWhen: ["rubber"],
+          },
         },
         {
           name: "rating_categories",
@@ -806,6 +831,14 @@ export const SUBMISSION_REGISTRY: Record<SubmissionType, SubmissionConfig> = {
           EXPERIENCE_DURATION_LABELS[ctx.experience_duration] ??
           ctx.experience_duration;
         ctxParts.push(`Experience: ${durLabel}`);
+      }
+      // TT-191: rubber-only — surfaced when set.
+      if (ctx.sponge_thickness) {
+        const thickLabel =
+          ctx.sponge_thickness === "OX"
+            ? "OX (no sponge)"
+            : `${ctx.sponge_thickness} mm`;
+        ctxParts.push(`Sponge: ${thickLabel}`);
       }
       if (ctxParts.length > 0) {
         fields.push(

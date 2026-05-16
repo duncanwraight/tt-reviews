@@ -27,6 +27,10 @@ export interface ReviewerContext {
   other_equipment?: string;
   purchase_location?: string;
   purchase_price?: string;
+  // TT-191: rubber-only. The thickness the reviewer used (e.g. "1.9",
+  // "2.1", "OX"). Populated by the review form's dropdown sourced
+  // from equipment.specifications.sponge_thickness.
+  sponge_thickness?: string;
 }
 
 export interface EquipmentReview {

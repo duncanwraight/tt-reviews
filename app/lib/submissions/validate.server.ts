@@ -102,6 +102,10 @@ const SUBMISSION_CONSTRAINTS: Record<
 
   review: {
     equipment_id: { required: true, spec: { kind: "uuid" } },
+    // TT-191: hidden field passed in for dependency resolution. Length
+    // cap matches the equipment_category enum values; never written to
+    // the row (the submit action skips it before persistence).
+    equipment_category: { spec: { kind: "text", maxLength: 50 } },
     playing_level: {
       required: true,
       spec: {
@@ -122,6 +126,11 @@ const SUBMISSION_CONSTRAINTS: Record<
         ],
       },
     },
+    // TT-191: text rather than enum — values are per-equipment (sourced
+    // from equipment.specifications.sponge_thickness), so a fixed enum
+    // here would reject legitimate values. The form's dropdown is the
+    // primary constraint; this is just length/shape sanity.
+    sponge_thickness: { spec: { kind: "text", maxLength: 20 } },
     overall_rating: {
       required: true,
       spec: { kind: "decimal", min: 1, max: 10 },
@@ -494,6 +503,34 @@ export function parseEquipmentSpecs(
           break;
         }
         specifications[field.value] = v;
+        break;
+      }
+
+      case "text_list": {
+        // TT-191: comma-separated text input → JSONB string array.
+        // Used for `sponge_thickness` and similar fields where the
+        // equipment has a discrete published set of values rather than
+        // a single value. Trim each item; collapse blanks; cap per-item
+        // length so a malicious payload can't blow up storage.
+        const raw = formData.get(baseKey);
+        const v = typeof raw === "string" ? raw.trim() : "";
+        if (v === "") break;
+        const items = v
+          .split(",")
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        if (items.length === 0) break;
+        const tooLong = items.find(s => s.length > 50);
+        if (tooLong) {
+          errors[baseKey] =
+            `${field.name} entries must be 50 characters or fewer`;
+          break;
+        }
+        if (items.length > 20) {
+          errors[baseKey] = `${field.name} accepts up to 20 entries`;
+          break;
+        }
+        specifications[field.value] = items;
         break;
       }
     }

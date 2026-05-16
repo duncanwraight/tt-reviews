@@ -16,6 +16,8 @@ interface EquipmentReview {
     other_equipment?: string;
     purchase_location?: string;
     purchase_price?: string;
+    // TT-191: rubber-only — the thickness the reviewer used.
+    sponge_thickness?: string;
   };
   status: "pending" | "approved" | "rejected";
   created_at: string;
@@ -188,6 +190,14 @@ export function ReviewCard({ review }: ReviewCardProps) {
             <div>
               <span className="font-medium">Testing Type:</span>{" "}
               {review.reviewer_context.testing_type}
+            </div>
+          )}
+          {review.reviewer_context.sponge_thickness && (
+            <div>
+              <span className="font-medium">Sponge thickness:</span>{" "}
+              {review.reviewer_context.sponge_thickness === "OX"
+                ? "OX (no sponge)"
+                : `${review.reviewer_context.sponge_thickness} mm`}
             </div>
           )}
         </div>

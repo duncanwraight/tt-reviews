@@ -9,7 +9,7 @@ import {
 import {
   getPendingEquipmentReviews,
   getPendingEquipmentSubmissions,
-  getFirstEquipment,
+  getEquipmentBySlug,
 } from "./utils/data";
 import { SUPABASE_URL, adminHeaders } from "./utils/supabase";
 
@@ -170,7 +170,11 @@ test.describe("User submission flows", () => {
   test("user submits equipment review → pending row created", async ({
     page,
   }) => {
-    const equipment = await getFirstEquipment();
+    // TT-191: target DO Knuckle specifically. It's a medium-pip rubber
+    // seeded with sponge_thickness: ["OX", "0.5", "1.0", "1.4"] — exercises
+    // both the rubber-specific (sponge_thickness dropdown) and broader
+    // scope-chain (paddle / all_rubbers / all_pips_anti sliders) paths.
+    const equipment = await getEquipmentBySlug("nittaku-do-knuckle");
 
     await page.goto(
       `/submissions/review/submit?equipment_slug=${equipment.slug}`
@@ -183,11 +187,17 @@ test.describe("User submission flows", () => {
     // / all_pips_anti / parent). Mocked unit tests of getReviewRatingCategories
     // would pass through PostgREST `.in()` query-shape bugs (per
     // feedback_e2e_for_new_data_paths.md); this assertion exercises the
-    // real loader against the real DB. The paddle scope is the broadest —
-    // it applies to both blade and rubber equipment, so whichever
-    // category `getFirstEquipment()` returns, these four sliders must
-    // render. If they don't, the scope-aware loader is broken.
-    for (const label of ["Value", "Control", "Speed", "Spin generation"]) {
+    // real loader against the real DB. DO Knuckle is a medium-pip rubber so
+    // all three scope levels apply, plus the all_pips_anti Disruption slider.
+    for (const label of [
+      "Value",
+      "Control",
+      "Speed",
+      "Spin generation",
+      "Spin sensitivity",
+      "Durability",
+      "Disruption",
+    ]) {
       await expect(
         page.locator("label", { hasText: label }).first()
       ).toBeVisible();
@@ -204,6 +214,11 @@ test.describe("User submission flows", () => {
     await page
       .getByLabel("How long have you used this equipment?")
       .selectOption("1_to_3_months");
+
+    // TT-191: sponge_thickness dropdown should be populated from DO
+    // Knuckle's seeded values (OX / 0.5 / 1.0 / 1.4). Pick 1.0 — that
+    // value gets persisted into reviewer_context.sponge_thickness.
+    await page.getByLabel("Sponge thickness you used").selectOption("1.0");
 
     // Overall rating is a <input type="range"> — fill dispatches input/change
     // events so React state stays in sync.
@@ -224,5 +239,8 @@ test.describe("User submission flows", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].review_text).toContain("e2e test review");
     expect(Number(rows[0].overall_rating)).toBe(8);
+    // TT-191: sponge_thickness must round-trip through the form into
+    // reviewer_context JSONB so it can be rendered back on the review card.
+    expect(rows[0].reviewer_context?.sponge_thickness).toBe("1.0");
   });
 });

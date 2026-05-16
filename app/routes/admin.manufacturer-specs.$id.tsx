@@ -343,6 +343,19 @@ export default function AdminManufacturerSpecsDetail({
                         </option>
                       ))}
                     </select>
+                  ) : type === "text_list" ? (
+                    <input
+                      id={`spec.${field}`}
+                      name={`spec.${field}`}
+                      type="text"
+                      defaultValue={
+                        Array.isArray(proposedValue)
+                          ? (proposedValue as unknown[]).join(", ")
+                          : valueToString(proposedValue)
+                      }
+                      placeholder="e.g. 1.7, 1.9, 2.1"
+                      className="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
+                    />
                   ) : (
                     <input
                       id={`spec.${field}`}

@@ -11,7 +11,13 @@ export type CategoryType =
   | "review_rating_scope"
   | "equipment_spec_field";
 
-export type SpecFieldType = "int" | "float" | "range" | "text" | "enum";
+export type SpecFieldType =
+  | "int"
+  | "float"
+  | "range"
+  | "text"
+  | "enum"
+  | "text_list";
 
 // Slugs for the three review_rating_scope pseudo-parent rows. A
 // review_rating_category row whose parent_id points at one of these
@@ -578,7 +584,8 @@ export class CategoryService {
           field_type,
           unit,
           scale_min,
-          scale_max
+          scale_max,
+          enum_options
         `
         )
         .eq("type", "equipment_spec_field")

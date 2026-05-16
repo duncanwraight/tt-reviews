@@ -264,10 +264,14 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           // Will be processed below in review-specific section
           continue;
         }
-        // Skip playing_level and experience_duration for reviews - they go into reviewer_context
+        // Skip playing_level / experience_duration / sponge_thickness
+        // for reviews — they go into reviewer_context. equipment_category
+        // is a hidden dependency-driver field, never written to the row.
         else if (
           (field.name === "playing_level" ||
-            field.name === "experience_duration") &&
+            field.name === "experience_duration" ||
+            field.name === "sponge_thickness" ||
+            field.name === "equipment_category") &&
           submissionType === "review"
         ) {
           // Will be processed below in review-specific section
@@ -411,17 +415,25 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         submissionData.overall_rating = parseFloat(overallRating as string);
       }
 
-      // Build reviewer context from playing_level and experience_duration
+      // Build reviewer context from playing_level, experience_duration,
+      // and (rubber-only) sponge_thickness.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reviewerContext: any = {};
       const playingLevel = formData.get("playing_level");
       const experienceDuration = formData.get("experience_duration");
+      const spongeThickness = formData.get("sponge_thickness");
 
       if (playingLevel && playingLevel !== "") {
         reviewerContext.playing_level = playingLevel;
       }
       if (experienceDuration && experienceDuration !== "") {
         reviewerContext.experience_duration = experienceDuration;
+      }
+      // TT-191: rubber-only field. Form's dependency gate already hides
+      // it for non-rubber equipment, so a non-empty value implies the
+      // reviewer saw and chose from the equipment's published list.
+      if (spongeThickness && spongeThickness !== "") {
+        reviewerContext.sponge_thickness = spongeThickness;
       }
 
       if (Object.keys(reviewerContext).length > 0) {

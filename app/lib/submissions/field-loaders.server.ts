@@ -277,7 +277,7 @@ export async function loadAllEquipmentSpecFields(
   const { data, error } = await sbClient
     .from("categories")
     .select(
-      "id, name, value, display_order, field_type, unit, scale_min, scale_max"
+      "id, name, value, display_order, field_type, unit, scale_min, scale_max, enum_options"
     )
     .eq("type", "equipment_spec_field")
     .eq("is_active", true);
@@ -303,7 +303,7 @@ async function loadEquipmentSpecFieldsByParent(
     sbClient
       .from("categories")
       .select(
-        "id, name, value, display_order, field_type, unit, scale_min, scale_max, parent_id"
+        "id, name, value, display_order, field_type, unit, scale_min, scale_max, enum_options, parent_id"
       )
       .eq("type", "equipment_spec_field")
       .eq("is_active", true)
@@ -340,6 +340,7 @@ async function loadEquipmentSpecFieldsByParent(
       unit: row.unit,
       scale_min: row.scale_min,
       scale_max: row.scale_max,
+      enum_options: row.enum_options,
     });
   }
   return grouped;
@@ -382,6 +383,31 @@ export async function loadFieldOptions(
     );
     // Pass through as-is - RatingCategories component expects { name, label, description }
     fieldOptions.rating_categories = ratingCategories;
+
+    // TT-191: source the sponge_thickness dropdown from the equipment's
+    // manufacturer spec. Only populates when the equipment row carries
+    // a sponge_thickness array — otherwise the dropdown stays empty
+    // (and gracefully omits since the form makes the field optional).
+    const { data: equipmentRow } = await sbClient
+      .from("equipment")
+      .select("specifications")
+      .eq("id", additionalData.equipmentId)
+      .single();
+    const thicknesses = (
+      equipmentRow?.specifications as Record<string, unknown> | null
+    )?.sponge_thickness;
+    if (Array.isArray(thicknesses) && thicknesses.length > 0) {
+      fieldOptions.sponge_thickness = thicknesses.map(t => {
+        const value = String(t);
+        return {
+          value,
+          // "OX" is a string code (sponge-less); other values are
+          // numeric thicknesses in mm. Render the unit on the label
+          // for the numeric ones to disambiguate.
+          label: value === "OX" ? "OX (no sponge)" : `${value} mm`,
+        };
+      });
+    }
   }
 
   // For equipment submissions and equipment edits, preload spec field
@@ -557,7 +583,7 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
       handler: async (slug, fieldOptions, sbClient) => {
         const { data: equipment } = await sbClient
           .from("equipment")
-          .select("id, name, manufacturer")
+          .select("id, name, manufacturer, category")
           .eq("slug", slug)
           .single();
 
@@ -565,6 +591,9 @@ const preSelectionHandlers: Record<SubmissionType, PreSelectionHandler[]> = {
           ? {
               equipment_id: equipment.id,
               equipment_display: `${equipment.name} (${equipment.manufacturer})`,
+              // TT-191: equipment_category drives conditional rendering
+              // of the sponge_thickness dropdown (rubbers only).
+              equipment_category: equipment.category,
             }
           : {};
       },

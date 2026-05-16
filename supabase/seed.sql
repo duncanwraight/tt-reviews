@@ -475,6 +475,15 @@ SELECT 'equipment_spec_field', 'Pip shape', 'pip_shape', 'Geometric profile of t
   ]'::jsonb
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('long_pips', 'short_pips', 'medium_pips');
 
+-- Sponge thickness — the discrete set of thicknesses a rubber is sold in.
+-- Stored as a JSONB string array; SpecsTable renders as "1.7 / 1.9 / 2.1
+-- mm". The review form sources this array to populate the reviewer's
+-- "thickness used" dropdown — a 1.9mm review and a 1.5mm review of the
+-- same sheet stay distinguishable in the aggregate.
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, unit)
+SELECT 'equipment_spec_field', 'Sponge thickness', 'sponge_thickness', 'Available sponge thicknesses', 13, c.id, true, 'text_list', 'mm'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('inverted', 'anti', 'long_pips', 'short_pips', 'medium_pips');
+
 -- =============================================================================
 -- Ball spec fields (TT-191 catalog expansion)
 -- =============================================================================
@@ -753,7 +762,7 @@ INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specific
 -- Nittaku — official product page (nittaku.tt) lists DO Knuckle as
 -- "medium-length pimples" with sponge ~42.5°, speed 7.5, spin 6.0.
 ('DO Knuckle', 'nittaku-do-knuckle', 'rubber', 'medium_pips', 'Nittaku',
- '{"topsheet": "Medium Pips", "sponge": "Standard", "speed": 7.5, "spin": 6.0, "control": 8.0, "hardness": {"min": 42.5, "max": 42.5}}'),
+ '{"topsheet": "Medium Pips", "sponge": "Standard", "speed": 7.5, "spin": 6.0, "control": 8.0, "hardness": {"min": 42.5, "max": 42.5}, "sponge_thickness": ["OX", "0.5", "1.0", "1.4"]}'),
 -- Pimplemini: community-rated speed 5.5, spin 4, control 7.75. Sponge
 -- on the soft end. May be discontinued at some retailers but still in
 -- the Nittaku catalogue.

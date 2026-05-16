@@ -126,6 +126,27 @@ export async function getEquipmentReviewStatus(
   return rows[0]?.status ?? "missing";
 }
 
+export async function getEquipmentBySlug(slug: string): Promise<{
+  id: string;
+  slug: string;
+  name: string;
+}> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/equipment?select=id,slug,name&slug=eq.${slug}&limit=1`,
+    { headers: { apikey: SUPABASE_ANON_KEY } }
+  );
+  if (!res.ok) {
+    throw new Error(`getEquipmentBySlug(${slug}) failed (${res.status})`);
+  }
+  const rows = (await res.json()) as Array<{
+    id: string;
+    slug: string;
+    name: string;
+  }>;
+  if (!rows[0]) throw new Error(`No equipment seeded with slug "${slug}"`);
+  return rows[0];
+}
+
 export async function getFirstEquipment(): Promise<{
   id: string;
   slug: string;
@@ -456,10 +477,11 @@ export async function getPendingEquipmentReviews(userId: string): Promise<
     overall_rating: number | string;
     review_text: string | null;
     status: string;
+    reviewer_context: Record<string, string> | null;
   }>
 > {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/equipment_reviews?user_id=eq.${userId}&status=eq.pending&select=id,overall_rating,review_text,status`,
+    `${SUPABASE_URL}/rest/v1/equipment_reviews?user_id=eq.${userId}&status=eq.pending&select=id,overall_rating,review_text,status,reviewer_context`,
     { headers: adminHeaders() }
   );
   if (!res.ok) {
@@ -471,6 +493,7 @@ export async function getPendingEquipmentReviews(userId: string): Promise<
       overall_rating: number | string;
       review_text: string | null;
       status: string;
+      reviewer_context: Record<string, string> | null;
     }>
   >;
 }

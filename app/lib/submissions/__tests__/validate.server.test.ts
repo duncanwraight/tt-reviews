@@ -639,6 +639,63 @@ describe("parseEquipmentSpecs", () => {
       expect(result.errors.spec_balance).toMatch(/no options configured/);
     });
   });
+
+  // TT-191: text_list field_type. Comma-separated input → JSONB string array.
+  // Used for sponge_thickness — the discrete set of values a rubber is sold
+  // in (e.g. ["1.7", "1.9", "2.1"] or ["OX", "0.5", "1.0", "1.4"]).
+  describe("text_list field_type", () => {
+    const thickness = specField("sponge_thickness", "text_list", {
+      unit: "mm",
+    });
+
+    it("parses comma-separated input into a trimmed array", () => {
+      const result = parseEquipmentSpecs(
+        fd({ spec_sponge_thickness: " 1.7, 1.9 ,2.1 " }),
+        [thickness]
+      );
+      expect(result.errors).toEqual({});
+      expect(result.specifications).toEqual({
+        sponge_thickness: ["1.7", "1.9", "2.1"],
+      });
+    });
+
+    it("collapses blanks and supports mixed numeric/text values", () => {
+      const result = parseEquipmentSpecs(
+        fd({ spec_sponge_thickness: "OX, 0.5, , 1.0, 1.4" }),
+        [thickness]
+      );
+      expect(result.errors).toEqual({});
+      expect(result.specifications).toEqual({
+        sponge_thickness: ["OX", "0.5", "1.0", "1.4"],
+      });
+    });
+
+    it("skips empty input without error", () => {
+      const result = parseEquipmentSpecs(fd({ spec_sponge_thickness: "" }), [
+        thickness,
+      ]);
+      expect(result.errors).toEqual({});
+      expect(result.specifications).toEqual({});
+    });
+
+    it("rejects per-entry strings over 50 chars", () => {
+      const longEntry = "x".repeat(51);
+      const result = parseEquipmentSpecs(
+        fd({ spec_sponge_thickness: `1.9, ${longEntry}` }),
+        [thickness]
+      );
+      expect(result.errors.spec_sponge_thickness).toMatch(/50 characters/);
+    });
+
+    it("rejects lists with more than 20 entries", () => {
+      const entries = Array.from({ length: 21 }, (_, i) => String(i)).join(",");
+      const result = parseEquipmentSpecs(
+        fd({ spec_sponge_thickness: entries }),
+        [thickness]
+      );
+      expect(result.errors.spec_sponge_thickness).toMatch(/20 entries/);
+    });
+  });
 });
 
 describe("validateUrl helper", () => {
