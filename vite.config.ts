@@ -53,6 +53,11 @@ export default defineConfig({
       "react-router",
       "@supabase/supabase-js",
       "@supabase/ssr",
+      // Pre-bundle lucide-react: 31 static imports across routes mean
+      // discovery-mid-request after a fresh dev start triggers a
+      // re-optimize that splits React across SSR copies → "Invalid
+      // hook call" on the first render.
+      "lucide-react",
     ],
   },
 });
