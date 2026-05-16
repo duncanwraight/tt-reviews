@@ -21,6 +21,7 @@ import {
 } from "~/lib/admin/spec-proposal-applier.server";
 import {
   type CategoryOption,
+  type SpecFieldType,
   createCategoryService,
 } from "~/lib/categories.server";
 import { Logger, createLogContext } from "~/lib/logger.server";
@@ -99,7 +100,7 @@ function fieldHint(field: CategoryOption): string | undefined {
   return field.unit || undefined;
 }
 
-function fieldType(field: CategoryOption): "int" | "float" | "text" | "range" {
+function fieldType(field: CategoryOption): SpecFieldType {
   return field.field_type ?? "text";
 }
 
@@ -328,6 +329,20 @@ export default function AdminManufacturerSpecsDetail({
                         placeholder="max"
                       />
                     </div>
+                  ) : type === "enum" ? (
+                    <select
+                      id={`spec.${field}`}
+                      name={`spec.${field}`}
+                      defaultValue={valueToString(proposedValue)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
+                    >
+                      <option value="">—</option>
+                      {(specField.enum_options ?? []).map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <input
                       id={`spec.${field}`}

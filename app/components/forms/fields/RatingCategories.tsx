@@ -1,12 +1,71 @@
-import { useCallback, useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Info } from "lucide-react";
 
 interface RatingCategory {
   name: string;
   label: string;
   description?: string;
+  // Optional reference examples — when set, surfaced via an (i) icon
+  // popover next to the slider label. Used on complex categories
+  // (Throw angle, Topsheet hardness, Balance, etc.) to anchor the
+  // 0–10 scale to concrete equipment.
+  examples?: string;
   min_label?: string;
   max_label?: string;
+}
+
+// Accessible click/focus popover, dismisses on outside click or Escape.
+function ExamplesPopover({
+  categoryLabel,
+  examples,
+}: {
+  categoryLabel: string;
+  examples: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative inline-flex" ref={wrapperRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-label={`${categoryLabel}: show examples`}
+        className="text-gray-400 hover:text-purple-700 focus:text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-full"
+      >
+        <Info className="size-5" aria-hidden />
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label={`${categoryLabel} examples`}
+          className="absolute z-10 left-0 top-full mt-2 w-72 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700 shadow-lg whitespace-pre-line"
+        >
+          {examples}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface RatingCategoriesProps {
@@ -103,14 +162,22 @@ export function RatingCategories({
               className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
             >
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor={sliderId}
-                    className="block text-xl font-bold text-gray-900"
-                  >
-                    {category.label}
-                    {required && <span className="text-red-500 ml-1">*</span>}
-                  </label>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor={sliderId}
+                      className="block text-xl font-bold text-gray-900"
+                    >
+                      {category.label}
+                      {required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {category.examples && (
+                      <ExamplesPopover
+                        categoryLabel={category.label}
+                        examples={category.examples}
+                      />
+                    )}
+                  </div>
                   <div
                     className={`text-2xl font-bold ${getRatingColor(currentValue)}`}
                   >

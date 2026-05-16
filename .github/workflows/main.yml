@@ -25,7 +25,13 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          # Pinned to 2.95.0 — TT-212 hit a regression in npm 2.98.2 where
+          # `supabase start` / `db reset` try to pull a non-existent image
+          # tag `storage-api:custom-metadata`. Local apt 2.95.0 worked fine,
+          # so we pin CI to the same. Revisit after 2026-05-20 once Supabase
+          # has had time to publish a fixed release; new Plane ticket tracks
+          # the follow-up.
+          version: 2.95.0
 
       - name: Start Supabase in background
         run: |
@@ -273,7 +279,9 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          # See note on the earlier setup-cli step — pinned to 2.95.0
+          # for the same reason. Revisit after 2026-05-20.
+          version: 2.95.0
 
       # Queues referenced as producers in wrangler.toml must exist on
       # Cloudflare before `wrangler versions upload` validates the

@@ -8,9 +8,23 @@ export type CategoryType =
   | "country"
   | "rejection_category"
   | "review_rating_category"
+  | "review_rating_scope"
   | "equipment_spec_field";
 
-export type SpecFieldType = "int" | "float" | "range" | "text";
+export type SpecFieldType = "int" | "float" | "range" | "text" | "enum";
+
+// Slugs for the three review_rating_scope pseudo-parent rows. A
+// review_rating_category row whose parent_id points at one of these
+// scope rows is treated as "shared" across the equipment types listed
+// in the comment beside each value.
+export const REVIEW_RATING_SCOPE_PADDLE = "paddle"; // blade + all rubbers
+export const REVIEW_RATING_SCOPE_ALL_RUBBERS = "all_rubbers"; // all rubber subcategories
+export const REVIEW_RATING_SCOPE_ALL_PIPS_ANTI = "all_pips_anti"; // long/short/medium pips + anti
+
+export interface EnumOption {
+  value: string;
+  label: string;
+}
 
 export interface Category {
   id: string;
@@ -21,12 +35,14 @@ export interface Category {
   display_order: number;
   flag_emoji?: string;
   description?: string;
+  examples?: string;
   min_label?: string;
   max_label?: string;
   field_type?: SpecFieldType;
   unit?: string;
   scale_min?: number;
   scale_max?: number;
+  enum_options?: EnumOption[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -38,12 +54,14 @@ export interface CategoryOption {
   value: string;
   flag_emoji?: string;
   description?: string;
+  examples?: string;
   min_label?: string;
   max_label?: string;
   field_type?: SpecFieldType;
   unit?: string;
   scale_min?: number;
   scale_max?: number;
+  enum_options?: EnumOption[];
   display_order: number;
 }
 
@@ -311,7 +329,19 @@ export class CategoryService {
   }
 
   /**
-   * Get review rating categories for specific equipment category and subcategory
+   * Get review rating categories for specific equipment category and subcategory.
+   *
+   * Returns the union of sliders that apply to this equipment, in the order
+   * the form should render them. The set is composed from:
+   *   - review_rating_scope rows (shared across equipment types):
+   *       paddle         → blade + all rubber subcategories
+   *       all_rubbers    → all rubber subcategories
+   *       all_pips_anti  → long_pips / short_pips / medium_pips / anti
+   *   - the equipment's own equipment_category and equipment_subcategory.
+   *
+   * Sliders from broader scopes render first, then progressively narrower
+   * scopes, then the equipment-specific ones. Slugs are deduped (defensive —
+   * the seed shouldn't produce duplicates) keeping the higher-priority row.
    */
   async getReviewRatingCategories(
     equipmentCategoryValue?: string,
@@ -319,49 +349,101 @@ export class CategoryService {
   ): Promise<CategoryOption[]> {
     try {
       if (!equipmentCategoryValue) {
-        // Return all review rating categories if no equipment category specified
         return this.getCategoriesByType("review_rating_category");
       }
 
-      let parentId: string | null = null;
+      const RUBBER_SUBCATS = new Set([
+        "inverted",
+        "anti",
+        "long_pips",
+        "short_pips",
+        "medium_pips",
+      ]);
+      const PIPS_ANTI_SUBCATS = new Set([
+        "anti",
+        "long_pips",
+        "short_pips",
+        "medium_pips",
+      ]);
 
-      // If subcategory is specified, prioritize it over main category
-      if (equipmentSubcategoryValue) {
-        const { data: equipmentSubcategory } = await this.supabase
-          .from("categories")
-          .select("id")
-          .eq("type", "equipment_subcategory")
-          .eq("value", equipmentSubcategoryValue)
-          .eq("is_active", true)
-          .single();
+      const isRubberSubcat =
+        !!equipmentSubcategoryValue &&
+        RUBBER_SUBCATS.has(equipmentSubcategoryValue);
+      const isPipsOrAnti =
+        !!equipmentSubcategoryValue &&
+        PIPS_ANTI_SUBCATS.has(equipmentSubcategoryValue);
+      const isPaddle = equipmentCategoryValue === "blade" || isRubberSubcat;
 
-        if (equipmentSubcategory) {
-          parentId = equipmentSubcategory.id;
-        }
+      // Build the priority-ordered list of (type, value) pairs we need to
+      // resolve to parent IDs. Earlier entries render first.
+      const wantedParents: Array<{ type: CategoryType; value: string }> = [];
+      if (isPaddle)
+        wantedParents.push({
+          type: "review_rating_scope",
+          value: REVIEW_RATING_SCOPE_PADDLE,
+        });
+      if (isRubberSubcat)
+        wantedParents.push({
+          type: "review_rating_scope",
+          value: REVIEW_RATING_SCOPE_ALL_RUBBERS,
+        });
+      if (isPipsOrAnti)
+        wantedParents.push({
+          type: "review_rating_scope",
+          value: REVIEW_RATING_SCOPE_ALL_PIPS_ANTI,
+        });
+      wantedParents.push({
+        type: "equipment_category",
+        value: equipmentCategoryValue,
+      });
+      if (equipmentSubcategoryValue)
+        wantedParents.push({
+          type: "equipment_subcategory",
+          value: equipmentSubcategoryValue,
+        });
+
+      // Resolve the parent IDs in a single query. The .in() pair only ANDs
+      // — we filter the result down to the exact (type, value) tuples we
+      // want, keyed via a Set.
+      const wantedTypes = Array.from(new Set(wantedParents.map(p => p.type)));
+      const wantedValues = Array.from(new Set(wantedParents.map(p => p.value)));
+      const wantedKey = (type: string, value: string) => `${type}:${value}`;
+      const wantedKeys = new Set(
+        wantedParents.map(p => wantedKey(p.type, p.value))
+      );
+
+      const { data: parents, error: parentsError } = await this.supabase
+        .from("categories")
+        .select("id, type, value")
+        .in("type", wantedTypes)
+        .in("value", wantedValues)
+        .eq("is_active", true);
+
+      if (parentsError || !parents) {
+        Logger.error(
+          `Error resolving review-rating parent IDs for ${equipmentCategoryValue}/${equipmentSubcategoryValue}`,
+          createLogContext("categories-server", {
+            equipmentCategoryValue,
+            equipmentSubcategoryValue,
+          }),
+          parentsError instanceof Error ? parentsError : undefined
+        );
+        return [];
       }
 
-      // If no subcategory found or specified, fall back to main category
-      if (!parentId) {
-        const { data: equipmentCategory } = await this.supabase
-          .from("categories")
-          .select("id")
-          .eq("type", "equipment_category")
-          .eq("value", equipmentCategoryValue)
-          .eq("is_active", true)
-          .single();
-
-        if (!equipmentCategory) {
-          Logger.error(
-            `Equipment category '${equipmentCategoryValue}' not found`,
-            createLogContext("categories-server", { equipmentCategoryValue })
-          );
-          return [];
-        }
-
-        parentId = equipmentCategory.id;
+      // priorityById: lower number = earlier in render order. Built from
+      // wantedParents order so we don't depend on PG row order.
+      const priorityById = new Map<string, number>();
+      for (const p of parents) {
+        if (!wantedKeys.has(wantedKey(p.type, p.value))) continue;
+        const idx = wantedParents.findIndex(
+          w => w.type === p.type && w.value === p.value
+        );
+        if (idx >= 0) priorityById.set(p.id, idx);
       }
 
-      // Get rating categories that are children of the determined parent
+      if (priorityById.size === 0) return [];
+
       const { data, error } = await this.supabase
         .from("categories")
         .select(
@@ -370,17 +452,18 @@ export class CategoryService {
           name,
           value,
           description,
+          examples,
           min_label,
           max_label,
-          display_order
+          display_order,
+          parent_id
         `
         )
         .eq("type", "review_rating_category")
-        .eq("parent_id", parentId)
-        .eq("is_active", true)
-        .order("display_order");
+        .in("parent_id", Array.from(priorityById.keys()))
+        .eq("is_active", true);
 
-      if (error) {
+      if (error || !data) {
         Logger.error(
           `Error fetching review rating categories for ${equipmentCategoryValue}/${equipmentSubcategoryValue}`,
           createLogContext("categories-server", {
@@ -392,7 +475,34 @@ export class CategoryService {
         return [];
       }
 
-      return data || [];
+      type Row = CategoryOption & { parent_id: string };
+      const rows = data as Row[];
+      rows.sort((a, b) => {
+        const pa = priorityById.get(a.parent_id) ?? Number.MAX_SAFE_INTEGER;
+        const pb = priorityById.get(b.parent_id) ?? Number.MAX_SAFE_INTEGER;
+        if (pa !== pb) return pa - pb;
+        return a.display_order - b.display_order;
+      });
+
+      // Dedupe by slug (defensive — the seed shouldn't produce duplicate
+      // slugs across the applied parents). Keep the higher-priority row.
+      const seen = new Set<string>();
+      const deduped: CategoryOption[] = [];
+      for (const r of rows) {
+        if (seen.has(r.value)) continue;
+        seen.add(r.value);
+        deduped.push({
+          id: r.id,
+          name: r.name,
+          value: r.value,
+          description: r.description,
+          examples: r.examples,
+          min_label: r.min_label,
+          max_label: r.max_label,
+          display_order: r.display_order,
+        });
+      }
+      return deduped;
     } catch (error) {
       Logger.error(
         "Exception fetching review rating categories",

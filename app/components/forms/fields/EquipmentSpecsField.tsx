@@ -107,6 +107,49 @@ function TextInput({
   );
 }
 
+function EnumInput({
+  field,
+  values,
+  onChange,
+  disabled,
+  error,
+}: {
+  field: CategoryOption;
+  values: Record<string, unknown>;
+  onChange: EquipmentSpecsFieldProps["onChange"];
+  disabled?: boolean;
+  error?: string;
+}) {
+  const inputName = `spec_${field.value}`;
+  const options = field.enum_options ?? [];
+  return (
+    <div>
+      <label
+        htmlFor={inputName}
+        className="block text-sm font-medium text-gray-700 mb-1"
+      >
+        {fieldLabel(field)}
+      </label>
+      <select
+        id={inputName}
+        name={inputName}
+        value={String(values[inputName] ?? "")}
+        onChange={e => onChange(inputName, e.target.value)}
+        disabled={disabled}
+        className={`${inputClasses} ${error ? errorBorder : ""}`}
+      >
+        <option value="">—</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function RangeInput({
   field,
   values,
@@ -290,6 +333,17 @@ export function EquipmentSpecsField({
             case "range":
               return (
                 <RangeInput
+                  key={field.id}
+                  field={field}
+                  values={values}
+                  onChange={onChange}
+                  disabled={disabled}
+                  error={error}
+                />
+              );
+            case "enum":
+              return (
+                <EnumInput
                   key={field.id}
                   field={field}
                   values={values}

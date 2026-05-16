@@ -23,6 +23,17 @@ Two distinct kinds of equipment data live in this app; don't conflate them when 
 
 Public equipment submissions capture manufacturer data only — if a user wants to share their playing experience, they go through the review flow separately. Editing existing manufacturer data goes through the public `equipment_edit` submission flow (TT-74): any signed-in user can suggest edits to name/category/subcategory/description/specs/image via the "Suggest an edit" link on `/equipment/:slug`, and the change lands on the equipment row when an admin approves via `/admin/equipment-edits` (or two Discord moderators click Approve on the bot's mod card). The trim toggle stays admin-only inline (`AdminTrimToggle`) — that's an internal correction, not user-facing data.
 
+## Supabase CLI — keep local in lockstep with CI
+
+The Supabase CLI version installed locally must match the version pinned in `.github/workflows/main.yml` (two `supabase/setup-cli@v2` steps; both pin the same version). Drift between local and CI causes hard-to-diagnose environment-only failures — TT-230 burned hours when npm 2.98.2 (locally invoked via `npx supabase`) tried to pull a non-existent `storage-api:custom-metadata` image tag, while CI was on 2.95.0 and worked. The bug looked like "my reset is broken" rather than "we're on different versions."
+
+Rules:
+
+- **One install path per machine.** Don't run both an apt-installed `/usr/bin/supabase` and an `npx supabase` from the npx cache — that's what created the drift in the first place. Pick one, uninstall the other once safe to do so.
+- **Match the CI pin exactly.** Run `grep -A2 supabase/setup-cli .github/workflows/main.yml` to see the current pin; install / update locally to match. If you bump the local version, bump the CI pin in the same commit.
+- **Prefer the latest published release.** Pinning is "stay locked together while we move forward," not "stay on this version forever." When a new Supabase CLI release lands and looks stable, bump both sides together. Don't sit on an old pin.
+- **If `supabase start` / `db reset` fails with a docker image-pull error**, check version drift first before debugging anything else — it's the most common cause on this project.
+
 ## Cloudflare Workers — 50-subrequest cap on Free plan
 
 Cloudflare Workers Free enforces **50 subrequests per Worker invocation** (Paid raises this to 1000). A "subrequest" is any outbound HTTP — that includes every PostgREST query the Supabase JS client issues. Loaders that fan out one query per (table × status) hit the cap fast: TT-145 traced the broken `/admin` dashboard back to `getAdminDashboardCounts` alone making 37 PostgREST round-trips, which starved the activity-widget and similar-status calls behind it in the same `Promise.all` and triggered the silent fallback paths. **Local dev does not enforce this cap**, so the regression only surfaces on prod.

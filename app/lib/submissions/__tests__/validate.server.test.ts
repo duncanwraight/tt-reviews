@@ -593,6 +593,52 @@ describe("parseEquipmentSpecs", () => {
     expect(result.errors).toEqual({});
     expect(result.specifications).toEqual({ speed: 9.5 });
   });
+
+  // TT-212: enum spec fields (e.g. blade Balance, inverted Type).
+  // enum_options is a JSONB array of {value, label} pairs; the parser
+  // validates the submitted value against the slug set and writes the
+  // slug to the JSONB. Display labels are render-only.
+  describe("enum field_type", () => {
+    const balance = specField("balance", "enum", {
+      enum_options: [
+        { value: "very_head_heavy", label: "Very head-heavy" },
+        { value: "head_heavy", label: "Head-heavy" },
+        { value: "central", label: "Central" },
+        { value: "handle_heavy", label: "Handle-heavy" },
+        { value: "very_handle_heavy", label: "Very handle-heavy" },
+      ],
+    });
+
+    it("accepts a valid enum slug", () => {
+      const result = parseEquipmentSpecs(fd({ spec_balance: "head_heavy" }), [
+        balance,
+      ]);
+      expect(result.errors).toEqual({});
+      expect(result.specifications).toEqual({ balance: "head_heavy" });
+    });
+
+    it("rejects a value not in the option set", () => {
+      const result = parseEquipmentSpecs(fd({ spec_balance: "wobbly" }), [
+        balance,
+      ]);
+      expect(result.errors.spec_balance).toMatch(/must be one of/);
+      expect(result.specifications.balance).toBeUndefined();
+    });
+
+    it("skips empty values without error", () => {
+      const result = parseEquipmentSpecs(fd({ spec_balance: "" }), [balance]);
+      expect(result.errors).toEqual({});
+      expect(result.specifications).toEqual({});
+    });
+
+    it("surfaces misconfigured rows (no options) instead of silently coercing", () => {
+      const broken = specField("balance", "enum", { enum_options: [] });
+      const result = parseEquipmentSpecs(fd({ spec_balance: "head_heavy" }), [
+        broken,
+      ]);
+      expect(result.errors.spec_balance).toMatch(/no options configured/);
+    });
+  });
 });
 
 describe("validateUrl helper", () => {

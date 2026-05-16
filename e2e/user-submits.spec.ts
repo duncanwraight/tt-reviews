@@ -179,6 +179,20 @@ test.describe("User submission flows", () => {
       page.getByRole("heading", { name: /Write Equipment Review/i })
     ).toBeVisible();
 
+    // TT-212: the slider set is computed by scope chain (paddle / all_rubbers
+    // / all_pips_anti / parent). Mocked unit tests of getReviewRatingCategories
+    // would pass through PostgREST `.in()` query-shape bugs (per
+    // feedback_e2e_for_new_data_paths.md); this assertion exercises the
+    // real loader against the real DB. The paddle scope is the broadest —
+    // it applies to both blade and rubber equipment, so whichever
+    // category `getFirstEquipment()` returns, these four sliders must
+    // render. If they don't, the scope-aware loader is broken.
+    for (const label of ["Value", "Control", "Speed", "Spin generation"]) {
+      await expect(
+        page.locator("label", { hasText: label }).first()
+      ).toBeVisible();
+    }
+
     await page.getByLabel("Your Playing Level").selectOption("intermediate");
     await page
       .getByLabel("How long have you used this equipment?")

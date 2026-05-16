@@ -477,6 +477,25 @@ export function parseEquipmentSpecs(
         specifications[field.value] = v;
         break;
       }
+
+      case "enum": {
+        const raw = formData.get(baseKey);
+        const v = typeof raw === "string" ? raw.trim() : "";
+        if (v === "") break;
+        const allowed = (field.enum_options ?? []).map(o => o.value);
+        if (allowed.length === 0) {
+          // Misconfigured row — surface rather than coerce to "".
+          errors[baseKey] = `${field.name} has no options configured`;
+          break;
+        }
+        if (!allowed.includes(v)) {
+          errors[baseKey] =
+            `${field.name} must be one of: ${allowed.join(", ")}`;
+          break;
+        }
+        specifications[field.value] = v;
+        break;
+      }
     }
   }
 

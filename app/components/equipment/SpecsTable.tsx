@@ -43,6 +43,16 @@ function renderRange(raw: unknown): string {
   return min === max ? min : `${min}–${max}`;
 }
 
+function renderEnum(field: CategoryOption, raw: unknown): string {
+  if (raw === null || raw === undefined || raw === "") return "—";
+  const slug = String(raw);
+  const match = (field.enum_options ?? []).find(o => o.value === slug);
+  // Fall back to the raw slug if the option set has shifted under stored
+  // data — visible breadcrumb that the row needs migrating rather than
+  // a silent "—".
+  return match ? match.label : slug;
+}
+
 function renderCell(field: CategoryOption, raw: unknown): string {
   switch (field.field_type) {
     case "range":
@@ -50,6 +60,8 @@ function renderCell(field: CategoryOption, raw: unknown): string {
     case "int":
     case "float":
       return renderScalar(raw, field.unit);
+    case "enum":
+      return renderEnum(field, raw);
     case "text":
     default:
       return renderScalar(raw);

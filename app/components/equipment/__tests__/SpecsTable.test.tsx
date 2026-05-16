@@ -261,6 +261,57 @@ describe("SpecsTable sorting", () => {
     expect(screen.getByTestId("specs-table").textContent).toContain("5+2");
   });
 
+  // TT-212: enum spec fields render the matching option's label
+  // (Hybrid/Tensor/etc.) — not the raw stored slug (hybrid/tensor).
+  // Missing options fall back to the raw slug as a visible breadcrumb.
+  describe("enum field_type", () => {
+    const typeField = specField({
+      name: "Type",
+      value: "type",
+      field_type: "enum",
+      enum_options: [
+        { value: "hybrid", label: "Hybrid" },
+        { value: "tensor", label: "Tensor" },
+        { value: "classic", label: "Classic" },
+        { value: "chinese", label: "Chinese" },
+      ],
+    });
+
+    it("renders the matching label for a known enum slug", () => {
+      render(
+        <SpecsTable
+          items={[item("a", "A", { type: "tensor" })]}
+          specFields={[typeField]}
+        />
+      );
+      const table = screen.getByTestId("specs-table");
+      expect(within(table).getByText("Tensor")).toBeTruthy();
+      // The raw slug must NOT appear — that'd be a render regression.
+      expect(within(table).queryByText("tensor")).toBeNull();
+    });
+
+    it("falls back to the raw slug when no matching option exists", () => {
+      render(
+        <SpecsTable
+          items={[item("a", "A", { type: "obsolete_slug" })]}
+          specFields={[typeField]}
+        />
+      );
+      expect(
+        within(screen.getByTestId("specs-table")).getByText("obsolete_slug")
+      ).toBeTruthy();
+    });
+
+    it("renders em-dash for missing/empty enum values", () => {
+      render(
+        <SpecsTable items={[item("a", "A", {})]} specFields={[typeField]} />
+      );
+      // visibleRows filter drops fields where every item lacks a value;
+      // assert the row was dropped rather than the dash rendered.
+      expect(screen.queryByText("Type")).toBeNull();
+    });
+  });
+
   it("switching to a different sortable row resets to ascending", async () => {
     const user = userEvent.setup();
     const fields = [

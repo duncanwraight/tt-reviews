@@ -165,6 +165,7 @@ export async function loadReviewRatingCategories(
     name: string;
     label: string;
     description?: string;
+    examples?: string;
     min_label?: string;
     max_label?: string;
   }>
@@ -190,6 +191,7 @@ export async function loadReviewRatingCategories(
     name: category.value,
     label: category.name,
     description: category.description,
+    examples: category.examples,
     min_label: category.min_label,
     max_label: category.max_label,
   }));
@@ -201,6 +203,7 @@ type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
     name: string;
     label: string;
     description?: string;
+    examples?: string;
     min_label?: string;
     max_label?: string;
   }>;
