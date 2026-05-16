@@ -150,7 +150,10 @@ test.describe("User submission flows", () => {
     await page.getByLabel("Hardness minimum").fill("40");
     await page.getByLabel("Hardness maximum").fill("42");
     await page.getByLabel("Speed").fill("9.5");
-    await page.getByLabel("Sponge").fill("Spring Sponge");
+    // Exact match — TT-191 added "Sponge thickness (mm)" alongside the
+    // legacy "Sponge" text field, so a substring match would resolve
+    // ambiguously.
+    await page.getByLabel("Sponge", { exact: true }).fill("Spring Sponge");
 
     await page.getByRole("button", { name: /Submit Equipment/i }).click();
     await page.waitForURL("/profile", { timeout: 20000 });
