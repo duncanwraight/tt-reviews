@@ -1346,6 +1346,15 @@ UPDATE players SET
   image_source_url = 'https://www.worldtabletennis.com/playerDescription?playerId=121582'
 WHERE slug = 'lin-yun-ju';
 UPDATE players SET
+  image_key = 'player/ma-long/seed.webp',
+  image_etag = '907bdcabc16a',
+  image_credit_text = 'XIAOYU TANG',
+  image_credit_link = 'https://www.flickr.com/people/118454589@N03',
+  image_license_short = 'CC BY-SA 2.0',
+  image_license_url = 'https://creativecommons.org/licenses/by-sa/2.0',
+  image_source_url = 'https://commons.wikimedia.org/wiki/File:Ma_Long_ATTC2017_29.jpeg'
+WHERE slug = 'ma-long';
+UPDATE players SET
   image_key = 'player/mima-ito/seed.webp',
   image_etag = 'adadf3f9d8bf',
   image_credit_text = 'World Table Tennis',
@@ -1498,6 +1507,15 @@ UPDATE players SET
   image_license_url = NULL,
   image_source_url = 'https://www.worldtabletennis.com/playerDescription?playerId=122044'
 WHERE slug = 'truls-moregard';
+UPDATE players SET
+  image_key = 'player/vladimir-samsonov/seed.webp',
+  image_etag = 'c4512c0ccb1d',
+  image_credit_text = 'Pierre-Yves Beaudouin',
+  image_credit_link = 'https://commons.wikimedia.org/wiki/User:Pyb',
+  image_license_short = 'CC BY-SA 3.0',
+  image_license_url = 'https://creativecommons.org/licenses/by-sa/3.0',
+  image_source_url = 'https://commons.wikimedia.org/wiki/File:Vladimir_Samsonov_2013.jpg'
+WHERE slug = 'vladimir-samsonov';
 UPDATE players SET
   image_key = 'player/wang-chuqin/seed.webp',
   image_etag = '5368d75f4ea0',
