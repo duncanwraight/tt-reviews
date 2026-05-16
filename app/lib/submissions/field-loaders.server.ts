@@ -160,7 +160,7 @@ export interface EquipmentOption {
 // TT-212: review_rating_category rows under shared scopes (paddle /
 // all_rubbers / all_pips_anti) are written with the literal token
 // `<equipment>` where the equipment type's natural-language name
-// should appear in the rendered description / examples. The loader
+// should appear in the rendered description / extended copy. The loader
 // substitutes per-equipment so a paddle-scope row reads "this blade"
 // for blade reviews and "this medium pimple rubber" for medium-pips
 // rubber reviews — without duplicating rows per parent.
@@ -208,7 +208,7 @@ export async function loadReviewRatingCategories(
     name: string;
     label: string;
     description?: string;
-    examples?: string;
+    extended?: string;
     min_label?: string;
     max_label?: string;
   }>
@@ -235,13 +235,13 @@ export async function loadReviewRatingCategories(
   );
 
   // Transform to the expected format, including custom slider labels.
-  // <equipment> tokens in description / examples resolve to the natural
+  // <equipment> tokens in description / extended resolve to the natural
   // noun for this equipment type — see equipmentDisplayName above.
   return ratingCategories.map(category => ({
     name: category.value,
     label: category.name,
     description: substituteEquipmentToken(category.description, displayName),
-    examples: substituteEquipmentToken(category.examples, displayName),
+    extended: substituteEquipmentToken(category.extended, displayName),
     min_label: category.min_label,
     max_label: category.max_label,
   }));
@@ -253,7 +253,7 @@ type FieldOptions = Record<string, Array<{ value: string; label: string }>> & {
     name: string;
     label: string;
     description?: string;
-    examples?: string;
+    extended?: string;
     min_label?: string;
     max_label?: string;
   }>;

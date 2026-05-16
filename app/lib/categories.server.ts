@@ -35,7 +35,7 @@ export interface Category {
   display_order: number;
   flag_emoji?: string;
   description?: string;
-  examples?: string;
+  extended?: string;
   min_label?: string;
   max_label?: string;
   field_type?: SpecFieldType;
@@ -54,7 +54,7 @@ export interface CategoryOption {
   value: string;
   flag_emoji?: string;
   description?: string;
-  examples?: string;
+  extended?: string;
   min_label?: string;
   max_label?: string;
   field_type?: SpecFieldType;
@@ -452,7 +452,7 @@ export class CategoryService {
           name,
           value,
           description,
-          examples,
+          extended,
           min_label,
           max_label,
           display_order,
@@ -496,7 +496,7 @@ export class CategoryService {
           name: r.name,
           value: r.value,
           description: r.description,
-          examples: r.examples,
+          extended: r.extended,
           min_label: r.min_label,
           max_label: r.max_label,
           display_order: r.display_order,

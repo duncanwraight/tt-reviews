@@ -113,7 +113,7 @@ VALUES
 -- to the natural noun for the equipment being reviewed (e.g. "blade",
 -- "inverted rubber", "long pimple rubber"). See loadReviewRatingCategories
 -- in app/lib/submissions/field-loaders.server.ts.
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Value', 'value',
   'At full Recommended Retail Price, how much value does this <equipment> represent?',
   'Is it an average performer that is so cheap it represents great value, or an above-average performer that is so expensive it represents poor value? If the <equipment> is commonly available second-hand for a good saving, this may increase its value rating.',
@@ -126,7 +126,7 @@ SELECT 'review_rating_category', 'Control', 'control',
   2, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'paddle';
 
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Speed', 'speed',
   'How fast does the ball leave this <equipment>?',
   'Speed isn''t always linear. How easy is it to generate speed with this <equipment>? How fast is it at maximum power?',
@@ -153,7 +153,7 @@ SELECT 'review_rating_category', 'Durability', 'durability',
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'all_rubbers';
 
 -- Shared across pips-out (long/short/medium) and anti
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Disruption', 'disruption',
   'How disruptive do your opponents find this <equipment>?',
   'With long pimple rubbers, disruption is usually a combination of speed and spin reversal. With short and medium pips, it''s usually a combination of speed and how much spin the rubber takes off the incoming ball.',
@@ -226,14 +226,14 @@ SELECT 'review_rating_category', 'Feel', 'feel',
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
 
 -- Inverted rubber-specific (parent: equipment_subcategory=inverted)
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Throw angle', 'throw_angle',
   'How high is the angle from which the ball leaves the rubber?',
   'Typically correlates to spin generation — high-spin rubbers won''t often have a low trajectory.',
   1, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Topsheet hardness', 'topsheet_hardness',
   'We know most rubbers'' sponge hardness from the manufacturer, but how hard is the topsheet?',
   'Hurricane 3 would be very hard, where Victas 401 would be very soft.',
@@ -241,7 +241,7 @@ SELECT 'review_rating_category', 'Topsheet hardness', 'topsheet_hardness',
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
 -- Long pips-specific (parent: equipment_subcategory=long_pips)
-INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, extended, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Spin reversal', 'spin_reversal',
   'How much does this long pimple rubber reverse the spin, from your opponent''s perspective?',
   'We know it''s actually continuation of spin. If your opponent plays a backspin push, will a bump with this rubber return the ball with topspin? Hellfire X and Grass DTecS are typically considered as high reversal rubbers, where P4V and Feint Long 3 are not.',

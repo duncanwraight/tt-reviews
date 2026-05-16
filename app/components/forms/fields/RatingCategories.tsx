@@ -5,22 +5,22 @@ interface RatingCategory {
   name: string;
   label: string;
   description?: string;
-  // Optional reference examples — when set, surfaced via an (i) icon
+  // Optional extended description — when set, surfaced via an (i) icon
   // popover next to the slider label. Used on complex categories
   // (Throw angle, Topsheet hardness, Balance, etc.) to anchor the
   // 0–10 scale to concrete equipment.
-  examples?: string;
+  extended?: string;
   min_label?: string;
   max_label?: string;
 }
 
 // Accessible click/focus popover, dismisses on outside click or Escape.
-function ExamplesPopover({
+function ExtendedPopover({
   categoryLabel,
-  examples,
+  extended,
 }: {
   categoryLabel: string;
-  examples: string;
+  extended: string;
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -50,7 +50,7 @@ function ExamplesPopover({
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
-        aria-label={`${categoryLabel}: show examples`}
+        aria-label={`${categoryLabel}: more detail`}
         className="text-gray-400 hover:text-purple-700 focus:text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-full"
       >
         <Info className="size-5" aria-hidden />
@@ -58,10 +58,10 @@ function ExamplesPopover({
       {open && (
         <div
           role="dialog"
-          aria-label={`${categoryLabel} examples`}
+          aria-label={`${categoryLabel} extended description`}
           className="absolute z-10 left-0 top-full mt-2 w-72 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700 shadow-lg whitespace-pre-line"
         >
-          {examples}
+          {extended}
         </div>
       )}
     </div>
@@ -171,10 +171,10 @@ export function RatingCategories({
                       {category.label}
                       {required && <span className="text-red-500 ml-1">*</span>}
                     </label>
-                    {category.examples && (
-                      <ExamplesPopover
+                    {category.extended && (
+                      <ExtendedPopover
                         categoryLabel={category.label}
-                        examples={category.examples}
+                        extended={category.extended}
                       />
                     )}
                   </div>

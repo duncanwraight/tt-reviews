@@ -19,7 +19,7 @@ interface UnifiedSubmissionFormProps {
       name: string;
       label: string;
       description?: string;
-      examples?: string;
+      extended?: string;
       min_label?: string;
       max_label?: string;
     }>;
