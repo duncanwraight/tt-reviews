@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { loadFieldOptions } from "../field-loaders.server";
+import {
+  equipmentDisplayName,
+  loadFieldOptions,
+} from "../field-loaders.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -164,5 +167,45 @@ describe("loadFieldOptions(equipment) — spec_fields_by_parent", () => {
       ])
     );
     expect(result.spec_fields_by_parent).toEqual({});
+  });
+});
+
+// TT-212: review_rating_category rows under shared scopes use
+// `<equipment>` as a placeholder for the equipment type's natural
+// noun. The loader substitutes it per equipment at render time so
+// the same row reads naturally across blade / inverted / medium pips
+// etc. without duplicating rows per parent.
+describe("equipmentDisplayName", () => {
+  it("returns the rubber subcategory noun when one is set", () => {
+    expect(equipmentDisplayName("rubber", "inverted")).toBe("inverted rubber");
+    expect(equipmentDisplayName("rubber", "anti")).toBe("anti rubber");
+    expect(equipmentDisplayName("rubber", "long_pips")).toBe(
+      "long pimple rubber"
+    );
+    expect(equipmentDisplayName("rubber", "short_pips")).toBe(
+      "short pimple rubber"
+    );
+    expect(equipmentDisplayName("rubber", "medium_pips")).toBe(
+      "medium pimple rubber"
+    );
+  });
+
+  it("uses the category name for blade and ball (no subcategory)", () => {
+    expect(equipmentDisplayName("blade", null)).toBe("blade");
+    expect(equipmentDisplayName("blade", undefined)).toBe("blade");
+    expect(equipmentDisplayName("ball", null)).toBe("ball");
+  });
+
+  it("falls back to a generic noun for unknown categories", () => {
+    // Defensive: future categories shouldn't crash the form — the
+    // unsubstituted template would surface to QA visually.
+    expect(equipmentDisplayName("mystery", null)).toBe("equipment");
+    expect(equipmentDisplayName(null, null)).toBe("equipment");
+    expect(equipmentDisplayName(undefined, undefined)).toBe("equipment");
+  });
+
+  it("prefers subcategory over category when both are set", () => {
+    // Subcategory wins — that's the loader's lookup rule.
+    expect(equipmentDisplayName("rubber", "inverted")).toBe("inverted rubber");
   });
 });

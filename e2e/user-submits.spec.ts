@@ -193,6 +193,13 @@ test.describe("User submission flows", () => {
       ).toBeVisible();
     }
 
+    // TT-212: shared-scope rows in the DB use the `<equipment>` placeholder
+    // (e.g. "How fast does the ball leave this <equipment>?"). The loader
+    // substitutes it per equipment at render time. If substitution fails
+    // the literal token leaks to the page, so this asserts on the rendered
+    // DOM rather than the DB.
+    await expect(page.locator("body")).not.toContainText("<equipment>");
+
     await page.getByLabel("Your Playing Level").selectOption("intermediate");
     await page
       .getByLabel("How long have you used this equipment?")

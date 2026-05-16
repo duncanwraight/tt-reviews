@@ -108,10 +108,15 @@ VALUES
   ('review_rating_scope', 'All rubbers', 'all_rubbers', NULL, 2, true),
   ('review_rating_scope', 'All pips-out & anti', 'all_pips_anti', NULL, 3, true);
 
--- Shared across blade + all rubbers (paddle scope)
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+-- Shared across blade + all rubbers (paddle scope).
+-- `<equipment>` is substituted at render time by the review-form loader
+-- to the natural noun for the equipment being reviewed (e.g. "blade",
+-- "inverted rubber", "long pimple rubber"). See loadReviewRatingCategories
+-- in app/lib/submissions/field-loaders.server.ts.
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Value', 'value',
-  'At full Recommended Retail Price, how much value does this equipment represent? Is it an average performer that is so cheap it represents great value, or an above-average performer that is so expensive it represents poor value? If the equipment is commonly available second-hand for a good saving, this may increase its value rating.',
+  'At full Recommended Retail Price, how much value does this <equipment> represent?',
+  'Is it an average performer that is so cheap it represents great value, or an above-average performer that is so expensive it represents poor value? If the <equipment> is commonly available second-hand for a good saving, this may increase its value rating.',
   1, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'paddle';
 
@@ -121,35 +126,37 @@ SELECT 'review_rating_category', 'Control', 'control',
   2, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'paddle';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Speed', 'speed',
-  'Speed isn''t always linear. How easy is it to generate speed with this equipment? How fast is it at maximum power?',
+  'How fast does the ball leave this <equipment>?',
+  'Speed isn''t always linear. How easy is it to generate speed with this <equipment>? How fast is it at maximum power?',
   3, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'paddle';
 
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Spin generation', 'spin_generation',
-  'How much spin does this equipment generate? How easy is it to generate spin?',
+  'How much spin does this <equipment> generate? How easy is it to generate spin?',
   4, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'paddle';
 
 -- Shared across all rubbers
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Spin sensitivity', 'spin_sensitivity',
-  'How sensitive is the rubber to incoming spin?',
+  'How sensitive is this <equipment> to incoming spin?',
   1, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'all_rubbers';
 
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Durability', 'durability',
-  'How long does this rubber last before performance starts to drop?',
+  'How long does this <equipment> last before performance starts to drop?',
   2, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'all_rubbers';
 
 -- Shared across pips-out (long/short/medium) and anti
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Disruption', 'disruption',
-  'With long pimple rubbers, disruption is usually a combination of speed and spin reversal. With short and medium pips it''s usually a combination of speed and how much spin the rubber takes off the incoming ball. How disruptive do your opponents find this rubber?',
+  'How disruptive do your opponents find this <equipment>?',
+  'With long pimple rubbers, disruption is usually a combination of speed and spin reversal. With short and medium pips, it''s usually a combination of speed and how much spin the rubber takes off the incoming ball.',
   1, c.id, true
 FROM categories c WHERE c.type = 'review_rating_scope' AND c.value = 'all_pips_anti';
 
@@ -208,33 +215,36 @@ FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
 
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Value', 'value',
-  'At full Recommended Retail Price, how much value does this ball represent? Cheap practice balls and premium match balls are judged on different scales — calibrate to the segment.',
+  'At full Recommended Retail Price, how much value does this ball represent?',
   5, c.id, true
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
 
 INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Feel', 'feel',
-  'Touch and impact sensation on the bat.',
+  'How the ball feels when contacting a bat. Also consider sound in this category.',
   6, c.id, true
 FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
 
 -- Inverted rubber-specific (parent: equipment_subcategory=inverted)
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Throw angle', 'throw_angle',
-  'How high is the angle from which the ball leaves the rubber? Typically correlates to spin generation — high-spin rubbers won''t often have a low trajectory.',
+  'How high is the angle from which the ball leaves the rubber?',
+  'Typically correlates to spin generation — high-spin rubbers won''t often have a low trajectory.',
   1, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Topsheet hardness', 'topsheet_hardness',
-  'We know most rubbers'' sponge hardness from the manufacturer, but how hard is the topsheet? Hurricane 3 would be very hard, where Victas 401 would be very soft.',
+  'We know most rubbers'' sponge hardness from the manufacturer, but how hard is the topsheet?',
+  'Hurricane 3 would be very hard, where Victas 401 would be very soft.',
   2, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'inverted';
 
 -- Long pips-specific (parent: equipment_subcategory=long_pips)
-INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active)
+INSERT INTO categories (type, name, value, description, examples, display_order, parent_id, is_active)
 SELECT 'review_rating_category', 'Spin reversal', 'spin_reversal',
-  'It''s actually continuation of spin — but how much does this rubber reverse the spin from your opponent''s perspective? If they play a backspin push, will a bump with this rubber return the ball with topspin?',
+  'How much does this long pimple rubber reverse the spin, from your opponent''s perspective?',
+  'We know it''s actually continuation of spin. If your opponent plays a backspin push, will a bump with this rubber return the ball with topspin? Hellfire X and Grass DTecS are typically considered as high reversal rubbers, where P4V and Feint Long 3 are not.',
   1, c.id, true
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'long_pips';
 

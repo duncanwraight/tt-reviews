@@ -157,6 +157,49 @@ export interface EquipmentOption {
 /**
  * Load equipment-specific rating categories for reviews using existing categories system
  */
+// TT-212: review_rating_category rows under shared scopes (paddle /
+// all_rubbers / all_pips_anti) are written with the literal token
+// `<equipment>` where the equipment type's natural-language name
+// should appear in the rendered description / examples. The loader
+// substitutes per-equipment so a paddle-scope row reads "this blade"
+// for blade reviews and "this medium pimple rubber" for medium-pips
+// rubber reviews — without duplicating rows per parent.
+//
+// Substituted at the loader (not in the DB / admin UI) so admins
+// editing the template still see the raw token. Subcategory wins over
+// category for rubber types; falls back to a generic noun if neither
+// matches a known equipment type.
+export function equipmentDisplayName(
+  category: string | null | undefined,
+  subcategory: string | null | undefined
+): string {
+  if (subcategory) {
+    switch (subcategory) {
+      case "inverted":
+        return "inverted rubber";
+      case "anti":
+        return "anti rubber";
+      case "long_pips":
+        return "long pimple rubber";
+      case "short_pips":
+        return "short pimple rubber";
+      case "medium_pips":
+        return "medium pimple rubber";
+    }
+  }
+  if (category === "blade") return "blade";
+  if (category === "ball") return "ball";
+  return "equipment";
+}
+
+function substituteEquipmentToken(
+  text: string | undefined,
+  displayName: string
+): string | undefined {
+  if (!text) return text;
+  return text.replace(/<equipment>/g, displayName);
+}
+
 export async function loadReviewRatingCategories(
   equipmentId: string,
   sbClient: SupabaseClient
@@ -186,12 +229,19 @@ export async function loadReviewRatingCategories(
     equipment.subcategory
   );
 
-  // Transform to the expected format, including custom slider labels
+  const displayName = equipmentDisplayName(
+    equipment.category,
+    equipment.subcategory
+  );
+
+  // Transform to the expected format, including custom slider labels.
+  // <equipment> tokens in description / examples resolve to the natural
+  // noun for this equipment type — see equipmentDisplayName above.
   return ratingCategories.map(category => ({
     name: category.value,
     label: category.name,
-    description: category.description,
-    examples: category.examples,
+    description: substituteEquipmentToken(category.description, displayName),
+    examples: substituteEquipmentToken(category.examples, displayName),
     min_label: category.min_label,
     max_label: category.max_label,
   }));
