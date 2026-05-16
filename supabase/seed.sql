@@ -438,8 +438,75 @@ INSERT INTO categories (type, name, value, description, display_order, parent_id
 SELECT 'equipment_spec_field', 'Control', 'control', 'Manufacturer control rating', 5, c.id, true, 'float', 0, 10
 FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value = 'medium_pips';
 
--- Ball spec fields: intentionally none seeded. No ball specs exist in data yet;
--- admin can add them later via the configurable categories UI.
+-- =============================================================================
+-- Cross-rubber spec fields: weight, year, hardness, pip_shape
+-- =============================================================================
+-- Added in the TT-191 audit. Previously these were only on inverted; the
+-- audit confirmed they're meaningful (and manufacturer-published) on every
+-- rubber subcategory. pip_shape is the one truly new field — relevant only
+-- for pips-out rubbers and useful for reviewers calibrating to construction.
+
+-- Weight (g) — applies to every rubber. Inverted gets it for parity with blade.
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, unit)
+SELECT 'equipment_spec_field', 'Weight', 'weight', 'Rubber sheet weight, manufacturer-published', 9, c.id, true, 'int', 'g'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('inverted', 'anti', 'long_pips', 'short_pips', 'medium_pips');
+
+-- Year — release year. Already on inverted; extend to the rest for consistency.
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Year', 'year', 'Release year', 10, c.id, true, 'text'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('anti', 'long_pips', 'short_pips', 'medium_pips');
+
+-- Hardness (range) — sponge hardness. Already on inverted; extend to anti +
+-- every pip type. Many pip-out rubbers ship with a sponge, so the field is
+-- meaningful even on long pips (some are OX-only — those rows leave it null).
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type)
+SELECT 'equipment_spec_field', 'Hardness', 'hardness', 'Sponge hardness', 11, c.id, true, 'range'
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('anti', 'long_pips', 'short_pips', 'medium_pips');
+
+-- Pip shape — pips-out construction descriptor. Conical (tapered), cylindrical
+-- (straight-sided), or mushroom (wider at top — common on long pips).
+-- Manufacturer-published for most. Stored as slug; SpecsTable resolves label.
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, enum_options)
+SELECT 'equipment_spec_field', 'Pip shape', 'pip_shape', 'Geometric profile of the pips', 12, c.id, true, 'enum',
+  '[
+    {"value": "conical",     "label": "Conical"},
+    {"value": "cylindrical", "label": "Cylindrical"},
+    {"value": "mushroom",    "label": "Mushroom"}
+  ]'::jsonb
+FROM categories c WHERE c.type = 'equipment_subcategory' AND c.value IN ('long_pips', 'short_pips', 'medium_pips');
+
+-- =============================================================================
+-- Ball spec fields (TT-191 catalog expansion)
+-- =============================================================================
+-- Previously deliberately empty. The TT-191 audit confirmed three fields
+-- carry useful signal: ITTF approval, star rating, and seam type. Brand
+-- colour was considered but dropped — orange/white is product-level
+-- noise more than a comparator dimension.
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, enum_options)
+SELECT 'equipment_spec_field', 'Star rating', 'star_rating', 'Manufacturer-published star rating', 1, c.id, true, 'enum',
+  '[
+    {"value": "1_star", "label": "1-star"},
+    {"value": "2_star", "label": "2-star"},
+    {"value": "3_star", "label": "3-star"}
+  ]'::jsonb
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, enum_options)
+SELECT 'equipment_spec_field', 'Seam type', 'seam_type', 'Construction — with or without a visible seam', 2, c.id, true, 'enum',
+  '[
+    {"value": "seamless", "label": "Seamless"},
+    {"value": "seamed",   "label": "Seamed"}
+  ]'::jsonb
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
+
+INSERT INTO categories (type, name, value, description, display_order, parent_id, is_active, field_type, enum_options)
+SELECT 'equipment_spec_field', 'ITTF approved', 'ittf_approved', 'Whether the ball carries an ITTF approval mark', 3, c.id, true, 'enum',
+  '[
+    {"value": "yes", "label": "Yes"},
+    {"value": "no",  "label": "No"}
+  ]'::jsonb
+FROM categories c WHERE c.type = 'equipment_category' AND c.value = 'ball';
 
 -- Insert equipment (popular blades from revspin.net)
 INSERT INTO equipment (name, slug, category, manufacturer, specifications) VALUES
@@ -674,8 +741,24 @@ INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specific
  '{"topsheet": "Short Pips", "sponge": "Soft", "speed": 7.8, "spin": 6.8, "control": 8.5}'),
 ('SPINPIPS D2', 'victas-spinpips-d2', 'rubber', 'short_pips', 'Victas', 
  '{"topsheet": "Short Pips", "sponge": "Medium", "speed": 8.2, "spin": 7.0, "control": 8.2}'),
-('SPINPIPS D3', 'victas-spinpips-d3', 'rubber', 'short_pips', 'Victas', 
+('SPINPIPS D3', 'victas-spinpips-d3', 'rubber', 'short_pips', 'Victas',
  '{"topsheet": "Short Pips", "sponge": "Hard", "speed": 8.5, "spin": 7.2, "control": 8.0}');
+
+-- Insert equipment (medium pips rubbers — TT-191 catalog expansion)
+-- Just the two Nittaku medium-pip rubbers. Dr. Neubauer's K.O. Pro and
+-- Aggressor Pro already exist further down the seed but are currently
+-- mis-categorised as long_pips — fixing that is a separate audit pass
+-- (see TT-191 follow-up).
+INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
+-- Nittaku — official product page (nittaku.tt) lists DO Knuckle as
+-- "medium-length pimples" with sponge ~42.5°, speed 7.5, spin 6.0.
+('DO Knuckle', 'nittaku-do-knuckle', 'rubber', 'medium_pips', 'Nittaku',
+ '{"topsheet": "Medium Pips", "sponge": "Standard", "speed": 7.5, "spin": 6.0, "control": 8.0, "hardness": {"min": 42.5, "max": 42.5}}'),
+-- Pimplemini: community-rated speed 5.5, spin 4, control 7.75. Sponge
+-- on the soft end. May be discontinued at some retailers but still in
+-- the Nittaku catalogue.
+('Pimplemini', 'nittaku-pimplemini', 'rubber', 'medium_pips', 'Nittaku',
+ '{"topsheet": "Medium Pips", "sponge": "Soft", "speed": 5.5, "spin": 4.0, "control": 7.75}');
 
 -- Insert equipment (latest inverted rubbers 2019-2024 from premium brands)
 INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specifications) VALUES
@@ -862,14 +945,19 @@ INSERT INTO equipment (name, slug, category, subcategory, manufacturer, specific
  '{"topsheet": "Long Pips", "sponge": "Reloaded", "speed": 4.0, "spin": 9.3, "control": 9.0}'),
 ('Aggressor Evo', 'dr-neubauer-aggressor-evo', 'rubber', 'long_pips', 'Dr. Neubauer', 
  '{"topsheet": "Long Pips", "sponge": "Evolution", "speed": 4.8, "spin": 8.8, "control": 8.5}'),
-('Aggressor PRO', 'dr-neubauer-aggressor-pro', 'rubber', 'long_pips', 'Dr. Neubauer', 
- '{"topsheet": "Long Pips", "sponge": "Professional", "speed": 4.9, "spin": 8.7, "control": 8.4}'),
+-- TT-191 audit: K.O. Pro and Aggressor Pro are sold as medium pips by
+-- Dr. Neubauer (their site categorises them under medium-pip rubbers).
+-- Existing seed had them under long_pips — corrected. Topsheet label and
+-- speed/spin values left in place; the spec-sourcing pipeline can re-rate
+-- against the manufacturer page.
+('Aggressor PRO', 'dr-neubauer-aggressor-pro', 'rubber', 'medium_pips', 'Dr. Neubauer',
+ '{"topsheet": "Medium Pips", "sponge": "Professional", "speed": 4.9, "spin": 8.7, "control": 8.4}'),
 ('Trouble Maker', 'dr-neubauer-trouble-maker', 'rubber', 'long_pips', 'Dr. Neubauer', 
  '{"topsheet": "Long Pips", "sponge": "Standard", "speed": 3.8, "spin": 9.4, "control": 9.1}'),
 ('K.O. Extreme', 'dr-neubauer-ko-extreme', 'rubber', 'long_pips', 'Dr. Neubauer', 
  '{"topsheet": "Long Pips", "sponge": "Extreme", "speed": 3.5, "spin": 9.6, "control": 9.3}'),
-('K.O. PRO', 'dr-neubauer-ko-pro', 'rubber', 'long_pips', 'Dr. Neubauer', 
- '{"topsheet": "Long Pips", "sponge": "Professional", "speed": 3.7, "spin": 9.5, "control": 9.2}'),
+('K.O. PRO', 'dr-neubauer-ko-pro', 'rubber', 'medium_pips', 'Dr. Neubauer',
+ '{"topsheet": "Medium Pips", "sponge": "Professional", "speed": 3.7, "spin": 9.5, "control": 9.2}'),
 ('Desperado 2', 'dr-neubauer-desperado-2', 'rubber', 'long_pips', 'Dr. Neubauer', 
  '{"topsheet": "Long Pips", "sponge": "Version 2", "speed": 4.3, "spin": 9.0, "control": 8.8}'),
 ('Aggressor', 'dr-neubauer-aggressor', 'rubber', 'long_pips', 'Dr. Neubauer', 
