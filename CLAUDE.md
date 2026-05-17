@@ -79,6 +79,7 @@ Always run `npm run cf-typegen` after editing `wrangler.toml` so `worker-configu
 - **Production observability**: `docs/OBSERVABILITY.md`
 - **Plane API + wrapper**: `docs/PLANE.md`
 - **MCP servers (GSC + Bing live data)**: `docs/MCP.md`
+- **Security scanning**: `docs/SECURITY-SCANNING.md` — what runs inline (Semgrep, Gitleaks, Splinter) vs twice-weekly cron (ZAP, TruffleHog), and what we don't run and why
 
 ## Work tracking — Plane
 
