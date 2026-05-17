@@ -14,12 +14,23 @@
 // query, no separate resource route to keep in sync.
 
 import { useEffect } from "react";
-import { Link, useRevalidator } from "react-router";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import {
+  data,
+  Form,
+  Link,
+  redirect,
+  useNavigation,
+  useRevalidator,
+} from "react-router";
+import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react";
 
 import type { Route } from "./+types/admin.import.jobs.$jobId";
-import { ensureAdminLoader } from "~/lib/admin/middleware.server";
+import {
+  ensureAdminAction,
+  ensureAdminLoader,
+} from "~/lib/admin/middleware.server";
 import { formatDateTime, formatRelativeTime } from "~/lib/date";
+import { Logger, createLogContext } from "~/lib/logger.server";
 
 interface JobItemRow {
   slug: string;
@@ -54,7 +65,7 @@ export function meta({ data }: Route.MetaArgs) {
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const gate = await ensureAdminLoader(request, context);
   if (gate instanceof Response) return gate;
-  const { supabaseAdmin } = gate;
+  const { sbServerClient, supabaseAdmin, csrfToken } = gate;
 
   const { data: job, error } = await supabaseAdmin
     .from("equipment_import_jobs")
@@ -101,14 +112,71 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     })),
   };
 
-  return { job: detail };
+  return data({ job: detail, csrfToken }, { headers: sbServerClient.headers });
+}
+
+// TT-244 case 4: admin "Delete this import job" action. Lets an admin
+// clear a stuck job (or any genuinely-done-with row) without dropping
+// to SQL. `equipment` rows are unaffected — only the tracking is
+// removed; items cascade via FK. Use case: legacy stuck jobs from the
+// TT-243-era producer bug, jobs that landed entirely in the DLQ,
+// accidental clicks.
+export async function action({ request, params, context }: Route.ActionArgs) {
+  const gate = await ensureAdminAction(request, context);
+  if (gate instanceof Response) return gate;
+  const { sbServerClient, supabaseAdmin, user } = gate;
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent !== "delete") {
+    return data(
+      { error: "Unknown action" },
+      { status: 400, headers: sbServerClient.headers }
+    );
+  }
+
+  const { error: deleteError } = await supabaseAdmin
+    .from("equipment_import_jobs")
+    .delete()
+    .eq("id", params.jobId);
+
+  if (deleteError) {
+    Logger.error(
+      "admin.import-job.delete.failed",
+      createLogContext("admin-import-job", {
+        jobId: params.jobId,
+        userId: user.id,
+      }),
+      new Error(deleteError.message)
+    );
+    return data(
+      { error: deleteError.message },
+      { status: 500, headers: sbServerClient.headers }
+    );
+  }
+
+  Logger.info(
+    "admin.import-job.deleted",
+    createLogContext("admin-import-job", {
+      jobId: params.jobId,
+      userId: user.id,
+    })
+  );
+  throw redirect("/admin/import/jobs", {
+    headers: sbServerClient.headers,
+  });
 }
 
 export default function AdminImportJobDetail({
   loaderData,
 }: Route.ComponentProps) {
-  const { job } = loaderData;
+  const { job, csrfToken } = loaderData;
   const revalidator = useRevalidator();
+  const navigation = useNavigation();
+  const isDeleting =
+    navigation.state === "submitting" &&
+    navigation.formData?.get("intent") === "delete";
   const finished = job.finishedAt !== null;
 
   // 1s revalidator tick while the job is open. The consumer's
@@ -143,12 +211,38 @@ export default function AdminImportJobDetail({
             </span>
           </p>
         </div>
-        <Link
-          to="/admin/import/jobs"
-          className="text-sm text-purple-600 hover:text-purple-800"
-        >
-          ← All imports
-        </Link>
+        <div className="flex items-center gap-4">
+          <Form
+            method="post"
+            onSubmit={e => {
+              if (
+                !window.confirm(
+                  "Delete this import job? The catalogue entries it produced are unaffected; only the run-tracking is removed."
+                )
+              ) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <input type="hidden" name="intent" value="delete" />
+            <button
+              type="submit"
+              disabled={isDeleting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-700 border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="admin-import-job-delete"
+            >
+              <Trash2 className="size-4" aria-hidden />
+              {isDeleting ? "Deleting…" : "Delete job"}
+            </button>
+          </Form>
+          <Link
+            to="/admin/import/jobs"
+            className="text-sm text-purple-600 hover:text-purple-800"
+          >
+            ← All imports
+          </Link>
+        </div>
       </header>
 
       <section

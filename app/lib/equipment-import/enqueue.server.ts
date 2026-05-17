@@ -1,19 +1,30 @@
-// TT-243: producer-side enqueue helper for the equipment importer.
+// TT-243/TT-244: producer-side enqueue helper for the equipment importer.
 //
-// TT-238 split the import into a producer (this) + consumer
-// (queue.server.ts) but left the producer doing one `queue.send` per
-// product. Each send is one Cloudflare subrequest, so anything over
-// ~48 selected products blew past the 50-subrequest cap and the action
-// 500ed mid-loop with only a partial batch on the queue. Same shape
-// that bit TT-206 on the player importer.
+// TT-243 swapped the legacy serial `queue.send` loop for `queue.sendBatch`
+// in chunks of SEND_BATCH_MAX (Cloudflare's per-call cap is 100) to dodge
+// the 50-subrequest cap on Workers Free. TT-244 then closed three
+// stuck-job holes that survived:
 //
-// This helper inserts the equipment_import_jobs row, generates one
-// message per product, and ships them via `queue.sendBatch` in chunks
-// of SEND_BATCH_MAX (Cloudflare's per-call cap is 100). A 1000-product
-// run is then 1 insert + 10 sendBatch calls = 11 subrequests, well
-// under the cap. Per-chunk failures are reported but don't abort the
-// remaining chunks — we'd rather get N-1 chunks shipped than throw
-// the whole click away.
+//   * Slug dedupe (TT-244 case 1). revspin's listing can contain two
+//     entries that collapse to the same `generateSlug(product.name)` —
+//     e.g. variant pages with identical (manufacturer, name) on revspin's
+//     side. The consumer's `recordItem` swallows 23505 on
+//     UNIQUE(job_id, slug) intentionally (Cloudflare same-message
+//     redelivery), so the second collision silently drops the counter.
+//     The job sits at `total > processed` forever. Fix: dedupe by
+//     generated slug here so the queue only carries one message per slug
+//     and `total` matches the unique-insert reality.
+//
+//   * Total reconcile (TT-244 case 3). If a sendBatch chunk throws
+//     mid-loop, `enqueued < products.length`. The trigger needs
+//     `total = enqueued` to fire `finished_at`; we issue one followup
+//     update to lower total. Safe because the trigger fires on every
+//     items INSERT and re-checks the threshold.
+//
+//   * Attempts counter (TT-244 case 2). Each message carries `attempts: 0`
+//     so the consumer can implement body-level retry tracking and write a
+//     `failed` job_items row on final exhaustion rather than letting the
+//     message die silently in the DLQ.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -40,11 +51,15 @@ export interface EnqueueArgs {
 export interface EnqueueSuccess {
   status: "ok";
   jobId: string;
+  // How many products were dropped at the dedupe step (input - unique).
+  // Surfaced for diagnostics but not currently shown to the operator;
+  // the job-detail page will simply show `total = unique count`.
+  duplicatesDropped: number;
+  // How many messages actually shipped onto the queue.
   enqueued: number;
   // Non-fatal errors from individual chunks. The DLQ catches consumer-
   // side failures separately; this surfaces producer-side hiccups
-  // (Payload Too Large, transient Queue errors) so the admin can
-  // re-click after the page redirects to the job detail.
+  // (Payload Too Large, transient Queue errors).
   chunkErrors: string[];
 }
 
@@ -64,9 +79,23 @@ export async function enqueueEquipmentImport(
     return { status: "error", message: "No products selected" };
   }
 
+  // Dedupe by generated slug. Keep first occurrence; later collisions
+  // would be silently dropped by the consumer's recordItem(23505) path
+  // anyway — better to never enqueue them than to leak job_items
+  // accounting.
+  const seen = new Set<string>();
+  const uniqueProducts: Array<{ product: RevspinProduct; slug: string }> = [];
+  for (const product of products) {
+    const slug = generateSlug(product.name);
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    uniqueProducts.push({ product, slug });
+  }
+  const duplicatesDropped = products.length - uniqueProducts.length;
+
   const { data: job, error: jobError } = await supabase
     .from("equipment_import_jobs")
-    .insert({ created_by: userId, total: products.length })
+    .insert({ created_by: userId, total: uniqueProducts.length })
     .select("id")
     .single();
 
@@ -79,13 +108,14 @@ export async function enqueueEquipmentImport(
 
   const jobId = job.id as string;
 
-  const messages: Array<{ body: EquipmentImportMessage }> = products.map(
-    product => ({
+  const messages: Array<{ body: EquipmentImportMessage }> = uniqueProducts.map(
+    ({ product, slug }) => ({
       body: {
         job_id: jobId,
-        slug: generateSlug(product.name),
+        slug,
         product,
         subcategoryOverride,
+        attempts: 0,
       },
     })
   );
@@ -106,7 +136,30 @@ export async function enqueueEquipmentImport(
     }
   }
 
-  return { status: "ok", jobId, enqueued, chunkErrors };
+  // Total reconcile (TT-244 case 3). If a chunk dropped, the job row
+  // still claims the full unique count. Lower it so the trigger can
+  // flip finished_at once the surviving messages drain. We don't roll
+  // back the inserted job — partial runs are still valuable, and
+  // chunkErrors surfaces what was lost for re-click triage.
+  if (enqueued < uniqueProducts.length) {
+    const updateResult = await supabase
+      .from("equipment_import_jobs")
+      .update({ total: enqueued })
+      .eq("id", jobId);
+    if (updateResult.error) {
+      chunkErrors.push(
+        `reconcile total to ${enqueued} failed: ${updateResult.error.message}`
+      );
+    }
+  }
+
+  return {
+    status: "ok",
+    jobId,
+    duplicatesDropped,
+    enqueued,
+    chunkErrors,
+  };
 }
 
 function chunkMessages<T>(items: T[], size: number): T[][] {

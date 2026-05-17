@@ -24,7 +24,9 @@ import {
   type PlayerImportMessage,
 } from "../app/lib/players/queue.server";
 import {
+  decideEquipmentImportRetry,
   processOneEquipmentImport,
+  recordEquipmentImportFinalFailure,
   type EquipmentImportMessage,
 } from "../app/lib/equipment-import/queue.server";
 
@@ -449,12 +451,16 @@ export default {
       batch.queue === "equipment-import-queue" ||
       batch.queue === "equipment-import-queue-dev"
     ) {
+      const queueEnv = env as unknown as {
+        EQUIPMENT_IMPORT_QUEUE: Queue<EquipmentImportMessage>;
+      };
       for (const msg of batch.messages) {
         const body = msg.body as EquipmentImportMessage;
         const ctxLog = createLogContext("queue", {
           queue: batch.queue,
           jobId: body.job_id,
           slug: body.slug,
+          attempts: body.attempts ?? 0,
         });
 
         try {
@@ -465,11 +471,9 @@ export default {
               ctxLog,
               new Error(outcome.message)
             );
-            // The item-level error has already been recorded against
-            // the job by processOneEquipmentImport; ack so we don't
-            // retry forever (Cloudflare's max_retries=3 still applies
-            // for retry()-thrown failures below). The admin UI surfaces
-            // the failed row via equipment_import_job_items.
+            // Item-level error already recorded against the job by
+            // processOneEquipmentImport (failed_count bumped, finished_at
+            // eventually fires); ack so we don't loop on it.
             msg.ack();
             continue;
           }
@@ -478,16 +482,67 @@ export default {
           });
           msg.ack();
         } catch (err) {
-          // Anything that throws here didn't get a chance to record an
-          // item — most likely a DB-side transient (RLS hiccup,
-          // connection blip). Let Cloudflare retry; on final exhaustion
-          // it ends up in the DLQ for manual triage.
-          Logger.error(
-            "queue.equipment-import.message.threw",
-            ctxLog,
-            err instanceof Error ? err : new Error(String(err))
-          );
-          msg.retry();
+          // TT-244 case 2: previously this called msg.retry(), which let
+          // Cloudflare retry up to max_retries=3 and then drop the
+          // message into the DLQ — without writing a job_items row.
+          // The job counter stayed behind by N and the job sat in
+          // "Importing…" forever. Now we track attempts on the message
+          // body and write a final-failure row when the budget runs out,
+          // so the counter still progresses.
+          const error = err instanceof Error ? err : new Error(String(err));
+          const decision = decideEquipmentImportRetry(body);
+          if (decision.kind === "retry") {
+            Logger.warn(
+              `queue.equipment-import.transient.requeue attempts=${decision.attempts} delay=${decision.delaySeconds}`,
+              ctxLog,
+              { reason: error.message }
+            );
+            try {
+              await queueEnv.EQUIPMENT_IMPORT_QUEUE.send(
+                { ...body, attempts: decision.attempts },
+                { delaySeconds: decision.delaySeconds }
+              );
+              msg.ack();
+            } catch (sendErr) {
+              // Can't enqueue the retry — better to msg.retry() than
+              // silently swallow. Cloudflare's own retry then takes
+              // over for this message.
+              Logger.error(
+                "queue.equipment-import.requeue.failed",
+                ctxLog,
+                sendErr instanceof Error ? sendErr : new Error(String(sendErr))
+              );
+              msg.retry();
+            }
+            continue;
+          }
+
+          // Final fail: record a job_items row so the counter advances.
+          try {
+            await recordEquipmentImportFinalFailure(
+              supabase,
+              body,
+              error,
+              decision.attempts
+            );
+            Logger.error(
+              "queue.equipment-import.message.exhausted",
+              ctxLog,
+              error
+            );
+            msg.ack();
+          } catch (recErr) {
+            Logger.error(
+              "queue.equipment-import.exhausted.record-failed",
+              ctxLog,
+              recErr instanceof Error ? recErr : new Error(String(recErr))
+            );
+            // Last-resort: let Cloudflare's own retry take over. If
+            // even that fails, the message lands in the DLQ — same
+            // stuck-job state we used to have, but only on the
+            // exhausted-and-also-DB-down case.
+            msg.retry();
+          }
         }
       }
       return;

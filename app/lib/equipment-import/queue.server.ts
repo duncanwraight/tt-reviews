@@ -26,6 +26,41 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { stripManufacturerPrefix } from "../equipment";
 import type { RevspinProduct } from "../revspin.server";
 
+// TT-244 case 2: body-level retry budget. The Cloudflare-queue
+// max_retries=3 also exists but is opaque (we can't observe it from
+// within the handler), so we keep our own counter on the message body.
+// Match the value to wrangler.toml's max_retries so behaviour stays
+// consistent if Cloudflare's retry policy ever drops us to the DLQ
+// before our counter has tripped.
+export const EQUIPMENT_IMPORT_MAX_ATTEMPTS = 3;
+
+export function computeEquipmentImportRetryDelaySeconds(
+  attempts: number
+): number {
+  // Exponential backoff in minutes, capped at 60. Matches the photo-
+  // and spec-sourcing queues. attempts=1 → 2m, 2 → 4m, 3 → 8m.
+  const minutes = Math.min(60, 2 ** attempts);
+  return minutes * 60;
+}
+
+export type RetryDecision =
+  | { kind: "retry"; attempts: number; delaySeconds: number }
+  | { kind: "final_fail"; attempts: number };
+
+export function decideEquipmentImportRetry(
+  message: EquipmentImportMessage
+): RetryDecision {
+  const attempts = (message.attempts ?? 0) + 1;
+  if (attempts >= EQUIPMENT_IMPORT_MAX_ATTEMPTS) {
+    return { kind: "final_fail", attempts };
+  }
+  return {
+    kind: "retry",
+    attempts,
+    delaySeconds: computeEquipmentImportRetryDelaySeconds(attempts),
+  };
+}
+
 export interface EquipmentImportMessage {
   job_id: string;
   // Pre-generated client-side so the consumer doesn't need to re-derive
@@ -40,6 +75,11 @@ export interface EquipmentImportMessage {
   // product's parsed subcategory). Same semantics as the previous
   // inline action.
   subcategoryOverride: string | null;
+  // TT-244 case 2: body-level attempts counter. Consumer increments
+  // on uncaught throw and re-enqueues until attempts >= max_retries,
+  // then writes a `failed` job_items row instead of letting the
+  // message die silently in the DLQ.
+  attempts?: number;
 }
 
 export type ProcessEquipmentImportOutcome =
@@ -73,6 +113,26 @@ async function recordItem(
   if (error && error.code !== "23505") {
     throw new Error(`failed to record item: ${error.message}`);
   }
+}
+
+// TT-244 case 2: write the final-failure job_items row after the
+// consumer has exhausted its retry budget. Called from workers/app.ts
+// when `decideEquipmentImportRetry` returns "final_fail". Same shape
+// as the per-item error path so the trigger increments failed_count
+// and the job can finish — no silent counter leak via DLQ.
+export async function recordEquipmentImportFinalFailure(
+  supabase: SupabaseClient,
+  message: EquipmentImportMessage,
+  error: Error,
+  attempts: number
+): Promise<void> {
+  await recordItem(supabase, {
+    jobId: message.job_id,
+    slug: message.slug,
+    productName: message.product.name,
+    status: "failed",
+    message: `Exhausted ${attempts} attempts: ${error.message}`,
+  });
 }
 
 export async function processOneEquipmentImport(

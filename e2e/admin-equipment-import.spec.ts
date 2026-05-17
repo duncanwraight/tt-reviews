@@ -233,4 +233,40 @@ test.describe("admin equipment import — TT-243", () => {
       page.getByTestId("admin-import-recent-jobs-link")
     ).toHaveAttribute("href", "/admin/import/jobs");
   });
+
+  test("admin can delete a stuck job from the detail page (TT-244 case 4)", async ({
+    page,
+  }) => {
+    // Seed a stuck job: total=2 with only 1 item recorded, so
+    // finished_at stays null. Same shape as the legacy stuck rows
+    // that originally motivated this UI.
+    const jobId = await seedJob({
+      userId,
+      total: 2,
+      successCount: 1,
+      failedCount: 0,
+      finished: false,
+      items: [{ slug: "stuck-ok", productName: "Stuck OK", status: "success" }],
+    });
+
+    await login(page, email);
+
+    // Auto-accept the confirm() dialog the form raises on submit.
+    page.on("dialog", dialog => {
+      void dialog.accept();
+    });
+
+    await page.goto(`/admin/import/jobs/${jobId}`);
+    await expect(page.getByTestId("admin-import-job-status")).toContainText(
+      /Importing…/i
+    );
+
+    await page.getByTestId("admin-import-job-delete").click();
+
+    // Redirects to the jobs list; the deleted row is gone.
+    await expect(page).toHaveURL("/admin/import/jobs");
+    await expect(
+      page.getByTestId(`admin-import-jobs-row-${jobId}`)
+    ).toHaveCount(0);
+  });
 });
