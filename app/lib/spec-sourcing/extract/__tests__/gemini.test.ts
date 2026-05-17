@@ -200,6 +200,98 @@ describe("makeGeminiExtractor.extract", () => {
       hardness: { min: 40, max: 42 },
     });
   });
+
+  it("accepts a sponge_thickness array of strings (TT-231)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      geminiResponse(
+        JSON.stringify({
+          specs: { sponge_thickness: ["1.7", "1.9", "2.1"] },
+        })
+      )
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({
+      sponge_thickness: ["1.7", "1.9", "2.1"],
+    });
+  });
+
+  it("drops sponge_thickness when not a string array (TT-231)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      geminiResponse(
+        JSON.stringify({
+          specs: {
+            weight: 50,
+            sponge_thickness: "1.7/1.9/2.1", // wrong shape — single string
+          },
+        })
+      )
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({ weight: 50 });
+  });
+
+  it("accepts enum slug strings for balance, type, pip_shape, star_rating, seam_type, ittf_approved (TT-231)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      geminiResponse(
+        JSON.stringify({
+          specs: {
+            balance: "central",
+            type: "tensor",
+            pip_shape: "conical",
+            star_rating: "3_star",
+            seam_type: "seamless",
+            ittf_approved: "yes",
+          },
+        })
+      )
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({
+      balance: "central",
+      type: "tensor",
+      pip_shape: "conical",
+      star_rating: "3_star",
+      seam_type: "seamless",
+      ittf_approved: "yes",
+    });
+  });
+
+  it("drops an enum field whose value is not a string (TT-231)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      geminiResponse(
+        JSON.stringify({
+          specs: {
+            weight: 50,
+            balance: 12, // wrong shape — number instead of slug
+          },
+        })
+      )
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({ weight: 50 });
+  });
+
+  it("accepts forward-compat string-array values for unknown fields (TT-231)", async () => {
+    // A future text_list spec field added to the DB before this allowlist
+    // catches up. The forward-compat fallback should let it through as
+    // a string array rather than dropping it.
+    const fetchImpl = vi.fn().mockResolvedValue(
+      geminiResponse(
+        JSON.stringify({
+          specs: { future_list_field: ["a", "b", "c"] },
+        })
+      )
+    ) as unknown as typeof fetch;
+    const extractor = makeGeminiExtractor({ apiKey: "k", fetchImpl });
+    const outcome = await extractor.extract(VISCARIA_HTML, VISCARIA_REF);
+    expect(outcome.result!.specs).toEqual({
+      future_list_field: ["a", "b", "c"],
+    });
+  });
 });
 
 describe("makeGeminiExtractor.match", () => {

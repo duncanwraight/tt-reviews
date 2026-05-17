@@ -179,11 +179,48 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   }
 
   if (intent === "apply") {
+    // Apply validation needs the equipment's spec-field schema — same
+    // CategoryOption[] the loader fetched to render the form. Refetch
+    // it via the proposal's equipment_id rather than trusting the
+    // browser to round-trip it.
+    const { data: proposalRow, error: proposalError } = await supabaseAdmin
+      .from("equipment_spec_proposals")
+      .select("equipment_id")
+      .eq("id", proposalId)
+      .single();
+    if (proposalError || !proposalRow) {
+      return data(
+        { error: "Proposal not found" },
+        { status: 404, headers: sbServerClient.headers }
+      );
+    }
+    const { data: equipmentRow, error: equipmentError } = await supabaseAdmin
+      .from("equipment")
+      .select("category, subcategory")
+      .eq("id", (proposalRow as { equipment_id: string }).equipment_id)
+      .single();
+    if (equipmentError || !equipmentRow) {
+      return data(
+        { error: "Linked equipment not found" },
+        { status: 404, headers: sbServerClient.headers }
+      );
+    }
+    const equipmentRef = equipmentRow as {
+      category: string | null;
+      subcategory: string | null;
+    };
+    const categoryService = createCategoryService(supabaseAdmin);
+    const specFields = await categoryService.getEquipmentSpecFields(
+      equipmentRef.category ?? undefined,
+      equipmentRef.subcategory ?? undefined
+    );
+
     const result = await applySpecProposal(
       supabaseAdmin,
       proposalId,
       user.id,
-      formData
+      formData,
+      specFields
     );
     if (!result.ok) {
       Logger.error(

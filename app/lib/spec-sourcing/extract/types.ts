@@ -32,10 +32,15 @@ export interface MatchResult {
 }
 
 // Specs values are sparse and follow the typed shapes locked in
-// archive/EQUIPMENT-SPECS.md (int / float / range / text). The
-// extractor is allowed to omit fields it can't read; the worker
-// merges across sources.
-export type SpecValue = number | string | { min: number; max: number } | null;
+// archive/EQUIPMENT-SPECS.md (int / float / range / text / enum /
+// text_list). The extractor is allowed to omit fields it can't read;
+// the worker merges across sources.
+export type SpecValue =
+  | number
+  | string
+  | string[]
+  | { min: number; max: number }
+  | null;
 
 export interface ExtractedSpec {
   specs: Record<string, SpecValue>;

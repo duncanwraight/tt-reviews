@@ -48,6 +48,12 @@ const RAW_RESPONSE_LOG_CHARS = 512;
 // archive/EQUIPMENT-SPECS.md. Keep this in sync with the doc; the
 // migration in TT-146 stores values as JSONB so adding fields here
 // doesn't require a schema change.
+//
+// Enum fields are stored as slug strings; the slugs below are the
+// canonical set the applier validates against (TT-191 seed). Per-rubber
+// `type` slugs differ by subcategory (inverted vs anti) — the union
+// covers both; the applier drops anything that doesn't match the
+// equipment's actual options.
 const EXTRACT_SYSTEM_PROMPT = `You extract structured table-tennis equipment specifications from a product page.
 
 Return ONLY JSON with this exact shape:
@@ -64,7 +70,14 @@ Return ONLY JSON with this exact shape:
     "hardness": { "min": number, "max": number } | null,
     "sponge": string | null,             // sponge descriptor
     "topsheet": string | null,
-    "year": string | null                // release year as a string
+    "year": string | null,               // release year as a string
+    "sponge_thickness": string[] | null, // discrete published thicknesses for a rubber, mm, e.g. ["1.7","1.9","2.1"] or ["OX","0.5","1.0","1.4"]
+    "balance": string | null,            // blade only — one of "very_head_heavy" | "head_heavy" | "central" | "handle_heavy" | "very_handle_heavy"
+    "type": string | null,               // rubber only — inverted: "hybrid"|"tensor"|"classic"|"chinese" — anti: "classic"|"frictionless"
+    "pip_shape": string | null,          // pips-out rubber only — "conical" | "cylindrical" | "mushroom"
+    "star_rating": string | null,        // ball only — "1_star" | "2_star" | "3_star"
+    "seam_type": string | null,          // ball only — "seamless" | "seamed"
+    "ittf_approved": string | null       // ball only — "yes" | "no"
   },
   "description": string | null,          // ≤200-char paragraph
   "uncertain_fields": string[]           // names from specs that you guessed
@@ -73,6 +86,8 @@ Return ONLY JSON with this exact shape:
 Rules:
 - Omit values you cannot read from the page — leave them null.
 - Use the page's own units; convert "mm" / "g" but keep ratings on the page's published 0..10 scale.
+- For sponge_thickness, return EACH published thickness option as a string in the array, in the order the page lists them. Include "OX" if the rubber is sold without sponge.
+- For enum fields (balance, type, pip_shape, star_rating, seam_type, ittf_approved) return the slug exactly as listed above — lowercase, underscored. Do not invent slugs; if the page's wording doesn't map cleanly, leave the field null.
 - Description must be ≤200 chars and one paragraph.
 - Do not invent specs. If a field isn't on the page, set it to null.
 - Output JSON only — no markdown fence, no prose around it.`;
@@ -253,8 +268,9 @@ function isHardnessRange(v: unknown): v is { min: number; max: number } {
 
 // Field-type allowlist — mirrors archive/EQUIPMENT-SPECS.md. Keep in
 // sync when new spec fields are added; unknown field names get
-// passed through with permissive number-or-string validation so the
-// extractor doesn't drop forward-compatible additions silently.
+// passed through with permissive validation (number, string, or
+// string[]) so a future spec field doesn't silently disappear before
+// this allowlist is updated.
 const NUMERIC_FIELDS = new Set([
   "weight",
   "thickness",
@@ -264,13 +280,30 @@ const NUMERIC_FIELDS = new Set([
   "spin",
   "control",
 ]);
+// Text + enum-slug fields. Enum slugs (TT-191) are stored as plain
+// strings; the applier validates them against the per-field
+// enum_options at apply time, so the extractor only needs the
+// "is-a-string" check here.
 const TEXT_FIELDS = new Set([
   "composite_material",
   "material",
   "sponge",
   "topsheet",
   "year",
+  "balance",
+  "type",
+  "pip_shape",
+  "star_rating",
+  "seam_type",
+  "ittf_approved",
 ]);
+// text_list fields hold a JSONB array of strings (TT-191). Currently
+// just sponge_thickness; new entries land here when added.
+const LIST_FIELDS = new Set(["sponge_thickness"]);
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(x => typeof x === "string");
+}
 
 function validateSpecValue(
   field: string,
@@ -288,10 +321,15 @@ function validateSpecValue(
   if (TEXT_FIELDS.has(field)) {
     return typeof value === "string" ? value : undefined;
   }
-  // Unknown field — accept either shape so a future spec field
-  // doesn't silently disappear before this allowlist is updated.
+  if (LIST_FIELDS.has(field)) {
+    return isStringArray(value) ? value : undefined;
+  }
+  // Unknown field — accept any of the supported shapes so a future
+  // spec field doesn't silently disappear before this allowlist is
+  // updated.
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") return value;
+  if (isStringArray(value)) return value;
   return undefined;
 }
 
