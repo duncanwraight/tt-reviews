@@ -194,7 +194,9 @@ export function PlayerHeader({
             <div className="player-meta flex flex-wrap justify-center lg:justify-start gap-6 mb-4 text-sm">
               {(player.represents || player.birth_country) && (
                 <span>
-                  <span className="font-medium text-gray-700">Represents:</span>{" "}
+                  <span className="font-semibold text-gray-900">
+                    Represents:
+                  </span>{" "}
                   {getCountryFlag((player.represents || player.birth_country)!)}{" "}
                   {player.represents || player.birth_country}
                 </span>
@@ -204,7 +206,7 @@ export function PlayerHeader({
                 if (!careerBest) return null;
                 return (
                   <span>
-                    <span className="font-medium text-gray-700">
+                    <span className="font-semibold text-gray-900">
                       {careerBest.label}:
                     </span>{" "}
                     {careerBest.value}
@@ -216,20 +218,20 @@ export function PlayerHeader({
                 if (age == null) return null;
                 return (
                   <span>
-                    <span className="font-medium text-gray-700">Age:</span>{" "}
+                    <span className="font-semibold text-gray-900">Age:</span>{" "}
                     {age}
                   </span>
                 );
               })()}
               {player.active_years && (
                 <span>
-                  <span className="font-medium text-gray-700">Active:</span>{" "}
+                  <span className="font-semibold text-gray-900">Active:</span>{" "}
                   {player.active_years}
                 </span>
               )}
               {player.playing_style && player.playing_style !== "unknown" && (
                 <span>
-                  <span className="font-medium text-gray-700">Style:</span>{" "}
+                  <span className="font-semibold text-gray-900">Style:</span>{" "}
                   {getPlayingStyleLabel(player.playing_style)}
                 </span>
               )}
