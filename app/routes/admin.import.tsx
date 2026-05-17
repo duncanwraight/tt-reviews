@@ -1,5 +1,5 @@
 import type { Route } from "./+types/admin.import";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createSupabaseAdminClient } from "~/lib/database.server";
 import { getServerClient } from "~/lib/supabase.server";
 import { getUserWithRole } from "~/lib/auth.server";
@@ -11,7 +11,7 @@ import {
   type RevspinCategory,
   type RevspinProduct,
 } from "~/lib/revspin.server";
-import { stripManufacturerPrefix } from "~/lib/equipment";
+import type { EquipmentImportMessage } from "~/lib/equipment-import/queue.server";
 
 // Product with generated slug included (for client-side use)
 type RevspinProductWithSlug = RevspinProduct & { generatedSlug: string };
@@ -112,60 +112,73 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
   }
 
-  // Import selected products
+  // Import selected products. TT-238: the inline SELECT-then-INSERT loop
+  // used to do 2 subrequests per product, blowing past Cloudflare's
+  // 50-subrequest cap on anything over ~25 items. Now we create a job
+  // row + enqueue one EQUIPMENT_IMPORT_QUEUE message per product
+  // (~1 subrequest each on the producer side) and return the job_id so
+  // the UI can poll equipment_import_jobs for progress while the
+  // consumer (workers/app.ts) processes items one Worker invocation
+  // at a time.
   if (intent === "import") {
     const productsJson = formData.get("products") as string;
-    const subcategoryOverride = formData.get("subcategory") as string | null;
+    const subcategoryOverrideRaw = formData.get("subcategory") as string | null;
+    const subcategoryOverride = subcategoryOverrideRaw || null;
     const products: RevspinProduct[] = JSON.parse(productsJson);
 
-    const supabase = createSupabaseAdminClient(context);
-    const results = {
-      success: 0,
-      failed: 0,
-      errors: [] as string[],
-    };
-
-    for (const product of products) {
-      const slug = generateSlug(product.name);
-
-      // Check if already exists
-      const { data: existing } = await supabase
-        .from("equipment")
-        .select("id")
-        .eq("slug", slug)
-        .single();
-
-      if (existing) {
-        results.errors.push(`${product.name}: Already exists`);
-        results.failed++;
-        continue;
-      }
-
-      // Use override subcategory if provided, otherwise use product's subcategory
-      const subcategory = subcategoryOverride || product.subcategory;
-
-      // Insert the equipment. RevSpin titles arrive as "<brand> <model>";
-      // equipment.name stores only the bare model (TT-163), so we strip the
-      // manufacturer prefix before persisting. Slug generation still uses
-      // the full title so URLs stay brand-prefixed.
-      const { error } = await supabase.from("equipment").insert({
-        name: stripManufacturerPrefix(product.name, product.manufacturer),
-        slug,
-        manufacturer: product.manufacturer,
-        category: product.category,
-        subcategory,
-        specifications: product.specifications,
+    if (products.length === 0) {
+      return data({
+        intent: "import",
+        error: "No products selected",
+        jobId: null,
       });
-
-      if (error) {
-        results.errors.push(`${product.name}: ${error.message}`);
-        results.failed++;
-      } else {
-        results.success++;
-      }
     }
 
-    return data({ intent: "import", results });
+    const supabase = createSupabaseAdminClient(context);
+
+    const { data: job, error: jobError } = await supabase
+      .from("equipment_import_jobs")
+      .insert({ created_by: user.id, total: products.length })
+      .select("id")
+      .single();
+
+    if (jobError || !job) {
+      return data({
+        intent: "import",
+        error: jobError?.message ?? "Failed to create import job",
+        jobId: null,
+      });
+    }
+
+    const queue = (
+      context.cloudflare.env as unknown as {
+        EQUIPMENT_IMPORT_QUEUE: {
+          send: (m: EquipmentImportMessage) => Promise<unknown>;
+        };
+      }
+    ).EQUIPMENT_IMPORT_QUEUE;
+
+    // Sequential queue.send is fine — each call is one subrequest
+    // ceiling-wise; the action's budget is the same 50-cap but we now
+    // do N sends instead of 2N inserts, doubling the headroom. For
+    // very large lists (>1000) the producer itself would still hit the
+    // cap; in practice the upstream selection screen caps things well
+    // below that.
+    for (const product of products) {
+      const slug = generateSlug(product.name);
+      await queue.send({
+        job_id: job.id as string,
+        slug,
+        product,
+        subcategoryOverride,
+      });
+    }
+
+    return data({
+      intent: "import",
+      error: null,
+      jobId: job.id as string,
+    });
   }
 
   return data({ error: "Unknown action" });
@@ -202,13 +215,75 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
   const importData = importFetcher.data as
     | {
         intent: "import";
-        results: { success: number; failed: number; errors: string[] };
+        error: string | null;
+        jobId: string | null;
       }
     | undefined;
 
   const isFetching =
     fetcher.state === "submitting" || fetcher.state === "loading";
-  const isImporting = importFetcher.state === "submitting";
+  // TT-238: the action returns as soon as N queue messages are
+  // enqueued; the actual inserts happen on the consumer Worker. The
+  // UI now spins on the polled job status, not on the action fetcher.
+  const isEnqueueing = importFetcher.state === "submitting";
+
+  // Poll the job status route while a job is open. Stop once the
+  // job's `finished` flag flips true (set by the DB trigger when
+  // success_count + failed_count = total). 1s cadence is enough for a
+  // human to feel it's live without spamming Supabase — the consumer's
+  // max_concurrency=2 means rows land in pairs, not in a flood.
+  const [jobStatus, setJobStatus] = useState<{
+    total: number;
+    successCount: number;
+    failedCount: number;
+    finished: boolean;
+    failures: Array<{ slug: string; productName: string; message: string }>;
+  } | null>(null);
+
+  useEffect(() => {
+    const jobId = importData?.jobId;
+    if (!jobId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/admin/import/job/${jobId}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          total: number;
+          successCount: number;
+          failedCount: number;
+          finished: boolean;
+          failures: Array<{
+            slug: string;
+            productName: string;
+            message: string;
+          }>;
+        };
+        if (cancelled) return;
+        setJobStatus(data);
+        if (!data.finished) {
+          timer = setTimeout(poll, 1000);
+        }
+      } catch {
+        // network blip — retry once after a longer pause rather than
+        // bailing the whole poll loop.
+        if (cancelled) return;
+        timer = setTimeout(poll, 3000);
+      }
+    };
+    setJobStatus(null);
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [importData?.jobId]);
+
+  const isImporting =
+    isEnqueueing || (jobStatus !== null && !jobStatus.finished);
 
   // Mark products with import status (using server-generated slug)
   const existingSlugSet = new Set(existingSlugs);
@@ -356,28 +431,63 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
-      {/* Import Results */}
-      {importData?.results && (
+      {/* Enqueue error (action-side failure to create job or send msgs) */}
+      {importData?.error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">
+            Failed to start import: {importData.error}
+          </p>
+        </div>
+      )}
+
+      {/* Import Progress + Results — TT-238: populated by polling
+          /admin/import/job/:jobId while the queue consumer processes
+          items. Stays in place after `finished` flips true so the
+          operator can see the final tally + any failures. */}
+      {jobStatus && (
         <div
           className={`p-4 rounded-lg ${
-            importData.results.failed > 0
-              ? "bg-yellow-50 border border-yellow-200"
-              : "bg-green-50 border border-green-200"
+            !jobStatus.finished
+              ? "bg-blue-50 border border-blue-200"
+              : jobStatus.failedCount > 0
+                ? "bg-yellow-50 border border-yellow-200"
+                : "bg-green-50 border border-green-200"
           }`}
         >
-          <h3 className="font-medium">Import Results</h3>
+          <h3 className="font-medium">
+            {jobStatus.finished ? "Import Results" : "Importing…"}
+          </h3>
           <p>
-            Successfully imported: {importData.results.success} | Failed:{" "}
-            {importData.results.failed}
+            Processed {jobStatus.successCount + jobStatus.failedCount} of{" "}
+            {jobStatus.total} — successfully imported: {jobStatus.successCount}{" "}
+            | failed: {jobStatus.failedCount}
           </p>
-          {importData.results.errors.length > 0 && (
-            <details className="mt-2">
+          {!jobStatus.finished && (
+            <div className="mt-3 w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-500 h-2"
+                style={{
+                  width: `${Math.round(
+                    ((jobStatus.successCount + jobStatus.failedCount) /
+                      Math.max(jobStatus.total, 1)) *
+                      100
+                  )}%`,
+                }}
+              />
+            </div>
+          )}
+          {jobStatus.failures.length > 0 && (
+            <details className="mt-2" open={jobStatus.finished}>
               <summary className="cursor-pointer text-sm text-gray-600">
-                View errors
+                View {jobStatus.failures.length} failure
+                {jobStatus.failures.length === 1 ? "" : "s"}
               </summary>
-              <ul className="mt-2 text-sm text-red-600">
-                {importData.results.errors.map((err, i) => (
-                  <li key={i}>{err}</li>
+              <ul className="mt-2 text-sm text-red-700 space-y-1">
+                {jobStatus.failures.map(f => (
+                  <li key={f.slug}>
+                    <span className="font-medium">{f.productName}:</span>{" "}
+                    {f.message}
+                  </li>
                 ))}
               </ul>
             </details>

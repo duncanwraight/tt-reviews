@@ -86,6 +86,30 @@ max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "player-import-dlq"
 
+# TT-238 — equipment importer queue. The admin /admin/import "Import N
+# items" action used to do all N inserts inline in one Worker call;
+# anything over ~25 items blew past Cloudflare's 50-subrequest cap
+# (each Supabase JS call is one subrequest, and the old SELECT-then-
+# INSERT path used two per product). The producer now creates an
+# equipment_import_jobs row and enqueues one message per product;
+# the consumer inserts via ON CONFLICT (slug) DO NOTHING and writes
+# one row to equipment_import_job_items for progress tracking — 2
+# subrequests per invocation, plenty of headroom. Same max_batch_size=1
+# / max_concurrency=2 shape as the other queues; concurrency is 2
+# here because there's no upstream-host rate-limit to honour, only
+# Supabase's connection pool.
+[[queues.producers]]
+queue = "equipment-import-queue"
+binding = "EQUIPMENT_IMPORT_QUEUE"
+
+[[queues.consumers]]
+queue = "equipment-import-queue"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 2
+max_retries = 3
+dead_letter_queue = "equipment-import-dlq"
+
 # Rate limiting bindings — SECURITY.md Phase 8 (TT-17). The in-memory
 # Map in security.server.ts cannot share state across Worker isolates,
 # so without these bindings a 5-per-minute cap is enforced only
@@ -195,6 +219,18 @@ max_batch_timeout = 5
 max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "player-import-dlq-dev"
+
+[[env.dev.queues.producers]]
+queue = "equipment-import-queue-dev"
+binding = "EQUIPMENT_IMPORT_QUEUE"
+
+[[env.dev.queues.consumers]]
+queue = "equipment-import-queue-dev"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 2
+max_retries = 3
+dead_letter_queue = "equipment-import-dlq-dev"
 
 [[env.dev.ratelimits]]
 name = "FORM_RATE_LIMITER"

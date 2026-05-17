@@ -23,6 +23,10 @@ import {
   computeRetryDelaySeconds as computePlayerRetryDelaySeconds,
   type PlayerImportMessage,
 } from "../app/lib/players/queue.server";
+import {
+  processOneEquipmentImport,
+  type EquipmentImportMessage,
+} from "../app/lib/equipment-import/queue.server";
 
 // Union of every queue-message shape the Worker consumes. The
 // queue() handler switches on batch.queue to dispatch to the right
@@ -30,7 +34,8 @@ import {
 type WorkerQueueMessage =
   | PhotoSourceMessage
   | SpecSourceMessage
-  | PlayerImportMessage;
+  | PlayerImportMessage
+  | EquipmentImportMessage;
 
 declare module "react-router" {
   export interface AppLoadContext {
@@ -436,6 +441,54 @@ export default {
           outcome,
         });
         msg.ack();
+      }
+      return;
+    }
+
+    if (
+      batch.queue === "equipment-import-queue" ||
+      batch.queue === "equipment-import-queue-dev"
+    ) {
+      for (const msg of batch.messages) {
+        const body = msg.body as EquipmentImportMessage;
+        const ctxLog = createLogContext("queue", {
+          queue: batch.queue,
+          jobId: body.job_id,
+          slug: body.slug,
+        });
+
+        try {
+          const outcome = await processOneEquipmentImport(supabase, body);
+          if (outcome.status === "error") {
+            Logger.error(
+              "queue.equipment-import.message.error",
+              ctxLog,
+              new Error(outcome.message)
+            );
+            // The item-level error has already been recorded against
+            // the job by processOneEquipmentImport; ack so we don't
+            // retry forever (Cloudflare's max_retries=3 still applies
+            // for retry()-thrown failures below). The admin UI surfaces
+            // the failed row via equipment_import_job_items.
+            msg.ack();
+            continue;
+          }
+          Logger.info("queue.equipment-import.message.processed", ctxLog, {
+            outcome,
+          });
+          msg.ack();
+        } catch (err) {
+          // Anything that throws here didn't get a chance to record an
+          // item — most likely a DB-side transient (RLS hiccup,
+          // connection blip). Let Cloudflare retry; on final exhaustion
+          // it ends up in the DLQ for manual triage.
+          Logger.error(
+            "queue.equipment-import.message.threw",
+            ctxLog,
+            err instanceof Error ? err : new Error(String(err))
+          );
+          msg.retry();
+        }
       }
       return;
     }
