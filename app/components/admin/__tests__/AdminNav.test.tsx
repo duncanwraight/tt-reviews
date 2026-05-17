@@ -119,6 +119,26 @@ describe("AdminNav", () => {
     ).not.toHaveAttribute("aria-current");
   });
 
+  // TT-243: New Equipment (/admin/import) is exact-match so it stops
+  // claiming /admin/import/jobs/:jobId, which belongs to Equipment
+  // Imports. Both items share a prefix; without `match: "exact"` they
+  // both highlight on the nested path.
+  it("does not mark New Equipment as active when on /admin/import/jobs", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin/import/jobs");
+
+    const importTrigger = screen.getByRole("button", { name: /^Import/ });
+    expect(importTrigger).toHaveAttribute("aria-current", "page");
+
+    await user.click(importTrigger);
+    expect(
+      screen.getByRole("menuitem", { name: "Equipment Imports" })
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("menuitem", { name: "New Equipment" })
+    ).not.toHaveAttribute("aria-current");
+  });
+
   it("opens with ArrowDown from the trigger and moves focus through items with arrow keys", async () => {
     const user = userEvent.setup();
     renderAt("/admin");
