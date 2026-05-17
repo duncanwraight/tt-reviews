@@ -98,8 +98,8 @@ describe("renderCareerBest", () => {
       represents: "CHN",
     });
     expect(result).toEqual({
-      label: "Career-best ranking",
-      value: "World #1 (2019)",
+      label: "Best rank",
+      value: "WR1 (2019)",
     });
   });
 
@@ -109,8 +109,8 @@ describe("renderCareerBest", () => {
       peak_rank_year: 2022,
     });
     expect(result).toEqual({
-      label: "Career-best ranking",
-      value: "World #32 (2022)",
+      label: "Best rank",
+      value: "WR32 (2022)",
     });
   });
 

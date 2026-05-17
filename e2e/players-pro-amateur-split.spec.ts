@@ -32,9 +32,9 @@ test("players /kind=all: both pro and amateur sections render", async ({
   await expect(page.getByTestId("players-amateur-heading")).toBeVisible();
 
   // Pro section leads with a WR1 player (seed has multiple — assert
-  // the rendered Career-best line rather than a specific name).
+  // the rendered Best-rank line rather than a specific name).
   const firstProCard = proSection.locator(".player-card").first();
-  await expect(firstProCard).toContainText(/Career-best ranking:\s*World #1\s/);
+  await expect(firstProCard).toContainText(/Best rank:\s*WR1\s/);
 
   // The amateur seed rows carry the typed peak rating + the inline
   // Amateur pill on every web surface.

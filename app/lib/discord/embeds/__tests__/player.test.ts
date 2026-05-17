@@ -42,9 +42,7 @@ describe("renderPlayerEmbed — header + profile (description)", () => {
     // field — there's no "Profile" heading anywhere in the output.
     expect(embed.description).toContain("**Style:** Shakehand attacker");
     expect(embed.description).toContain("**Retired:** 2003-2024");
-    expect(embed.description).toContain(
-      "**Career-best ranking:** World #1 (2017)"
-    );
+    expect(embed.description).toContain("**Best rank:** WR1 (2017)");
     expect(embed.fields?.find(f => f.name === "Profile")).toBeUndefined();
   });
 
@@ -104,7 +102,7 @@ describe("renderPlayerEmbed — header + profile (description)", () => {
     );
     expect(embed.title).toBe("Florian Bluhm (Amateur)");
     expect(embed.description).toContain("**Peak rating:** 2350 TTR (2023)");
-    expect(embed.description).not.toContain("Career-best ranking");
+    expect(embed.description).not.toContain("Best rank");
   });
 });
 

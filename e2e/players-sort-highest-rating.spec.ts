@@ -24,9 +24,10 @@ test("players: explicit ?sort=highest_rating puts a WR1 player first", async ({
   // WANG Chuqin, SUN Yingsha, Ma Long, etc.) — assert the leader's
   // peak rating starts with "WR1 " rather than naming a specific
   // player so the test survives seed reshuffles.
-  // TT-223: PlayerCard now renders the typed career-best as
-  // "Career-best ranking: World #N (YYYY)" via renderCareerBest.
-  await expect(firstCard).toContainText(/Career-best ranking:\s*World #1\s/);
+  // TT-223: PlayerCard renders the typed career-best via renderCareerBest.
+  // TT-240 shortened the label to "Best rank" and switched to the WR1
+  // shorthand for the value.
+  await expect(firstCard).toContainText(/Best rank:\s*WR1\s/);
 });
 
 test("players: default sort (no params) is highest_rating — first card is WR1", async ({
@@ -36,7 +37,8 @@ test("players: default sort (no params) is highest_rating — first card is WR1"
 
   const firstCard = page.locator(".player-card").first();
   await expect(firstCard).toBeVisible();
-  // TT-223: PlayerCard now renders the typed career-best as
-  // "Career-best ranking: World #N (YYYY)" via renderCareerBest.
-  await expect(firstCard).toContainText(/Career-best ranking:\s*World #1\s/);
+  // TT-223: PlayerCard renders the typed career-best via renderCareerBest.
+  // TT-240 shortened the label to "Best rank" and switched to the WR1
+  // shorthand for the value.
+  await expect(firstCard).toContainText(/Best rank:\s*WR1\s/);
 });

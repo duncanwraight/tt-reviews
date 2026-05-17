@@ -119,7 +119,7 @@ export interface CareerBest {
  * Render a player's career-best for display, or `null` if the kind-
  * appropriate peak fields are missing.
  *
- * Professional: "Career-best ranking" / "World #N (YYYY)".
+ * Professional: "Best rank" / "WR{N} (YYYY)".
  * Amateur: "Peak rating" / "<value> <countryLabel> (<year>)".
  *
  * Amateur country sourcing: `represents ?? birth_country`. Surfaces
@@ -143,7 +143,7 @@ export function renderCareerBest(input: CareerBestInput): CareerBest | null {
   const year = input.peak_rank_year;
   if (typeof rank !== "number" || typeof year !== "number") return null;
   return {
-    label: "Career-best ranking",
-    value: `World #${rank} (${year})`,
+    label: "Best rank",
+    value: `WR${rank} (${year})`,
   };
 }
