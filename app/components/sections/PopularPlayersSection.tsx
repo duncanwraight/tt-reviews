@@ -15,6 +15,11 @@ interface PlayerDisplay {
   birth_country?: string;
   playing_style?: string;
   active?: boolean;
+  currentSetup?: {
+    blade?: { name: string; manufacturer: string };
+    forehandRubber?: { name: string; manufacturer: string };
+    backhandRubber?: { name: string; manufacturer: string };
+  };
 }
 
 interface PopularPlayersSectionProps {

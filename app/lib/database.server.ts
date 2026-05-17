@@ -134,6 +134,12 @@ export class DatabaseService {
     return players.getPlayerEquipmentSetups(this.ctx, playerId);
   }
 
+  async getMostRecentEquipmentSetupsForPlayers(
+    playerIds: string[]
+  ): Promise<Map<string, players.PlayerCurrentSetup>> {
+    return players.getMostRecentEquipmentSetupsForPlayers(this.ctx, playerIds);
+  }
+
   async getPlayerFootage(playerId: string) {
     return players.getPlayerFootage(this.ctx, playerId);
   }

@@ -46,6 +46,11 @@ interface PlayerDisplay {
   represents?: string;
   birth_country?: string;
   playing_style?: string;
+  currentSetup?: {
+    blade?: { name: string; manufacturer: string };
+    forehandRubber?: { name: string; manufacturer: string };
+    backhandRubber?: { name: string; manufacturer: string };
+  };
 }
 
 export function meta({ matches, location }: Route.MetaArgs) {
@@ -108,9 +113,24 @@ export const loader = withLoaderCorrelation(
       })
     );
 
-    const popularPlayers: PlayerDisplay[] = allPlayers
+    const popularPlayersBase = allPlayers
       .filter(player => player.active)
       .slice(0, 6);
+
+    // TT-242: bulk-load the most recent verified setup for the 6 cards
+    // in one PostgREST round-trip. Skipped entirely when there are no
+    // popular players (defensive — getPlayersWithoutFilters could be
+    // empty mid-rollout or in a fresh test env).
+    const setupsByPlayerId = popularPlayersBase.length
+      ? await db.getMostRecentEquipmentSetupsForPlayers(
+          popularPlayersBase.map(p => p.id)
+        )
+      : new Map();
+
+    const popularPlayers: PlayerDisplay[] = popularPlayersBase.map(player => ({
+      ...player,
+      currentSetup: setupsByPlayerId.get(player.id),
+    }));
 
     // Log user action for analytics
     logUserAction("view_homepage", enhancedContext, {

@@ -36,6 +36,18 @@ interface PlayersHeaderProps {
   amateurs: Player[];
   proCount: number;
   amateurCount: number;
+  // TT-242: passed through to each PlayersGrid → PlayerCard. Map keyed
+  // by player_id; values are { blade, forehandRubber, backhandRubber }
+  // shapes from getMostRecentEquipmentSetupsForPlayers. Optional so
+  // any future consumer that doesn't have setups loaded can omit.
+  setupsByPlayerId?: Map<
+    string,
+    {
+      blade?: { name: string; manufacturer: string };
+      forehandRubber?: { name: string; manufacturer: string };
+      backhandRubber?: { name: string; manufacturer: string };
+    }
+  >;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -67,6 +79,7 @@ export function PlayersHeader({
   amateurs,
   proCount,
   amateurCount,
+  setupsByPlayerId,
 }: PlayersHeaderProps) {
   const { content } = useContent();
   const buildFilterUrl = (newFilters: Partial<typeof filters>) => {
@@ -325,7 +338,7 @@ export function PlayersHeader({
                   Professional players
                 </h2>
               )}
-              <PlayersGrid players={pros} />
+              <PlayersGrid players={pros} setupsByPlayerId={setupsByPlayerId} />
               {filters.kind === "all" && proCount > pros.length && (
                 <div className="mt-4 text-right">
                   <Link
@@ -352,7 +365,11 @@ export function PlayersHeader({
                   Notable amateur players
                 </h2>
               )}
-              <PlayersGrid players={amateurs} emptyKind="amateur" />
+              <PlayersGrid
+                players={amateurs}
+                emptyKind="amateur"
+                setupsByPlayerId={setupsByPlayerId}
+              />
               {filters.kind === "all" && amateurCount > amateurs.length && (
                 <div className="mt-4 text-right">
                   <Link

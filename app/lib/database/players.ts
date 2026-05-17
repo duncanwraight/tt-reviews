@@ -240,6 +240,72 @@ export async function getPlayerEquipmentSetups(
   ).catch((): PlayerEquipmentSetup[] => []);
 }
 
+// Bulk variant of getPlayerEquipmentSetups for card-grid contexts
+// (homepage Popular Players, /players grid). Returns the most-recent
+// verified setup per player in a single PostgREST round-trip rather
+// than N — important on Cloudflare Workers Free where the 50-
+// subrequest cap makes N-of-N fan-out untenable above ~25 players.
+//
+// "Most recent" = max(year) per player among verified setups, ties
+// broken by id. Resolved in JS after pulling all verified setups for
+// the requested player IDs.
+export interface PlayerCurrentSetup {
+  blade?: { name: string; manufacturer: string };
+  forehandRubber?: { name: string; manufacturer: string };
+  backhandRubber?: { name: string; manufacturer: string };
+}
+
+export async function getMostRecentEquipmentSetupsForPlayers(
+  ctx: DatabaseContext,
+  playerIds: string[]
+): Promise<Map<string, PlayerCurrentSetup>> {
+  if (playerIds.length === 0) return new Map();
+
+  interface SetupRow {
+    player_id: string;
+    year: number | null;
+    id: string;
+    blade: { name: string; manufacturer: string } | null;
+    forehand_rubber: { name: string; manufacturer: string } | null;
+    backhand_rubber: { name: string; manufacturer: string } | null;
+  }
+
+  const rows = await withLogging<SetupRow[]>(
+    ctx,
+    "get_most_recent_equipment_setups_for_players",
+    () =>
+      ctx.supabase
+        .from("player_equipment_setups")
+        .select(
+          `
+          player_id,
+          year,
+          id,
+          blade:blade_id(name, manufacturer),
+          forehand_rubber:forehand_rubber_id(name, manufacturer),
+          backhand_rubber:backhand_rubber_id(name, manufacturer)
+        `
+        )
+        .in("player_id", playerIds)
+        .eq("verified", true)
+        .order("year", { ascending: false, nullsFirst: false }),
+    { playerCount: playerIds.length }
+  ).catch((): SetupRow[] => []);
+
+  const byPlayer = new Map<string, PlayerCurrentSetup>();
+  for (const row of rows) {
+    // .order returns rows sorted year-desc; first row per player_id is
+    // the most recent. Skip subsequent rows.
+    if (byPlayer.has(row.player_id)) continue;
+    byPlayer.set(row.player_id, {
+      blade: row.blade ?? undefined,
+      forehandRubber: row.forehand_rubber ?? undefined,
+      backhandRubber: row.backhand_rubber ?? undefined,
+    });
+  }
+  return byPlayer;
+}
+
 export async function getPlayerFootage(
   ctx: DatabaseContext,
   playerId: string

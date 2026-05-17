@@ -183,6 +183,28 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     kind === "pro" ? proCount : kind === "amateur" ? amateurCount : 0;
   const totalPages = kind === "all" ? 1 : Math.ceil(activeTotal / limit);
 
+  // TT-242: bulk-load setups for every card on the page (pros +
+  // amateurs combined) in one PostgREST round-trip. Falls back to
+  // an empty array of setups when nothing matches — PlayerCard just
+  // doesn't render the Setup line in that case.
+  const allPlayerIds = [...pros, ...amateurs].map(p => p.id);
+  const setupsByPlayerId = allPlayerIds.length
+    ? await db.getMostRecentEquipmentSetupsForPlayers(allPlayerIds)
+    : new Map();
+  // Map → plain object for the loader payload (Maps don't survive
+  // SuperJSON-less serialisation). Re-hydrated on the component side.
+  const setupsObject: Record<
+    string,
+    {
+      blade?: { name: string; manufacturer: string };
+      forehandRubber?: { name: string; manufacturer: string };
+      backhandRubber?: { name: string; manufacturer: string };
+    }
+  > = {};
+  for (const [id, setup] of setupsByPlayerId) {
+    setupsObject[id] = setup;
+  }
+
   const userResponse = await sbServerClient.client.auth.getUser();
   const user = userResponse.data.user;
 
@@ -200,6 +222,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       user,
       countries,
       playingStyles,
+      setupsByPlayerId: setupsObject,
       pagination: {
         currentPage: page,
         totalPages,
@@ -233,7 +256,13 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
     pagination,
     filters,
     breadcrumbSchema,
+    setupsByPlayerId,
   } = loaderData;
+
+  // Re-hydrate the loader's plain object back into the Map shape
+  // PlayersGrid → PlayerCard wants. (Maps don't survive the
+  // loader/serialise boundary.)
+  const setupsMap = new Map(Object.entries(setupsByPlayerId ?? {}));
 
   const { content } = useContent();
 
@@ -284,6 +313,7 @@ export default function PlayersIndex({ loaderData }: Route.ComponentProps) {
           amateurs={amateurs}
           proCount={proCount}
           amateurCount={amateurCount}
+          setupsByPlayerId={setupsMap}
         />
       </PageSection>
     </div>

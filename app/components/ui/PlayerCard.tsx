@@ -5,6 +5,8 @@ import { ImagePlaceholder } from "./ImagePlaceholder";
 import { formatDate } from "~/lib/date";
 import { buildImageUrl } from "~/lib/imageUrl";
 import { renderCareerBest } from "~/lib/players/rating-systems";
+import { formatCurrentSetup } from "~/lib/players/format-setup";
+import type { PlayerCurrentSetup } from "~/lib/database/players";
 
 // Minimum fields required for PlayerCard display
 interface PlayerCardPlayer {
@@ -24,6 +26,11 @@ interface PlayerCardPlayer {
   created_at?: string;
   image_key?: string;
   image_etag?: string;
+  // TT-242: optional most-recent equipment setup. PlayerCard renders
+  // a "Setup: <blade> / <FH> / <BH>" line only when this is supplied
+  // AND it formats to a non-empty string — no synthetic placeholder
+  // when the player has no recorded setup.
+  currentSetup?: PlayerCurrentSetup;
 }
 
 interface PlayerCardProps {
@@ -68,6 +75,10 @@ export const PlayerCard = memo(function PlayerCard({
   );
 
   const careerBest = useMemo(() => renderCareerBest(player), [player]);
+  const setupLine = useMemo(
+    () => formatCurrentSetup(player.currentSetup),
+    [player.currentSetup]
+  );
 
   return (
     <Link
@@ -131,6 +142,9 @@ export const PlayerCard = memo(function PlayerCard({
               <p className="text-sm text-gray-600 mb-2">
                 Style: {playingStyleLabel}
               </p>
+            )}
+            {setupLine && (
+              <p className="text-sm text-gray-600 mb-1">Setup: {setupLine}</p>
             )}
           </div>
         </div>
