@@ -154,3 +154,19 @@ Prod requires three things wired up:
 3. The bot must be a member of the alerts channel with **Send Messages** + **Embed Links** permissions in that channel.
 
 `validateEnv` in `app/lib/env.server.ts` will 503 prod requests if `DISCORD_ALERTS_CHANNEL_ID` is missing, so a forgotten secret surfaces on first request after deploy rather than silently failing.
+
+## Operational scripts
+
+### `scripts/prod-wipe-and-reseed.sh` — full prod data refresh
+
+One-shot orchestrator that detaches the three queue consumers, purges all six queues + DLQs, runs `supabase db reset --linked --yes` against the linked prod project, re-attaches consumers with CI's exact params, and (opt-in) walks R2 for orphan objects. Designed for the TT-191 prod-seed refresh but reusable any time a clean prod re-bootstrap is needed.
+
+```sh
+scripts/prod-wipe-and-reseed.sh --dry-run             # print what would run, no side effects
+scripts/prod-wipe-and-reseed.sh                       # interactive; gates on typing "WIPE PROD"
+scripts/prod-wipe-and-reseed.sh --cleanup-r2          # also delete R2 objects unreferenced post-reseed
+scripts/prod-wipe-and-reseed.sh --skip-db-reset       # queue ops only
+scripts/prod-wipe-and-reseed.sh -h                    # full help (extracted from the script header)
+```
+
+Read the script's header before first use — it lists required env vars (Supabase service-role key, R2 S3 credentials when `--cleanup-r2` is set), the post-wipe manual checklist (re-grant Discord moderators, spot-check pages, kick crons), and the systems it deliberately does NOT touch (`PROVIDER_QUOTA` KV, Cloudflare Image Resizing cache, `auth.users`).
