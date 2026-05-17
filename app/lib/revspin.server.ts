@@ -13,7 +13,13 @@ const REVSPIN_BASE_URL = "https://revspin.net";
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
 
-export type RevspinCategory = "blade" | "rubber" | "pips_short" | "pips_long";
+export type RevspinCategory =
+  | "blade"
+  | "rubber"
+  | "pips_short"
+  | "pips_medium"
+  | "pips_long"
+  | "anti";
 
 export interface RevspinListItem {
   name: string;
@@ -84,8 +90,15 @@ function getCategoryPath(category: RevspinCategory): string {
       return "/rubber/";
     case "pips_short":
       return "/pips/short/";
+    case "pips_medium":
+      return "/pips/medium/";
     case "pips_long":
       return "/pips/long/";
+    case "anti":
+      // revspin doesn't have a dedicated /anti/ index; instead it
+      // filters the rubber catalogue via ?antispin=1 (returns ~3x more
+      // rows than the bare "anti" name search on /rubber/ alone).
+      return "/rubber/?antispin=1";
     default:
       throw new Error(`Unknown category: ${category}`);
   }
@@ -172,11 +185,20 @@ function parseProductTable(
   const products: RevspinListItem[] = [];
   const seenSlugs = new Set<string>();
 
-  // Get the category prefix for filtering links
+  // Get the category prefix for filtering links. The three pips paths
+  // (/pips/short/, /pips/medium/, /pips/long/) all produce links like
+  // `pips/<brand>-<name>.html`. The anti tab fetches the rubber index
+  // filtered with ?antispin=1, so its product links look like
+  // `rubber/<brand>-<name>.html` — same prefix as the regular rubber
+  // tab.
   const categoryPrefix =
-    category === "pips_short" || category === "pips_long"
+    category === "pips_short" ||
+    category === "pips_medium" ||
+    category === "pips_long"
       ? "pips/"
-      : `${category}/`;
+      : category === "anti"
+        ? "rubber/"
+        : `${category}/`;
 
   Logger.debug("revspin parseProductTable start", createLogContext("revspin"), {
     htmlLength: html.length,
@@ -271,12 +293,16 @@ function parseProductTable(
         item.control = parseNumber(cells[2]);
         item.stiffness = parseNumber(cells[3]);
         item.overall = parseNumber(cells[4]);
-      } else if (category === "rubber") {
+      } else if (category === "rubber" || category === "anti") {
         item.speed = parseNumber(cells[1]);
         item.spin = parseNumber(cells[2]);
         item.tackiness = parseNumber(cells[3]);
         item.overall = parseNumber(cells[4]);
-      } else if (category === "pips_short" || category === "pips_long") {
+      } else if (
+        category === "pips_short" ||
+        category === "pips_medium" ||
+        category === "pips_long"
+      ) {
         item.speed = parseNumber(cells[1]);
         item.spin = parseNumber(cells[2]);
         item.deception = parseNumber(cells[3]);
@@ -476,8 +502,9 @@ export async function fetchProductDetails(
     let dbCategory: "blade" | "rubber" = "blade";
     let subcategory:
       | "inverted"
-      | "long_pips"
       | "short_pips"
+      | "medium_pips"
+      | "long_pips"
       | "anti"
       | undefined;
 
@@ -489,9 +516,15 @@ export async function fetchProductDetails(
     } else if (category === "pips_short") {
       dbCategory = "rubber";
       subcategory = "short_pips";
+    } else if (category === "pips_medium") {
+      dbCategory = "rubber";
+      subcategory = "medium_pips";
     } else if (category === "pips_long") {
       dbCategory = "rubber";
       subcategory = "long_pips";
+    } else if (category === "anti") {
+      dbCategory = "rubber";
+      subcategory = "anti";
     }
 
     return {
@@ -539,9 +572,15 @@ export function listItemToProduct(
   } else if (category === "pips_short") {
     dbCategory = "rubber";
     subcategory = "short_pips";
+  } else if (category === "pips_medium") {
+    dbCategory = "rubber";
+    subcategory = "medium_pips";
   } else if (category === "pips_long") {
     dbCategory = "rubber";
     subcategory = "long_pips";
+  } else if (category === "anti") {
+    dbCategory = "rubber";
+    subcategory = "anti";
   }
 
   // Extract manufacturer from the product name if possible

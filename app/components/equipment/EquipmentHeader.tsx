@@ -44,10 +44,12 @@ export function EquipmentHeader({
     switch (subcategory) {
       case "inverted":
         return "Inverted";
-      case "long_pips":
-        return "Long Pips";
       case "short_pips":
         return "Short Pips";
+      case "medium_pips":
+        return "Medium Pips";
+      case "long_pips":
+        return "Long Pips";
       case "anti":
         return "Anti-Spin";
       default:

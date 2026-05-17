@@ -248,7 +248,9 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
     blade: "Blades",
     rubber: "Rubbers (Inverted)",
     pips_short: "Short Pips",
+    pips_medium: "Medium Pips",
     pips_long: "Long Pips",
+    anti: "Anti-Spin",
   };
 
   return (
@@ -427,6 +429,7 @@ export default function AdminImport({ loaderData }: Route.ComponentProps) {
                     >
                       <option value="inverted">Inverted</option>
                       <option value="short_pips">Short Pips</option>
+                      <option value="medium_pips">Medium Pips</option>
                       <option value="long_pips">Long Pips</option>
                       <option value="anti">Anti-Spin</option>
                     </select>
