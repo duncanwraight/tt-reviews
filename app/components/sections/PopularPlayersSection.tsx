@@ -15,7 +15,6 @@ interface PlayerDisplay {
   birth_country?: string;
   playing_style?: string;
   active?: boolean;
-  currentSetup?: string;
 }
 
 interface PopularPlayersSectionProps {

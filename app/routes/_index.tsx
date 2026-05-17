@@ -46,7 +46,6 @@ interface PlayerDisplay {
   represents?: string;
   birth_country?: string;
   playing_style?: string;
-  currentSetup?: string;
 }
 
 export function meta({ matches, location }: Route.MetaArgs) {
@@ -111,19 +110,7 @@ export const loader = withLoaderCorrelation(
 
     const popularPlayers: PlayerDisplay[] = allPlayers
       .filter(player => player.active)
-      .slice(0, 6)
-      .map(player => {
-        // Get the most recent equipment setup
-        const recentSetup = player.equipment_setups?.[0];
-        const currentSetup = recentSetup
-          ? `${recentSetup.blade_name || "Professional"} Setup`
-          : "Professional Setup";
-
-        return {
-          ...player,
-          currentSetup,
-        };
-      });
+      .slice(0, 6);
 
     // Log user action for analytics
     logUserAction("view_homepage", enhancedContext, {

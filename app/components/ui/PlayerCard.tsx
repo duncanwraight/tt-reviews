@@ -21,7 +21,6 @@ interface PlayerCardPlayer {
   active_years?: string;
   active?: boolean;
   playing_style?: string;
-  currentSetup?: string;
   created_at?: string;
   image_key?: string;
   image_etag?: string;
@@ -131,11 +130,6 @@ export const PlayerCard = memo(function PlayerCard({
             {player.playing_style && player.playing_style !== "unknown" && (
               <p className="text-sm text-gray-600 mb-2">
                 Style: {playingStyleLabel}
-              </p>
-            )}
-            {player.currentSetup && (
-              <p className="text-sm text-gray-600 mb-1">
-                Setup: {player.currentSetup}
               </p>
             )}
           </div>
