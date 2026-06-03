@@ -10,6 +10,7 @@ const content = vi.fn();
 const close = vi.fn();
 const newPage = vi.fn();
 const launch = vi.fn();
+const waitForNavigation = vi.fn();
 
 vi.mock("@cloudflare/puppeteer", () => ({
   default: {
@@ -28,10 +29,12 @@ beforeEach(() => {
   close.mockReset();
   newPage.mockReset();
   launch.mockReset();
+  waitForNavigation.mockReset();
 
   content.mockResolvedValue("<html><body>rendered</body></html>");
   goto.mockResolvedValue({ status: () => 200 });
-  newPage.mockResolvedValue({ goto, content });
+  waitForNavigation.mockResolvedValue(null);
+  newPage.mockResolvedValue({ goto, content, waitForNavigation });
   close.mockResolvedValue(undefined);
   launch.mockResolvedValue({ newPage, close });
 });
@@ -78,12 +81,55 @@ describe("makeBrowserFetch", () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the browser session even when navigation throws", async () => {
-    goto.mockRejectedValue(new Error("nav timeout"));
+  it("propagates a non-recoverable navigation error and still closes the session", async () => {
+    goto.mockRejectedValue(new Error("net::ERR_NAME_NOT_RESOLVED"));
     const browserFetch = makeBrowserFetch(BROWSER);
 
     await expect(browserFetch("https://revspin.net/rubber/")).rejects.toThrow(
-      "nav timeout"
+      "ERR_NAME_NOT_RESOLVED"
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  // TT-245 follow-up: revspin's large /rubber/ list page timed out at the
+  // 30s domcontentloaded cap, and SiteGround interstitials redirected
+  // mid-read — both fired Discord alerts. Salvage the loaded document
+  // instead of failing the fetch.
+  it("salvages the loaded document when navigation times out (no throw)", async () => {
+    goto.mockRejectedValue(
+      new Error("Navigation timeout of 30000 ms exceeded")
+    );
+    content.mockResolvedValue("<html><body>partial list</body></html>");
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch("https://revspin.net/rubber/");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html><body>partial list</body></html>");
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries content() once after an execution-context-destroyed race", async () => {
+    content
+      .mockRejectedValueOnce(
+        new Error(
+          "Execution context was destroyed, most likely because of a navigation."
+        )
+      )
+      .mockResolvedValueOnce("<html><body>settled</body></html>");
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch("https://revspin.net/rubber/");
+    expect(waitForNavigation).toHaveBeenCalledTimes(1);
+    expect(content).toHaveBeenCalledTimes(2);
+    expect(await res.text()).toBe("<html><body>settled</body></html>");
+  });
+
+  it("propagates when content() fails for a non-navigation reason", async () => {
+    content.mockRejectedValue(new Error("target closed"));
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    await expect(browserFetch("https://revspin.net/rubber/")).rejects.toThrow(
+      "target closed"
     );
     expect(close).toHaveBeenCalledTimes(1);
   });
