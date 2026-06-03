@@ -92,7 +92,7 @@ describe("withLogging", () => {
     // timeOperation catch and the in-memory dedup (keyed on message
     // string) couldn't collapse the pair. Demoting to warn keeps the
     // structured detail in prod logs without fanning out to Discord.
-    const dbOpErrorCalls = errorSpy.mock.calls.filter(([msg]) =>
+    const dbOpErrorCalls = errorSpy.mock.calls.filter(([msg]: unknown[]) =>
       String(msg).startsWith("Database operation failed")
     );
     expect(dbOpErrorCalls).toHaveLength(0);
@@ -105,7 +105,7 @@ describe("withLogging", () => {
       })
     );
     // Success-path debug (`Database operation completed: ...`) must not fire.
-    const successDebugs = debugSpy.mock.calls.filter(([msg]) =>
+    const successDebugs = debugSpy.mock.calls.filter(([msg]: unknown[]) =>
       String(msg).startsWith("Database operation completed")
     );
     expect(successDebugs).toHaveLength(0);

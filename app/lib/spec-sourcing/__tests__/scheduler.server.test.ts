@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createLogContext } from "../../logger.server";
 import { enqueueSpecSourceBatch } from "../scheduler.server";
+import type { SpecSourceQueueProducer } from "../scheduler.server";
 import type { SpecSourceMessage } from "../types";
 
 const ctx = createLogContext("scheduler-test");
@@ -26,14 +28,18 @@ function fakeSupabase(args: {
   } as unknown as SupabaseClient;
 }
 
-function fakeQueue(): {
-  send: ReturnType<typeof vi.fn>;
+// vitest 4 erases a bare `ReturnType<typeof vi.fn>` to
+// Mock<Procedure | Constructable>, which no longer structurally matches
+// SpecSourceQueueProducer.send. Type the mock with the producer's send
+// signature so the fake is assignable while keeping the Mock matchers.
+function fakeQueue(): SpecSourceQueueProducer & {
+  send: Mock<SpecSourceQueueProducer["send"]>;
   sent: SpecSourceMessage[];
 } {
   const sent: SpecSourceMessage[] = [];
   const send = vi.fn(async (msg: SpecSourceMessage) => {
     sent.push(msg);
-  });
+  }) as Mock<SpecSourceQueueProducer["send"]>;
   return { send, sent };
 }
 
