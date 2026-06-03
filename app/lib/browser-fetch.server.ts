@@ -90,12 +90,15 @@ export function makeBrowserFetch(browser: BrowserWorker): typeof fetch {
     try {
       const page = await session.newPage();
       let status = 200;
+      let contentType = "";
+      let resp: Awaited<ReturnType<Page["goto"]>> = null;
       try {
-        const resp = await page.goto(url, {
+        resp = await page.goto(url, {
           waitUntil: "domcontentloaded",
           timeout: NAVIGATION_TIMEOUT_MS,
         });
         status = resp?.status() ?? 200;
+        contentType = resp?.headers()["content-type"] ?? "";
       } catch (err) {
         // Don't fail the fetch on a recoverable nav error — fall through
         // and salvage the loaded document. A genuinely fatal launch/nav
@@ -107,6 +110,17 @@ export function makeBrowserFetch(browser: BrowserWorker): typeof fetch {
           createLogContext("browser-fetch", { url }),
           { error: errText(err) }
         );
+      }
+      // Non-HTML responses (e.g. revspin product images — same
+      // fingerprint block as its pages) must round-trip as raw bytes:
+      // page.content() would wrap them in Chromium's HTML viewer shell
+      // and corrupt the download.
+      if (resp && contentType && !contentType.includes("text/html")) {
+        const body = await resp.buffer();
+        return new Response(body, {
+          status,
+          headers: { "content-type": contentType },
+        });
       }
       const html = await readHtml(page);
       return new Response(html, {

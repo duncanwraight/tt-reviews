@@ -14,6 +14,7 @@ import { braveProvider } from "./providers/brave";
 import type { Provider } from "./providers/types";
 import { recordPhotoEvent } from "./events.server";
 import { Logger, createLogContext } from "../logger.server";
+import { makeBrowserFetch } from "../browser-fetch.server";
 
 const DEFAULT_LIMIT = 6;
 const DOWNLOAD_TIMEOUT_MS = 8000;
@@ -23,6 +24,11 @@ const DOWNLOAD_USER_AGENT =
 
 export interface SourcingEnv {
   BRAVE_SEARCH_API_KEY: string;
+  // TT-245 — Cloudflare Browser Rendering binding. Present only on the
+  // deployed Worker. revspin.net's fingerprint block applies to its
+  // image files too, so revspin-sourced candidate downloads must go
+  // through real headless Chromium; other hosts keep plain `fetch`.
+  BROWSER?: Fetcher;
 }
 
 export interface SourcedCandidate {
@@ -81,6 +87,10 @@ export interface R2PutBucket {
 export interface SourcingDeps {
   // Default `fetch` works in Workers + node; injected so tests can stub.
   fetchImpl?: typeof fetch;
+  // Browser-Rendering-backed fetch used for revspin-sourced candidate
+  // downloads (TT-245). Defaults to makeBrowserFetch(env.BROWSER) when
+  // the binding exists; injected so tests don't need real Chromium.
+  browserFetchImpl?: typeof fetch;
   // Defaults to a UUID; overridable for tests so candidate keys are
   // deterministic.
   randomId?: () => string;
@@ -110,6 +120,11 @@ async function fetchImageBytes(
       signal: controller.signal,
     });
     if (!res.ok) return null;
+    // Never store markup as a candidate image (TT-245): a host serving
+    // a 200 challenge/error page for an image URL used to get written
+    // to R2 as a .jpg and render as a broken card in the review queue.
+    const ct = res.headers.get("content-type");
+    if (ct && /text\/(html|plain)/i.test(ct)) return null;
     const bytes = await res.arrayBuffer();
     if (bytes.byteLength === 0) return null;
     return { bytes, contentType: res.headers.get("content-type") };
@@ -170,6 +185,12 @@ export async function sourcePhotosForEquipment(
 ): Promise<SourcingResult> {
   const deps = options.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
+  // TT-245: revspin.net 403s plain clients for images just like pages,
+  // so revspin-sourced downloads must drive real headless Chromium.
+  // Built lazily-ish: only when the binding (or a test stub) exists.
+  const browserFetchImpl =
+    deps.browserFetchImpl ??
+    (env.BROWSER ? makeBrowserFetch(env.BROWSER) : undefined);
   const randomId = deps.randomId ?? defaultRandomId;
   const recordEvent = deps.recordEvent ?? recordPhotoEvent;
   const providers = options.providers ?? [braveProvider];
@@ -337,7 +358,14 @@ export async function sourcePhotosForEquipment(
   // preserve the original "no UUID burned for failed downloads" order.
   const outcomes = await Promise.all(
     filtered.map(async (candidate): Promise<Insert | null> => {
-      const downloaded = await fetchImageBytes(candidate.imageUrl, fetchImpl);
+      const downloadImpl =
+        candidate.source === "revspin" && browserFetchImpl
+          ? browserFetchImpl
+          : fetchImpl;
+      const downloaded = await fetchImageBytes(
+        candidate.imageUrl,
+        downloadImpl
+      );
       if (!downloaded) return null;
 
       const ext = extensionFromContentType(

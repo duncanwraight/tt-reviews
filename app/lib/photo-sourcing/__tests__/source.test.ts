@@ -786,3 +786,117 @@ describe("sourcePhotosForEquipment", () => {
     expect(found?.[1].metadata).toHaveProperty("provider_outcomes");
   });
 });
+
+// TT-245 — revspin.net serves images only to real browsers (the same
+// fingerprint block as its pages), so revspin-sourced candidate
+// downloads route through the Browser-Rendering-backed fetch while
+// other hosts keep plain `fetch`; and a 200 markup response must never
+// be stored as a candidate image.
+describe("sourcePhotosForEquipment — revspin browser downloads (TT-245)", () => {
+  function recordingFetch(urls: string[]): typeof fetch {
+    return (async (url: unknown) => {
+      urls.push(String(url));
+      return new Response(PNG.slice(), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  it("routes revspin-sourced downloads through browserFetchImpl, others through fetchImpl", async () => {
+    const { supabase } = makeSupabase({ equipment: [{ ...STIGA_ROW }] });
+    const { bucket } = makeBucket();
+    const plainUrls: string[] = [];
+    const browserUrls: string[] = [];
+
+    const provider = mockProvider([
+      fakeResolved({
+        source: "revspin",
+        imageUrl: "https://www.revspin.net/img/a.jpg",
+        pageUrl: "https://www.revspin.net/a",
+      }),
+      fakeResolved({
+        source: "brave",
+        host: "contra.de",
+        imageUrl: "https://contra.de/img/b.jpg",
+        pageUrl: "https://contra.de/b",
+      }),
+    ]);
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [provider],
+        deps: {
+          fetchImpl: recordingFetch(plainUrls),
+          browserFetchImpl: recordingFetch(browserUrls),
+          randomId: deterministicIds("dl"),
+        },
+      }
+    );
+
+    expect(result.insertedCount).toBe(2);
+    expect(browserUrls).toEqual(["https://www.revspin.net/img/a.jpg"]);
+    expect(plainUrls).toEqual(["https://contra.de/img/b.jpg"]);
+  });
+
+  it("falls back to fetchImpl for revspin candidates when no browser fetch exists", async () => {
+    const { supabase } = makeSupabase({ equipment: [{ ...STIGA_ROW }] });
+    const { bucket } = makeBucket();
+    const plainUrls: string[] = [];
+
+    const provider = mockProvider([
+      fakeResolved({
+        source: "revspin",
+        imageUrl: "https://www.revspin.net/img/a.jpg",
+        pageUrl: "https://www.revspin.net/a",
+      }),
+    ]);
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [provider],
+        deps: {
+          fetchImpl: recordingFetch(plainUrls),
+          randomId: deterministicIds("fb"),
+        },
+      }
+    );
+
+    expect(result.insertedCount).toBe(1);
+    expect(plainUrls).toEqual(["https://www.revspin.net/img/a.jpg"]);
+  });
+
+  it("drops a candidate whose download returns markup, not image bytes", async () => {
+    const { supabase } = makeSupabase({ equipment: [{ ...STIGA_ROW }] });
+    const { bucket, puts } = makeBucket();
+    const htmlFetch = (async () =>
+      new Response("<html>challenge page</html>", {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      })) as unknown as typeof fetch;
+
+    const provider = mockProvider([fakeResolved({})]);
+
+    const result = await sourcePhotosForEquipment(
+      supabase,
+      bucket,
+      ENV,
+      "stiga-airoc-m",
+      {
+        providers: [provider],
+        deps: { fetchImpl: htmlFetch, randomId: deterministicIds("html") },
+      }
+    );
+
+    expect(result.insertedCount).toBe(0);
+    expect(puts).toHaveLength(0);
+  });
+});

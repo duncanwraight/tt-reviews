@@ -44,6 +44,15 @@ const REVSPIN_HTML = `<html><head>
 
 const BROWSER = { fetch: vi.fn() } as unknown as Fetcher;
 
+// Minimal HTTPResponse stand-in: status + headers are all the wrapper
+// reads; an HTML content-type keeps it on the rendered-DOM path.
+function htmlResp(status: number) {
+  return {
+    status: () => status,
+    headers: () => ({ "content-type": "text/html; charset=utf-8" }),
+  };
+}
+
 beforeEach(() => {
   launch.mockReset();
   goto.mockReset();
@@ -52,7 +61,7 @@ beforeEach(() => {
   close.mockReset();
 
   content.mockResolvedValue(REVSPIN_HTML);
-  goto.mockResolvedValue({ status: () => 200 });
+  goto.mockResolvedValue(htmlResp(200));
   newPage.mockResolvedValue({ goto, content });
   close.mockResolvedValue(undefined);
   launch.mockResolvedValue({ newPage, close });

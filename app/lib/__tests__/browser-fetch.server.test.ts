@@ -23,6 +23,15 @@ import { makeBrowserFetch } from "../browser-fetch.server";
 // A token binding — makeBrowserFetch only forwards it to puppeteer.launch.
 const BROWSER = { fetch: vi.fn() } as unknown as BrowserWorker;
 
+// Minimal HTTPResponse stand-in: status + headers are all the wrapper
+// reads; an HTML content-type keeps it on the rendered-DOM path.
+function htmlResp(status: number) {
+  return {
+    status: () => status,
+    headers: () => ({ "content-type": "text/html; charset=utf-8" }),
+  };
+}
+
 beforeEach(() => {
   goto.mockReset();
   content.mockReset();
@@ -32,7 +41,7 @@ beforeEach(() => {
   waitForNavigation.mockReset();
 
   content.mockResolvedValue("<html><body>rendered</body></html>");
-  goto.mockResolvedValue({ status: () => 200 });
+  goto.mockResolvedValue(htmlResp(200));
   waitForNavigation.mockResolvedValue(null);
   newPage.mockResolvedValue({ goto, content, waitForNavigation });
   close.mockResolvedValue(undefined);
@@ -59,7 +68,7 @@ describe("makeBrowserFetch", () => {
   });
 
   it("mirrors the upstream status code so retry/throw logic is unchanged", async () => {
-    goto.mockResolvedValue({ status: () => 403 });
+    goto.mockResolvedValue(htmlResp(403));
     const browserFetch = makeBrowserFetch(BROWSER);
 
     const res = await browserFetch("https://revspin.net/blade/");
@@ -131,6 +140,28 @@ describe("makeBrowserFetch", () => {
     await expect(browserFetch("https://revspin.net/rubber/")).rejects.toThrow(
       "target closed"
     );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  // TT-245 follow-up: revspin's images sit behind the same fingerprint
+  // block as its pages. A browser-driven image download must return the
+  // raw response bytes — page.content() would wrap them in Chromium's
+  // HTML viewer shell and corrupt the stored candidate.
+  it("returns raw bytes (not rendered DOM) for non-HTML responses", async () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    goto.mockResolvedValue({
+      status: () => 200,
+      headers: () => ({ "content-type": "image/jpeg" }),
+      buffer: async () => Buffer.from(jpeg),
+    });
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch(
+      "https://revspin.net/images/rubber/palio-cj8000-36-38.jpg"
+    );
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(jpeg);
+    expect(content).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
