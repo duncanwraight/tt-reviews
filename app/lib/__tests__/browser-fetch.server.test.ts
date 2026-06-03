@@ -8,13 +8,19 @@ import type { BrowserWorker } from "@cloudflare/puppeteer";
 const goto = vi.fn();
 const content = vi.fn();
 const close = vi.fn();
+const disconnect = vi.fn();
 const newPage = vi.fn();
 const launch = vi.fn();
+const sessions = vi.fn();
+const connect = vi.fn();
 const waitForNavigation = vi.fn();
+const pageClose = vi.fn();
 
 vi.mock("@cloudflare/puppeteer", () => ({
   default: {
     launch: (...args: unknown[]) => launch(...args),
+    sessions: (...args: unknown[]) => sessions(...args),
+    connect: (...args: unknown[]) => connect(...args),
   },
 }));
 
@@ -36,16 +42,30 @@ beforeEach(() => {
   goto.mockReset();
   content.mockReset();
   close.mockReset();
+  disconnect.mockReset();
   newPage.mockReset();
   launch.mockReset();
+  sessions.mockReset();
+  connect.mockReset();
   waitForNavigation.mockReset();
+  pageClose.mockReset();
 
   content.mockResolvedValue("<html><body>rendered</body></html>");
   goto.mockResolvedValue(htmlResp(200));
   waitForNavigation.mockResolvedValue(null);
-  newPage.mockResolvedValue({ goto, content, waitForNavigation });
+  pageClose.mockResolvedValue(undefined);
+  newPage.mockResolvedValue({
+    goto,
+    content,
+    waitForNavigation,
+    close: pageClose,
+  });
   close.mockResolvedValue(undefined);
-  launch.mockResolvedValue({ newPage, close });
+  disconnect.mockResolvedValue(undefined);
+  // No idle sessions by default — every test starts on the fresh-launch
+  // path unless it stubs `sessions` itself.
+  sessions.mockResolvedValue([]);
+  launch.mockResolvedValue({ newPage, close, disconnect });
 });
 
 afterEach(() => {
@@ -84,10 +104,12 @@ describe("makeBrowserFetch", () => {
     expect(res.status).toBe(200);
   });
 
-  it("closes the browser session after a successful render", async () => {
+  it("disconnects (keeps warm) rather than closes after a successful render", async () => {
     const browserFetch = makeBrowserFetch(BROWSER);
     await browserFetch("https://revspin.net/rubber/");
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(pageClose).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
   });
 
   it("propagates a non-recoverable navigation error and still closes the session", async () => {
@@ -114,7 +136,7 @@ describe("makeBrowserFetch", () => {
     const res = await browserFetch("https://revspin.net/rubber/");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("<html><body>partial list</body></html>");
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 
   it("retries content() once after an execution-context-destroyed race", async () => {
@@ -162,7 +184,75 @@ describe("makeBrowserFetch", () => {
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(jpeg);
     expect(content).not.toHaveBeenCalled();
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  // TT-245 follow-up #2: the 18:00 spec cron and a photo requeue
+  // colliding produced "Unable to connect to existing session … retry
+  // or launch a new browser" in prod. Follow Cloudflare's lifecycle:
+  // reuse idle sessions, retry transient acquisition failures, and fall
+  // back to a fresh launch when a reused session turns out stale.
+  it("reuses an idle session instead of launching a new browser", async () => {
+    sessions.mockResolvedValue([
+      { sessionId: "sess-1", startTime: 0 },
+      { sessionId: "sess-busy", startTime: 0, connectionId: "conn-9" },
+    ]);
+    connect.mockResolvedValue({ newPage, close, disconnect });
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch("https://revspin.net/rubber/");
+    expect(connect).toHaveBeenCalledWith(BROWSER, "sess-1");
+    expect(launch).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a transient launch failure (session-collision error)", async () => {
+    launch
+      .mockRejectedValueOnce(
+        new Error(
+          "Unable to connect to existing session cf845358 (it may still be in use or not ready yet) - retry or launch a new browser: TypeError: Cannot read properties of null (reading 'accept')"
+        )
+      )
+      .mockResolvedValueOnce({ newPage, close, disconnect });
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch("https://revspin.net/rubber/");
+    expect(launch).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+  }, 15_000);
+
+  it("does not retry a non-transient launch failure", async () => {
+    launch.mockRejectedValue(new Error("Browser Rendering is not enabled"));
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    await expect(browserFetch("https://revspin.net/rubber/")).rejects.toThrow(
+      "not enabled"
+    );
+    expect(launch).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to a fresh launch when a reused session is stale", async () => {
+    const staleClose = vi.fn().mockResolvedValue(undefined);
+    sessions.mockResolvedValueOnce([{ sessionId: "sess-stale", startTime: 0 }]);
+    connect.mockResolvedValue({
+      newPage: vi
+        .fn()
+        .mockRejectedValue(
+          new Error("Protocol error (Target.createTarget): Target closed.")
+        ),
+      close: staleClose,
+      disconnect: vi.fn(),
+    });
+    const browserFetch = makeBrowserFetch(BROWSER);
+
+    const res = await browserFetch("https://revspin.net/rubber/");
+    // Stale session is closed outright (not kept warm), then the fetch
+    // succeeds on a freshly launched browser.
+    expect(staleClose).toHaveBeenCalledTimes(1);
+    expect(launch).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html><body>rendered</body></html>");
   });
 
   it("accepts URL and Request-like inputs, not just strings", async () => {
