@@ -5,6 +5,8 @@
 // real Butterfly/TT11/RevSpin sites or the Gemini API.
 
 import { Logger, createLogContext } from "../logger.server";
+import { makeBrowserFetch } from "../browser-fetch.server";
+import { fetchProductList } from "../revspin.server";
 import { withSpecExtractorBudget } from "./extract/budget";
 import { makeGeminiExtractor } from "./extract/gemini";
 import type {
@@ -14,6 +16,7 @@ import type {
 } from "./extract/budget";
 import type { EquipmentRef, SpecCandidate, SpecSource } from "./sources/types";
 import { SPEC_SOURCES } from "./sources";
+import { makeRevspinSource } from "./sources/revspin";
 import type { BudgetKV } from "../providers/budget";
 
 interface SpecSourcingEnv {
@@ -26,6 +29,10 @@ interface SpecSourcingEnv {
   // webServer config alongside TEST_SOURCING_PROVIDER. Never set in
   // production.
   TEST_SPEC_SOURCING?: string;
+  // TT-245 — Cloudflare Browser Rendering binding. Present only on the
+  // deployed Worker; when set, the revspin source fetches via real
+  // headless Chromium to get past revspin.net's fingerprint 403.
+  BROWSER?: Fetcher;
 }
 
 // Free-tier Gemini RPD is 1000; leave headroom for manual ad-hoc runs.
@@ -124,5 +131,23 @@ export function buildSpecSourcingFromEnv(
     }
   );
 
-  return { sources: SPEC_SOURCES, extractor };
+  return { sources: withBrowserRevspin(SPEC_SOURCES, env.BROWSER), extractor };
+}
+
+// TT-245 — when the deployed Worker has a BROWSER binding, swap the
+// default revspin source (plain `fetch`, 403s) for one whose list +
+// detail fetches route through real headless Chromium. Other sources
+// are untouched. With no binding (local dev / CI) the registry is
+// returned as-is and revspin keeps using plain `fetch`.
+function withBrowserRevspin(
+  sources: SpecSource[],
+  browser: Fetcher | undefined
+): SpecSource[] {
+  if (!browser) return sources;
+  const browserFetch = makeBrowserFetch(browser);
+  const revspin = makeRevspinSource({
+    fetchListFn: category => fetchProductList(category, browserFetch),
+    fetchImpl: browserFetch,
+  });
+  return sources.map(source => (source.id === "revspin" ? revspin : source));
 }

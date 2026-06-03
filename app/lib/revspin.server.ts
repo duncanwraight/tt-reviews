@@ -50,9 +50,18 @@ export interface RevspinProduct {
 }
 
 /**
- * Rate-limited fetch wrapper
+ * Rate-limited fetch wrapper.
+ *
+ * `fetchImpl` is injectable so callers can route through Cloudflare
+ * Browser Rendering (TT-245) when the deployed Worker has a BROWSER
+ * binding — revspin.net 403s plain Workers `fetch()` on a TLS
+ * fingerprint check. Defaults to the global `fetch` for local dev / CI
+ * (no binding) and for tests.
  */
-async function rateLimitedFetch(url: string): Promise<Response> {
+async function rateLimitedFetch(
+  url: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<Response> {
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
 
@@ -64,7 +73,7 @@ async function rateLimitedFetch(url: string): Promise<Response> {
 
   lastRequestTime = Date.now();
 
-  const response = await fetch(url, {
+  const response = await fetchImpl(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; TT-Reviews-Bot/1.0; +https://tabletennis.reviews)",
@@ -142,10 +151,11 @@ export function parseProductImageUrl(html: string): string | null {
  * provider (TT-94) which doesn't need the full spec parse.
  */
 export async function fetchProductImageUrl(
-  url: string
+  url: string,
+  fetchImpl?: typeof fetch
 ): Promise<string | null> {
   try {
-    const response = await rateLimitedFetch(url);
+    const response = await rateLimitedFetch(url, fetchImpl);
     const html = await response.text();
     return parseProductImageUrl(html);
   } catch (error) {
@@ -422,7 +432,8 @@ function parseSpecifications(
  * Fetch list of products for a category
  */
 export async function fetchProductList(
-  category: RevspinCategory
+  category: RevspinCategory,
+  fetchImpl?: typeof fetch
 ): Promise<RevspinListItem[]> {
   const path = getCategoryPath(category);
   const url = `${REVSPIN_BASE_URL}${path}`;
@@ -433,7 +444,7 @@ export async function fetchProductList(
   });
 
   try {
-    const response = await rateLimitedFetch(url);
+    const response = await rateLimitedFetch(url, fetchImpl);
     const html = await response.text();
 
     Logger.debug(
@@ -469,10 +480,11 @@ export async function fetchProductList(
  */
 export async function fetchProductDetails(
   url: string,
-  category: RevspinCategory
+  category: RevspinCategory,
+  fetchImpl?: typeof fetch
 ): Promise<RevspinProduct | null> {
   try {
-    const response = await rateLimitedFetch(url);
+    const response = await rateLimitedFetch(url, fetchImpl);
     const html = await response.text();
 
     // Extract product name from page title or heading

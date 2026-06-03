@@ -20,6 +20,17 @@ routes = [
 binding = "IMAGE_BUCKET"
 bucket_name = "tt-reviews-prod"
 
+# TT-245 — Cloudflare Browser Rendering. revspin.net began 403ing all
+# non-browser clients (TLS/HTTP-2 fingerprint block behind SiteGround's
+# CDN), which Workers `fetch()` can't defeat from the app side. Routing
+# revspin list/detail fetches through real headless Chromium restores
+# the tier-3 spec source + revspin photo provider. Deliberately NOT
+# declared under [env.dev]: the binding only works deployed (or
+# `wrangler dev --remote`), so local dev + CI e2e have no BROWSER and
+# the code falls back to plain `fetch` (see app/lib/browser-fetch.server.ts).
+[browser]
+binding = "BROWSER"
+
 # TT-90 sourcing-provider quota counters (daily + monthly per-provider).
 # Created via `wrangler kv namespace create PROVIDER_QUOTA` and the
 # corresponding --preview variant. Keys: `provider:<name>:daily:<YYYY-

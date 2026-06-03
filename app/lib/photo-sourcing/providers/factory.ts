@@ -12,10 +12,12 @@
 import { braveProvider } from "./brave";
 import { withBudget, type BudgetKV, type BudgetRateLimit } from "./budget";
 import { megaspinProvider } from "./megaspin";
-import { revspinProvider } from "./revspin";
+import { revspinProvider, makeRevspinProvider } from "./revspin";
 import { testProvider } from "./test-provider";
 import type { Provider } from "./types";
 import { Logger, createLogContext } from "../../logger.server";
+import { makeBrowserFetch } from "../../browser-fetch.server";
+import { fetchProductList, fetchProductImageUrl } from "../../revspin.server";
 
 // Default monthly cap for Brave free tier. Override via env var
 // BRAVE_MONTHLY_CAP if you upgrade the plan.
@@ -34,6 +36,10 @@ interface ProviderEnv {
   // deterministic test stub. Set by Playwright's webServer config and
   // CI's e2e step. Never set in production.
   TEST_SOURCING_PROVIDER?: string;
+  // TT-245 — Cloudflare Browser Rendering binding. Present only on the
+  // deployed Worker; when set, the revspin provider fetches via real
+  // headless Chromium to get past revspin.net's fingerprint 403.
+  BROWSER?: Fetcher;
 }
 
 function parseCapOrDefault(raw: string | undefined, fallback: number): number {
@@ -75,10 +81,24 @@ export function buildProvidersFromEnv(env: ProviderEnv): Provider[] {
     // revspin direct-crawl (TT-94). No external API quota — politeness
     // throttle lives inside revspin.server.ts (1/sec). No budget
     // wrapping needed; the provider scrapes a site we don't pay per
-    // request for.
-    revspinProvider,
+    // request for. TT-245: route through Browser Rendering when the
+    // deployed Worker has a BROWSER binding (revspin now 403s plain
+    // `fetch`); fall back to the default provider otherwise.
+    buildRevspinProvider(env.BROWSER),
     // megaspin direct-crawl (TT-95). Same shape as revspin —
     // free-to-scrape with an in-module 1.1s throttle.
     megaspinProvider,
   ];
+}
+
+// TT-245 — with a BROWSER binding, build a revspin provider whose list
+// + image fetches drive real headless Chromium; without one (local dev
+// / CI), reuse the default provider that uses plain `fetch`.
+function buildRevspinProvider(browser: Fetcher | undefined): Provider {
+  if (!browser) return revspinProvider;
+  const browserFetch = makeBrowserFetch(browser);
+  return makeRevspinProvider({
+    fetchListFn: category => fetchProductList(category, browserFetch),
+    fetchImageFn: url => fetchProductImageUrl(url, browserFetch),
+  });
 }
