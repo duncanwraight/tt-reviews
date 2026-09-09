@@ -8,6 +8,7 @@ How to see what's happening in production — written for Claude Code and humans
 - Live-tail errors only: `npm run logs:errors`
 - Uncaught errors have a stable tag (`source:"worker-entry"`) so they can be filtered, see [Stable error tags](#stable-error-tags) below.
 - Every `Logger.error` in prod also fires a Discord embed into `#alerts` — see [Discord error alerts](#discord-error-alerts) below.
+- Cron triggers are **currently disabled** — see [Scheduled jobs (cron triggers)](#scheduled-jobs-cron-triggers) below.
 
 No paid service (Sentry, Datadog, etc.) is wired in. We rely on Cloudflare Workers Observability (already enabled in `wrangler.toml`), `wrangler tail`, the Cloudflare Logs API, and a Discord webhook for active paging. All free, all Claude-Code-compatible.
 
@@ -154,6 +155,51 @@ Prod requires three things wired up:
 3. The bot must be a member of the alerts channel with **Send Messages** + **Embed Links** permissions in that channel.
 
 `validateEnv` in `app/lib/env.server.ts` will 503 prod requests if `DISCORD_ALERTS_CHANNEL_ID` is missing, so a forgotten secret surfaces on first request after deploy rather than silently failing.
+
+## Scheduled jobs (cron triggers)
+
+> **Currently disabled (2026-09-09).** Both jobs were erroring repeatedly in
+> prod, so `[triggers].crons` in `wrangler.toml` is set to `[]` and no
+> scheduled invocations are running. The `scheduled()` handler in
+> `workers/app.ts` is untouched — re-enable by restoring the commented-out
+> `crons` line above `[triggers]` and deploying. Cron Trigger changes take up
+> to ~15 minutes to propagate.
+
+The Worker declares its cron triggers in `wrangler.toml` under `[triggers]`;
+each cron string maps to one `case` in the `scheduled()` switch in
+`workers/app.ts`. An empty `crons` array removes all triggers on the next
+deploy — omitting the key entirely would instead leave the currently deployed
+triggers in place, which is why the disabled state is an explicit `[]`.
+
+| Cron          | Job                                                      |
+| ------------- | -------------------------------------------------------- |
+| `0 3 * * *`   | Daily recompute of `equipment_similar` (TT-70).          |
+| `0 */6 * * *` | Spec-sourcing enqueue onto `SPEC_SOURCE_QUEUE` (TT-149). |
+
+Cron failures log through the same alerter as the request path
+(`installAlerter` is called at the top of `scheduled()`), so they reach the
+Discord alerts channel. Log tags to filter on:
+
+```sh
+npx wrangler tail --format=json --search "source:scheduled"
+```
+
+- `scheduled.env-validation-failed` — `validateEnv` rejected the isolate's env;
+  the job returns without running.
+- `scheduled.<cron>.failed` — the job threw. The cron string is in the tag.
+- `scheduled.unknown-cron` — a cron fired with no matching `case`, i.e.
+  `wrangler.toml` and `workers/app.ts` have drifted.
+
+Trigger a job locally (requires `wrangler dev`, not `react-router dev`):
+
+```sh
+curl 'http://tt-reviews.local:8787/__scheduled?cron=0+3+*+*+*'
+```
+
+Note that the queue consumers (`equipment-photo-source`, `spec-source-queue`,
+`player-import-queue`) are event-driven, not cron-driven, and are unaffected by
+the triggers being disabled — but with the spec-sourcing enqueue off, nothing
+new lands on `SPEC_SOURCE_QUEUE` automatically.
 
 ## Operational scripts
 

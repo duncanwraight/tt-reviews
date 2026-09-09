@@ -168,8 +168,16 @@ head_sampling_rate = 1
 # - "0 */6 * * *":   spec-sourcing pipeline enqueue (TT-149) — every
 #                    6 hours pick a batch of equipment due for spec
 #                    sourcing and enqueue messages onto SPEC_SOURCE_QUEUE.
+#
+# DISABLED (2026-09-09) — both jobs were erroring repeatedly in prod, so the
+# triggers are switched off until they're fixed properly. An empty `crons`
+# array is the documented way to remove all Cron Triggers on the next deploy;
+# omitting the key entirely would leave the existing triggers in place. The
+# `scheduled` handler in workers/app.ts is untouched — restore the line below
+# to re-enable.
+#   crons = ["0 3 * * *", "0 */6 * * *"]
 [triggers]
-crons = ["0 3 * * *", "0 */6 * * *"]
+crons = []
 
 [vars]
 ENVIRONMENT = "production"
