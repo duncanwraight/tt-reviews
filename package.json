@@ -33,8 +33,8 @@
     "@cloudflare/puppeteer": "^1.1.0",
     "@jsquash/png": "^3.1.1",
     "@jsquash/webp": "^1.5.0",
-    "@react-router/fs-routes": "^7.14.2",
-    "@react-router/node": "^7.14.2",
+    "@react-router/fs-routes": "^7.18.3",
+    "@react-router/node": "^7.18.3",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.48.1",
     "@types/sanitize-html": "^2.16.1",
@@ -42,15 +42,15 @@
     "lucide-react": "^1.11.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "^7.14.2",
-    "sanitize-html": "^2.17.3",
+    "react-router": "^7.18.3",
+    "sanitize-html": "^2.17.7",
     "workers-og": "^0.0.27"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.34.0",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.59.1",
-    "@react-router/dev": "^7.14.2",
+    "@react-router/dev": "^7.18.3",
     "@tailwindcss/vite": "^4.1.4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -70,10 +70,15 @@
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.59.0",
-    "vite": "^6.3.3",
+    "vite": "^6.4.3",
     "vite-plugin-devtools-json": "^0.2.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.8",
     "wrangler": "^4.87.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.4",
+    "undici": "^7.29.1",
+    "ws": "^8.21.3"
   }
 }

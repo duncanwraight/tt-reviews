@@ -17,7 +17,7 @@ Listed here so future scanner additions don't duplicate work. See `.github/workf
 
 | Check                                 | Where                  | Catches                                                                                     |
 | ------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------- |
-| `npm audit --audit-level=high`        | `checks` job, blocking | Known CVEs in prod + build deps                                                             |
+| `scripts/audit-check.sh`              | `checks` job, blocking | Known CVEs in prod + build deps (`npm audit` + a documented allowlist)                      |
 | `scripts/security-sweep.sh`           | `checks` job, blocking | RLS self-approval, `process.env` reads in server code, admin actions missing `validateCSRF` |
 | `scripts/quality-sweep.sh`            | `checks` job, blocking | Raw `console.*`, `Record<string, any[]>` casts                                              |
 | pgTAP RLS tests                       | `checks` job, blocking | RLS bypass per table (1,334 lines across `supabase/tests/`)                                 |
@@ -54,6 +54,43 @@ Each tool adds well under a minute to `checks` and blocks the build on findings.
 **Hook:** new step in `checks` after `RLS tests (pgTAP)`. Run `supabase db lint` against the local Postgres started earlier in the job; fail on `security`/`critical` advisors, warn on others. No extra services needed (CLI is already installed and pinned at 2.95.0).
 
 **Acceptance:** a deliberately mis-scoped `SECURITY DEFINER` view on a branch fails the build.
+
+### `scripts/audit-check.sh` — dependency CVE gate
+
+Wraps `npm audit --json` and fails the build on any **high or critical**
+advisory that isn't on an explicit allowlist. It replaced a bare
+`npm audit --audit-level=high` call because npm has no native ignore list —
+the only built-in knobs are `--audit-level` (blunt: silences a whole severity
+band, including future unrelated advisories) and `--omit=dev` (wrong here:
+the build-time supply chain is in scope).
+
+The allowlist lives in the `ALLOW` array at the top of the script, keyed by
+npm's numeric advisory id, with the rationale in a comment beside it.
+
+**Adding an entry is a security decision, not a convenience.** The bar:
+
+1. No fixed version exists upstream — if there is one, take it instead
+   (`npm update <pkg>`, or an `overrides` entry in `package.json` when a
+   transitive dependency's parent still pins an affected range).
+2. The vulnerable code path is unreachable in this app, and the entry says
+   why in concrete terms.
+3. The entry carries a review date.
+
+Currently allowlisted — the only entries:
+
+| Advisory                                                   | Why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GHSA-jmr9-qjv8-65gv`, `GHSA-7pqw-9j4j-h8q3` (extract-zip) | Chain is `@cloudflare/puppeteer → @puppeteer/browsers → extract-zip`. Both are symlink-traversal bugs in **archive extraction**, which `@puppeteer/browsers` only performs when downloading a local Chromium. The deployed Worker drives Browser Rendering through the `BROWSER` binding (`app/lib/browser-fetch.server.ts`) and never extracts an archive. No fixed `extract-zip` exists — latest (2.0.1) is the flagged version, and npm's only suggested fix is downgrading `@cloudflare/puppeteer` to 0.0.11, which removes the Browser Rendering API TT-245 depends on. Review 2026-12-09. |
+
+The script also prints a `STALE` line for any allowlist entry that no longer
+matches a live advisory — that means a fix landed and the entry should be
+deleted. It's a warning, not a failure, so a fix landing upstream never turns
+CI red on its own.
+
+Transitive CVEs that _do_ have fixes are handled with `overrides` in
+`package.json` rather than allowlisting. `sharp`, `undici`, and `ws` are
+pinned forward there because `miniflare` (via `wrangler`) still resolves
+affected ranges.
 
 ## Scheduled checks (Wed 16:30 UTC + Sun 18:00 UTC)
 
@@ -115,6 +152,7 @@ Where each scanner's output lands and who acts on it.
 - **No `process.env` in Worker code.** Scanners that read env via `process.env` are fine — they only run in the GitHub Actions Node runtime, not inside the Worker isolate. (See `CLAUDE.md` "Environment variables" for context on why `process.env` is banned at Worker runtime.)
 - **Supabase CLI pin (2.95.0).** Splinter + `db lint` ship with the CLI; both must be available in 2.95.0. Verified on local install before merging the inline step.
 - **Cloudflare 50-subrequest cap (Workers Free).** Scanners hit the Worker from outside; the cap applies to _outbound_ subrequests _the Worker itself_ makes, not inbound traffic. ZAP baseline against prod is fine.
+- **`scripts/**`is in the workflow's`paths-ignore`.** A commit that touches *only* `scripts/audit-check.sh` will not trigger CI, so a change to the gate itself goes untested until the next commit that touches something else. Pair script edits with a real change, or trigger the workflow manually.
 - **DST drift in the cron schedule.** Cron is UTC; UK switches between BST (UTC+1) and GMT (UTC+0). Acceptable for advisory scans; if exact UK-local timing matters later, switch to a workflow-dispatch + external scheduler.
 
 ## Implementation tickets

@@ -110,7 +110,14 @@ jobs:
         # build-time deps are included too — prod and build supply chain
         # are both relevant. `|| true` is intentionally absent; the
         # check is meant to fail the job.
-        run: npm audit --audit-level=high
+        #
+        # Wrapped rather than calling `npm audit` directly: npm has no
+        # native ignore list, and one advisory chain (extract-zip, via
+        # @cloudflare/puppeteer) has no published fix and is unreachable
+        # in the deployed Worker. The wrapper allowlists exactly those
+        # advisory ids, with rationale and a review date, and still fails
+        # on everything else. See scripts/audit-check.sh.
+        run: ./scripts/audit-check.sh
 
       - name: Prepare test-results dir
         run: mkdir -p /tmp/test-results
